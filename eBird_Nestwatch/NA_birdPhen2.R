@@ -417,6 +417,54 @@ beta0 ~ normal(0, 100);
 theta ~ normal(0, 30);
 }'
 
+stan_ICAR_weak_prior <- '
+data {
+int<lower=0> N; // number of cells (= number of observations, including NAs)
+int<lower=0> N_obs; // number of non-missing
+int<lower=0> N_mis; // number missing
+int<lower=0> N_edges; // number of edges in adjacency matrix
+int<lower=1, upper=N> node1[N_edges];  // node1[i] adjacent to node2[i]
+int<lower=1, upper=N> node2[N_edges];  // and node1[i] < node2[i]
+real<lower=0, upper=200> obs[N_obs];    // observed data (excluding NAs)
+int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];
+int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];
+real<lower=0> sds[N];                 // sds for ALL data (observed and unobserved)
+}
+
+parameters {
+real<lower=1, upper=200> y_mis[N_mis];         // missing data
+real beta0;                // intercept
+
+real<lower=0> sigma_theta;   // sd of heterogeneous effects
+real<lower=0> sigma_phi;     // sd of spatial effects
+
+vector[N] theta;       // heterogeneous effects
+vector[N] phi;         // spatial effects
+vector[N] latent;      // latent true halfmax values
+}
+
+transformed parameters {
+real<lower=0, upper=200> y[N];
+y[ii_obs] = obs;
+y[ii_mis] = y_mis;
+}
+
+
+model {
+y ~ normal(latent, sds);
+latent ~ normal(beta0 + phi * sigma_phi, sigma_theta);
+
+// the following computes the prior on phi on the unit scale with sd = 1
+target += -0.5 * dot_self(phi[node1] - phi[node2]);
+
+// soft sum-to-zero constraint on phi)
+sum(phi) ~ normal(0, 0.001 * N);  // equivalent to mean(phi) ~ normal(0,0.001)
+
+beta0 ~ normal(0, 100);
+theta ~ normal(0, 30);
+sigma_theta ~ normal(2, 2);
+}'
+
 # Data preparation: Red-eyed Vireo in 2016
 frame_16 <- diag_frame[which(diag_frame$year == 2016), ]
 REVI_16 <- frame_16[which(frame_16$species == "Vireo_olivaceus"), ]
@@ -518,7 +566,7 @@ REVI2005 <- list(N = length(cells), N_edges = nrow(ninds), node1 = ninds[,1], no
 
 
 REVI2005_fit2 <- stan(
-  model_code = stan_ICAR,  # Stan program
+  model_code = stan_ICAR_infoPrior,  # Stan program
   data = REVI2005,    # named list of data
   chains = 3,             # number of Markov chains
   iter = 6000,            # total number of iterations per chain
@@ -535,7 +583,21 @@ summary(REVI2005_fit2)
 
 
 
+REVI2005_fit3 <- stan(
+  model_code = stan_ICAR_weak_prior,  # Stan program
+  data = REVI2005,    # named list of data
+  chains = 3,             # number of Markov chains
+  iter = 6000,            # total number of iterations per chain
+  cores = 3,              # number of cores
+  control = list(max_treedepth = 20, adapt_delta = .9)
+)
 
+pairs_stan(chain = 1, stan_model = REVI2005_fit3, pars=c("sigma_theta", "sigma_phi", "beta0", "latent[1]", "lp__"))
+check_energy(REVI2005_fit3)
+
+save(REVI2005_fit3, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2005_fit3.Rdata")
+load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2005_fit3.Rdata")
+summary(REVI2005_fit3)
 
 
 ######### ATTEMPTING A GAUSSIAN PROCESS MODEL (AS WRITTEN THIS DOESN'T REALLY WORK)
