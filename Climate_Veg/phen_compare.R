@@ -17,12 +17,15 @@ load("hex7_naphen_si.Rdata")
 load("hex7_VIPPHEN.Rdata")
 load("hex7_mcd12Q2.Rdata")
 load("hex7_mcd12Q2_max.Rdata")
+load("hex7_phenocam.Rdata")
+
 
 hex7list <- list(avhrr=hex7_avhrr, emodis=hex7_eMODIS, si=hex7_naphen_si, vipphen=hex7_VIPPHEN,
-                 mcd_increase=hex7_mcd12Q2, mcd_maximum=hex7_mcd12Q2_max)
+                 mcd_increase=hex7_mcd12Q2, mcd_maximum=hex7_mcd12Q2_max, phenocam10=hex7_phenocam$hex7_phenocam10,
+                 phenocam25=hex7_phenocam$hex7_phenocam25, phenocam50=hex7_phenocam$hex7_phenocam50)
 
-for(i in 1:5){
-  for(j in (i+1):6){
+for(i in 1:8){
+  for(j in (i+1):9){
     d1 <- hex7list[[i]]
     d2 <- hex7list[[j]]
     sharedcells <- unique(d1$cell[which(d1$cell %in% d2$cell)])
@@ -41,8 +44,13 @@ for(i in 1:5){
       }
       
       if(!is.na(fit)){
-        dr[k] <- sqrt(summary(fit)$r.squared)*(-1+2*as.numeric(summary(fit)$coefficients[2,1] > 0))
-        dp[k] <- summary(fit)$coefficients[2,4]
+        if(dim(summary(fit)$coefficients)[1] == 2){
+          dr[k] <- sqrt(summary(fit)$r.squared)*(-1+2*as.numeric(summary(fit)$coefficients[2,1] > 0))
+          dp[k] <- summary(fit)$coefficients[2,4]
+        }else{
+          dr[k] <- NA
+          dp[k] <- NA
+        }
       }else{
         dr[k] <- NA
         dp[k] <- NA
@@ -69,6 +77,5 @@ for(i in 1:5){
       theme(axis.text.y=element_blank())+
       ggtitle(paste(names(hex7list)[[i]], "vs.", names(hex7list)[[j]]))
     print(p)
-    
   }
 }

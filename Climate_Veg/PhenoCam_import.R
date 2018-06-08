@@ -53,3 +53,18 @@ for(i in 6:14){
 }
 
 save(na_phenocam, file = "/Users/TingleyLab/Dropbox/Work/Phenomismatch/Veg_phenology/na_phenocam.Rdata")
+
+hex6_phenocam10 <- doBy::summaryBy(transition_10 ~ cell6 + year, data = na_phenocam)
+hex6_phenocam25 <- doBy::summaryBy(transition_25 ~ cell6 + year, data = na_phenocam)
+hex6_phenocam50 <- doBy::summaryBy(transition_50 ~ cell6 + year, data = na_phenocam)
+names(hex6_phenocam10)[1] <- names(hex6_phenocam25)[1] <- names(hex6_phenocam50)[1] <- "cell"
+hex6_phenocam <- list(hex6_phenocam10=hex6_phenocam10, hex6_phenocam25=hex6_phenocam25, hex6_phenocam50=hex6_phenocam50)
+save(hex6_phenocam, file = "/Users/TingleyLab/Dropbox/Work/Phenomismatch/Veg_phenology/hex_gridded_products/hex6_phenocam.Rdata")
+
+
+hex7_phenocam10 <- doBy::summaryBy(transition_10 ~ cell7 + year, data = na_phenocam)
+hex7_phenocam25 <- doBy::summaryBy(transition_25 ~ cell7 + year, data = na_phenocam)
+hex7_phenocam50 <- doBy::summaryBy(transition_50 ~ cell7 + year, data = na_phenocam)
+names(hex7_phenocam10)[1] <- names(hex7_phenocam25)[1] <- names(hex7_phenocam50)[1] <- "cell"
+hex7_phenocam <- list(hex7_phenocam10=hex7_phenocam10, hex7_phenocam25=hex7_phenocam25, hex7_phenocam50=hex7_phenocam50)
+save(hex7_phenocam, file = "/Users/TingleyLab/Dropbox/Work/Phenomismatch/Veg_phenology/hex_gridded_products/hex7_phenocam.Rdata")
