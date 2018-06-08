@@ -22,6 +22,7 @@ load("hex6_naphen_si.Rdata")
 load("hex6_VIPPHEN.Rdata")
 load("hex6_mcd12Q2.Rdata")
 load("hex6_mcd12Q2_max.Rdata")
+load("hex6_phenocam.Rdata")
 load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/hex6_birdAll2009.Rdata")
 load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/hex6_nestwatch.Rdata")
 
@@ -30,10 +31,12 @@ names(hex6_mcd12Q2)[1] <- "cell"
 names(hex6_mcd12Q2_max)[1] <- "cell"
 
 hex6list <- list(avhrr=hex6_avhrr, emodis=hex6_eMODIS, si=hex6_naphen_si, vipphen=hex6_VIPPHEN,
-                 mcd_increase=hex6_mcd12Q2, mcd_maximum=hex6_mcd12Q2_max, birdAll2009=hex6_birdAll2009)
+                 mcd_increase=hex6_mcd12Q2, mcd_maximum=hex6_mcd12Q2_max, phenocam_10=hex6_phenocam$hex6_phenocam10,
+                 phenocam_25=hex6_phenocam$hex6_phenocam25, phenocam_50=hex6_phenocam$hex6_phenocam50,
+                 birdAll2009=hex6_birdAll2009)
 
-for(i in 1:5){
-  for(j in (i+1):6){
+for(i in 1:8){
+  for(j in (i+1):9){
     d1 <- hex6list[[i]]
     d2 <- hex6list[[j]]
     sharedcells <- unique(d1$cell[which(d1$cell %in% d2$cell)])
@@ -88,7 +91,7 @@ for(i in 1:5){
 
 d2 <- hex6_birdAll2009
 
-for(i in 1:6){
+for(i in 1:9){
     d1 <- hex6list[[i]]
     sharedcells <- unique(d1$cell[which(d1$cell %in% d2$cell)])
     sharedyears <- unique(d1$year[which(d1$year %in% d2$year)])
@@ -139,7 +142,7 @@ for(i in 1:6){
 d2 <- hex6_nestwatch
 d2 <- hex6_nestwatch[which(hex6_nestwatch$n >= 4), ]
 
-for(i in 1:7){
+for(i in 1:10){
   d1 <- hex6list[[i]]
   sharedcells <- unique(d1$cell[which(d1$cell %in% d2$cell)])
   sharedyears <- unique(d1$year[which(d1$year %in% d2$year)])
