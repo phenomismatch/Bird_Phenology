@@ -289,8 +289,6 @@ fit_funct <- function(datalist, model){
   return(output_list)
 }
 
-ncores <- 2
-
 cl <- makeCluster(ncores)
 registerDoParallel(cl)
 
