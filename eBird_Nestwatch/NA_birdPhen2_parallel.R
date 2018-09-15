@@ -27,18 +27,9 @@ library(coda)
 library(ggplot2)
 library(viridis)
 library(rstan)
+library(foreach)
 '%ni%' <- Negate('%in%')
 
-# Function to help evaluate stan fit diagnostics
-pairs_stan <- function(chain, stan_model, pars) {
-  energy <- as.matrix(sapply(get_sampler_params(stan_model, inc_warmup = F), 
-                             function(x) x[,"energy__"]))
-  pars <- extract(stan_model, pars = pars, permuted = F)
-  df <- data.frame(energy[,chain], pars[,chain,])
-  names(df)[1] <- "energy"
-  GGally::ggpairs(df, title = paste0("Chain", chain), 
-                  lower = list(continuous = GGally::wrap("points", alpha = 0.2)))                    
-}
 
 hexgrid6 <- dgconstruct(res=6) # Construct geospatial hexagonal grid
 years <- 2002:2016
@@ -75,7 +66,6 @@ species_list <- c("Empidonax_virescens", "Myiarchus_crinitus", "Contopus_virens"
 nsp <- length(species_list)
 
 # load('/Users/Tingleylab/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
-# load('/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
 # 
 # data <- data_NA_birdPhen[which(data_NA_birdPhen$PRIMARY_CHECKLIST_FLAG==1),]
 # data$EFFORT_HRS <- as.numeric(as.character(data$EFFORT_HRS))
@@ -187,12 +177,10 @@ nsp <- length(species_list)
 
 load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/birdPhenRaw.Rdata")
 load("/Users/Jacob/Dropbox/Work/Phenomismatch/NA_birdPhen/birdPhenRaw.Rdata")
-load("/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
 
-ncel <- length(cells)
 diag_frame <- birdPhenRaw[which(birdPhenRaw$n1 > 29 & birdPhenRaw$n0 > 29 &
-                                        birdPhenRaw$n1W < birdPhenRaw$n1/50 &
-                                        birdPhenRaw$njd0i > 29 & birdPhenRaw$njd1 > 19), ]
+                                  birdPhenRaw$n1W < birdPhenRaw$n1/50 &
+                                  birdPhenRaw$njd0i > 29 & birdPhenRaw$njd1 > 19), ]
 winter_spcels <- unique(birdPhenRaw$spCel[which(birdPhenRaw$n1W > birdPhenRaw$n1/50)])
 
 diag_frame <- diag_frame[which(diag_frame$spCel %ni% winter_spcels), ]
@@ -200,44 +188,13 @@ length(unique(diag_frame$spCel))
 for(i in 2002:2016){print(length(unique(diag_frame$spCel[which(diag_frame$year==i)])))}
 hist(diag_frame$phen_mean)
 
+load("/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
+ncel <- length(cells)
+
 cells_frame <- data.frame(cell=cells, n=NA)
 for(i in 1:ncel){
   cells_frame$n[i] <- sum(diag_frame$cell == cells[i])
 }
-
-# visualize how many species-years are available per cell
-grid <- dgcellstogrid(hexgrid6, as.integer(cells_frame$cell), frame=TRUE,wrapcells=TRUE)
-grid <- merge(grid, cells_frame, by = "cell")
-grid$logn <- log(grid$n)
-
-usa <- map_data("state") 
-
-p<- ggplot() + 
-  geom_polygon(data=usa, aes(x=long, y=lat, group=group), fill=NA, color="black")   +
-  geom_polygon(data=grid,      aes(x=long, y=lat, group=group, fill=logn), alpha=0.9)    +
-  geom_path   (data=grid,      aes(x=long, y=lat, group=group), alpha=0.4, color="white") +
-  #  geom_point  (aes(x=cellcenters$lon_deg, y=cellcenters$lat_deg)) +
-  scale_fill_gradient()
-p+coord_map("ortho", orientation = c(39, -80, 0))+
-  xlab('')+ylab('')+
-  theme(axis.ticks.x=element_blank())+
-  theme(axis.ticks.y=element_blank())+
-  theme(axis.text.x=element_blank())+
-  theme(axis.text.y=element_blank())
-
-grid <- grid[which(grid$n > 8), ]
-p<- ggplot() + 
-  geom_polygon(data=usa, aes(x=long, y=lat, group=group), fill=NA, color="black")   +
-  geom_polygon(data=grid,      aes(x=long, y=lat, group=group, fill=logn), alpha=0.9)    +
-  geom_path   (data=grid,      aes(x=long, y=lat, group=group), alpha=0.4, color="white") +
-  #  geom_point  (aes(x=cellcenters$lon_deg, y=cellcenters$lat_deg)) +
-  scale_fill_gradient()
-p+coord_map("ortho", orientation = c(39, -80, 0))+
-  xlab('')+ylab('')+
-  theme(axis.ticks.x=element_blank())+
-  theme(axis.ticks.y=element_blank())+
-  theme(axis.text.x=element_blank())+
-  theme(axis.text.y=element_blank())
 
 # Which species-years are worth modeling? At a bare minimum:
 #     Species with at least 3 cells in all three years from 2014-2016
@@ -260,13 +217,18 @@ for(i in 1:15){
 }
 length(which(species_years_use > 2))
 
+diag_frame2 <- diag_frame
+for(i in nrow(diag_frame):1){
+  if(length(which(diag_frame2$year == diag_frame2$year[i] & diag_frame2$species == diag_frame2$species[j])) < 3){
+    diag_frame2 <- diag_frame2[-i, ]
+  }
+}
 # ICAR models
 
 # General data preparation
-cells <- unique(grid$cell)
-save(cells, file = "/Users/TingleyLab/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
 load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
 load("/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
+
 ncel <- length(cells)
 cellcenters <- dgSEQNUM_to_GEO(hexgrid6, as.numeric(cells))
 adjacency_matrix <- matrix(data=NA, nrow = length(cells), ncol=length(cells))
@@ -284,54 +246,54 @@ ninds <- which(adjacency_matrix==1, arr.ind = T)
 # 1st attempt, tested on REVI for 2005 and 2016 yields warning about low estimated fraction of Bayesian
 # missing information. A pairs plot diagnoses the problem as 
 stan_ICAR <- '
-  data {
-  int<lower=0> N; // number of cells (= number of observations, including NAs)
-  int<lower=0> N_obs; // number of non-missing
-  int<lower=0> N_mis; // number missing
-  int<lower=0> N_edges; // number of edges in adjacency matrix
-  int<lower=1, upper=N> node1[N_edges];  // node1[i] adjacent to node2[i]
-  int<lower=1, upper=N> node2[N_edges];  // and node1[i] < node2[i]
-  real<lower=0, upper=200> obs[N_obs];    // observed data (excluding NAs)
-  int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];
-  int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];
-  real<lower=0> sds[N];                 // sds for ALL data (observed and unobserved)
+data {
+int<lower=0> N; // number of cells (= number of observations, including NAs)
+int<lower=0> N_obs; // number of non-missing
+int<lower=0> N_mis; // number missing
+int<lower=0> N_edges; // number of edges in adjacency matrix
+int<lower=1, upper=N> node1[N_edges];  // node1[i] adjacent to node2[i]
+int<lower=1, upper=N> node2[N_edges];  // and node1[i] < node2[i]
+real<lower=0, upper=200> obs[N_obs];    // observed data (excluding NAs)
+int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];
+int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];
+real<lower=0> sds[N];                 // sds for ALL data (observed and unobserved)
 }
 
 parameters {
-  real<lower=1, upper=200> y_mis[N_mis];         // missing data
-  real beta0;                // intercept
-  
-  real<lower=0> sigma_theta;   // sd of heterogeneous effects
-  real<lower=0> sigma_phi;     // sd of spatial effects
-  
-  vector[N] theta;       // heterogeneous effects
-  vector[N] phi;         // spatial effects
-  vector[N] latent;      // latent true halfmax values
+real<lower=1, upper=200> y_mis[N_mis];         // missing data
+real beta0;                // intercept
+
+real<lower=0> sigma_theta;   // sd of heterogeneous effects
+real<lower=0> sigma_phi;     // sd of spatial effects
+
+vector[N] theta;       // heterogeneous effects
+vector[N] phi;         // spatial effects
+vector[N] latent;      // latent true halfmax values
 }
 
 transformed parameters {
-  real<lower=0, upper=200> y[N];
-  y[ii_obs] = obs;
-  y[ii_mis] = y_mis;
+real<lower=0, upper=200> y[N];
+y[ii_obs] = obs;
+y[ii_mis] = y_mis;
 }
 
 
 model {
-  y ~ normal(latent, sds);
-  latent ~ normal(beta0 + phi * sigma_phi, sigma_theta);
-  
-  // the following computes the prior on phi on the unit scale with sd = 1
-  target += -0.5 * dot_self(phi[node1] - phi[node2]);
+y ~ normal(latent, sds);
+latent ~ normal(beta0 + phi * sigma_phi, sigma_theta);
 
-  // soft sum-to-zero constraint on phi)
-  sum(phi) ~ normal(0, 0.001 * N);  // equivalent to mean(phi) ~ normal(0,0.001)
-  
-  beta0 ~ normal(0, 100);
-  theta ~ normal(0, 30);
+// the following computes the prior on phi on the unit scale with sd = 1
+target += -0.5 * dot_self(phi[node1] - phi[node2]);
+
+// soft sum-to-zero constraint on phi)
+sum(phi) ~ normal(0, 0.001 * N);  // equivalent to mean(phi) ~ normal(0,0.001)
+
+beta0 ~ normal(0, 100);
+theta ~ normal(0, 30);
 }'
 
 stan_ICAR_infoPrior <- '
-  data {
+data {
 int<lower=0> N; // number of cells (= number of observations, including NAs)
 int<lower=0> N_obs; // number of non-missing
 int<lower=0> N_mis; // number missing
@@ -379,7 +341,7 @@ sigma_theta ~ normal(.7, .05);
 }'
 
 stan_ICAR_no_nonspatial <- '
-  data {
+data {
 int<lower=0> N; // number of cells (= number of observations, including NAs)
 int<lower=0> N_obs; // number of non-missing
 int<lower=0> N_mis; // number missing
@@ -470,10 +432,11 @@ theta ~ normal(0, 30);
 sigma_theta ~ normal(2, 2);
 }'
 
-diag_frame$spyr <- paste(diag_frame$species, diag_frame$year, sep="_")
-spyrs <- unique(diag_frame$spyr)
+
+diag_frame2$spyr <- paste(diag_frame2$species, diag_frame2$year, sep="_")
+spyrs <- unique(diag_frame2$spyr)
 nfits <- length(spyrs)
-ncores <- 4
+ncores <- 3
 
 Ldatalist <- list()
 counter <- 0
@@ -483,7 +446,7 @@ for(i in 1:ncores){
     counter <- counter + 1
     if(counter <= nfits){
       Ldatalist[[i]][[j]] <- 
-        diag_frame[which(diag_frame$spyr == spyrs[counter]), ]
+        diag_frame2[which(diag_frame2$spyr == spyrs[counter]), ]
     }
     
   }
@@ -493,10 +456,9 @@ fit_funct <- function(datalist, model){
   output_list <- list()
   for(j in 1:length(datalist)){
     dd <- datalist[[j]]
+    SY <- data.frame(cell = cells, halfmax = NA, sd = NA)
     for(i in 1:length(cells)){
-      d1 <- which(dd$cell == cells[i])
-      SY <- data.frame(cell = cells, halfmax = NA, sd = NA)
-
+      d1 <- which(dd$cell == as.integer(cells[i]))
       if(length(d1) > 0){
         SY$halfmax[i] <- dd$phen_mean[d1]
         SY$sd[i] <- dd$phen_sd[d1]
@@ -506,17 +468,17 @@ fit_funct <- function(datalist, model){
     }
     
     SYL <- list(N = length(cells), N_edges = nrow(ninds), node1 = ninds[,1], node2 = ninds[,2],
-                     obs = SY$halfmax[which(!is.na(SY$halfmax))], 
-                     ii_obs = which(!is.na(SY$halfmax)),
-                     ii_mis = which(is.na(SY$halfmax)),
-                     N_obs = sum(!is.na(SY$halfmax)),
-                     N_mis = sum(is.na(SY$halfmax)),
-                     sds = SY$sd)
+                obs = SY$halfmax[which(!is.na(SY$halfmax))], 
+                ii_obs = which(!is.na(SY$halfmax)),
+                ii_mis = which(is.na(SY$halfmax)),
+                N_obs = sum(!is.na(SY$halfmax)),
+                N_mis = sum(is.na(SY$halfmax)),
+                sds = SY$sd)
     
     
     
     output_list[[j]] <- stan(
-      model_code = stan_ICAR_no_nonspatial,  # Stan program
+      model_code = model,  # Stan program
       data = SYL,    # named list of data
       chains = 3,             # number of Markov chains
       iter = 6000,            # total number of iterations per chain
@@ -525,237 +487,11 @@ fit_funct <- function(datalist, model){
       # see http://mc-stan.org/misc/warnings.html
     )
   }
+  return(output_list)
 }
 
-
-years <- 2002:2016
-frame_sp <- diag_frame[which(diag_frame$species == species_list[i]), ]
-frame_sp_yr <- frame_sp[which(frame_sp$year == years[j]), ]
-frame_16 <- diag_frame[which(diag_frame$year == 2016), ]
-REVI_16 <- frame_16[which(frame_16$species == "Vireo_olivaceus"), ]
-REVI_data2016 <- data.frame(cell = cells, halfmax = NA, sd = NA)
-
-for(i in 1:length(cells)){
-  d1 <- which(diag_frame$species == "Vireo_olivaceus" & diag_frame$year == 2016 & diag_frame$cell == cells[i])
-  if(length(d1) > 0){
-    if(length(d1) != 1){
-      print(i)
-      stop("length d1 != 1")
-    }
-    REVI_data2016$halfmax[i] <- diag_frame$phen_mean[d1]
-    REVI_data2016$sd[i] <- diag_frame$phen_sd[d1]
-  }else{
-    REVI_data2016$sd[i] <- .01
-  }
-}
-
-REVI2016 <- list(N = length(cells), N_edges = nrow(ninds), node1 = ninds[,1], node2 = ninds[,2],
-                 obs = REVI_data2016$halfmax[which(!is.na(REVI_data2016$halfmax))], 
-                 ii_obs = which(!is.na(REVI_data2016$halfmax)),
-                 ii_mis = which(is.na(REVI_data2016$halfmax)),
-                 N_obs = sum(!is.na(REVI_data2016$halfmax)),
-                 N_mis = sum(is.na(REVI_data2016$halfmax)),
-                 sds = REVI_data2016$sd)
-
-
-
-REVI2016_fit1 <- stan(
-  model_code = stan_ICAR,  # Stan program
-  data = REVI2016,    # named list of data
-  chains = 3,             # number of Markov chains
-  iter = 6000,            # total number of iterations per chain
-  cores = 3,              # number of cores
-  control = list(max_treedepth = 20, adapt_delta = .9) # modified control parameters based on warnings;
-  # see http://mc-stan.org/misc/warnings.html
-)
-save(REVI2016_fit1, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2016_fit1.Rdata")
-
-
-REVI2016_fit2 <- stan(
-  model_code = stan_ICAR_infoPrior,  # Stan program
-  data = REVI2016,    # named list of data
-  chains = 3,             # number of Markov chains
-  iter = 6000,            # total number of iterations per chain
-  cores = 3,              # number of cores
-  control = list(max_treedepth = 20, adapt_delta = .9)
-)
-save(REVI2016_fit2, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2016_fit2.Rdata")
-
-load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2016_fit2.Rdata")
-pairs_stan(chain = 1, stan_model = REVI2016_fit2, pars=c("sigma_theta", "sigma_phi", "beta0", "lp__"))
-check_energy(REVI2016_fit2)
-summary(REVI2016_fit2)
-
-
-
-REVI2016_fit3 <- stan(
-  model_code = stan_ICAR_no_nonspatial,  # Stan program
-  data = REVI2016,    # named list of data
-  chains = 3,             # number of Markov chains
-  iter = 6000,            # total number of iterations per chain
-  cores = 3,              # number of cores
-  control = list(max_treedepth = 20, adapt_delta = .9)
-)
-save(REVI2016_fit3, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2016_fit3.Rdata")
-
-load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2016_fit3.Rdata")
-pairs_stan(chain = 1, stan_model = REVI2016_fit3, pars=c("sigma_theta", "sigma_phi", "beta0", "lp__"))
-check_energy(REVI2016_fit3)
-summary(REVI2016_fit3)
-
-
-
-
-### Models for year 2005
-REVI_data <- data.frame(cell = cells, halfmax = NA, sd = NA)
-for(i in 1:length(cells)){
-  d1 <- which(diag_frame$species == "Vireo_olivaceus" & diag_frame$year == 2005 & diag_frame$cell == cells[i])
-  if(length(d1) > 0){
-    if(length(d1) != 1){
-      print(i)
-      stop("length d1 != 1")
-    }
-    REVI_data$halfmax[i] <- diag_frame$phen_mean[d1]
-    REVI_data$sd[i] <- diag_frame$phen_sd[d1]
-  }else{
-    REVI_data$sd[i] <- .01
-  }
-}
-REVI2005 <- list(N = length(cells), N_edges = nrow(ninds), node1 = ninds[,1], node2 = ninds[,2],
-                 obs = REVI_data$halfmax[which(!is.na(REVI_data$halfmax))], 
-                 ii_obs = which(!is.na(REVI_data$halfmax)),
-                 ii_mis = which(is.na(REVI_data$halfmax)),
-                 N_obs = sum(!is.na(REVI_data$halfmax)),
-                 N_mis = sum(is.na(REVI_data$halfmax)),
-                 sds = REVI_data$sd)
-
-
-REVI2005_fit2 <- stan(
-  model_code = stan_ICAR_infoPrior,  # Stan program
-  data = REVI2005,    # named list of data
-  chains = 3,             # number of Markov chains
-  iter = 6000,            # total number of iterations per chain
-  cores = 3,              # number of cores
-  control = list(max_treedepth = 20, adapt_delta = .9)
-)
-
-pairs_stan(chain = 1, stan_model = REVI2005_fit2, pars=c("sigma_theta", "sigma_phi", "beta0", "lp__"))
-check_energy(REVI2005_fit2)
-
-save(REVI2005_fit2, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2005_fit2.Rdata")
-load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2005_fit2.Rdata")
-summary(REVI2005_fit2)
-
-
-
-REVI2005_fit3 <- stan(
-  model_code = stan_ICAR_weak_prior,  # Stan program
-  data = REVI2005,    # named list of data
-  chains = 3,             # number of Markov chains
-  iter = 6000,            # total number of iterations per chain
-  cores = 3,              # number of cores
-  control = list(max_treedepth = 20, adapt_delta = .9)
-)
-
-pairs_stan(chain = 1, stan_model = REVI2005_fit3, pars=c("sigma_theta", "sigma_phi", "beta0", "latent[1]", "lp__"))
-check_energy(REVI2005_fit3)
-
-save(REVI2005_fit3, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2005_fit3.Rdata")
-load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/REVI2005_fit3.Rdata")
-summary(REVI2005_fit3)
-
-
-######### ATTEMPTING A GAUSSIAN PROCESS MODEL (AS WRITTEN THIS DOESN'T REALLY WORK)
-
-distance_matrix <- matrix(data=NA, nrow = length(cells), ncol=length(cells))
-for(i in 1:length(cells)){
-  for(j in 1:length(cells)){
-    distance_matrix[i,j] <- geosphere::distm(c(cellcenters$lon_deg[i], cellcenters$lat_deg[i]),
-                              c(cellcenters$lon_deg[j], cellcenters$lat_deg[j]))
-  }
-}
-distance_matrix <- distance_matrix/10^6
-
-# Stan code
-stanCode3 <- '
-data {
-int<lower=0> N; // number of cells (= number of observations, including NAs)
-int<lower=0> N_obs; // number of non-missing
-int<lower=0> N_mis; // number missing
-real<lower=-20, upper=20> obs[N_obs];    // observed data (excluding NAs)
-int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];
-int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];
-real<lower=0> sds[N];                 // sds for ALL data (observed and unobserved)
-matrix[N,N] dist; // distance matrix
-}
-
-parameters {
-real<lower=-20, upper=20> y_mis[N_mis];         // missing data
-real beta;                // intercept
-
-real<lower=0> sigma_sq;   // sd of heterogeneous effects
-real<lower=0> phi;     // sd of spatial effects
-vector[N] latent;      // latent true halfmax values
-}
-
-transformed parameters {
-real<lower=-20, upper=20> y[N];
-matrix[N,N] Sigma;
-matrix[N,N] L;
-vector[N] mu;
-
-y[ii_obs] = obs;
-y[ii_mis] = y_mis;
-
-for(i in 1:(N-1)){
-for(j in (i+1):N){
-Sigma[i,j] = exp((-1)*phi*dist[i,j]);
-Sigma[j,i] = Sigma[i,j];
-}
-}
-for(i in 1:N){
- Sigma[i,i] = sigma_sq;
- mu[i] = beta;
-}
-
-L = cholesky_decompose(Sigma);
-
-}
-
-
-model {
-y ~ normal(latent, sds);
-sigma_sq ~ normal(0,50);
-phi ~ normal(0,50);
-latent ~ multi_normal_cholesky(mu, L);
-beta ~ normal(1000, 100);
-}'
-
-REVI2005 <- list(N = length(cells), 
-                 obs = (REVI_data$halfmax[which(!is.na(REVI_data$halfmax))]-mean(REVI_data$halfmax, na.rm = T))/sd(REVI_data$halfmax, na.rm = T), 
-                 ii_obs = which(!is.na(REVI_data$halfmax)),
-                 ii_mis = which(is.na(REVI_data$halfmax)),
-                 N_obs = sum(!is.na(REVI_data$halfmax)),
-                 N_mis = sum(is.na(REVI_data$halfmax)),
-                 sds = REVI_data$sd,
-                 dist=distance_matrix)
-
-GP_REVI2005 <- stan(
-  model_code = stanCode,  # Stan program
-  data = REVI2005,    # named list of data
-  chains = 3,             # number of Markov chains
-  iter = 6000,            # total number of iterations per chain
-  cores = 3,              # number of cores
-  control = list(max_treedepth = 20, adapt_delta = .9)
-)
-
-pairs_stan(chain = 1, stan_model = GP_REVI2005, pars=c("sigma_sq", "phi", "beta", "latent[1]", "lp__"))
-check_energy(GP_REVI2005)
-
-save(GP_REVI2005, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/GP_REVI2005.Rdata")
-
-summary(GP_REVI2005)
-
-
+all_output <- 
+  foreach(i=1:ncores, .packages = 'rstan') %dopar% 
+    fit_funct(Ldatalist[[i]], stan_ICAR_no_nonspatial)
 
 
