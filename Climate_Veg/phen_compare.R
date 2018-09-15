@@ -1,6 +1,8 @@
 library(ggplot2)
 library(dggridR)
 setwd("/Users/TingleyLab/Dropbox/Work/Phenomismatch/Veg_phenology/Hex_gridded_products/")
+setwd("/Users/samuelsocolar/Dropbox/Work/Phenomismatch/Veg_phenology/Hex_gridded_products/")
+
 
 hexgrid7 <- dgconstruct(res=7)
 hexgrid6 <- dgconstruct(res=6)
