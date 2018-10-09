@@ -1,3 +1,12 @@
+######################
+# 1 - import ebird data
+#
+# Import data from eBird
+#
+# Formerly Ebird_import.R
+######################
+
+
 # This script imports data from the eBird reference dataset (ERD) for a vector of species, defined by 
 # species_list and a vector of years defined by years.  The script is designed to interact with the ERD
 # in the format downloaded directly from eBird, with a separate folder for each year from 2002 onwards.

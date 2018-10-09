@@ -1,3 +1,11 @@
+######################
+# 6-breed-arr-model.R
+#
+# Breeding date (Nest Watch) as a function of arrival date (eBird)
+#
+# formerly Nestwatch_TRESphen.R
+######################
+
 library(dggridR)
 library(lubridate)
 library(doBy)
