@@ -1,3 +1,12 @@
+######################
+# 3 - ICAR model (only spatial component)
+#
+# Fit ICAR model - true arrival dates for each species-cell-year are modeled as latent states, with the observed 
+# state derived from 2-logit-cubic.R. 
+#
+# Formerly ICAR_parallel.R
+######################
+
 # This script takes the output of NA_birdPhen1.R, which gives posterior distributions for the half-max
 # parameter by species-cell-years, and uses these as the basis for an ICAR model of the half-max
 # parameter.  The model assumes that the posterior distributions for the half-max parameter from 

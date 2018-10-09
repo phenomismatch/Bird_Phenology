@@ -1,3 +1,11 @@
+######################
+# 5-phen-compare - correlations among phenology products
+#
+# Correlations between veg phenology products and bird phenology, plotted on hex grid
+#
+# formerly phen_compare_hex6.R
+######################
+
 # This script examines the interannual correlations between different phenological products on a moderately
 # coarse hexagonal grid. In addition to the MODIS, AVHRR, and SI veg phenology products, this script
 # brings in the all bird index from 2009 onward. In the future, this script will also include

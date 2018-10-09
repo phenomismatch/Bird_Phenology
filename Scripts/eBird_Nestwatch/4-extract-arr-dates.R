@@ -1,3 +1,12 @@
+######################
+# 4 - Creates index of bird arrival for each species-cell-year
+#
+# Uses output from ICAR model (3*-ICAR*.R) to extract an arrival dates for each species-cell-year
+#
+# Formerly NA_birdPhen3.R
+######################
+
+
 # This script produces an index of the phenology of a given year in a given cell, based on bird arrival
 # (see NA_birdPhen1.R and NA_birdPhen2.R). For now, it just uses the raw (unsmoothed) estimated half-max 
 # dates.  For each cell, the script determines the list of species with a half-max estimate in all years 
