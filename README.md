@@ -2,12 +2,20 @@
 
 Repository for code for analyzing bird arrival and nesting phenology.
 
+Cloud command line DB access:
+psql "sslmode=disable dbname=sightings user=cyoungflesh hostaddr=35.221.16.125"
+
+
+Repository structure:
+
 * `Data/` (ignored) - Datasets relevant for project
   * `Processed/` - Data that have undergone processing
   * `Raw/` - Raw data that have not undergone processing
 
 * `Scripts/` - Scripts to run analyses
   * `Climate_Veg/` - Comparing vegetation phenology products
+    *``
+    *``
   * `eBird_Nestwatch/` - eBird and nestwatch phenology scripts
     *`1-import-ebird-data.R` - load eBird data
     *`2-logit-cubic.R` - fit logit-cubic to get bird arrival for each species-cell-year
