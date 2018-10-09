@@ -13,45 +13,44 @@
 # when the fitted reporting probability first exceeds half of its maximum on the back-transformed
 # identity scale, as well as a few convergence diagnostics. 
 
+
+# Load packages -----------------------------------------------------------
+
 library(dggridR)
 library(rstan)
 library(rstanarm)
+
+
+
+# Set wd ------------------------------------------------------------------
+
+setwd('~/Google_Drive/R/Bird_Phenology/Data/Raw/')
+
+
 '%ni%' <- Negate('%in%')
-hexgrid6 <- dgconstruct(res=6) # Construct geospatial hexagonal grid
+hexgrid6 <- dggridR::dgconstruct(res=6) # Construct geospatial hexagonal grid
 
 years <- 2002:2016
 nyr <- length(years)
 
-species_list <- c("Empidonax_virescens", "Myiarchus_crinitus", "Contopus_virens", "Vireo_olivaceus",
-                  "Vireo_solitarius", "Vireo_gilvus", "Vireo_flavifrons", "Catharus_fuscescens",
-                  "Dumetella_carolinensis", "Setophaga_dominica", "Limnothlypis_swainsonii",
-                  "Setophaga_citrina", "Geothlypis_formosa", "Parkesia_motacilla", "Parkesia_noveboracensis",
-                  "Mniotilta_varia", "Setophaga_americana", "Setophaga_ruticilla",
-                  "Setophaga_virens", "Setophaga_caerulescens", "Protonotaria_citrea", "Setophaga_cerulea",
-                  "Seiurus_aurocapilla", "Cardellina_canadensis", "Piranga_olivacea", "Piranga_rubra",
-                  "Pheucticus_ludovicianus", "Icterus_galbula", "Empidonax_traillii", "Empidonax_alnorum", #30
-                  "Empidonax_minimus", "Tyrannus_tyrannus", "Vireo_bellii", "Vireo_griseus", "Tachycineta_bicolor",
-                  "Stelgidopteryx_serripennis","Hirundo_rustica","Riparia_riparia","Petrochelidon_pyrrhonota",
-                  "Progne_subis", "Vermivora_cyanoptera","Vermivora_chrysoptera","Oreothlypis_ruficapilla", #43
-                  "Setophaga_pensylvanica", "Setophaga_petechia", "Setophaga_discolor", "Geothlypis_philadelphia",
-                  "Pooecetes_gramineus", "Ammodramus_nelsoni", "Passerina_cyanea", #50
-                  "Passerina_caerulea","Spiza_americana","Icterus_spurius","Dolichonyx_oryzivorus","Contopus_cooperi", #55
-                  "Empidonax_flaviventris","Regulus_satrapa","Regulus_calendula","Vireo_philadelphicus", #59
-                  "Troglodytes_hiemalis","Catharus_guttatus","Catharus_ustulatus","Catharus_bicknelli", #63
-                  "Catharus_minimus","Setophaga_fusca","Setophaga_striata","Setophaga_tigrina","Oreothlypis_peregrina", #68
-                  "Setophaga_castanea","Setophaga_palmarum","Oreothlypis_celata","Cardellina_pusilla", #72
-                  "Oporornis_agilis","Setophaga_magnolia","Setophaga_coronata","Passerella_iliaca",
-                  "Melospiza_lincolnii","Spizelloides_arborea","Junco_hyemalis","Zonotrichia_leucophrys", #80
-                  "Zonotrichia_albicollis","Euphagus_carolinus","Ictinia_mississippiensis",
-                  "Elanoides_forficatus","Archilochus_colubris","Coccyzus_erythropthalmus","Coccyzus_americanus", #87
-                  "Antrostomus_vociferus","Antrostomus_carolinensis","Sphyrapicus_varius","Sayornis_phoebe",
-                  "Bombycilla_cedrorum","Cyanocitta_cristata","Turdus_migratorius","Polioptila_caerulea", #95
-                  "Setophaga_pinus","Peucaea_aestivalis","Spinus_tristis",
-                  "Geothlypis_trichas","Icteria_virens","Mimus_polyglottos","Lanius_ludovicianus", #102
-                  "Melospiza_georgiana","Quiscalus_quiscula","Passerculus_sandwichensis","Ammodramus_caudacutus",
-                  "Spizella_passerina","Pipilo_erythrophthalmus","Troglodytes_aedon","Sturnella_magna",
-                  "Sialia_sialis","Cistothorus_palustris","Corvus_ossifragus","Agelaius_phoeniceus")
+# set wd ------------------------------------------------------------------
+
+setwd('~/Google_Drive/R/Bird_Phenology/Data/Raw/')
+
+
+
+# import eBird species list -----------------------------------------------------
+
+species_list <- read.table('eBird_species_list.txt')
 nsp <- length(species_list)
+
+
+
+# Load in eBird data ------------------------------------------------------
+
+setwd('~/Google_Drive/R/Bird_Phenology/Data/Processed/')
+
+
 
 
 load('/Users/Tingleylab/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
@@ -124,6 +123,9 @@ for(i in 1:nsp){
     }
   }
 }
+
+
+setwd('~/Google_Drive/R/Bird_Phenology/Data/Processed/')
 
 save(halfmax_matrix_list, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/halfmax_matrix_list.Rdata")
 save(fit_diag, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/fit_diag.Rdata")
