@@ -75,44 +75,9 @@ data <- dbGetQuery(cxn, paste0("
 
 
 
-
+#filter by only all_species_report == 1
 #filter by started
+#filter by duration_minutes
 #select unqiue group IDs when not NULL
 
-
-#IGNORE WARNINGS (Rob said no big deal abotu JSON warnings)
-options(warn=-1)
-places <- dplyr::tbl(cxn, "places")
-events <- dplyr::tbl(cxn, "events")
-counts <- dplyr::tbl(cxn, "counts")
-taxons <- dplyr::tbl(cxn, "taxons")
-
-codes <- dplyr::tbl(cxn, "codes")
-countries <- dplyr::tbl(cxn, "countries")
-datasets <- dplyr::tbl(cxn, "datasets")
-version <- dplyr::tbl(cxn, "version")
-options(warn=0)
-
-
-
-
-test <- counts %>%
-  inner_join(events, by = 'event_id') %>%
-  inner_join(places, by = 'place_id') %>%
-  inner_join(taxons, by = 'taxon_id') %>%
-  filter(dataset_id == 'ebird') %>%
-  filter(year > 2001) %>%
-  filter(day < 200) %>%
-  filter(lat > 26) %>%
-  filter(lng > -100) %>%
-  filter(lng < -50) %>%
-  #filter(radius > 100000) %>%
-  filter(sci_name %in% SL) %>%
-  head(1000) %>%
-  select(c(event_id, year, day, 
-           place_id, lat, lng, 
-           started, ended, count, radius, 
-           sci_name, common_name)) 
-
-t2 <- as.data.frame(test)
 
