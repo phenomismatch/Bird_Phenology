@@ -8,9 +8,9 @@ psql "sslmode=disable dbname=sightings user=cyoungflesh hostaddr=35.221.16.125"
 
 Repository structure:
 
-* `Data/` (ignored) - Datasets relevant for project
-  * `Processed/` - Data that have undergone processing
-  * `Raw/` - Raw data that have not undergone processing
+* `Data/` - Datasets relevant for project
+  * `Processed/` (ignored) - Data that have undergone processing
+  * `Raw/` (ignored) - Raw data that have not undergone processing
 
 * `Scripts/` - Scripts to run analyses
   * `Climate_Veg/` - Comparing vegetation phenology products
