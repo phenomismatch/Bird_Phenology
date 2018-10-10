@@ -86,7 +86,7 @@ dataList <- as.list(rep(NA, nyr))
 for(i in 1:nyr)
 {
   assign(paste0("data", years[i]), 
-         read.csv(paste0("ERD2016SS/", years[i], "/checklists_NA_birdPhen_time.csv"),
+         read.csv(paste0("eBird/ERD2016SS/", years[i], "/checklists_NA_birdPhen_time.csv"),
                   quote = ""))
   
   dataList[[i]] <- eval(parse(text = paste0("data", years[i])))
