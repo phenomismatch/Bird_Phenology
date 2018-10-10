@@ -15,13 +15,6 @@
 cy_dir <- '~/Google_Drive/R/'
 
 
-
-# Load packages -----------------------------------------------------------
-
-library(data.table)
-
-
-
 # set wd ------------------------------------------------------------------
 
 setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
@@ -87,7 +80,7 @@ for(i in 1:nyr)
 {
   assign(paste0("data", years[i]), 
          read.csv(paste0("eBird/ERD2016SS/", years[i], "/checklists_NA_birdPhen_time.csv"),
-                  quote = ""))
+                  quote = "", stringsAsFactors = FALSE))
   
   dataList[[i]] <- eval(parse(text = paste0("data", years[i])))
   rm(list = paste("data", years[i], sep=""))
@@ -98,6 +91,7 @@ for(i in 1:nyr)
 # save to rds object ------------------------------------------------------
 
 data_NA_birdPhen <- data.table::rbindlist(dataList)
+rm(dataList)
 
 setwd(paste0(cy_dir, 'Bird_Phenology/Data/Processed'))
 
