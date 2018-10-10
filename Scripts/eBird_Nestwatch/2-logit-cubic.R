@@ -14,6 +14,9 @@
 # identity scale, as well as a few convergence diagnostics. 
 
 
+cy_dir <- '~/Google_Drive/R/'
+
+
 # Load packages -----------------------------------------------------------
 
 library(dggridR)
@@ -24,18 +27,7 @@ library(rstanarm)
 
 # Set wd ------------------------------------------------------------------
 
-setwd('~/Google_Drive/R/Bird_Phenology/Data/Raw/')
-
-
-'%ni%' <- Negate('%in%')
-hexgrid6 <- dggridR::dgconstruct(res=6) # Construct geospatial hexagonal grid
-
-years <- 2002:2016
-nyr <- length(years)
-
-# set wd ------------------------------------------------------------------
-
-setwd('~/Google_Drive/R/Bird_Phenology/Data/Raw/')
+setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
 
 
 
@@ -48,74 +40,112 @@ nsp <- length(species_list)
 
 # Load in eBird data ------------------------------------------------------
 
-setwd('~/Google_Drive/R/Bird_Phenology/Data/Processed/')
+setwd(paste0(cy_dir, 'Bird_Phenology/Data/Processed/'))
+
+data_NA_birdPhen <- readRDS('ebird_NA_phen.rds')
+
+
+# filter by criteria ------------------------------------------------------
+
+'%ni%' <- Negate('%in%')
+
+years <- 2002:2016
+nyr <- length(years)
+
+pdata <- data_NA_birdPhen[which(data_NA_birdPhen$PRIMARY_CHECKLIST_FLAG==1),]
+pdata$EFFORT_HRS <- as.numeric(as.character(pdata$EFFORT_HRS))
+pdata <- pdata[which(pdata$EFFORT_HRS > 0.1 & pdata$EFFORT_HRS<24), ]
+pdata <- pdata[which(pdata$YEAR > 2001), ]
+pdata <- pdata[-which(pdata$EFFORT_DISTANCE_KM == "?"),]
+pdata <- pdata[-which((pdata$TIME + pdata$EFFORT_HRS) < 6), ]
+pdata <- pdata[-which(pdata$TIME > 16), ]
+pdata <- pdata[which(pdata$LONGITUDE > -100 & pdata$LONGITUDE < -50 & pdata$LATITUDE > 26), ]
+pdata$EFFORT_DISTANCE_KM <- as.numeric(as.character(pdata$EFFORT_DISTANCE_KM))
+pdata <- pdata[which(pdata$EFFORT_DISTANCE_KM >= 0 & pdata$EFFORT_DISTANCE_KM < 100),]
 
 
 
+# Process data ------------------------------------------------------------
 
-load('/Users/Tingleylab/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
+#convert to data.frame bc data.table is annoying
+pdata2 <- as.data.frame(pdata)
 
-data <- data_NA_birdPhen[which(data_NA_birdPhen$PRIMARY_CHECKLIST_FLAG==1),]
-data$EFFORT_HRS <- as.numeric(as.character(data$EFFORT_HRS))
-data <- data[which(data$EFFORT_HRS > .1 & data$EFFORT_HRS<24), ]
-data <- data[which(data$YEAR > 2001), ]
-data <- data[-which(data$EFFORT_DISTANCE_KM == "?"),]
-data <- data[-which(data$TIME+data$EFFORT_HRS <6), ]
-data <- data[-which(data$TIME > 16), ]
-data <- data[which(data$LONGITUDE > -100 & data$LONGITUDE < -50 & data$LATITUDE > 26), ]
-data$EFFORT_DISTANCE_KM <- as.numeric(as.character(data$EFFORT_DISTANCE_KM))
-data <- data[which(data$EFFORT_DISTANCE_KM >= 0 & data$EFFORT_DISTANCE_KM < 100),]
-data$cell6 <- dgGEO_to_SEQNUM(hexgrid6, data$LONGITUDE, data$LATITUDE)[[1]]
-cells <- unique(data$cell6)
-ncel <- length(cells)
-
-for(i in 17:130){
+for(i in 17:130)
+{
   print(i)
-  ttt <- data[, i]
-  ttt[ttt=="X"] <- 1
-  ttt <- as.numeric(as.character(ttt))
+  ttt <- pdata2[, i]
+  ttt[which(ttt == "X")] <- 1
+  ttt <- as.numeric(ttt)
   ttt[ttt > 0] <- 1
-  if(min(ttt < 0)){stop()}
-  data[, i] <- ttt
+  if(min(ttt) < 0){stop()}
+  pdata[, i] <- ttt
 }
 
-data$sjday <- as.vector(scale(as.numeric(as.character(data$DAY))))
-data$sjday2 <- data$sjday^2
-data$sjday3 <- data$sjday^3
-data$shr <- as.vector(scale(data$EFFORT_HRS))
 
-Mu.day <- mean(as.numeric(as.character(data$DAY)))
-sd.day <- sd(as.numeric(as.character(data$DAY)))
+pdata$sjday <- as.vector(scale(as.numeric(as.character(pdata$DAY))))
+pdata$sjday2 <- pdata$sjday^2
+pdata$sjday3 <- pdata$sjday^3
+pdata$shr <- as.vector(scale(pdata$EFFORT_HRS))
 
-predictDays = (c(1:200)-Mu.day)/sd.day
+Mu.day <- mean(as.numeric(as.character(pdata$DAY)))
+sd.day <- sd(as.numeric(as.character(pdata$DAY)))
+
+
+# bin to hex grid ---------------------------------------------------------
+
+# Construct geospatial hexagonal grid
+
+hexgrid6 <- dggridR::dgconstruct(res=6) 
+pdata$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6, pdata$LONGITUDE, pdata$LATITUDE)[[1]]
+cells <- unique(pdata$cell6)
+ncel <- length(cells)
+
+
+# fit logit cubic models ---------------------------------------------------
+
+
+predictDays = (c(1:200) - Mu.day)/sd.day
 newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = predictDays^3, shr = 1)
 
 fit_diag <- halfmax_matrix_list <- list()
 
-for(i in 1:nsp){
+for(i in 1:nsp)
+{
   fit_diag[[i]] <- halfmax_matrix_list[[i]] <- list()
   sdata <- data[,c("YEAR","DAY","sjday","sjday2","sjday3","shr","cell6",species_list[i])]
   names(sdata)[8] <- "detect"
-  for(j in 1:nyr){
+  
+  for(j in 1:nyr)
+  {
     halfmax_matrix_list[[i]][[j]] <- matrix(data = NA, nrow = ncel, ncol = 2000)
     fit_diag[[i]][[j]] <- list()
     ysdata <- sdata[which(sdata$YEAR == years[j]), ]
-    for(k in 1:ncel){
+    
+    for(k in 1:ncel)
+    {
       print(paste(i,j,k))
       fit_diag[[i]][[j]][[k]] <- list(maxRhat = NA, mineffsSize = NA)
       cysdata <- ysdata[which(ysdata$cell6 == cells[k]), ]
       n1 <- sum(cysdata$detect)
       n0 <- sum(cysdata$detect == 0)
       n1W <- sum(cysdata$detect*as.numeric(cysdata$DAY < 60))
-      if(n1 > 29 & n1W < (n1/50) & n0 > 29){
+      
+      if(n1 > 29 & n1W < (n1/50) & n0 > 29)
+      {
         fit2 <- stan_glm(detect ~ sjday + sjday2 + sjday3 + shr, data = cysdata, 
-                          family = binomial(link = "logit"), algorithm = 'sampling', iter = 1000, cores = 4)
+                         family = binomial(link = "logit"), 
+                         algorithm = 'sampling', 
+                         iter = 1000, 
+                         cores = 4)
         dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
         halfmax_fit <- rep(NA, 2000)
-        for(L in 1:2000){
+        
+        for(L in 1:2000)
+        {
           rowL <- as.vector(dfit[L,])
           halfmax_fit[L] <- min(which(rowL > (max(rowL)/2)))
         }
+        
         halfmax_matrix_list[[i]][[j]][k,] <- halfmax_fit
         fit_diag[[i]][[j]][[k]]$maxRhat <- max(summary(fit2)[, "Rhat"])
         fit_diag[[i]][[j]][[k]]$mineffsSize <- min(summary(fit2)[, "n_eff"])
@@ -127,6 +157,6 @@ for(i in 1:nsp){
 
 setwd('~/Google_Drive/R/Bird_Phenology/Data/Processed/')
 
-save(halfmax_matrix_list, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/halfmax_matrix_list.Rdata")
-save(fit_diag, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/fit_diag.Rdata")
+saveRDS(halfmax_matrix_list, file="halfmax_matrix_list.rds")
+saveRDS(fit_diag, file="fit_diag.rds")
 
