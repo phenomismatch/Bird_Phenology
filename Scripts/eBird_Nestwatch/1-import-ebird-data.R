@@ -12,6 +12,10 @@
 # in the format downloaded directly from eBird, with a separate folder for each year from 2002 onwards.
 
 
+cy_dir <- '~/Google_Drive/R/'
+
+
+
 # Load packages -----------------------------------------------------------
 
 library(data.table)
@@ -20,7 +24,7 @@ library(data.table)
 
 # set wd ------------------------------------------------------------------
 
-setwd('~/Google_Drive/R/Bird_Phenology/Data/Raw/')
+setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
 
 
 
@@ -74,13 +78,16 @@ nsp <- NROW(species_list)
 
 # Import data to list -----------------------------------------------------
 
+setwd(paste0(cy_dir, 'Bird_Phenology/Data/Raw'))
+
 # For each year, import the data, and store in a list:
 dataList <- as.list(rep(NA, nyr))
 
 for(i in 1:nyr)
 {
   assign(paste0("data", years[i]), 
-         read.csv(paste0("/Users/TingleyLab/Desktop/useful_datasets/eBird/ERD2016SS/", years[i], "/checklists_NA_birdPhen_time.csv")))
+         read.csv(paste0("ERD2016SS/", years[i], "/checklists_NA_birdPhen_time.csv"),
+                  quote = ""))
   
   dataList[[i]] <- eval(parse(text = paste0("data", years[i])))
   rm(list = paste("data", years[i], sep=""))
@@ -92,5 +99,8 @@ for(i in 1:nyr)
 
 data_NA_birdPhen <- data.table::rbindlist(dataList)
 
-setwd('~/Google_Drive/R/Bird_Phenology/Data/Processed')
-save(data_NA_birdPhen, file = '/Users/Tingleylab/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
+setwd(paste0(cy_dir, 'Bird_Phenology/Data/Processed'))
+
+saveRDS(data_NA_birdPhen, file = 'ebird_NA_phen.rds')
+
+
