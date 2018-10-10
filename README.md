@@ -18,6 +18,7 @@ Repository structure:
     *``
   * `eBird_Nestwatch/` - eBird and nestwatch phenology scripts
     *`1-import-ebird-data.R` - load eBird data
+    *`1b-query-ebird.R` - query eBird data from database (replaces `1-import-ebird-data.R`)
     *`2-logit-cubic.R` - fit logit-cubic to get bird arrival for each species-cell-year
     *`3-ICAR-model.R` - fit arrival dates using ICAR model to derive arrival date estimates
     *`3b-ICAR-model-ns.R` - fit arrival dates using ICAR model with both spatial and non-spatial components (as opposed to just spatial component as with `3-ICAR-model.R`)
