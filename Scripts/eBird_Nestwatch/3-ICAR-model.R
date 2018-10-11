@@ -34,6 +34,13 @@
 # I experimented with strongly informative priors for that value, but here I simply use a model
 # with no nonspatial component. 
 
+
+
+cy_dir <- '~/Google_Drive/R/'
+
+
+# Load packages -----------------------------------------------------------
+
 library(dggridR)
 library(coda)
 library(ggplot2)
@@ -41,42 +48,166 @@ library(viridis)
 library(rstan)
 library(doParallel)
 library(foreach)
+
+
+
+# Set wd ------------------------------------------------------------------
+
+setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
+
+
+
+# import eBird species list -----------------------------------------------------
+
+species_list_i <- read.table('eBird_species_list.txt')
+species_list <- species_list_i[,1]
+nsp <- length(species_list)
+
+
+
+# import data ------------------------------------------------------------
+
 '%ni%' <- Negate('%in%')
 
 
 hexgrid6 <- dgconstruct(res=6) # Construct geospatial hexagonal grid
 years <- 2002:2016
 nyr <- length(years)
-species_list <- c("Empidonax_virescens", "Myiarchus_crinitus", "Contopus_virens", "Vireo_olivaceus",
-                  "Vireo_solitarius", "Vireo_gilvus", "Vireo_flavifrons", "Catharus_fuscescens",
-                  "Dumetella_carolinensis", "Setophaga_dominica", "Limnothlypis_swainsonii",
-                  "Setophaga_citrina", "Geothlypis_formosa", "Parkesia_motacilla", "Parkesia_noveboracensis",
-                  "Mniotilta_varia", "Setophaga_americana", "Setophaga_ruticilla",
-                  "Setophaga_virens", "Setophaga_caerulescens", "Protonotaria_citrea", "Setophaga_cerulea",
-                  "Seiurus_aurocapilla", "Cardellina_canadensis", "Piranga_olivacea", "Piranga_rubra",
-                  "Pheucticus_ludovicianus", "Icterus_galbula", "Empidonax_traillii", "Empidonax_alnorum", #30
-                  "Empidonax_minimus", "Tyrannus_tyrannus", "Vireo_bellii", "Vireo_griseus", "Tachycineta_bicolor",
-                  "Stelgidopteryx_serripennis","Hirundo_rustica","Riparia_riparia","Petrochelidon_pyrrhonota",
-                  "Progne_subis", "Vermivora_cyanoptera","Vermivora_chrysoptera","Oreothlypis_ruficapilla", #43
-                  "Setophaga_pensylvanica", "Setophaga_petechia", "Setophaga_discolor", "Geothlypis_philadelphia",
-                  "Pooecetes_gramineus", "Ammodramus_nelsoni", "Passerina_cyanea", #50
-                  "Passerina_caerulea","Spiza_americana","Icterus_spurius","Dolichonyx_oryzivorus","Contopus_cooperi", #55
-                  "Empidonax_flaviventris","Regulus_satrapa","Regulus_calendula","Vireo_philadelphicus", #59
-                  "Troglodytes_hiemalis","Catharus_guttatus","Catharus_ustulatus","Catharus_bicknelli", #63
-                  "Catharus_minimus","Setophaga_fusca","Setophaga_striata","Setophaga_tigrina","Oreothlypis_peregrina", #68
-                  "Setophaga_castanea","Setophaga_palmarum","Oreothlypis_celata","Cardellina_pusilla", #72
-                  "Oporornis_agilis","Setophaga_magnolia","Setophaga_coronata","Passerella_iliaca",
-                  "Melospiza_lincolnii","Spizelloides_arborea","Junco_hyemalis","Zonotrichia_leucophrys", #80
-                  "Zonotrichia_albicollis","Euphagus_carolinus","Ictinia_mississippiensis",
-                  "Elanoides_forficatus","Archilochus_colubris","Coccyzus_erythropthalmus","Coccyzus_americanus",
-                  "Antrostomus_vociferus","Antrostomus_carolinensis","Sphyrapicus_varius","Sayornis_phoebe",
-                  "Bombycilla_cedrorum","Cyanocitta_cristata","Turdus_migratorius","Polioptila_caerulea",
-                  "Setophaga_pinus","Peucaea_aestivalis","Spinus_tristis",
-                  "Geothlypis_trichas","Icteria_virens","Mimus_polyglottos","Lanius_ludovicianus",
-                  "Melospiza_georgiana","Quiscalus_quiscula","Passerculus_sandwichensis","Ammodramus_caudacutus",
-                  "Spizella_passerina","Pipilo_erythrophthalmus","Troglodytes_aedon","Sturnella_magna",
-                  "Sialia_sialis","Cistothorus_palustris","Corvus_ossifragus","Agelaius_phoeniceus")
-nsp <- length(species_list)
+
+
+
+
+
+
+
+load('/Users/Tingleylab/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
+load('/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
+
+data <- data_NA_birdPhen[which(data_NA_birdPhen$PRIMARY_CHECKLIST_FLAG==1),]
+data$EFFORT_HRS <- as.numeric(as.character(data$EFFORT_HRS))
+data <- data[which(data$EFFORT_HRS > .1 & data$EFFORT_HRS<24), ]
+data <- data[which(data$YEAR > 2001), ]
+data <- data[-which(data$EFFORT_DISTANCE_KM == "?"),]
+data <- data[-which(data$TIME+data$EFFORT_HRS <6), ]
+data <- data[-which(data$TIME > 16), ]
+data <- data[which(data$LONGITUDE > -100 & data$LONGITUDE < -50 & data$LATITUDE > 26), ]
+data$EFFORT_DISTANCE_KM <- as.numeric(as.character(data$EFFORT_DISTANCE_KM))
+data <- data[which(data$EFFORT_DISTANCE_KM >= 0 & data$EFFORT_DISTANCE_KM < 100),]
+
+
+
+data$cell6 <- dgGEO_to_SEQNUM(hexgrid6, data$LONGITUDE, data$LATITUDE)[[1]]
+cells <- unique(data$cell6)
+ncel <- length(cells)
+save(cells, file = "/Users/Tingleylab/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
+
+for(i in 17:130){
+  print(i)
+  ttt <- data[, i]
+  ttt[ttt=="X"] <- 1
+  ttt <- as.numeric(as.character(ttt))
+  ttt[ttt > 0] <- 1
+  if(min(ttt < 0)){stop()}
+  data[, i] <- ttt
+}
+
+data$sjday <- as.vector(scale(as.numeric(as.character(data$DAY))))
+data$sjday2 <- data$sjday^2
+data$sjday3 <- data$sjday^3
+data$shr <- as.vector(scale(data$EFFORT_HRS))
+
+
+
+
+
+
+
+Mu.day <- mean(as.numeric(as.character(data$DAY)))
+sd.day <- sd(as.numeric(as.character(data$DAY)))
+
+predictDays = (c(1:200)-Mu.day)/sd.day
+newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = predictDays^3, shr = 1)
+
+load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/halfmax_matrix_list.Rdata")
+load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/fit_diag.Rdata")
+
+diagnostics_frame <- as.data.frame(matrix(data=NA, nrow=nsp*ncel*nyr, ncol=21))
+names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
+                              "nphen_bad", "min_effSize", "max_Rhat", "phen_effSize", "phen_Rhat",
+                              "phen_mean", "phen_sd", "phen_c_loc", "phen_c_scale", "Nloglik", "Cloglik")
+
+counter <- 0
+for(i in 1:nsp){
+  sdata <- data[,c("YEAR","DAY","sjday","sjday2","sjday3","shr","cell6",species_list[i])]
+  names(sdata)[8] <- "detect"
+  for(j in 1:nyr){
+    print(paste(i,j))
+    ysdata <- sdata[which(sdata$YEAR == years[j]), ]
+    for(k in 1:ncel){
+      counter <- counter + 1
+      diagnostics_frame$species[counter] <- species_list[i]
+      diagnostics_frame$year[counter] <- years[j]
+      diagnostics_frame$cell[counter] <- cells[k]
+      cysdata <- ysdata[which(ysdata$cell6 == cells[k]), ]
+      diagnostics_frame$n1[counter] <- sum(cysdata$detect)
+      diagnostics_frame$n1W[counter] <- sum(cysdata$detect*as.numeric(cysdata$DAY < 60))
+      diagnostics_frame$n0[counter] <- sum(cysdata$detect == 0)
+      if(diagnostics_frame$n1[counter] > 0){
+        diagnostics_frame$n0i[counter] <- length(which(cysdata$detect == 0 & cysdata$sjday < min(cysdata$sjday[which(cysdata$detect==1)])))
+        diagnostics_frame$njd1[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 1)]))
+        diagnostics_frame$njd0i[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 0 & cysdata$sjday < min(cysdata$sjday[which(cysdata$detect==1)]))]))
+      }
+      
+      diagnostics_frame$njd0[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 0)]))
+      
+      if(diagnostics_frame$n1[counter] > 29 &
+         diagnostics_frame$n1W[counter] < (diagnostics_frame$n1[counter]/50) &
+         diagnostics_frame$n0[counter] > 29){
+        
+        diagnostics_frame$min_effSize[counter] <- fit_diag[[i]][[j]][[k]]$mineffsSize
+        diagnostics_frame$max_Rhat[counter] <- fit_diag[[i]][[j]][[k]]$maxRhat
+        
+        halfmax_posterior <- as.vector(halfmax_matrix_list[[i]][[j]][k,])
+        diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
+        
+        halfmax_mcmcList <- mcmc.list(as.mcmc(halfmax_posterior[1:500]), as.mcmc(halfmax_posterior[501:1000]),
+                                      as.mcmc(halfmax_posterior[1001:1500]), as.mcmc(halfmax_posterior[1501:2000]))
+        diagnostics_frame$phen_effSize[counter] <- effectiveSize(halfmax_mcmcList)
+        diagnostics_frame$phen_Rhat[counter] <- gelman.diag(halfmax_mcmcList)$psrf[1]
+        
+        halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
+        
+        diagnostics_frame$phen_mean[counter] <- mean(halfmax_posterior2)
+        diagnostics_frame$phen_sd[counter] <- sd(halfmax_posterior2)
+        
+        normfit <- fitdistrplus::fitdist(halfmax_posterior2,"norm")
+        diagnostics_frame$Nloglik[counter] <- normfit$loglik
+        
+        cfit <- NA
+        #cfit <- tryCatch(fitdistrplus::fitdist(halfmax_posterior2,"cauchy"), error=function(e){return(NA)})
+        if(!is.na(cfit)){
+          diagnostics_frame$phen_c_loc[counter] <- cfit$estimate[1]
+          diagnostics_frame$phen_c_scale[counter] <- cfit$estimate[2]
+          diagnostics_frame$Cloglik[counter] <- cfit$loglik
+        }
+      }
+    }
+  }
+}
+
+diagnostics_frame$spCel <- paste(diagnostics_frame$species, diagnostics_frame$cell, sep="_")
+birdPhenRaw <- diagnostics_frame
+
+save(birdPhenRaw, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/birdPhenRaw.Rdata")
+
+
+
+
+
+
+
+# old code ----------------------------------------------------------------
+
 
 # CHANGE LINE BELOW TO CORRECT FILE PATH
 load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/birdPhenRaw.Rdata")
@@ -85,11 +216,17 @@ load("/Users/Jacob/Dropbox/Work/Phenomismatch/NA_birdPhen/birdPhenRaw.Rdata")
 diag_frame <- birdPhenRaw[which(birdPhenRaw$n1 > 29 & birdPhenRaw$n0 > 29 &
                                   birdPhenRaw$n1W < birdPhenRaw$n1/50 &
                                   birdPhenRaw$njd0i > 29 & birdPhenRaw$njd1 > 19), ]
+
 winter_spcels <- unique(birdPhenRaw$spCel[which(birdPhenRaw$n1W > birdPhenRaw$n1/50)])
+
+
 
 diag_frame <- diag_frame[which(diag_frame$spCel %ni% winter_spcels), ]
 length(unique(diag_frame$spCel))
-for(i in 2002:2016){print(length(unique(diag_frame$spCel[which(diag_frame$year==i)])))}
+for(i in 2002:2016)
+{
+  print(length(unique(diag_frame$spCel[which(diag_frame$year==i)])))
+}
 hist(diag_frame$phen_mean)
 
 # CHANGE LINE BELOW TO CORRECT FILE PATH
@@ -97,34 +234,44 @@ load("/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
 ncel <- length(cells)
 
 cells_frame <- data.frame(cell=cells, n=NA)
-for(i in 1:ncel){
+for(i in 1:ncel)
+{
   cells_frame$n[i] <- sum(diag_frame$cell == cells[i])
 }
 
 # Which species-years are worth modeling? At a bare minimum:
 #     Species with at least 3 cells in all three years from 2014-2016
 #     Species-years with at least 3 cells for those species
+
 spYs <- list()
-for(i in 2014:2016){
+for(i in 2014:2016)
+{
   framei <- diag_frame[which(diag_frame$year == i), ]
   spis <- table(framei$species)
   spYs[[i-2013]] <- names(spis[which(spis>2)])
 }
+
 SPs <- spYs[[1]]
-for(i in 2:3){
+for(i in 2:3)
+{
   SPs <- SPs[which(SPs %in% spYs[[i]])]
 }
+
 species_years_use <- matrix(data = NA, nrow=15, ncol=length(SPs))
-for(i in 1:15){
-  for(j in 1:length(SPs)){
+for(i in 1:15)
+{
+  for(j in 1:length(SPs))
+  {
     species_years_use[i,j] <- length(which(diag_frame$year == years[i] & diag_frame$species == SPs[j]))
   }
 }
 length(which(species_years_use > 2))
 
 diag_frame2 <- diag_frame
-for(i in nrow(diag_frame):1){
-  if(length(which(diag_frame2$year == diag_frame2$year[i] & diag_frame2$species == diag_frame2$species[j])) < 3){
+for(i in nrow(diag_frame):1)
+{
+  if(length(which(diag_frame2$year == diag_frame2$year[i] & diag_frame2$species == diag_frame2$species[j])) < 3)
+  {
     diag_frame2 <- diag_frame2[-i, ]
   }
 }
@@ -137,8 +284,11 @@ for(i in nrow(diag_frame):1){
 ncel <- length(cells)
 cellcenters <- dgSEQNUM_to_GEO(hexgrid6, as.numeric(cells))
 adjacency_matrix <- matrix(data=NA, nrow = length(cells), ncol=length(cells))
-for(i in 1:length(cells)){
-  for(j in i:length(cells)){
+
+for(i in 1:length(cells))
+{
+  for(j in i:length(cells))
+  {
     dists <- geosphere::distm(c(cellcenters$lon_deg[i], cellcenters$lat_deg[i]),
                               c(cellcenters$lon_deg[j], cellcenters$lat_deg[j]))
     adjacency_matrix[i,j] <- as.numeric((dists/1000) > 0 & (dists/1000) < 311)
@@ -248,26 +398,37 @@ ncores <- 3
 
 Ldatalist <- list()
 counter <- 0
-for(i in 1:ncores){
+for(i in 1:ncores)
+{
   Ldatalist[[i]] <- list()
-  for(j in 1:ceiling(nfits/ncores)){
+  
+  for(j in 1:ceiling(nfits/ncores))
+  {
     counter <- counter + 1
-    if(counter <= nfits){
+    
+    if(counter <= nfits)
+    {
       Ldatalist[[i]][[j]] <- 
         diag_frame2[which(diag_frame2$spyr == spyrs[counter]), ]
     }
-    
   }
 }
 
-fit_funct <- function(datalist, model){
+fit_funct <- function(datalist, model)
+{
   output_list <- list()
-  for(j in 1:length(datalist)){
+  
+  for(j in 1:length(datalist))
+  {
     dd <- datalist[[j]]
     SY <- data.frame(cell = cells, halfmax = NA, sd = NA)
-    for(i in 1:length(cells)){
+    
+    for(i in 1:length(cells))
+    {
       d1 <- which(dd$cell == as.integer(cells[i]))
-      if(length(d1) > 0){
+      
+      if(length(d1) > 0)
+      {
         SY$halfmax[i] <- dd$phen_mean[d1]
         SY$sd[i] <- dd$phen_sd[d1]
       }else{
@@ -275,7 +436,10 @@ fit_funct <- function(datalist, model){
       }
     }
     
-    SYL <- list(N = length(cells), N_edges = nrow(ninds), node1 = ninds[,1], node2 = ninds[,2],
+    SYL <- list(N = length(cells), 
+                N_edges = nrow(ninds), 
+                node1 = ninds[,1], 
+                node2 = ninds[,2],
                 obs = SY$halfmax[which(!is.na(SY$halfmax))], 
                 ii_obs = which(!is.na(SY$halfmax)),
                 ii_mis = which(is.na(SY$halfmax)),
