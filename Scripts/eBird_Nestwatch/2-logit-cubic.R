@@ -23,7 +23,6 @@ library(dggridR)
 library(rstan)
 library(rstanarm)
 
- air
  
 
 # Set wd ------------------------------------------------------------------
@@ -111,6 +110,7 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = pred
 
 fit_diag <- halfmax_matrix_list <- list()
 
+
 for(i in 1:nsp)
 {
   #i <- 1
@@ -170,9 +170,9 @@ for(i in 1:nsp)
         LCI_hm <- quantile(halfmax_fit, probs = 0.025)
         UCI_hm <- quantile(halfmax_fit, probs = 0.975)
         
-        pdf(paste0(species_list[i], '_', years[j], '.pdf'))
+        pdf(paste0(species_list[i], '_', years[j], '_', cells[k], '.pdf'))
         plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2, 
-             ylim = c(0,1), main = paste0(species_list[i], ' - ', years[j]))
+             ylim = c(0,1), main = paste0(species_list[i], ' - ', years[j], ' - ', cells[k]))
         lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
         lines(mn_dfit, lwd = 2)
         points(cysdata$DAY, cysdata$detect, col = rgb(0,0,0,0.25))
