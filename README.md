@@ -2,13 +2,16 @@
 
 Repository for code for analyzing bird arrival and nesting phenology.
 
-Cloud command line DB access:
-psql "sslmode=disable dbname=sightings user=cyoungflesh hostaddr=35.221.16.125"
+Repo is cloned onto Xanadu. Directories marked as 'ignored' were created in the repo but are not tracked. Any data will need to be transfered manually. DO NOT transfer large files on Xanadu user account. Use instead:
+
+`scp -r ~/SOURCE/PATH USER_NAME@transfer.cam.uchc.edu:DESTINATION/PATH`
 
 
 Repository structure:
 
 * `Data/` - Datasets relevant for project
+  * `eBird_species_list.txt` - List of species to be used in analyes
+  * `db_pass.txt` (ignored) - database password to pass to DB when querying
   * `Processed/` (ignored) - Data that have undergone processing
   * `Raw/` (ignored) - Raw data that have not undergone processing
 
