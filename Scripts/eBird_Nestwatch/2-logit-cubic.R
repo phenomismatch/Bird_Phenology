@@ -13,26 +13,35 @@
 # when the fitted reporting probability first exceeds half of its maximum on the back-transformed
 # identity scale, as well as a few convergence diagnostics. 
 
+#desktop/laptop
+#dir <- '~/Google_Drive/R/'
 
-cy_dir <- '~/Google_Drive/R/'
+#Xanadu
+dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+
+
+# runtime -----------------------------------------------------------------
+
+tt <- proc.time()
+
 
 
 # Load packages -----------------------------------------------------------
 
 library(rstanarm)
-
+library(dplyr)
 
 
 # Set wd ------------------------------------------------------------------
 
-setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 
 
 # import eBird species list -----------------------------------------------------
 
-species_list_i <- read.table('eBird_species_list.txt')
-species_list <- species_list_i[,1]
+species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
+species_list <- species_list_i[1,1]
 nsp <- length(species_list)
 
 years <- 2002:2016
@@ -42,16 +51,16 @@ nyr <- length(years)
 
 # import processed data ---------------------------------------------------
 
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
 #import pdata
 pdata <- readRDS('ebird_NA_phen_proc.rds')
-cells <- readRDS('ebird_NA_phen_proc_cells.rds')
+cells <- unique(pdata$cell6)
 ncel <- length(cells)
 
 
 
 # Create newdata ---------------------------------------------------
-
 
 Mu.day <- mean(as.numeric(as.character(pdata$DAY)))
 sd.day <- sd(as.numeric(as.character(pdata$DAY)))
@@ -66,7 +75,7 @@ fit_diag <- halfmax_matrix_list <- list()
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER = 2500
+ITER <- 3000
 
 
 #loop through each species, year, cell and extract half-max parameter
@@ -74,13 +83,13 @@ for(i in 1:nsp)
 {
   #i <- 1
   fit_diag[[i]] <- halfmax_matrix_list[[i]] <- list()
-  sdata <- pdata[,c("YEAR","DAY","sjday","sjday2","sjday3","shr","cell6",paste0(species_list[i]))]
+  sdata <- dplyr::select(pdata, YEAR, DAY, sjday, sjday2, sjday3, shr, cell6, species_list[i])
   names(sdata)[8] <- "detect"
   
   for(j in 1:nyr)
   {
     #j <- 1
-    halfmax_matrix_list[[i]][[j]] <- matrix(data = NA, nrow = ncel, ncol = ITER*2)
+    halfmax_matrix_list[[i]][[j]] <- matrix(data = NA, nrow = ncel, ncol = (ITER*2))
     fit_diag[[i]][[j]] <- list()
     ysdata <- sdata[which(sdata$YEAR == years[j]), ]
     
@@ -107,7 +116,7 @@ for(i in 1:nsp)
         dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
         halfmax_fit <- rep(NA, ITER*2)
         
-        for(L in 1:ITER*2)
+        for(L in 1:(ITER*2))
         {
           #L <- 1
           rowL <- as.vector(dfit[L,])
@@ -119,7 +128,7 @@ for(i in 1:nsp)
         
         #summary(fit2)
         
-        setwd(paste0(cy_dir, 'Bird_Phenology/Results/Plots'))
+        setwd(paste0(dir, 'Bird_Phenology/Results/Plots'))
         
         mn_dfit <- apply(dfit, 2, mean)
         LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
@@ -156,8 +165,19 @@ for(i in 1:nsp)
 
 
 #save to rds object
-setwd(paste0(cy_dir, '/Bird_Phenology/Data/Processed/'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/'))
 
 saveRDS(halfmax_matrix_list, file="halfmax_matrix_list.rds")
 saveRDS(fit_diag, file="halfmax_fit_diag.rds")
+
+
+
+# runtime -----------------------------------------------------------------
+
+time <- proc.time() - tt
+rtime <- round(time[3]/60, 2)
+
+sink('2-runtime.txt')
+cat(paste0('Runtime (minutes): ', rtime))
+sink()
 
