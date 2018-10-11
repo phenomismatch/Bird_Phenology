@@ -19,11 +19,9 @@ cy_dir <- '~/Google_Drive/R/'
 
 # Load packages -----------------------------------------------------------
 
-library(dggridR)
-library(rstan)
 library(rstanarm)
 
- 
+
 
 # Set wd ------------------------------------------------------------------
 
@@ -37,73 +35,26 @@ species_list_i <- read.table('eBird_species_list.txt')
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
-
-
-# Load in eBird data ------------------------------------------------------
-
-setwd(paste0(cy_dir, 'Bird_Phenology/Data/Processed/'))
-
-data_NA_birdPhen <- readRDS('ebird_NA_phen.rds')
-
-
-# filter by criteria ------------------------------------------------------
-
-'%ni%' <- Negate('%in%')
-
 years <- 2002:2016
 nyr <- length(years)
 
-pdata <- data_NA_birdPhen[which(data_NA_birdPhen$PRIMARY_CHECKLIST_FLAG==1),]
-pdata$EFFORT_HRS <- as.numeric(as.character(pdata$EFFORT_HRS))
-pdata <- pdata[which(pdata$EFFORT_HRS > 0.1 & pdata$EFFORT_HRS<24), ]
-pdata <- pdata[which(pdata$YEAR > 2001), ]
-pdata <- pdata[-which(pdata$EFFORT_DISTANCE_KM == "?"),]
-pdata <- pdata[-which((pdata$TIME + pdata$EFFORT_HRS) < 6), ]
-pdata <- pdata[-which(pdata$TIME > 16), ]
-pdata <- pdata[which(pdata$LONGITUDE > -100 & pdata$LONGITUDE < -50 & pdata$LATITUDE > 26), ]
-pdata$EFFORT_DISTANCE_KM <- as.numeric(as.character(pdata$EFFORT_DISTANCE_KM))
-pdata <- pdata[which(pdata$EFFORT_DISTANCE_KM >= 0 & pdata$EFFORT_DISTANCE_KM < 100),]
 
 
-
-# Process data ------------------------------------------------------------
-
-#convert to data.frame bc data.table is annoying
-pdata2 <- as.data.frame(pdata)
-
-for(i in 17:130)
-{
-  print(i)
-  ttt <- pdata2[, i]
-  ttt[which(ttt == "X")] <- 1
-  ttt <- as.numeric(ttt)
-  ttt[ttt > 0] <- 1
-  if(min(ttt) < 0){stop()}
-  pdata[, i] <- ttt
-}
+# import processed data ---------------------------------------------------
 
 
-pdata$sjday <- as.vector(scale(as.numeric(as.character(pdata$DAY))))
-pdata$sjday2 <- pdata$sjday^2
-pdata$sjday3 <- pdata$sjday^3
-pdata$shr <- as.vector(scale(pdata$EFFORT_HRS))
-
-Mu.day <- mean(as.numeric(as.character(pdata$DAY)))
-sd.day <- sd(as.numeric(as.character(pdata$DAY)))
-
-
-# bin to hex grid ---------------------------------------------------------
-
-# Construct geospatial hexagonal grid
-
-hexgrid6 <- dggridR::dgconstruct(res=6) 
-pdata$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6, pdata$LONGITUDE, pdata$LATITUDE)[[1]]
-cells <- unique(pdata$cell6)
+#import pdata
+pdata <- readRDS('ebird_NA_phen_proc.rds')
+cells <- readRDS('ebird_NA_phen_proc_cells.rds')
 ncel <- length(cells)
 
 
-# fit logit cubic models ---------------------------------------------------
 
+# Create newdata ---------------------------------------------------
+
+
+Mu.day <- mean(as.numeric(as.character(pdata$DAY)))
+sd.day <- sd(as.numeric(as.character(pdata$DAY)))
 
 predictDays = (c(1:200) - Mu.day)/sd.day
 newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = predictDays^3, shr = 1)
@@ -111,6 +62,14 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = pred
 fit_diag <- halfmax_matrix_list <- list()
 
 
+
+# fit logit cubic ---------------------------------------------------------
+
+#number of iterations each model should be run
+ITER = 2500
+
+
+#loop through each species, year, cell and extract half-max parameter
 for(i in 1:nsp)
 {
   #i <- 1
@@ -121,7 +80,7 @@ for(i in 1:nsp)
   for(j in 1:nyr)
   {
     #j <- 1
-    halfmax_matrix_list[[i]][[j]] <- matrix(data = NA, nrow = ncel, ncol = 10000)
+    halfmax_matrix_list[[i]][[j]] <- matrix(data = NA, nrow = ncel, ncol = ITER*2)
     fit_diag[[i]][[j]] <- list()
     ysdata <- sdata[which(sdata$YEAR == years[j]), ]
     
@@ -142,13 +101,13 @@ for(i in 1:nsp)
                          data = cysdata, 
                          family = binomial(link = "logit"), 
                          algorithm = 'sampling', 
-                         iter = 5000, 
+                         iter = ITER, 
                          cores = 4)
         
         dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
-        halfmax_fit <- rep(NA, 10000)
+        halfmax_fit <- rep(NA, ITER*2)
         
-        for(L in 1:10000)
+        for(L in 1:ITER*2)
         {
           #L <- 1
           rowL <- as.vector(dfit[L,])
@@ -196,7 +155,7 @@ for(i in 1:nsp)
 
 
 
-
+#save to rds object
 setwd(paste0(cy_dir, '/Bird_Phenology/Data/Processed/'))
 
 saveRDS(halfmax_matrix_list, file="halfmax_matrix_list.rds")
