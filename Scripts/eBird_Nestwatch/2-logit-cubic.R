@@ -121,7 +121,7 @@ for(i in 1:nsp)
   for(j in 1:nyr)
   {
     #j <- 1
-    halfmax_matrix_list[[i]][[j]] <- matrix(data = NA, nrow = ncel, ncol = 2000)
+    halfmax_matrix_list[[i]][[j]] <- matrix(data = NA, nrow = ncel, ncol = 10000)
     fit_diag[[i]][[j]] <- list()
     ysdata <- sdata[which(sdata$YEAR == years[j]), ]
     
@@ -148,30 +148,43 @@ for(i in 1:nsp)
         dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
         halfmax_fit <- rep(NA, 10000)
         
-        # ############
-        # #DIAGNOSTICS
-        # 
-        # summary(fit2)
-        # 
-        # mn_dfit <- apply(dfit, 2, mean)
-        # LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
-        # UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
-        # 
-        # plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2, ylim = c(0,1))
-        # lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
-        # lines(mn_dfit, lwd = 2)
-        # points(cysdata$DAY, cysdata$detect, col = rgb(0,0,0,0.25))
-        # 
-        # ############
-        
-        
-        
         for(L in 1:10000)
         {
           #L <- 1
           rowL <- as.vector(dfit[L,])
           halfmax_fit[L] <- min(which(rowL > (max(rowL)/2)))
         }
+        
+        ########################
+        #PLOT MODEL FIT AND DATA
+        
+        #summary(fit2)
+        
+        setwd(paste0(cy_dir, 'Bird_Phenology/Results/Plots'))
+        
+        mn_dfit <- apply(dfit, 2, mean)
+        LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
+        UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+        
+        mn_hm <- mean(halfmax_fit)
+        LCI_hm <- quantile(halfmax_fit, probs = 0.025)
+        UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+        
+        pdf(paste0(species_list[i], '_', years[j], '.pdf'))
+        plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2, 
+             ylim = c(0,1), main = paste0(species_list[i], ' - ', years[j]))
+        lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
+        lines(mn_dfit, lwd = 2)
+        points(cysdata$DAY, cysdata$detect, col = rgb(0,0,0,0.25))
+        abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
+        abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
+        abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
+        legend('topleft',
+               legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
+               col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
+               lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
+        dev.off()
+        ########################
         
         halfmax_matrix_list[[i]][[j]][k,] <- halfmax_fit
         fit_diag[[i]][[j]][[k]]$maxRhat <- max(summary(fit2)[, "Rhat"])
@@ -184,8 +197,8 @@ for(i in 1:nsp)
 
 
 
-setwd('~/Google_Drive/R/Bird_Phenology/Data/Processed/')
+setwd(paste0(cy_dir, '/Bird_Phenology/Data/Processed/'))
 
 saveRDS(halfmax_matrix_list, file="halfmax_matrix_list.rds")
-saveRDS(fit_diag, file="fit_diag.rds")
+saveRDS(fit_diag, file="halfmax_fit_diag.rds")
 
