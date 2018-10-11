@@ -12,13 +12,22 @@
 # species_list and a vector of years defined by years.  The script is designed to interact with the ERD
 # in the format downloaded directly from eBird, with a separate folder for each year from 2002 onwards.
 
+#desktop/laptop
+#dir <- '~/Google_Drive/R/'
 
-cy_dir <- '~/Google_Drive/R/'
+#Xanadu
+dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+
+
+
+# runtime -----------------------------------------------------------------
+
+tt <- proc.time()
 
 
 # set wd ------------------------------------------------------------------
 
-setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 
 
@@ -77,7 +86,7 @@ nsp <- NROW(species_list)
 
 # Import data to list -----------------------------------------------------
 
-setwd(paste0(cy_dir, 'Bird_Phenology/Data/Raw'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Raw'))
 
 # For each year, import the data, and store in a list:
 dataList <- as.list(rep(NA, nyr))
@@ -99,7 +108,7 @@ for(i in 1:nyr)
 ebird_NA_phen <- data.table::rbindlist(dataList)
 rm(dataList)
 
-setwd(paste0(cy_dir, 'Bird_Phenology/Data/Processed'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
 saveRDS(ebird_NA_phen, file = 'ebird_NA_phen.rds')
 
@@ -107,6 +116,8 @@ saveRDS(ebird_NA_phen, file = 'ebird_NA_phen.rds')
 
 
 # Filter data using R ------------------------------------------------------------
+
+#ebird_NA_phen <- readRDS('ebird_NA_phen.rds')
 
 ebird_NA_phen_proc <- ebird_NA_phen[which(ebird_NA_phen$PRIMARY_CHECKLIST_FLAG==1),]
 rm(ebird_NA_phen)
@@ -142,14 +153,13 @@ for(i in 17:130)
   ebird_NA_phen_proc[, i] <- ttt
 }
 
+rm(ebird_NA_phen_proc2)
+
 #add jday squared and cubed and effort hours
 ebird_NA_phen_proc$sjday <- as.vector(scale(as.numeric(as.character(ebird_NA_phen_proc$DAY))))
 ebird_NA_phen_proc$sjday2 <- ebird_NA_phen_proc$sjday^2
 ebird_NA_phen_proc$sjday3 <- ebird_NA_phen_proc$sjday^3
 ebird_NA_phen_proc$shr <- as.vector(scale(ebird_NA_phen_proc$EFFORT_HRS))
-
-#save to rds object
-saveRDS(ebird_NA_phen_proc, file = 'ebird_NA_phen_proc.rds')
 
 
 
@@ -161,7 +171,17 @@ hexgrid6 <- dggridR::dgconstruct(res=6)
 ebird_NA_phen_proc$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
                                                      ebird_NA_phen_proc$LONGITUDE, 
                                                      ebird_NA_phen_proc$LATITUDE)[[1]]
-cells <- unique(ebird_NA_phen_proc$cell6)
 
 #save to rds object
-saveRDS(ebird_NA_phen_proc$cell6, 'ebird_NA_phen_proc_cells.rds')
+saveRDS(ebird_NA_phen_proc, file = 'ebird_NA_phen_proc.rds')
+
+
+
+# runtime -----------------------------------------------------------------
+
+time <- proc.time() - tt
+rtime <- round(time[3]/60, 2)
+
+sink('1-runtime.txt')
+cat(paste0('Runtime (minutes): ', rtime))
+sink()
