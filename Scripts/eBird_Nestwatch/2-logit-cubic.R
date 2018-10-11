@@ -23,7 +23,8 @@ library(dggridR)
 library(rstan)
 library(rstanarm)
 
-
+ air
+ 
 
 # Set wd ------------------------------------------------------------------
 
@@ -33,7 +34,8 @@ setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
 
 # import eBird species list -----------------------------------------------------
 
-species_list <- read.table('eBird_species_list.txt')
+species_list_i <- read.table('eBird_species_list.txt')
+species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
 
@@ -111,37 +113,62 @@ fit_diag <- halfmax_matrix_list <- list()
 
 for(i in 1:nsp)
 {
+  #i <- 1
   fit_diag[[i]] <- halfmax_matrix_list[[i]] <- list()
-  sdata <- data[,c("YEAR","DAY","sjday","sjday2","sjday3","shr","cell6",species_list[i])]
+  sdata <- pdata[,c("YEAR","DAY","sjday","sjday2","sjday3","shr","cell6",paste0(species_list[i]))]
   names(sdata)[8] <- "detect"
   
   for(j in 1:nyr)
   {
+    #j <- 1
     halfmax_matrix_list[[i]][[j]] <- matrix(data = NA, nrow = ncel, ncol = 2000)
     fit_diag[[i]][[j]] <- list()
     ysdata <- sdata[which(sdata$YEAR == years[j]), ]
     
     for(k in 1:ncel)
     {
+      #k <- 1
       print(paste(i,j,k))
       fit_diag[[i]][[j]][[k]] <- list(maxRhat = NA, mineffsSize = NA)
       cysdata <- ysdata[which(ysdata$cell6 == cells[k]), ]
       n1 <- sum(cysdata$detect)
       n0 <- sum(cysdata$detect == 0)
-      n1W <- sum(cysdata$detect*as.numeric(cysdata$DAY < 60))
+      #number of detections that came before jday 60
+      n1W <- sum(cysdata$detect * as.numeric(cysdata$DAY < 60))
       
       if(n1 > 29 & n1W < (n1/50) & n0 > 29)
       {
-        fit2 <- stan_glm(detect ~ sjday + sjday2 + sjday3 + shr, data = cysdata, 
+        fit2 <- stan_glm(detect ~ sjday + sjday2 + sjday3 + shr, 
+                         data = cysdata, 
                          family = binomial(link = "logit"), 
                          algorithm = 'sampling', 
-                         iter = 1000, 
+                         iter = 5000, 
                          cores = 4)
-        dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
-        halfmax_fit <- rep(NA, 2000)
         
-        for(L in 1:2000)
+        dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
+        halfmax_fit <- rep(NA, 10000)
+        
+        # ############
+        # #DIAGNOSTICS
+        # 
+        # summary(fit2)
+        # 
+        # mn_dfit <- apply(dfit, 2, mean)
+        # LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
+        # UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+        # 
+        # plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2, ylim = c(0,1))
+        # lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
+        # lines(mn_dfit, lwd = 2)
+        # points(cysdata$DAY, cysdata$detect, col = rgb(0,0,0,0.25))
+        # 
+        # ############
+        
+        
+        
+        for(L in 1:10000)
         {
+          #L <- 1
           rowL <- as.vector(dfit[L,])
           halfmax_fit[L] <- min(which(rowL > (max(rowL)/2)))
         }
@@ -153,6 +180,8 @@ for(i in 1:nsp)
     }
   }
 }
+
+
 
 
 setwd('~/Google_Drive/R/Bird_Phenology/Data/Processed/')
