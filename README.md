@@ -10,6 +10,8 @@ Repo is cloned onto Xanadu. Directories marked as 'ignored' were created in the 
 Repository structure:
 
 * `Data/` - Datasets relevant for project
+  * `eBird_species_list.txt` - List of species to be used in analyes
+  * `db_pass.txt` (ignored) - database password to pass to DB when querying
   * `Processed/` (ignored) - Data that have undergone processing
   * `Raw/` (ignored) - Raw data that have not undergone processing
 
