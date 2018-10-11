@@ -28,4 +28,4 @@ Repository structure:
 * `Notes/` (ignored) - Scratch notes
 
 * `Results/` (ignored) - Model output
-
+  * `Plots/` - Plots of halfmax fits
