@@ -169,10 +169,6 @@ saveRDS(fit_diag, file = paste0('halfmax_fit_diag_', args, '.rds'))
 
 
 
-# memory usage ------------------------------------------------------------
-
-system(paste0('sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $JOBID.batch'))
-
 # runtime -----------------------------------------------------------------
 
 time <- proc.time() - tt

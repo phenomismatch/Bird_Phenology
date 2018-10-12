@@ -19,3 +19,8 @@ module load R/3.5.1
 export R_LIBS=/home/CAM/cyoungflesh/R_libs
 
 Rscript 2-logit-cubic.R Empidonax_virescens
+
+
+#sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $JOBID.batch
+
+echo $JOBID
