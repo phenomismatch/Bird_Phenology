@@ -47,7 +47,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # specify time period -----------------------------------------------------
 
-years <- 2002:2004
+years <- 2002:2016
 nyr <- length(years)
 
 
@@ -81,7 +81,7 @@ fit_diag <- halfmax_matrix_list <- list()
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 2
+ITER <- 2000
 
 #loop through each species, year, cell and extract half-max parameter
 for(j in 1:nyr)
