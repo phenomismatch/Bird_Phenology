@@ -2,7 +2,7 @@
 
 Repository for code for analyzing bird arrival and nesting phenology.
 
-Repo is cloned onto Xanadu. Directories marked as 'ignored' were created in the repo but are not tracked. Any data will need to be transfered manually. DO NOT transfer large files on Xanadu user account. Use instead:
+Repo is cloned onto Xanadu at `/UCHC/LABS/Tingley/phenomismatch/Bird_Phenology`. Directories marked as 'ignored' are in the repo but are not tracked. Any data will need to be transfered manually. DO NOT transfer large files on Xanadu user account. Use instead:
 
 `scp -r ~/SOURCE/PATH USER_NAME@transfer.cam.uchc.edu:DESTINATION/PATH`
 
@@ -16,6 +16,7 @@ Repository structure:
     * `ebird_NA_phen_proc_species` (ignored) - ebird checklist presence/absence for each species - input for logit cubic models (see `Scripts/eBird_Nestwatch/2-`)
     * `halfmax_species` (ignored) - output files from logit cubic for each species
   * `Raw/` (ignored) - Raw data that have not undergone processing
+    * `eBird` - eBird Reference Sataset
 
 * `Scripts/` - Scripts to run analyses
   * `Climate_Veg/` - Comparing vegetation phenology products
