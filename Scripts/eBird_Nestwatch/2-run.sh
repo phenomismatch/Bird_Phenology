@@ -21,6 +21,6 @@ export R_LIBS=/home/CAM/cyoungflesh/R_libs
 Rscript 2-logit-cubic.R Empidonax_virescens
 
 
-#sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $JOBID.batch
+sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
 
-echo $JOBID
+echo `$SLURM_JOBID`
