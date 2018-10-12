@@ -22,7 +22,11 @@ Repository structure:
   * `eBird_Nestwatch/` - eBird and nestwatch phenology scripts
     * `1-import-ebird-data.R` - load eBird data
     * `1b-query-ebird.R` - query eBird data from database (replaces `1-import-ebird-data.R`)
-    * `2-logit-cubic.R` - fit logit-cubic to get bird arrival for each species-cell-year
+    * `2-logit-cubic/` - scripts to fit logit-cubic to get bird arrival for each species-cell-year - each species run as separate job on HPC cluster
+      * `create-batch-sripts.sh` - script to create scripts (`<Genus_species>.sh`) for HPC job submission
+      * `2-master-submit.sh` - script to be run on HPC cluster to submit all jobs
+      * `2-logit-cubic.R` - R script that takes species argument (sourced by HPC script)
+      * `<Genus_species>.sh` - scripts to submit jobs for each species (153 scripts, one for each species)
     * `3-ICAR-model.R` - fit arrival dates using ICAR model to derive arrival date estimates
     * `3b-ICAR-model-ns.R` - fit arrival dates using ICAR model with both spatial and non-spatial components (as opposed to just spatial component as with `3-ICAR-model.R`)
     * `3c-ICAR-model-ns-parallel.R` - same as `3b-ICAR-model-ns.R`, except run in parallel
