@@ -3,7 +3,7 @@
 #
 # Import data from eBird and filter
 # Script will largely be replaced by DB query
-#
+# Separate data file for each species to parallelize more easily
 # Formerly Ebird_import.R
 ######################
 
@@ -34,20 +34,22 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 # load packages -----------------------------------------------------------
 
 library(dggridR)
-
+library(dplyr)
 
 
 # import eBird species list -----------------------------------------------------
 
-species_list <- read.table('eBird_species_list.txt')
+species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
+species_list <- species_list_i[,1]
+nsp <- length(species_list)
+
+years <- 2002:2016
+nyr <- length(years)
+
 
 
 
 # Filter eBird data using auk ---------------------------------------------------
-
-years <- 2002:2016
-nyr <- length(years)
-nsp <- NROW(species_list)
 
 # # run awk script directly from R to get the column indicies of the species of interest, make sure
 # # the indicies are the same across all year files:
@@ -175,6 +177,25 @@ ebird_NA_phen_proc$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 #save to rds object
 saveRDS(ebird_NA_phen_proc, file = 'ebird_NA_phen_proc.rds')
 
+
+
+
+# Different rds object each species ---------------------------------------
+
+#ebird_NA_phen_proc <- readRDS('ebird_NA_phen_proc.rds')
+
+setwd(paste0(dir, 'Bird_phenology/Data/Processed/ebird_NA_phen_proc_species'))
+
+for(i in 1:nsp)
+{
+  #i <- 1
+  sdata <- dplyr::select(ebird_NA_phen_proc, 
+                         YEAR, DAY, sjday, sjday2, 
+                         sjday3, shr, cell6, species_list[i])
+  names(sdata)[8] <- "detect"
+  
+  saveRDS(sdata, file = paste0('ebird_NA_phen_proc_',species_list[i], '.rds'))
+}
 
 
 # runtime -----------------------------------------------------------------
