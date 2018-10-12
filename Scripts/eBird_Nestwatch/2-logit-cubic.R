@@ -169,13 +169,13 @@ saveRDS(fit_diag, file = paste0('halfmax_fit_diag_', args, '.rds'))
 
 
 
+# memory usage ------------------------------------------------------------
+
+system(paste0('sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $JOBID.batch'))
+
 # runtime -----------------------------------------------------------------
 
 time <- proc.time() - tt
 rtime <- round(time[3]/60, 2)
+paste0('Runtime (minutes): ', rtime)
 
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/'))
-
-sink('2-runtime.txt')
-cat(paste0('Runtime (minutes): ', rtime))
-sink()
