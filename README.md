@@ -13,7 +13,7 @@ Repository structure:
   * `eBird_species_list.txt` - List of species to be used in analyes
   * `db_pass.txt` (ignored) - database password to pass to DB when querying
   * `Processed/` (ignored) - Data that have undergone processing
-    * `ebird_NA_phen_proc_species` (ignored) - ebird checklist presence/absence for each species - input for logit cubic models (see `Scripts/eBird_Nestwatch/2-\*`)
+    * `ebird_NA_phen_proc_species` (ignored) - ebird checklist presence/absence for each species - input for logit cubic models (see `Scripts/eBird_Nestwatch/2-`)
     * `halfmax_species` (ignored) - output files from logit cubic for each species
   * `Raw/` (ignored) - Raw data that have not undergone processing
 
