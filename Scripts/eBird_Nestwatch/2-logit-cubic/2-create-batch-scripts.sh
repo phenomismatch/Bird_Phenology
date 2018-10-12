@@ -31,5 +31,5 @@ export R_LIBS=/home/CAM/cyoungflesh/R_libs
 Rscript 2-logit-cubic.R $temp
 
 #displays amount of memory used
-sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "$temp.sh"
+sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "2-$temp.sh"
 done < ~/Google_Drive/R/Bird_Phenology/Data/eBird_species_list.txt
