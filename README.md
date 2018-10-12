@@ -13,6 +13,8 @@ Repository structure:
   * `eBird_species_list.txt` - List of species to be used in analyes
   * `db_pass.txt` (ignored) - database password to pass to DB when querying
   * `Processed/` (ignored) - Data that have undergone processing
+    * `ebird_NA_phen_proc_species` (ignored) - input files (ebird checklist presence/absence) for logit cubic for each species
+    * `halfmax_species` (ignored) - output files from logit cubic for each species
   * `Raw/` (ignored) - Raw data that have not undergone processing
 
 * `Scripts/` - Scripts to run analyses
@@ -31,4 +33,4 @@ Repository structure:
 * `Notes/` (ignored) - Scratch notes
 
 * `Results/` (ignored) - Model output
-  * `Plots/` - Plots of halfmax fits
+  * `Plots/` (ignored) - Plots of halfmax fits
