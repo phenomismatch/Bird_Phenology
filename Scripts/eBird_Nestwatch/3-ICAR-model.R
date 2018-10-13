@@ -36,7 +36,11 @@
 
 
 
-cy_dir <- '~/Google_Drive/R/'
+#desktop/laptop
+#dir <- '~/Google_Drive/R/'
+
+#Xanadu
+dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 
 # Load packages -----------------------------------------------------------
@@ -48,79 +52,29 @@ library(viridis)
 library(rstan)
 library(doParallel)
 library(foreach)
+library(dplyr)
 
 
 
 # Set wd ------------------------------------------------------------------
 
-setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 
 
 # import eBird species list -----------------------------------------------------
 
-species_list_i <- read.table('eBird_species_list.txt')
+species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
-
-
-# import data ------------------------------------------------------------
-
-'%ni%' <- Negate('%in%')
-
-
-hexgrid6 <- dgconstruct(res=6) # Construct geospatial hexagonal grid
 years <- 2002:2016
 nyr <- length(years)
 
 
+# import data ------------------------------------------------------------
 
-
-
-
-
-load('/Users/Tingleylab/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
-load('/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen.Rdata')
-
-data <- data_NA_birdPhen[which(data_NA_birdPhen$PRIMARY_CHECKLIST_FLAG==1),]
-data$EFFORT_HRS <- as.numeric(as.character(data$EFFORT_HRS))
-data <- data[which(data$EFFORT_HRS > .1 & data$EFFORT_HRS<24), ]
-data <- data[which(data$YEAR > 2001), ]
-data <- data[-which(data$EFFORT_DISTANCE_KM == "?"),]
-data <- data[-which(data$TIME+data$EFFORT_HRS <6), ]
-data <- data[-which(data$TIME > 16), ]
-data <- data[which(data$LONGITUDE > -100 & data$LONGITUDE < -50 & data$LATITUDE > 26), ]
-data$EFFORT_DISTANCE_KM <- as.numeric(as.character(data$EFFORT_DISTANCE_KM))
-data <- data[which(data$EFFORT_DISTANCE_KM >= 0 & data$EFFORT_DISTANCE_KM < 100),]
-
-
-
-data$cell6 <- dgGEO_to_SEQNUM(hexgrid6, data$LONGITUDE, data$LATITUDE)[[1]]
-cells <- unique(data$cell6)
-ncel <- length(cells)
-save(cells, file = "/Users/Tingleylab/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
-
-for(i in 17:130){
-  print(i)
-  ttt <- data[, i]
-  ttt[ttt=="X"] <- 1
-  ttt <- as.numeric(as.character(ttt))
-  ttt[ttt > 0] <- 1
-  if(min(ttt < 0)){stop()}
-  data[, i] <- ttt
-}
-
-data$sjday <- as.vector(scale(as.numeric(as.character(data$DAY))))
-data$sjday2 <- data$sjday^2
-data$sjday3 <- data$sjday^3
-data$shr <- as.vector(scale(data$EFFORT_HRS))
-
-
-
-
-
-
+hexgrid6 <- dgconstruct(res=6) # Construct geospatial hexagonal grid
 
 Mu.day <- mean(as.numeric(as.character(data$DAY)))
 sd.day <- sd(as.numeric(as.character(data$DAY)))
@@ -128,22 +82,36 @@ sd.day <- sd(as.numeric(as.character(data$DAY)))
 predictDays = (c(1:200)-Mu.day)/sd.day
 newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = predictDays^3, shr = 1)
 
-load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/halfmax_matrix_list.Rdata")
-load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/fit_diag.Rdata")
+
+
+
+
+halfmax_matrix_list <- readRDS('halfmax_matrix_list.rds')
+halfmax_fit_diag <- readRDS('halfmax_fit_diag.rds')
+
+
+
 
 diagnostics_frame <- as.data.frame(matrix(data=NA, nrow=nsp*ncel*nyr, ncol=21))
 names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
                               "nphen_bad", "min_effSize", "max_Rhat", "phen_effSize", "phen_Rhat",
                               "phen_mean", "phen_sd", "phen_c_loc", "phen_c_scale", "Nloglik", "Cloglik")
 
+
 counter <- 0
-for(i in 1:nsp){
-  sdata <- data[,c("YEAR","DAY","sjday","sjday2","sjday3","shr","cell6",species_list[i])]
+for(i in 1:nsp)
+{
+  fit_diag[[i]] <- halfmax_matrix_list[[i]] <- list()
+  sdata <- dplyr::select(pdata, YEAR, DAY, sjday, sjday2, sjday3, shr, cell6, species_list[i])
   names(sdata)[8] <- "detect"
-  for(j in 1:nyr){
+
+  for(j in 1:nyr)
+  {
     print(paste(i,j))
     ysdata <- sdata[which(sdata$YEAR == years[j]), ]
-    for(k in 1:ncel){
+  
+    for(k in 1:ncel)
+    {
       counter <- counter + 1
       diagnostics_frame$species[counter] <- species_list[i]
       diagnostics_frame$year[counter] <- years[j]
@@ -152,26 +120,33 @@ for(i in 1:nsp){
       diagnostics_frame$n1[counter] <- sum(cysdata$detect)
       diagnostics_frame$n1W[counter] <- sum(cysdata$detect*as.numeric(cysdata$DAY < 60))
       diagnostics_frame$n0[counter] <- sum(cysdata$detect == 0)
-      if(diagnostics_frame$n1[counter] > 0){
-        diagnostics_frame$n0i[counter] <- length(which(cysdata$detect == 0 & cysdata$sjday < min(cysdata$sjday[which(cysdata$detect==1)])))
+      
+      if(diagnostics_frame$n1[counter] > 0)
+      {
+        diagnostics_frame$n0i[counter] <- length(which(cysdata$detect == 0 & 
+                                                         cysdata$sjday < min(cysdata$sjday[which(cysdata$detect==1)])))
         diagnostics_frame$njd1[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 1)]))
-        diagnostics_frame$njd0i[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 0 & cysdata$sjday < min(cysdata$sjday[which(cysdata$detect==1)]))]))
+        diagnostics_frame$njd0i[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 0 & 
+                                                                                cysdata$sjday < min(cysdata$sjday[which(cysdata$detect==1)]))]))
       }
       
       diagnostics_frame$njd0[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 0)]))
       
       if(diagnostics_frame$n1[counter] > 29 &
          diagnostics_frame$n1W[counter] < (diagnostics_frame$n1[counter]/50) &
-         diagnostics_frame$n0[counter] > 29){
-        
+         diagnostics_frame$n0[counter] > 29)
+      {
         diagnostics_frame$min_effSize[counter] <- fit_diag[[i]][[j]][[k]]$mineffsSize
         diagnostics_frame$max_Rhat[counter] <- fit_diag[[i]][[j]][[k]]$maxRhat
         
         halfmax_posterior <- as.vector(halfmax_matrix_list[[i]][[j]][k,])
         diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
         
-        halfmax_mcmcList <- mcmc.list(as.mcmc(halfmax_posterior[1:500]), as.mcmc(halfmax_posterior[501:1000]),
-                                      as.mcmc(halfmax_posterior[1001:1500]), as.mcmc(halfmax_posterior[1501:2000]))
+        halfmax_mcmcList <- mcmc.list(as.mcmc(halfmax_posterior[1:500]), 
+                                      as.mcmc(halfmax_posterior[501:1000]),
+                                      as.mcmc(halfmax_posterior[1001:1500]), 
+                                      as.mcmc(halfmax_posterior[1501:2000]))
+        
         diagnostics_frame$phen_effSize[counter] <- effectiveSize(halfmax_mcmcList)
         diagnostics_frame$phen_Rhat[counter] <- gelman.diag(halfmax_mcmcList)$psrf[1]
         
@@ -185,7 +160,8 @@ for(i in 1:nsp){
         
         cfit <- NA
         #cfit <- tryCatch(fitdistrplus::fitdist(halfmax_posterior2,"cauchy"), error=function(e){return(NA)})
-        if(!is.na(cfit)){
+        if(!is.na(cfit))
+        {
           diagnostics_frame$phen_c_loc[counter] <- cfit$estimate[1]
           diagnostics_frame$phen_c_scale[counter] <- cfit$estimate[2]
           diagnostics_frame$Cloglik[counter] <- cfit$loglik
