@@ -26,8 +26,9 @@ Repository structure:
     * `2-logit-cubic/` - scripts to fit logit-cubic to get bird arrival for each species-cell-year - each species run as separate job on HPC cluster
       * `2-master-submit.sh` - script to be run on HPC cluster to submit all logit cubic jobs
       * `2-create-batch-scripts.sh` - script to create scripts (`<Genus_species>.sh`) for HPC job submission
-      * `2-<Genus_species>.sh` - scripts to submit jobs for each species (153 scripts, one for each species); run with `2-master-submit.sh`
       * `2-logit-cubic.R` - R script that takes species argument (sourced by HPC scripts)
+      * `species/` - contains job scripts for each species
+            * `2-<Genus_species>.sh` - scripts to submit jobs for each species (153 scripts, one for each species); run with `2-master-submit.sh`
     * `3-ICAR-model.R` - fit arrival dates using ICAR model to derive arrival date estimates
     * `3b-ICAR-model-ns.R` - fit arrival dates using ICAR model with both spatial and non-spatial components (as opposed to just spatial component as with `3-ICAR-model.R`)
     * `3c-ICAR-model-ns-parallel.R` - same as `3b-ICAR-model-ns.R`, except run in parallel

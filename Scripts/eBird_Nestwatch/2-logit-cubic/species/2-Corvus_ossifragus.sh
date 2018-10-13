@@ -1,12 +1,6 @@
 #!/bin/bash
 
-while read name
-do
-  temp="${name%\"}"
-  temp="${temp#\"}"
-  echo "#!/bin/bash
-
-#SBATCH --job-name=logit-cubic-$temp
+#SBATCH --job-name=logit-cubic-Corvus_ossifragus
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
@@ -19,7 +13,7 @@ do
 #SBATCH -e %j.err #STDERR
 
 #echos name of node
-echo \`hostname\`
+echo `hostname`
 
 #load R module
 module load R/3.5.1
@@ -28,8 +22,7 @@ module load R/3.5.1
 export R_LIBS=/home/CAM/cyoungflesh/R_libs
 
 #run R script - species arg
-Rscript 2-logit-cubic.R $temp
+Rscript 2-logit-cubic.R Corvus_ossifragus
 
 #displays amount of memory used
-sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/2-$temp.sh"
-done < ../../../Data/eBird_species_list.txt
+sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
