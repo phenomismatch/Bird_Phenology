@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=logit-cubic-Ammodramus_nelsoni
+#SBATCH --job-name=lc-Ammodramus_nelsoni
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus

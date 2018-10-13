@@ -6,7 +6,7 @@ do
   temp="${temp#\"}"
   echo "#!/bin/bash
 
-#SBATCH --job-name=logit-cubic-$temp
+#SBATCH --job-name=lc-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus

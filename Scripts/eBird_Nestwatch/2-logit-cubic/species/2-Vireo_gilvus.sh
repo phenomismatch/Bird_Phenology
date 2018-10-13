@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=logit-cubic-Vireo_gilvus
+#SBATCH --job-name=lc-Vireo_gilvus
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus

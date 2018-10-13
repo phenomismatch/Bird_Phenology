@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=logit-cubic-Icteria_virens
+#SBATCH --job-name=lc-Icteria_virens
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus

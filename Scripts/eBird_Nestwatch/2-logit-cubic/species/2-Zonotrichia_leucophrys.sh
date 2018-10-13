@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=logit-cubic-Zonotrichia_leucophrys
+#SBATCH --job-name=lc-Zonotrichia_leucophrys
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus

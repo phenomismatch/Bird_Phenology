@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=logit-cubic-Geothlypis_philadelphia
+#SBATCH --job-name=lc-Geothlypis_philadelphia
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
