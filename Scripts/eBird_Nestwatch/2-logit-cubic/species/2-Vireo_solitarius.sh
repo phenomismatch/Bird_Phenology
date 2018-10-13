@@ -9,8 +9,8 @@
 #SBATCH --mem=10G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o %j.out #STDOUT
-#SBATCH -e %j.err #STDERR
+#SBATCH -o lc-Vireo_solitarius.out #STDOUT
+#SBATCH -e lc-Vireo_solitarius.err #STDERR
 
 #echos name of node
 echo `hostname`
