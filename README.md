@@ -9,14 +9,14 @@ Repo is cloned onto Xanadu at `/UCHC/LABS/Tingley/phenomismatch/Bird_Phenology`.
 
 Repository structure:
 
-* `Data/` - Datasets relevant for project
+* `Data/` - Datasets relevant for project (consider using [Piggback](https://cran.r-project.org/web/packages/piggyback/vignettes/intro.html))
   * `eBird_species_list.txt` - List of species to be used in analyes
   * `db_pass.txt` (ignored) - database password to pass to DB when querying
   * `Processed/` (ignored) - Data that have undergone processing
     * `ebird_NA_phen_proc_species` (ignored) - ebird checklist presence/absence for each species - input for logit cubic models (see `Scripts/eBird_Nestwatch/2-`)
     * `halfmax_species` (ignored) - output files from logit cubic for each species
   * `Raw/` (ignored) - Raw data that have not undergone processing
-    * `eBird` - eBird Reference Sataset
+    * `eBird` - eBird Reference Dataset
 
 * `Scripts/` - Scripts to run analyses
   * `Climate_Veg/` - Comparing vegetation phenology products
@@ -28,7 +28,7 @@ Repository structure:
       * `2-create-batch-scripts.sh` - script to create scripts (`<Genus_species>.sh`) for HPC job submission
       * `2-logit-cubic.R` - R script that takes species argument (sourced by HPC scripts)
       * `species/` - contains job scripts for each species
-            * `2-<Genus_species>.sh` - scripts to submit jobs for each species (153 scripts, one for each species); run with `2-master-submit.sh`
+        * `2-<Genus_species>.sh` - scripts to submit jobs for each species (153 scripts, one for each species); run with `2-master-submit.sh`
     * `3-ICAR-model.R` - fit arrival dates using ICAR model to derive arrival date estimates
     * `3b-ICAR-model-ns.R` - fit arrival dates using ICAR model with both spatial and non-spatial components (as opposed to just spatial component as with `3-ICAR-model.R`)
     * `3c-ICAR-model-ns-parallel.R` - same as `3b-ICAR-model-ns.R`, except run in parallel
