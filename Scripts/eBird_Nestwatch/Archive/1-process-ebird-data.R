@@ -1,9 +1,17 @@
 ######################
+######################
+# DEPRECATED
+######################
+######################
+
+######################
 # 1 - import ebird data
 #
 # Import data from eBird and filter
 # Script will largely be replaced by DB query
 # Separate data file for each species to parallelize more easily
+#
+# DEPRECATED BY 1-query-ebird.R
 # Formerly Ebird_import.R
 ######################
 
