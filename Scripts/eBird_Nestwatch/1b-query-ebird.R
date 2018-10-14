@@ -1,16 +1,20 @@
 ####################
-#Sample DB access code from Rafe
+# 1b - query ebird data
+#
+# Filters eBird data from DB
+# Zero fills
+# Creates directory of processed data (rds file for each species) and copy of this 
+# script (for reproducability) in /Data/Processed/db_query_<DATE>
+#
+# Replaces 1-process-ebird-data.R, which processed data based on local copy of eBird reference dataset
 ####################
-
-#https://db.rstudio.com/dplyr/
-
 
 
 # #can access DB from command line with:
 # psql "sslmode=disable dbname=sightings user=cyoungflesh hostaddr=35.221.16.125"
 
 
-cy_dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 
 # Load packages -----------------------------------------------------------
@@ -22,7 +26,7 @@ library(dggridR)
 
 # set wd ------------------------------------------------------------------
 
-setwd(paste0(cy_dir, 'Bird_Phenology/Data/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 
 
@@ -229,9 +233,10 @@ data2$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
                                         in_lon_deg = data2$lng, 
                                         in_lat_deg = data2$lat)[[1]]
 
+query_dir_path <- paste0('Processed/db_query_', Sys.Date())
 
-dir.create(paste0('Processed/db_query_', Sys.Date()))
-setwd(paste0('Processed/db_query_', Sys.Date()))
+dir.create(query_dir_path)
+setwd(query_dir_path)
 
 #save to rds object
 saveRDS(data2, file = 'ebird_NA_phen_proc_ALL_SPECIES.rds')
@@ -251,4 +256,7 @@ for(i in 1:nsp)
   
   saveRDS(sdata, file = paste0('ebird_NA_phen_proc_',species_list[i], '.rds'))
 }
+
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/1b-query-ebird.R ', 
+              dir, 'Bird_Phenology/Data/', query_dir_path))
 
