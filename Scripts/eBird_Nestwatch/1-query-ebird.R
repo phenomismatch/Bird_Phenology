@@ -1,5 +1,5 @@
 ####################
-# 1b - query ebird data
+# 1 - query ebird data
 #
 # Filters eBird data from DB
 # Zero fills
@@ -13,6 +13,8 @@
 # #can access DB from command line with:
 # psql "sslmode=disable dbname=sightings user=cyoungflesh hostaddr=35.221.16.125"
 
+
+# top-level dir --------------------------------------------------------------
 
 dir <- '~/Google_Drive/R/'
 
@@ -113,10 +115,10 @@ cxn <- DBI::dbConnect(pg,
 
 
 
-# Query and filter ----------------------------------------------------
+# Query and filter - event_id ----------------------------------------------------
 
 #*get info for each unique event
-#*create 153 species columns with NA
+#*create species columns with NA
 #*in a loop, query each species individually and fill obs with 1s, no obs with 0s
 #*merge with hex cells
 #*create rds objects for each species
@@ -156,13 +158,19 @@ proc.time() - tt
 data2 <- data[!duplicated(data[,'group_identifier'], 
                           incomparables = NA),]
 
+rm(data)
+
 #create species columns
 data2[species_list_i[,1]] <- NA
 
-#zero fill
-nsp <- NROW(species_list_i)
+
+
+# query individual species and zero fill ----------------------------------
+
 
 #~2-3 minutes for each species query
+nsp <- NROW(species_list_i)
+
 tt <- proc.time()
 for (i in 1:nsp)
 {
@@ -209,7 +217,7 @@ for (i in 1:nsp)
 proc.time() - tt
 
 
-# add jday^2, jday^3 and shr ---------------------------------------------------
+# add sjday, sjday^2, sjday^3 and shr ---------------------------------------------------
 
 #scaled julian day, scaled julian day^2, and scaled julian day^3
 SJDAY  <- as.vector(scale(data2$day, scale = FALSE))
@@ -221,13 +229,13 @@ data2$sjday2 <- SJDAY2
 data2$sjday3 <- SJDAY3
 
 #scaled effort hours
-SHR <- as.vector(scale((data2$duration_minutes/60)))
+SHR <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
 
 data2$shr <- SHR
 
 
 
-# bin to hex grid ---------------------------------------------------------
+# bin lat/lon to hex grid and add to data ---------------------------------------------------------
 
 # Construct geospatial hexagonal grid
 
@@ -247,7 +255,7 @@ saveRDS(data2, file = 'ebird_NA_phen_proc_ALL_SPECIES.rds')
 
 
 
-# Different rds object each species ---------------------------------------
+# Create rds object for each species ---------------------------------------
 
 for(i in 1:nsp)
 {
@@ -261,6 +269,6 @@ for(i in 1:nsp)
   saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
 }
 
-system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/1b-query-ebird.R ', 
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/1-query-ebird.R ', 
               dir, 'Bird_Phenology/Data/', query_dir_path))
 

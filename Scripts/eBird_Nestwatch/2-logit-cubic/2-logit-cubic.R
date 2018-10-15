@@ -4,6 +4,8 @@
 # Fit logit cubic to eBird data to get half-max parameter (bird arrival) for each species-cell-year
 #
 # Species name should be given as an arg to this script. The logit cubic will then be fit to that species only.
+# Runtime: Approximately 41 hours per species on Xanadu at 2000 iterations - neff > 500
+# RAM usage: < 6 GB in general
 #
 # Formerly NA_birdPhen1.R
 ######################  
@@ -15,11 +17,19 @@
 # when the fitted reporting probability first exceeds half of its maximum on the back-transformed
 # identity scale, as well as a few convergence diagnostics. 
 
+
+# top-level dir -----------------------------------------------------------
+
 #desktop/laptop
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
 dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+
+
+# db query dir ------------------------------------------------------------
+
+db_dir <- 'db_query_2018-10-14'
 
 
 # runtime -----------------------------------------------------------------
@@ -45,18 +55,10 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Empidonax_virescens'
 
-# specify time period -----------------------------------------------------
-
-years <- 2002:2016
-nyr <- length(years)
-
-
 
 # import processed data ---------------------------------------------------
 
-
-
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/ebird_NA_phen_proc_species'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
 
 #import data for species
 spdata <- readRDS(paste0('ebird_NA_phen_proc_', args, '.rds'))
@@ -64,15 +66,17 @@ spdata <- readRDS(paste0('ebird_NA_phen_proc_', args, '.rds'))
 cells <- unique(spdata$cell6)
 ncel <- length(cells)
 
+years <- min(spdata$year):max(spdata$year)
+nyr <- length(years)
+
 
 
 # Create newdata ---------------------------------------------------
 
-Mu.day <- mean(as.numeric(as.character(spdata$DAY)))
-sd.day <- sd(as.numeric(as.character(spdata$DAY)))
+mu.day <- mean(spdata$day)
 
-predictDays = (c(1:200) - Mu.day)/sd.day
-newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = predictDays^3, shr = 1)
+predictDays <- c(1:200) - mu.day
+newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = predictDays^3, shr = 0)
 
 fit_diag <- halfmax_matrix_list <- list()
 
@@ -81,17 +85,18 @@ fit_diag <- halfmax_matrix_list <- list()
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 2
+ITER <- 2000
+
 
 #loop through each species, year, cell and extract half-max parameter
-for(j in 1:nyr)
+for (j in 1:nyr)
 {
   #j <- 1
   halfmax_matrix_list[[j]] <- matrix(data = NA, nrow = ncel, ncol = (ITER*2))
   fit_diag[[j]] <- list()
   yspdata <- spdata[which(spdata$YEAR == years[j]), ]
   
-  for(k in 1:ncel)
+  for (k in 1:ncel)
   {
     #k <- 1
     print(paste(j,k))
@@ -117,7 +122,7 @@ for(j in 1:nyr)
       dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ITER*2)
       
-      for(L in 1:(ITER*2))
+      for (L in 1:(ITER*2))
       {
         #L <- 1
         rowL <- as.vector(dfit[L,])
