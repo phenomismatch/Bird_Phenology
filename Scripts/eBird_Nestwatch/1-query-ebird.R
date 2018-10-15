@@ -160,16 +160,131 @@ data2 <- data[!duplicated(data[,'group_identifier'],
 
 rm(data)
 
-#create species columns
-data2[species_list_i[,1]] <- NA
+
+
+# add sjday, sjday^2, sjday^3 and shr ---------------------------------------------------
+
+#scaled julian day, scaled julian day^2, and scaled julian day^3
+SJDAY  <- as.vector(scale(data2$day, scale = FALSE))
+SJDAY2 <- as.vector(scale(data2$day^2, scale = FALSE))
+SJDAY3 <- as.vector(scale(data2$day^3, scale = FALSE))
+
+data2$sjday <- SJDAY
+data2$sjday2 <- SJDAY2
+data2$sjday3 <- SJDAY3
+
+#scaled effort hours
+SHR <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
+
+data2$shr <- SHR
+
+
+
+# bin lat/lon to hex grid and add to data ---------------------------------------------------------
+
+# Construct geospatial hexagonal grid
+
+hexgrid6 <- dggridR::dgconstruct(res = 6) 
+data2$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+                                        in_lon_deg = data2$lng, 
+                                        in_lat_deg = data2$lat)[[1]]
+
+
+
+
+# create dir and navigate there -------------------------------------------
+
+
+query_dir_path <- paste0('Processed/db_query_', Sys.Date())
+
+dir.create(query_dir_path)
+setwd(query_dir_path)
 
 
 
 # query individual species and zero fill ----------------------------------
 
 
+#create species columns
+data2[species_list_i[,1]] <- NA
+
+
 #~2-3 minutes for each species query
 nsp <- NROW(species_list_i)
+
+
+
+# NEW ---------------------------------------------------------------------
+
+library(foreach)
+library(doParallel)
+registerDoParallel(cores = 2)
+
+
+tt <- proc.time()
+foreach(i = 1:2) %dopar%
+{
+  #i <- 1
+  print(i)
+  
+  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id
+                                      FROM events
+                                      JOIN places USING (place_id)
+                                      JOIN counts USING (event_id)
+                                      JOIN taxons USING (taxon_id)
+                                      WHERE dataset_id = 'ebird'
+                                      AND year > 2001
+                                      AND day < 200
+                                      AND lng BETWEEN -100 AND -50
+                                      AND lat > 26
+                                      AND (sci_name IN ('", species_list_i2[i],"'))
+                                      LIMIT 100;
+                                      "))
+  
+  #indices to fill with 1s (observations of species made for these events)
+  ind <- which(data2$event_id %in% temp$event_id)
+  
+  #indices to fill with 0s (observations of species not made for these events)
+  n_ind <- (1:NROW(data2))[-ind]
+  
+  #fill observersations for species i with 1s
+  data2[ind, species_list_i[i,1]] <- 1
+  
+  #fill no observations for species i with 0s
+  data2[n_ind, species_list_i[i,1]] <- 0
+  
+  sdata <- dplyr::select(data2, 
+                         year, day, sjday, sjday2, 
+                         sjday3, shr, cell6, species_list_i[i,1])
+  
+  names(sdata)[8] <- "detect"
+  
+  saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
+}
+proc.time() - tt
+
+
+
+
+#save to rds object
+saveRDS(data2, file = 'ebird_NA_phen_proc_ALL_SPECIES.rds')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# OLD ---------------------------------------------------------------------
+
 
 tt <- proc.time()
 for (i in 1:nsp)
@@ -213,41 +328,19 @@ for (i in 1:nsp)
   
   #fill no observations for species i with 0s
   data2[n_ind, species_list_i[i,1]] <- 0
+  
+  sdata <- dplyr::select(data2, 
+                         year, day, sjday, sjday2, 
+                         sjday3, shr, cell6, species_list_i[i,1])
+  
+  names(sdata)[8] <- "detect"
+  
+  saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
 }
 proc.time() - tt
 
 
-# add sjday, sjday^2, sjday^3 and shr ---------------------------------------------------
 
-#scaled julian day, scaled julian day^2, and scaled julian day^3
-SJDAY  <- as.vector(scale(data2$day, scale = FALSE))
-SJDAY2 <- as.vector(scale(data2$day^2, scale = FALSE))
-SJDAY3 <- as.vector(scale(data2$day^3, scale = FALSE))
-
-data2$sjday <- SJDAY
-data2$sjday2 <- SJDAY2
-data2$sjday3 <- SJDAY3
-
-#scaled effort hours
-SHR <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
-
-data2$shr <- SHR
-
-
-
-# bin lat/lon to hex grid and add to data ---------------------------------------------------------
-
-# Construct geospatial hexagonal grid
-
-hexgrid6 <- dggridR::dgconstruct(res = 6) 
-data2$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                        in_lon_deg = data2$lng, 
-                                        in_lat_deg = data2$lat)[[1]]
-
-query_dir_path <- paste0('Processed/db_query_', Sys.Date())
-
-dir.create(query_dir_path)
-setwd(query_dir_path)
 
 #save to rds object
 saveRDS(data2, file = 'ebird_NA_phen_proc_ALL_SPECIES.rds')
