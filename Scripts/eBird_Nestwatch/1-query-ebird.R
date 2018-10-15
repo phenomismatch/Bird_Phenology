@@ -14,6 +14,10 @@
 # psql "sslmode=disable dbname=sightings user=cyoungflesh hostaddr=35.221.16.125"
 
 
+
+tt <- proc.time()
+
+
 # top-level dir --------------------------------------------------------------
 
 dir <- '~/Google_Drive/R/'
@@ -58,6 +62,19 @@ cxn <- DBI::dbConnect(pg,
                       host = "35.221.16.125", 
                       port = 5432, 
                       dbname = "sightings")
+
+
+
+# create query dir and navigate there -------------------------------------------
+
+
+query_dir_path <- paste0('Processed/db_query_', Sys.Date())
+
+dir.create(query_dir_path)
+setwd(query_dir_path)
+
+
+
 
 # filter dataset notes ----------------------------------------------------------
 
@@ -127,7 +144,7 @@ cxn <- DBI::dbConnect(pg,
 
 
 #filter all unique event_ids that meet criteria - about 38 min to complete query
-tt <- proc.time()
+
 data <- DBI::dbGetQuery(cxn, paste0("
                                     SELECT DISTINCT ON (event_id) event_id, year, day, place_id, lat, lng, started, 
                                     radius,
@@ -152,7 +169,6 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND LEFT(started, 2)::int < 16
                                     AND RADIUS < 100000;
                                     "))
-proc.time() - tt
 
 
 
@@ -194,16 +210,6 @@ data2$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 
 
 
-# create dir and navigate there -------------------------------------------
-
-
-query_dir_path <- paste0('Processed/db_query_', Sys.Date())
-
-dir.create(query_dir_path)
-setwd(query_dir_path)
-
-
-
 # query individual species, zero fill, and create RDS objects ----------------------------------
 
 
@@ -240,8 +246,7 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       AND day < 200
                                       AND lng BETWEEN -100 AND -50
                                       AND lat > 26
-                                      AND (sci_name IN ('", species_list_i2[i],"'))
-                                      LIMIT 100;
+                                      AND (sci_name IN ('", species_list_i2[i],"'));
                                       "))
   
   #indices to fill with 1s (observations of species made for these events)
@@ -273,3 +278,5 @@ proc.time() - tt
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/1-query-ebird.R ', 
               dir, 'Bird_Phenology/Data/', query_dir_path))
 
+
+proc.time() - tt
