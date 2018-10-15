@@ -25,6 +25,8 @@ library(dplyr)
 library(RPostgreSQL)
 library(DBI)
 library(dggridR)
+library(doParallel)
+library(foreach)
 
 # set wd ------------------------------------------------------------------
 
@@ -124,7 +126,7 @@ cxn <- DBI::dbConnect(pg,
 #*create rds objects for each species
 
 
-#filter all unique event_ids that meet criteria - about 42 min to complete query
+#filter all unique event_ids that meet criteria - about 38 min to complete query
 tt <- proc.time()
 data <- DBI::dbGetQuery(cxn, paste0("
                                     SELECT DISTINCT ON (event_id) event_id, year, day, place_id, lat, lng, started, 
@@ -202,30 +204,31 @@ setwd(query_dir_path)
 
 
 
-# query individual species and zero fill ----------------------------------
+# query individual species, zero fill, and create RDS objects ----------------------------------
 
 
 #create species columns
 data2[species_list_i[,1]] <- NA
 
-
-#~2-3 minutes for each species query
 nsp <- NROW(species_list_i)
 
-
-
-# NEW ---------------------------------------------------------------------
-
-library(foreach)
-library(doParallel)
-registerDoParallel(cores = 2)
-
+#run in parallel with 7 logical cores
+doParallel::registerDoParallel(cores = 7)
 
 tt <- proc.time()
-foreach(i = 1:2) %dopar%
+foreach::foreach(i = 1:nsp) %dopar%
 {
   #i <- 1
   print(i)
+  
+  pg <- DBI::dbDriver("PostgreSQL")
+  
+  cxn <- DBI::dbConnect(pg, 
+                        user = "cyoungflesh", 
+                        password = pass, 
+                        host = "35.221.16.125", 
+                        port = 5432, 
+                        dbname = "sightings")
   
   temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id
                                       FROM events
@@ -265,102 +268,7 @@ proc.time() - tt
 
 
 
-
-#save to rds object
-saveRDS(data2, file = 'ebird_NA_phen_proc_ALL_SPECIES.rds')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# OLD ---------------------------------------------------------------------
-
-
-tt <- proc.time()
-for (i in 1:nsp)
-{
-  #i <- 1
-  print(i)
-  
-  temp <- DBI::dbGetQuery(cxn, paste0("
-                                      SELECT event_id, year, day, place_id, lat, lng, started, radius, 
-                                      sci_name, common_name, count,
-                                      (event_json ->> 'ALL_SPECIES_REPORTED')::int AS all_species_reported,
-                                      (event_json ->> 'DURATION_MINUTES')::int AS duration_minutes,
-                                      count_json ->> 'OBSERVER_ID' AS observer_id,
-                                      count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS BBA_code,
-                                      (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
-                                      event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
-                                      FROM places
-                                      JOIN events USING (place_id)
-                                      JOIN counts USING (event_id)
-                                      JOIN taxons USING (taxon_id)
-                                      WHERE dataset_id = 'ebird'
-                                      AND year > 2001
-                                      AND day < 200
-                                      AND lng BETWEEN -100 AND -50
-                                      AND lat > 26
-                                      AND (sci_name IN ('", species_list_i2[i],"'))
-                                      AND (event_json ->> 'ALL_SPECIES_REPORTED')::int = 1
-                                      AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
-                                      AND LEFT(started, 2)::int < 16
-                                      AND RADIUS < 100000;
-                                      "))
-  
-  #indices to fill with 1s (observations of species made for these events)
-  ind <- which(data2$event_id %in% temp$event_id)
-  
-  #indices to fill with 0s (observations of species not made for these events)
-  n_ind <- (1:NROW(data2))[-ind]
-  
-  #fill observersations for species i with 1s
-  data2[ind, species_list_i[i,1]] <- 1
-  
-  #fill no observations for species i with 0s
-  data2[n_ind, species_list_i[i,1]] <- 0
-  
-  sdata <- dplyr::select(data2, 
-                         year, day, sjday, sjday2, 
-                         sjday3, shr, cell6, species_list_i[i,1])
-  
-  names(sdata)[8] <- "detect"
-  
-  saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
-}
-proc.time() - tt
-
-
-
-
-#save to rds object
-saveRDS(data2, file = 'ebird_NA_phen_proc_ALL_SPECIES.rds')
-
-
-
-
-# Create rds object for each species ---------------------------------------
-
-for(i in 1:nsp)
-{
-  #i <- 1
-  sdata <- dplyr::select(data2, 
-                         year, day, sjday, sjday2, 
-                         sjday3, shr, cell6, species_list_i[i,1])
-  
-  names(sdata)[8] <- "detect"
-  
-  saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
-}
+# copy script to query folder for records ---------------------------------
 
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/1-query-ebird.R ', 
               dir, 'Bird_Phenology/Data/', query_dir_path))
