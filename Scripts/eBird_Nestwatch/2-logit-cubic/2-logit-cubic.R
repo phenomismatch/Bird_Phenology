@@ -29,7 +29,7 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'db_query_2018-10-14'
+db_dir <- 'db_query_2018-10-15'
 
 
 # runtime -----------------------------------------------------------------
@@ -73,10 +73,13 @@ nyr <- length(years)
 
 # Create newdata ---------------------------------------------------
 
-mu.day <- mean(spdata$day)
+#calculate polynomial, then center data
+predictDays <- scale(c(1:200), scale = FALSE)
+predictDays2 <- scale(c(1:200)^2, scale = FALSE)
+predictDays3 <- scale(c(1:200)^3, scale = FALSE)
 
-predictDays <- c(1:200) - mu.day
-newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = predictDays^3, shr = 0)
+
+newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
 
 fit_diag <- halfmax_matrix_list <- list()
 
@@ -85,16 +88,16 @@ fit_diag <- halfmax_matrix_list <- list()
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 2000
+ITER <- 10
 
 
 #loop through each species, year, cell and extract half-max parameter
 for (j in 1:nyr)
 {
-  #j <- 1
+  #j <- 10
   halfmax_matrix_list[[j]] <- matrix(data = NA, nrow = ncel, ncol = (ITER*2))
   fit_diag[[j]] <- list()
-  yspdata <- spdata[which(spdata$YEAR == years[j]), ]
+  yspdata <- spdata[which(spdata$year == years[j]), ]
   
   for (k in 1:ncel)
   {
@@ -102,15 +105,17 @@ for (j in 1:nyr)
     print(paste(j,k))
     fit_diag[[j]][[k]] <- list(maxRhat = NA, mineffsSize = NA)
     cyspdata <- yspdata[which(yspdata$cell6 == cells[k]), ]
+    
     #number of surveys where species was detected
     n1 <- sum(cyspdata$detect)
     #number of surveys where species was not detected
     n0 <- sum(cyspdata$detect == 0)
     #number of detections that came before jday 60
-    n1W <- sum(cyspdata$detect * as.numeric(cyspdata$DAY < 60))
+    n1W <- sum(cyspdata$detect * as.numeric(cyspdata$day < 60))
     
-    if(n1 > 29 & n1W < (n1/50) & n0 > 29)
+    if (n1 > 29 & n1W < (n1/50) & n0 > 29)
     {
+      tt <- proc.time()
       fit2 <- stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
                        data = cyspdata,
                        family = binomial(link = "logit"),
@@ -118,7 +123,7 @@ for (j in 1:nyr)
                        iter = ITER,
                        chains = 4,
                        cores = 4)
-      
+      proc.time() - tt
       dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ITER*2)
       
@@ -131,6 +136,7 @@ for (j in 1:nyr)
       
       ########################
       #PLOT MODEL FIT AND DATA
+      
       #summary(fit2)
       setwd(paste0(dir, 'Bird_Phenology/Results/Plots'))
       mn_dfit <- apply(dfit, 2, mean)
@@ -139,12 +145,16 @@ for (j in 1:nyr)
       mn_hm <- mean(halfmax_fit)
       LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+      
       pdf(paste0(args, '_', years[j], '_', cells[k], '.pdf'))
       plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
-           ylim = c(0,1), main = paste0(args, ' - ', years[j], ' - ', cells[k]))
+           #ylim = c(0,1), 
+           main = paste0(args, ' - ', years[j], ' - ', cells[k]),
+           xlab = 'Julian Day', ylab = 'Detection Probability')
       lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(mn_dfit, lwd = 2)
-      points(cyspdata$DAY, cyspdata$detect, col = rgb(0,0,0,0.25))
+      cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
+      points(cyspdata$day, cyspdata$detect, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
@@ -153,7 +163,9 @@ for (j in 1:nyr)
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
+      
       ########################
+      
       
       halfmax_matrix_list[[j]][k,] <- halfmax_fit
       fit_diag[[j]][[k]]$maxRhat <- max(summary(fit2)[, "Rhat"])
