@@ -88,7 +88,7 @@ fit_diag <- halfmax_matrix_list <- list()
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 10
+ITER <- 2
 
 
 #loop through each species, year, cell and extract half-max parameter
