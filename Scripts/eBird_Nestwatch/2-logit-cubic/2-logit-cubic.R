@@ -88,7 +88,7 @@ fit_diag <- halfmax_matrix_list <- list()
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 2
+ITER <- 2000
 
 
 #loop through each species, year, cell and extract half-max parameter
@@ -148,7 +148,7 @@ for (j in 1:nyr)
       
       pdf(paste0(args, '_', years[j], '_', cells[k], '.pdf'))
       plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
-           #ylim = c(0,1), 
+           ylim = c(0, max(UCI_dfit)), 
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
            xlab = 'Julian Day', ylab = 'Detection Probability')
       lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
