@@ -17,7 +17,6 @@
 "Setophaga_americana"
 "Setophaga_ruticilla"
 "Setophaga_virens"
-"Setophaga_virens"
 "Setophaga_caerulescens"
 "Protonotaria_citrea"
 "Setophaga_cerulea"
