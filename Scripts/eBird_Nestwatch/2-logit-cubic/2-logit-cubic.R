@@ -115,7 +115,6 @@ for (j in 1:nyr)
     
     if (n1 > 29 & n1W < (n1/50) & n0 > 29)
     {
-      tt <- proc.time()
       fit2 <- stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
                        data = cyspdata,
                        family = binomial(link = "logit"),
@@ -123,7 +122,7 @@ for (j in 1:nyr)
                        iter = ITER,
                        chains = 4,
                        cores = 4)
-      proc.time() - tt
+
       dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ITER*2)
       
