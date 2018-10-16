@@ -15,10 +15,10 @@ Repository structure:
   * `eBird_species_list.txt` - List of species to be used in analyes
   * `db_pass.txt` (ignored) - database password to pass to DB when querying
   * `Processed/` (ignored) - Data that have undergone processing
-    * `ebird_NA_phen_proc_species` (ignored) - ebird checklist presence/absence for each species - input for logit cubic models (see `Scripts/eBird_Nestwatch/2-`)
-    * `halfmax_species` (ignored) - output files from logit cubic for each species
+    * `db_query_<DATE>` (ignored) - ebird checklist presence/absence data for each species queried from database - input for logit cubic models (see `Scripts/eBird_Nestwatch/2-logit-cubic`)
+    * `halfmax_species` (ignored) - output files for each specices from 2-logit-cubic - estimated half-max params and model diagnostics
   * `Raw/` (ignored) - Raw data that have not undergone processing
-    * `eBird` - eBird Reference Dataset
+    * `eBird` - eBird Reference Dataset (no longer used as data is being queried from database)
 
 * `Scripts/` - Scripts to run analyses
   * `Climate_Veg/` - Comparing vegetation phenology products
@@ -26,9 +26,9 @@ Repository structure:
     * `1-process-ebird-data.R` - process eBird data
     * `1b-query-ebird.R` - query eBird data from database (replaces `1-import-ebird-data.R`)
     * `2-logit-cubic/` - scripts to fit logit-cubic to get bird arrival for each species-cell-year - each species run as separate job on HPC cluster
-      * `2-master-submit.sh` - script to be run on HPC cluster to submit all logit cubic jobs
-      * `2-create-batch-scripts.sh` - script to create scripts (`<Genus_species>.sh`) for HPC job submission
-      * `2-logit-cubic.R` - R script that takes species argument (sourced by HPC scripts)
+      * `2-master-submit.sh` - script to be run (`./2-master-submit.sh`) on HPC cluster to submit all logit cubic jobs
+      * `2-create-batch-scripts.sh` - script to create scripts (`2-<Genus_species>.sh`) for HPC job submission
+      * `2-logit-cubic.R` - R script that takes species argument (run from `2-<Genus_species>.sh` scripts)
       * `species/` - contains job scripts for each species
         * `2-<Genus_species>.sh` - scripts to submit jobs for each species (153 scripts, one for each species); run with `2-master-submit.sh`
     * `3-ICAR-model.R` - fit arrival dates using ICAR model to derive arrival date estimates
@@ -41,4 +41,4 @@ Repository structure:
 * `Notes/` (ignored) - Scratch notes
 
 * `Results/` (ignored) - Model output
-  * `Plots/` (ignored) - Plots of halfmax fits
+  * `Plots/` (ignored) - Plots of logit cubic model fit with presence absence data - one plot for every species, year, cell
