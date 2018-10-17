@@ -40,6 +40,8 @@ Repository structure:
     * `4-extract-arr-dates.R` - extract arrival dates for each species-cell-year
     * `5-phen-compare.R` - correlations among veg and bird phenology products
     * `6-breed-arr-model.R` - breeding date (nest watch) as a function of arrival date (eBird)
+  * `Other/` - MISC scripts
+    * `query_bbs.R` - queries and zero fills BBS data
 
 * `Notes/` (ignored) - Scratch notes
 
