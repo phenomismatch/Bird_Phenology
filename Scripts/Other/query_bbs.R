@@ -65,7 +65,7 @@ data[SL] <- NA
 
 for (i in 1:2)
 {
-  #i <- 2
+  #i <- 1
   #multiple species records in events -> sum count across event
   temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id,
                                       SUM (count)
