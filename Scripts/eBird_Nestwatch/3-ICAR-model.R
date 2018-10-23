@@ -59,15 +59,8 @@ tt <- proc.time()
 
 # Load packages -----------------------------------------------------------
 
-library(dggridR)
-library(coda)
-library(ggplot2)
-library(viridis)
 library(rstan)
-library(doParallel)
-library(foreach)
 library(dplyr)
-library(fitdistrplus)
 
 
 
@@ -90,7 +83,7 @@ nyr <- length(years)
 
 
 
-# asdfasd -----------------------------------------------------------------
+# combine logit cubic results and diagnostic info -----------------------------------------------------------------
 
 counter <- 0
 for (i in 1:nsp)
@@ -173,8 +166,8 @@ for (i in 1:nsp)
                                             coda::as.mcmc(halfmax_posterior[1001:1500]), 
                                             coda::as.mcmc(halfmax_posterior[1501:2000]))
         
-        diagnostics_frame$HM_n.eff[counter] <- coda::effectiveSize(halfmax_mcmcList)
-        diagnostics_frame$HM_Rhat[counter] <- coda::gelman.diag(halfmax_mcmcList)$psrf[1]
+        diagnostics_frame$HM_n.eff[counter] <- round(coda::effectiveSize(halfmax_mcmcList), digits = 0)
+        diagnostics_frame$HM_Rhat[counter] <- round(coda::gelman.diag(halfmax_mcmcList)$psrf[1], digits = 2)
         
         #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
         diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
@@ -212,6 +205,7 @@ for (i in 1:nsp)
 diagnostics_frame$spCel <- paste(diagnostics_frame$species, diagnostics_frame$cell, sep="_")
 
 
+
 # write to RDS ------------------------------------------------------------
 
 ICAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/ICAR_', Sys.Date())
@@ -219,10 +213,37 @@ ICAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/ICAR_', Sys.Date())
 dir.create(ICAR_dir_path)
 setwd(ICAR_dir_path)
 
+saveRDS(diagnostics_frame, paste0('diagnostics_frame-', Sys.Date(), '.rds'))
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
-saveRDS(diagnostics_frame, paste0('diagnostics', Sys.Date(), '.rds'))
+
+
+# filter data for ICAR -------------------------------------------------------------
+
+#filter based on priors metrics 
+diag_frame <- filter(diagnostics_frame, n1 > 29, n0 > 29, 
+                     n1W < (n1/50), njd0i > 29, njd1 > 19)
+
+#number of winter obs is greater than (number of detections/50) - winter obs make up more than 2% of obs
+winter_spcels <- unique(diagnostics_frame$spCel[which(diagnostics_frame$n1W > (diagnostics_frame$n1/50))])
+
+'%ni%' <- Negate('%in%')
+
+#exclude 'winter pixels'
+diag_frame_no_w <- diag_frame[which(diag_frame$spCel %ni% winter_spcels), ]
+
+
+length(unique(diag_frame_no_w$spCel))
+
+#how many cells have data for each year
+for (i in min(years):max(years))
+{
+  #i <- 2002
+  n_cell_yr <- length(unique(diag_frame_no_w$spCel[which(diag_frame_no_w$year==i)]))
+  print(paste0('Cells for ', i, ': ', n_cell_yr))
+}
+
+hist(diag_frame_no_w$HM_mean)
 
 
 
@@ -232,29 +253,8 @@ saveRDS(diagnostics_frame, paste0('diagnostics', Sys.Date(), '.rds'))
 
 
 # old code ----------------------------------------------------------------
+# vvvvvvvv
 
-
-# CHANGE LINE BELOW TO CORRECT FILE PATH
-load("/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/birdPhenRaw.Rdata")
-load("/Users/Jacob/Dropbox/Work/Phenomismatch/NA_birdPhen/birdPhenRaw.Rdata")
-
-diag_frame <- birdPhenRaw[which(birdPhenRaw$n1 > 29 & birdPhenRaw$n0 > 29 &
-                                  birdPhenRaw$n1W < birdPhenRaw$n1/50 &
-                                  birdPhenRaw$njd0i > 29 & birdPhenRaw$njd1 > 19), ]
-
-winter_spcels <- unique(birdPhenRaw$spCel[which(birdPhenRaw$n1W > birdPhenRaw$n1/50)])
-
-
-
-diag_frame <- diag_frame[which(diag_frame$spCel %ni% winter_spcels), ]
-length(unique(diag_frame$spCel))
-for(i in 2002:2016)
-{
-  print(length(unique(diag_frame$spCel[which(diag_frame$year==i)])))
-}
-hist(diag_frame$phen_mean)
-
-# CHANGE LINE BELOW TO CORRECT FILE PATH
 load("/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
 ncel <- length(cells)
 
@@ -507,4 +507,6 @@ all_output <-
 
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/3-ICAR-model.R ', ICAR_dir_path, '/3-ICAR-model-', Sys.Date(), '.R'))
 
+
+proc.time() - tt
 
