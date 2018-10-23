@@ -5,6 +5,11 @@
 # Some species counts are entered twice for some routes. Counts are summed across species for each route
 ###################
 
+
+#run type code should == 1 (meets survey type and weather requirements for BBS standards)
+
+
+
 # Set dir -----------------------------------------------------------------
 
 dir <- '~/Google_Drive/R/'
