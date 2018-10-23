@@ -348,7 +348,7 @@ for (i in 1:length(m_sp2))
 # copy script to query folder for records ---------------------------------
 
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/1-query-ebird.R ', 
-              dir, 'Bird_Phenology/Data/', query_dir_path))
+              dir, 'Bird_Phenology/Data/', query_dir_path, '/1-query-ebird-', Sys.Date(), '.R'))
 
 
 proc.time() - tt
