@@ -35,12 +35,26 @@
 # with no nonspatial component. 
 
 
+# Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
 dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+
+
+
+# db/hm query dir ------------------------------------------------------------
+
+db_dir <- 'db_query_2018-10-15'
+hm_dir <- 'halfmax_species_2018-10-23'
+
+
+# runtime -----------------------------------------------------------------
+
+tt <- proc.time()
+
 
 
 # Load packages -----------------------------------------------------------
@@ -53,6 +67,7 @@ library(rstan)
 library(doParallel)
 library(foreach)
 library(dplyr)
+library(fitdistrplus)
 
 
 
@@ -68,113 +83,147 @@ species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
-years <- 2002:2016
+
+#DATA ONLY VALID THROUGH 2017 (2018 data only goes to ~ jday 60 as of 2018-10-15 query)
+years <- 2002:2017
 nyr <- length(years)
 
 
-# import data ------------------------------------------------------------
 
-hexgrid6 <- dgconstruct(res=6) # Construct geospatial hexagonal grid
-
-Mu.day <- mean(as.numeric(as.character(data$DAY)))
-sd.day <- sd(as.numeric(as.character(data$DAY)))
-
-predictDays = (c(1:200)-Mu.day)/sd.day
-newdata <- data.frame(sjday = predictDays, sjday2 = predictDays^2, sjday3 = predictDays^3, shr = 1)
-
-
-
-
-
-halfmax_matrix_list <- readRDS('halfmax_matrix_list.rds')
-halfmax_fit_diag <- readRDS('halfmax_fit_diag.rds')
-
-
-
-
-diagnostics_frame <- as.data.frame(matrix(data=NA, nrow=nsp*ncel*nyr, ncol=21))
-names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
-                              "nphen_bad", "min_effSize", "max_Rhat", "phen_effSize", "phen_Rhat",
-                              "phen_mean", "phen_sd", "phen_c_loc", "phen_c_scale", "Nloglik", "Cloglik")
-
+# asdfasd -----------------------------------------------------------------
 
 counter <- 0
-for(i in 1:nsp)
+for (i in 1:nsp)
 {
-  fit_diag[[i]] <- halfmax_matrix_list[[i]] <- list()
-  sdata <- dplyr::select(pdata, YEAR, DAY, sjday, sjday2, sjday3, shr, cell6, species_list[i])
-  names(sdata)[8] <- "detect"
-
-  for(j in 1:nyr)
-  {
-    print(paste(i,j))
-    ysdata <- sdata[which(sdata$YEAR == years[j]), ]
+  #i <- 80
   
-    for(k in 1:ncel)
+  #import presence absence ebird data for each specices
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
+  spdata <- readRDS(paste0('ebird_NA_phen_proc_', species_list[i], '.rds'))
+  
+  #import halfmax estimates and diagnostics from logit cubic model
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
+  temp_halfmax <- readRDS(paste0('halfmax_matrix_list_', species_list[i], '.rds'))
+  temp_diag <- readRDS(paste0('halfmax_fit_diag_', species_list[i], '.rds'))
+  
+  if (i == 1)
+  {
+    #get number of unique cells
+    cells <- unique(spdata$cell6)
+    ncel <- length(cells)
+    
+    #create data.frame to fill
+    diagnostics_frame <- as.data.frame(matrix(data = NA, nrow = nsp*ncel*nyr, ncol = 19))
+    names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
+                                  "nphen_bad", "min_n.eff", "max_Rhat", "HM_n.eff", "HM_Rhat",
+                                  "HM_mean", "HM_sd", "HM_LCI", "HM_UCI")
+  }
+  
+  #loop through years
+  for (j in 1:nyr)
+  {
+    #j <- 10
+    print(paste(i,j))
+    ysdata <- dplyr::filter(spdata, year == years[j])
+  
+    for (k in 1:ncel)
     {
+      #k <- 1
       counter <- counter + 1
       diagnostics_frame$species[counter] <- species_list[i]
       diagnostics_frame$year[counter] <- years[j]
       diagnostics_frame$cell[counter] <- cells[k]
-      cysdata <- ysdata[which(ysdata$cell6 == cells[k]), ]
-      diagnostics_frame$n1[counter] <- sum(cysdata$detect)
-      diagnostics_frame$n1W[counter] <- sum(cysdata$detect*as.numeric(cysdata$DAY < 60))
-      diagnostics_frame$n0[counter] <- sum(cysdata$detect == 0)
       
-      if(diagnostics_frame$n1[counter] > 0)
+      cysdata <- dplyr::filter(ysdata, cell6 == cells[k])
+      
+      #number of surveys where species was detected
+      diagnostics_frame$n1[counter] <- sum(cysdata$detect)
+      #number of surveys where species was not detected
+      diagnostics_frame$n0[counter] <- sum(cysdata$detect == 0)
+      #number of detections that came before jday 60
+      diagnostics_frame$n1W[counter] <- sum(cysdata$detect*as.numeric(cysdata$day < 60))
+      
+      if (diagnostics_frame$n1[counter] > 0)
       {
+        #number of non-detections before first detection
         diagnostics_frame$n0i[counter] <- length(which(cysdata$detect == 0 & 
-                                                         cysdata$sjday < min(cysdata$sjday[which(cysdata$detect==1)])))
-        diagnostics_frame$njd1[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 1)]))
-        diagnostics_frame$njd0i[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 0 & 
-                                                                                cysdata$sjday < min(cysdata$sjday[which(cysdata$detect==1)]))]))
+                                                         cysdata$day < min(cysdata$day[which(cysdata$detect == 1)])))
+        #number of unique days with detections
+        diagnostics_frame$njd1[counter] <- length(unique(cysdata$day[which(cysdata$detect == 1)]))
+        #number of unique days of non-detections before first detection
+        diagnostics_frame$njd0i[counter] <- length(unique(cysdata$day[which(cysdata$detect == 0 & 
+                                                                                cysdata$day < min(cysdata$day[which(cysdata$detect == 1)]))]))
       }
       
-      diagnostics_frame$njd0[counter] <- length(unique(cysdata$sjday[which(cysdata$detect == 0)]))
+      #number of unique days with non-detection
+      diagnostics_frame$njd0[counter] <- length(unique(cysdata$day[which(cysdata$detect == 0)]))
       
-      if(diagnostics_frame$n1[counter] > 29 &
-         diagnostics_frame$n1W[counter] < (diagnostics_frame$n1[counter]/50) &
-         diagnostics_frame$n0[counter] > 29)
+      if (diagnostics_frame$n1[counter] > 29 & 
+          diagnostics_frame$n1W[counter] < (diagnostics_frame$n1[counter] / 50) &
+          diagnostics_frame$n0[counter] > 29)
       {
-        diagnostics_frame$min_effSize[counter] <- fit_diag[[i]][[j]][[k]]$mineffsSize
-        diagnostics_frame$max_Rhat[counter] <- fit_diag[[i]][[j]][[k]]$maxRhat
+        diagnostics_frame$min_n.eff[counter] <- temp_diag[[j]][[k]]$mineffsSize
+        diagnostics_frame$max_Rhat[counter] <- temp_diag[[j]][[k]]$maxRhat
         
-        halfmax_posterior <- as.vector(halfmax_matrix_list[[i]][[j]][k,])
+        halfmax_posterior <- as.vector(temp_halfmax[[j]][k,])
+        
+        #convert to mcmc.list and calc n_eff and Rhat using coda (DIFFERENT THAN STAN ESTIMATES)
+        halfmax_mcmcList <- coda::mcmc.list(coda::as.mcmc(halfmax_posterior[1:500]), 
+                                            coda::as.mcmc(halfmax_posterior[501:1000]),
+                                            coda::as.mcmc(halfmax_posterior[1001:1500]), 
+                                            coda::as.mcmc(halfmax_posterior[1501:2000]))
+        
+        diagnostics_frame$HM_n.eff[counter] <- coda::effectiveSize(halfmax_mcmcList)
+        diagnostics_frame$HM_Rhat[counter] <- coda::gelman.diag(halfmax_mcmcList)$psrf[1]
+        
+        #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
         diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
-        
-        halfmax_mcmcList <- mcmc.list(as.mcmc(halfmax_posterior[1:500]), 
-                                      as.mcmc(halfmax_posterior[501:1000]),
-                                      as.mcmc(halfmax_posterior[1001:1500]), 
-                                      as.mcmc(halfmax_posterior[1501:2000]))
-        
-        diagnostics_frame$phen_effSize[counter] <- effectiveSize(halfmax_mcmcList)
-        diagnostics_frame$phen_Rhat[counter] <- gelman.diag(halfmax_mcmcList)$psrf[1]
-        
         halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
         
-        diagnostics_frame$phen_mean[counter] <- mean(halfmax_posterior2)
-        diagnostics_frame$phen_sd[counter] <- sd(halfmax_posterior2)
+        #calculate posterior mean and sd
+        diagnostics_frame$HM_mean[counter] <- mean(halfmax_posterior)
+        diagnostics_frame$HM_sd[counter] <- sd(halfmax_posterior)
         
-        normfit <- fitdistrplus::fitdist(halfmax_posterior2,"norm")
-        diagnostics_frame$Nloglik[counter] <- normfit$loglik
+        diagnostics_frame$HM_LCI[counter] <- quantile(halfmax_posterior, probs = 0.025)
+        diagnostics_frame$HM_UCI[counter] <- quantile(halfmax_posterior, probs = 0.975)
         
-        cfit <- NA
-        #cfit <- tryCatch(fitdistrplus::fitdist(halfmax_posterior2,"cauchy"), error=function(e){return(NA)})
-        if(!is.na(cfit))
-        {
-          diagnostics_frame$phen_c_loc[counter] <- cfit$estimate[1]
-          diagnostics_frame$phen_c_scale[counter] <- cfit$estimate[2]
-          diagnostics_frame$Cloglik[counter] <- cfit$loglik
-        }
+        # #fit normal and cauchy distributions to data
+        # normfit <- fitdistrplus::fitdist(halfmax_posterior2, "norm")
+        # diagnostics_frame$Nloglik[counter] <- normfit$loglik
+        # 
+        # cfit <- NA
+        # #cfit <- tryCatch(fitdistrplus::fitdist(halfmax_posterior2,"cauchy"), error=function(e){return(NA)})
+        # if(!is.na(cfit))
+        # {
+        #   diagnostics_frame$HM_c_loc[counter] <- cfit$estimate[1]
+        #   diagnostics_frame$HM_c_scale[counter] <- cfit$estimate[2]
+        #   diagnostics_frame$Cloglik[counter] <- cfit$loglik
+        # }
       }
-    }
-  }
-}
+    } # k -cell
+  } # j - year
+} # i - species
 
+
+# #how many have crazy estimates for halfmax (1 for some iter)
+# sum(diagnostics_frame$nphen_bad > 0, na.rm = TRUE)
+
+#add species_cell column
 diagnostics_frame$spCel <- paste(diagnostics_frame$species, diagnostics_frame$cell, sep="_")
-birdPhenRaw <- diagnostics_frame
 
-save(birdPhenRaw, file="/Users/TingleyLab/Dropbox/Work/Phenomismatch/NA_birdPhen/birdPhenRaw.Rdata")
+
+# write to RDS ------------------------------------------------------------
+
+ICAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/ICAR_', Sys.Date())
+
+dir.create(ICAR_dir_path)
+setwd(ICAR_dir_path)
+
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+
+saveRDS(diagnostics_frame, paste0('diagnostics', Sys.Date(), '.rds'))
+
 
 
 
@@ -251,6 +300,10 @@ for(i in nrow(diag_frame):1)
     diag_frame2 <- diag_frame2[-i, ]
   }
 }
+
+
+
+
 
 
 # ICAR models
@@ -444,5 +497,14 @@ registerDoParallel(cl)
 all_output <- 
   foreach(i=1:ncores, .packages = 'rstan') %dopar% 
   fit_funct(Ldatalist[[i]], stan_ICAR_no_nonspatial)
+
+
+
+
+
+
+# put copy of script in dir -----------------------------------------------
+
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/3-ICAR-model.R ', ICAR_dir_path, '/3-ICAR-model-', Sys.Date(), '.R'))
 
 
