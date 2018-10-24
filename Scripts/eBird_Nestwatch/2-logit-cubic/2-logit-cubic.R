@@ -4,7 +4,7 @@
 # Fit logit cubic to eBird data to get half-max parameter (bird arrival) for each species-cell-year
 #
 # Species name should be given as an arg to this script. The logit cubic will then be fit to that species only.
-# Runtime: Approximately 41 hours per species on Xanadu at 2000 iterations - neff > 500
+# Runtime: Each species anywhere from 10 min to ~7 days on Xanadu at 2000 iterations - neff > 500
 # RAM usage: < 6 GB in general
 #
 # Formerly NA_birdPhen1.R
