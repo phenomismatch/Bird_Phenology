@@ -31,10 +31,7 @@ tt <- proc.time()
 
 # Load packages -----------------------------------------------------------
 
-library(rstan)
 library(dplyr)
-library(dggridR)
-library(geosphere)
 
 
 # Set wd ------------------------------------------------------------------
@@ -323,3 +320,4 @@ for (i in 1:nsp)
 
 saveRDS(cells_frame, paste0('cells_frame-', Sys.Date(), '.rds'))
 saveRDS(yrs_frame, paste0('yrs_frame-', Sys.Date(), '.rds'))
+

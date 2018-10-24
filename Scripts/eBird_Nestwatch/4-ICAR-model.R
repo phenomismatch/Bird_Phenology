@@ -36,11 +36,72 @@
 
 
 
+# Top-level dir -----------------------------------------------------------
+
+#desktop/laptop
+#dir <- '~/Google_Drive/R/'
+
+#Xanadu
+dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+
+
+
+# db/hm query dir ------------------------------------------------------------
+
+db_dir <- 'db_query_2018-10-15'
+hm_dir <- 'halfmax_species_2018-10-23'
+ICAR_dir <- 'ICAR_2018-10-24'
+
+
+# runtime -----------------------------------------------------------------
+
+tt <- proc.time()
+
+
+
+# Load packages -----------------------------------------------------------
+
+library(rstan)
+library(dplyr)
+library(dggridR)
+library(geosphere)
+
+
+# Set wd ------------------------------------------------------------------
+
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
+
+
+
+# import eBird species list -----------------------------------------------------
+
+species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
+species_list <- species_list_i[,1]
+nsp <- length(species_list)
+
+
+#DATA ONLY VALID THROUGH 2017 (2018 data only goes to ~ jday 60 as of 2018-10-15 query)
+years <- 2002:2017
+nyr <- length(years)
+
+
+
+
+# read in data files ------------------------------------------------------
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', ICAR_dir))
+
+diagnostics_frame <- readRDS('diagnostics_frame-2018-10-24.rds')
+cells_frame <- readRDS('cells_frame-2018-10-24.rds')
+yrs_frame <- readRDS('yrs_frame-2018-10-24.rds')
+
 
 
 
 # Species list to model ----------------------------------------------------
 
+
+NC <- 3
 
 #species list to model (greater than or = to 'NC' cells for 2015:2017)
 m_species_list <- c()
@@ -57,8 +118,12 @@ for (i in 1:nsp)
 
 
 
-
 # create adjacency matrix -------------------------------------------------
+
+#unique cells (exclude NA as debuggin done on subset of species)
+cells <- unique(diagnostics_frame$cell[!is.na(diagnostics_frame$cell)])
+#cells <- unique(diagnostics_frame$cell)
+ncel <- length(cells)
 
 #get hexgrid cell centers
 hexgrid6 <- dggridR::dgconstruct(res = 6)
@@ -100,7 +165,7 @@ if (m_crit == TRUE)
 }
 
 #check to make sure cells order == order in f_out
-f_out$cell == cells
+all.equal(f_out$cell, cells)
 
 
 #create data list for Stan
@@ -115,6 +180,8 @@ DATA <- list(N = length(cells),
              N_mis = sum(is.na(f_out$HM_mean)),
              sds = f_out$HM_sd)
 
+#insert 0.01 as sd for missing vals
+DATA$sds[which(is.na(DATA$sds))] <- 0.01
 
 
 # Stan model --------------------------------------------------------------
@@ -168,12 +235,14 @@ theta ~ normal(0, 30);
 
 # Run model ---------------------------------------------------------------
 
+#don't worry about compiler error messages (https://discourse.mc-stan.org/t/boost-and-rcppeigen-warnings-for-r-package-using-stan/3478) - need to include control line to avoid jaconian warning messages
+
 out <- stan(model_code = stan_ICAR_no_nonspatial,  # Stan program
             data = DATA,                           # named list of data
-            chains = 4,                            # number of Markov chains
+            chains = 3,                            # number of Markov chains
             iter = 6000,                           # total number of iterations per chain
-            cores = 4)                             # number of cores
-            # control = list(max_treedepth = 20, adapt_delta = .9)) # modified control parameters based on warnings;
+            cores = 3,                             # number of cores
+            control = list(max_treedepth = 20, adapt_delta = .9)) # modified control parameters based on warnings;
             # see http://mc-stan.org/misc/warnings.html
 
 
