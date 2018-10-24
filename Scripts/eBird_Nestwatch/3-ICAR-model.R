@@ -218,92 +218,131 @@ saveRDS(diagnostics_frame, paste0('diagnostics_frame-', Sys.Date(), '.rds'))
 
 
 
-# filter data for ICAR -------------------------------------------------------------
+# initial data filtering based on diagnostics -------------------------------------------------------------
 
 #filter based on priors metrics 
-diag_frame <- filter(diagnostics_frame, n1 > 29, n0 > 29, 
+diag_frame_p <- filter(diagnostics_frame, n1 > 29, n0 > 29, 
                      n1W < (n1/50), njd0i > 29, njd1 > 19)
 
 #number of winter obs is greater than (number of detections/50) - winter obs make up more than 2% of obs
 winter_spcels <- unique(diagnostics_frame$spCel[which(diagnostics_frame$n1W > (diagnostics_frame$n1/50))])
 
+#alias for  !%in%
 '%ni%' <- Negate('%in%')
 
 #exclude 'winter pixels'
-diag_frame_no_w <- diag_frame[which(diag_frame$spCel %ni% winter_spcels), ]
+diag_frame <- diag_frame_p[which(diag_frame_p$spCel %ni% winter_spcels), ]
 
-
-length(unique(diag_frame_no_w$spCel))
 
 #how many cells have data for each year
 for (i in min(years):max(years))
 {
   #i <- 2002
-  n_cell_yr <- length(unique(diag_frame_no_w$spCel[which(diag_frame_no_w$year==i)]))
+  n_cell_yr <- length(unique(diag_frame$spCel[which(diag_frame$year==i)]))
   print(paste0('Cells for ', i, ': ', n_cell_yr))
 }
 
-hist(diag_frame_no_w$HM_mean)
 
 
 
+# #determine which species/cells/years there are good data for -----------------
 
-
-
-
-
-# old code ----------------------------------------------------------------
-# vvvvvvvv
-
-load("/Users/Jacob/Dropbox/Work/Phenomismatch/data_NA_birdPhen_cells.Rdata")
-ncel <- length(cells)
-
-cells_frame <- data.frame(cell=cells, n=NA)
-for(i in 1:ncel)
+#create vector of year names
+yrs_vec <- c()
+for (i in min(years):max(years))
 {
-  cells_frame$n[i] <- sum(diag_frame$cell == cells[i])
+  yrs_vec <- c(yrs_vec, paste0('yr_', i))
 }
+
+#create df with species/cells/n_yrs per sp_cell
+cells_frame <- data.frame(species = rep(species_list, each = length(cells)), 
+                          cell = rep(cells, length(species_list)), 
+                          n_yrs = NA)
+
+#add years
+cells_frame[yrs_vec] <- NA
+
+#fill cells_frame
+for (i in 1:nsp)
+{
+  #i <- 80
+  t_sp <- filter(cells_frame, species == species_list[i])
+  
+  for (k in 1:ncel)
+  {
+    #k <- 30
+    t_cell <- filter(t_sp, cell == cells[k])
+    
+    #filter diag frame by species and cell
+    diag_temp <- filter(diag_frame, species == species_list[i], cell == cells[k])
+    
+    #get index for species/cell row
+    idx <- which(cells_frame$species == species_list[i] & 
+                               cells_frame$cell == cells[k])
+    
+    #insert number of yrs with data
+    cells_frame[idx,'n_yrs'] <- NROW(diag_temp)
+    
+    #find out which years have data and insert TRUE into df - leave NA otherwise
+    diag_temp_yrs <- paste0('yr_', diag_temp$year)
+    cells_frame[idx, which(colnames(cells_frame) %in% diag_temp_yrs)] <- TRUE
+    # f_yrs <- which(colnames(cells_frame) %ni% diag_temp_yrs)[-c(1:3)]
+    # cells_frame[idx, f_yrs] <- 0
+  }
+}
+
+#look at just one species
+filter(cells_frame, species == species_list[80])
+
+
+
+# Which species meet data threshold ---------------------------------------
 
 # Which species-years are worth modeling? At a bare minimum:
-#     Species with at least 3 cells in all three years from 2014-2016
-#     Species-years with at least 3 cells for those species
+#     Species with at least 'NC' cells in all three years from 2015-2017
+#     Species-years with at least 'NC' cells for those species
 
-spYs <- list()
-for(i in 2014:2016)
-{
-  framei <- diag_frame[which(diag_frame$year == i), ]
-  spis <- table(framei$species)
-  spYs[[i-2013]] <- names(spis[which(spis>2)])
-}
+#threshold
+NC <- 3
 
-SPs <- spYs[[1]]
-for(i in 2:3)
-{
-  SPs <- SPs[which(SPs %in% spYs[[i]])]
-}
+out <- data.frame()
 
-species_years_use <- matrix(data = NA, nrow=15, ncol=length(SPs))
-for(i in 1:15)
+#which species to model
+spYs <- data.frame(species = species_list)
+for (i in 1:length(species_list))
 {
-  for(j in 1:length(SPs))
+  #i <- 80
+  #filter by species
+  t_sp <- dplyr::filter(cells_frame, species == species_list[i])
+  
+  #get number of cells with data for each year in 2015-2017
+  d_yrs <- apply(t_sp[c('yr_2015', 'yr_2016', 'yr_2017')], 2, function(x) sum(x, na.rm = TRUE))
+  
+  #if all three years have more than 'NC' cells of data, figure out which years have at least 'NC' cells
+  if (sum(d_yrs >= NC) == 3)
   {
-    species_years_use[i,j] <- length(which(diag_frame$year == years[i] & diag_frame$species == SPs[j]))
+    #calc nunber of cells for each year (apply function only to year columns)
+    n_cells_yr <- apply(t_sp[-which(c(names(t_sp) %in% c('species', 'cell', 'n_yrs')))], 2, 
+                        function(x) sum(x, na.rm = TRUE))
+    
+    #get which years meet NC threshold
+    cells_yr <- as.numeric(substr(names(which(n_cells_yr >= NC)), start = 4, stop = 7))
+    
+    #filter diag_frame for species
+    diag_frame_t_sp <- filter(diag_frame, species == species_list[i])
+    
+    #only years with > NC cells of data
+    t_out <- diag_frame_t_sp[which(diag_frame$year %in% cells_yr),]
+    
+    #add rows that meet thresholds to output df
+    out <- rbind(out, t_out)
   }
 }
-length(which(species_years_use > 2))
-
-diag_frame2 <- diag_frame
-for(i in nrow(diag_frame):1)
-{
-  if(length(which(diag_frame2$year == diag_frame2$year[i] & diag_frame2$species == diag_frame2$species[j])) < 3)
-  {
-    diag_frame2 <- diag_frame2[-i, ]
-  }
-}
 
 
 
 
+# ICAR model data prep ----------------------------------------------------
 
 
 # ICAR models
@@ -497,6 +536,9 @@ registerDoParallel(cl)
 all_output <- 
   foreach(i=1:ncores, .packages = 'rstan') %dopar% 
   fit_funct(Ldatalist[[i]], stan_ICAR_no_nonspatial)
+
+
+
 
 
 
