@@ -39,10 +39,10 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+#dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 
 
@@ -105,16 +105,16 @@ NC <- 3
 
 #species list to model (greater than or = to 'NC' cells for 2015:2017)
 m_species_list <- c()
-for (i in 1:nsp)
-{
-  #i <- 80
+#for (i in 1:nsp)
+#{
+  i <- 80
   t_yrsf <- dplyr::filter(yrs_frame, species == species_list[i])
   
   if (sum(t_yrsf$n_cells[which(t_yrsf$year %in% 2015:2017)] >= NC) == 3)
   {
     m_species_list <- c(m_species_list, species_list[i])
   }
-}
+#}
 
 
 
@@ -157,12 +157,12 @@ i <- 1
 j <- 15
 f_out <- filter(diagnostics_frame, species == m_species_list[i], year == years[j])
 
-if (m_crit == TRUE)
-{
-  #proceed
-} else {
-  #stop
-}
+# if (m_crit == TRUE)
+# {
+#   #proceed
+# } else {
+#   #stop
+# }
 
 #check to make sure cells order == order in f_out
 all.equal(f_out$cell, cells)
@@ -204,9 +204,8 @@ real<lower = 0> sds[N];                 // sds for ALL data (observed and unobse
 parameters {
 real<lower = 1, upper = 200> y_mis[N_mis];         // missing data
 real beta0;                // intercept
-real<lower = 0> sigma_phi;     // sd of spatial effects
-vector[N] theta;       // heterogeneous effects - DOESNT APPEAR TO BE ELSEWHERE IN THE MODEL
 vector[N] phi;         // spatial effects
+real<lower = 0> sigma_phi;     // sd of spatial effects
 }
 
 transformed parameters {
@@ -228,7 +227,7 @@ target += -0.5 * dot_self(phi[node1] - phi[node2]);
 sum(phi) ~ normal(0, 0.001 * N);  // equivalent to mean(phi) ~ normal(0,0.001)
 
 beta0 ~ normal(0, 100);
-theta ~ normal(0, 30);
+sigma_phi ~ uniform(0, 100);
 }'
 
 
@@ -239,9 +238,9 @@ theta ~ normal(0, 30);
 
 out <- stan(model_code = stan_ICAR_no_nonspatial,  # Stan program
             data = DATA,                           # named list of data
-            chains = 3,                            # number of Markov chains
+            chains = 1,                            # number of Markov chains
             iter = 6000,                           # total number of iterations per chain
-            cores = 3,                             # number of cores
+            cores = 1,                             # number of cores
             control = list(max_treedepth = 20, adapt_delta = .9)) # modified control parameters based on warnings;
             # see http://mc-stan.org/misc/warnings.html
 
