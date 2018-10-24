@@ -34,12 +34,13 @@ Repository structure:
       * `2-logit-cubic.R` - R script that takes species argument (run from `2-<Genus_species>.sh` scripts)
       * `species/` - contains job scripts for each species
         * `2-<Genus_species>.sh` - scripts to submit jobs for each species (153 scripts, one for each species); run with `2-master-submit.sh`
-    * `3-ICAR-model.R` - fit arrival dates using ICAR model to derive arrival date estimates
-    * `3b-ICAR-model-ns.R` - fit arrival dates using ICAR model with both spatial and non-spatial components (as opposed to just spatial component as with `3-ICAR-model.R`)
-    * `3c-ICAR-model-ns-parallel.R` - same as `3b-ICAR-model-ns.R`, except run in parallel
-    * `4-extract-arr-dates.R` - extract arrival dates for each species-cell-year
-    * `5-phen-compare.R` - correlations among veg and bird phenology products
-    * `6-breed-arr-model.R` - breeding date (nest watch) as a function of arrival date (eBird)
+    * `3-process-output.R` - process model output from `2-logit-cubic.R`, in prep for `4-ICAR-model.R`
+    * `4-ICAR-model.R` - fit arrival dates using ICAR model to derive arrival date estimates
+    * `4b-ICAR-model-ns.R` - fit arrival dates using ICAR model with both spatial and non-spatial components (as opposed to just spatial component as with `4-ICAR-model.R`)
+    * `4c-ICAR-model-ns-parallel.R` - same as `4b-ICAR-model-ns.R`, except run in parallel
+    * `5-extract-arr-dates.R` - extract arrival dates for each species-cell-year
+    * `6-phen-compare.R` - correlations among veg and bird phenology products
+    * `7-breed-arr-model.R` - breeding date (nest watch) as a function of arrival date (eBird)
   * `Other/` - MISC scripts
     * `query_bbs.R` - queries and zero fills BBS data
 
