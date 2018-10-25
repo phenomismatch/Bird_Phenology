@@ -173,7 +173,7 @@ DATA <- list(N = length(cells),
              N_edges = nrow(ninds), 
              node1 = ninds[,1], 
              node2 = ninds[,2],
-             obs = f_out$HM_mean[which(!is.na(f_out$HM_mean))], 
+             y_obs = f_out$HM_mean[which(!is.na(f_out$HM_mean))], 
              ii_obs = which(!is.na(f_out$HM_mean)),
              ii_mis = which(is.na(f_out$HM_mean)),
              N_obs = sum(!is.na(f_out$HM_mean)),
@@ -186,32 +186,33 @@ DATA$sds[which(is.na(DATA$sds))] <- 0.01
 
 # Stan model --------------------------------------------------------------
 
+# model strcture to accomodate missing data derived from section 11.3 of Stan reference manual 2.17.0 (p. 182)
 
 stan_ICAR_no_nonspatial <- '
 data {
-int<lower = 0> N; // number of cells (= number of observations, including NAs)
-int<lower = 0> N_obs; // number of non-missing
-int<lower = 0> N_mis; // number missing
-int<lower = 0> N_edges; // number of edges in adjacency matrix
-int<lower = 1, upper = N> node1[N_edges];  // node1[i] adjacent to node2[i]
-int<lower = 1, upper = N> node2[N_edges];  // and node1[i] < node2[i]
-real<lower = 0, upper = 200> obs[N_obs];    // observed data (excluding NAs)
+int<lower = 0> N;                                     // number of cells (= number of observations, including NAs)
+int<lower = 0> N_obs;                                 // number of non-missing
+int<lower = 0> N_mis;                                 // number missing
+int<lower = 0> N_edges;                               // number of edges in adjacency matrix
+int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
+int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
+real<lower = 0, upper = 200> y_obs[N_obs];            // observed data (excluding NAs)
 int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];
 int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];
-real<lower = 0> sds[N];                 // sds for ALL data (observed and unobserved)
+real<lower = 0> sds[N];                               // sds for ALL data (observed and unobserved)
 }
 
 parameters {
-real<lower = 1, upper = 200> y_mis[N_mis];         // missing data
-real beta0;                // intercept
-vector[N] phi;         // spatial effects
-real<lower = 0> sigma_phi;     // sd of spatial effects
+real<lower = 1, upper = 200> y_mis[N_mis];            // missing data
+real beta0;                                           // intercept
+vector[N] phi;                                        // spatial effects
+real<lower = 0> sigma_phi;                            // sd of spatial effects
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N];
-vector[N] latent; // latent true halfmax values
-y[ii_obs] = obs;
+vector[N] latent;                                     // latent true halfmax values
+y[ii_obs] = y_obs;
 y[ii_mis] = y_mis;
 latent = beta0 + phi * sigma_phi; 
 }
