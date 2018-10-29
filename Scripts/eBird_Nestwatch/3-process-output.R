@@ -1,7 +1,7 @@
 ######################
 # 3 - proces cubic output
 #
-# Aggeregate posterior info and diagnostic info from 2-logit-cubic.R to be used in ICAR model
+# Aggeregate posterior info and diagnostic info from 2-logit-cubic.R to be used in IAR model
 #
 # Parts formerly in ICAR_parallel.R
 ######################
@@ -20,7 +20,8 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 db_dir <- 'db_query_2018-10-15'
-hm_dir <- 'halfmax_species_2018-10-23'
+hm_dir <- 'halfmax_species_2018-10-16'
+IAR_dir <- 'IAR_2018-10-24'
 
 
 # runtime -----------------------------------------------------------------
@@ -58,7 +59,7 @@ nyr <- length(years)
 counter <- 0
 for (i in 1:nsp)
 {
-  #i <- 80
+  #i <- 1
   
   #import presence absence ebird data for each specices
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
@@ -193,7 +194,7 @@ NC <- 3
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
 {
-  #i <- 80
+  #i <- 1
   #filter by species
   t_sp <- dplyr::filter(diagnostics_frame, species == species_list[i])
   
@@ -212,7 +213,7 @@ for (i in 1:length(species_list))
   #if all three years have greater than or = to 'NC' cells of data, figure out which years have at least 'NC' cells
   if (sum(nobs_yr >= NC) == 3)
   {
-    #see if 2015:2017 have more than 3 cells of data
+    #see which years have more than 3 cells of data
     nobs_yr2 <- c()
     for (j in min(years):max(years))
     {
@@ -225,6 +226,31 @@ for (i in 1:length(species_list))
     #years to keep (more than three cells of data)
     yrs_kp <- years[which(nobs_yr2 >= NC)]
     
+    #of this species, which years to keep
+    t_sp_kp <- t_sp[which(t_sp$year %in% yrs_kp),]
+    
+    #figure out which cells can be classified as non-winter cells
+    for (k in 1:ncel)
+    {
+      #k <- 1
+      t_sp_kp_c <- dplyr::filter(t_sp_kp, cell == cells[k])
+      
+      t_sp_kp_c$n1[counter] > 29 
+      t_sp_kp_c$n1W[counter] < (diagnostics_frame$n1[counter] / 50) &
+        t_sp_kp_c$n0[counter] > 29 &
+      
+      
+      
+      
+      #of the cells for this particular species/year, does this trigger the winter threshold?
+      t_sp_kp_c_f <- t_sp_kp_c[which(!is.na(t_sp_kp_c$HM_mean)),]
+      
+      #make sure 
+      if (sum(t_sp_kp_c_f$n1W < (t_sp_kp_c_f$n1 / 50)) > 0)
+    }
+    
+    
+    
     #add m_crit == TRUE if that species/year meets criteria
     diagnostics_frame[which(diagnostics_frame$species == species_list[i] & 
                               diagnostics_frame$year %in% yrs_kp),]$m_crit <- TRUE
@@ -234,10 +260,10 @@ for (i in 1:length(species_list))
 
 # write diagnostics data.frame to RDS
 
-ICAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/ICAR_', Sys.Date())
+IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_', Sys.Date())
 
-dir.create(ICAR_dir_path)
-setwd(ICAR_dir_path)
+dir.create(IAR_dir_path)
+setwd(IAR_dir_path)
 
 saveRDS(diagnostics_frame, paste0('diagnostics_frame-', Sys.Date(), '.rds'))
 
