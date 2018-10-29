@@ -49,8 +49,8 @@ dir <- '~/Google_Drive/R/'
 # db/hm query dir ------------------------------------------------------------
 
 db_dir <- 'db_query_2018-10-15'
-hm_dir <- 'halfmax_species_2018-10-23'
-ICAR_dir <- 'ICAR_2018-10-24'
+hm_dir <- 'halfmax_species_2018-10-16'
+IAR_dir <- 'IAR_2018-10-26'
 
 
 # runtime -----------------------------------------------------------------
@@ -89,11 +89,13 @@ nyr <- length(years)
 
 # read in data files ------------------------------------------------------
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', ICAR_dir))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 
-diagnostics_frame <- readRDS('diagnostics_frame-2018-10-24.rds')
-cells_frame <- readRDS('cells_frame-2018-10-24.rds')
-yrs_frame <- readRDS('yrs_frame-2018-10-24.rds')
+IAR_date <- substr(IAR_dir, start = 5, stop = 15)
+
+diagnostics_frame <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
+cells_frame <- readRDS(paste0('cells_frame-', IAR_date, '.rds'))
+yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 
 
 
@@ -107,13 +109,13 @@ NC <- 3
 m_species_list <- c()
 #for (i in 1:nsp)
 #{
-  i <- 80
-  t_yrsf <- dplyr::filter(yrs_frame, species == species_list[i])
-  
-  if (sum(t_yrsf$n_cells[which(t_yrsf$year %in% 2015:2017)] >= NC) == 3)
-  {
-    m_species_list <- c(m_species_list, species_list[i])
-  }
+i <- 80
+t_yrsf <- dplyr::filter(yrs_frame, species == species_list[i])
+
+if (sum(t_yrsf$n_cells[which(t_yrsf$year %in% 2015:2017)] >= NC) == 3)
+{
+  m_species_list <- c(m_species_list, species_list[i])
+}
 #}
 
 
@@ -170,25 +172,32 @@ all.equal(f_out$cell, cells)
 
 #create data list for Stan
 DATA <- list(N = length(cells), 
+             N_obs = sum(!is.na(f_out$HM_mean)),
+             N_mis = sum(is.na(f_out$HM_mean)),
              N_edges = nrow(ninds), 
              node1 = ninds[,1], 
              node2 = ninds[,2],
              y_obs = f_out$HM_mean[which(!is.na(f_out$HM_mean))], 
+             #sds = f_out$HM_sd,
              ii_obs = which(!is.na(f_out$HM_mean)),
-             ii_mis = which(is.na(f_out$HM_mean)),
-             N_obs = sum(!is.na(f_out$HM_mean)),
-             N_mis = sum(is.na(f_out$HM_mean)),
-             sds = f_out$HM_sd)
+             ii_mis = which(is.na(f_out$HM_mean)))
 
-#insert 0.01 as sd for missing vals
-DATA$sds[which(is.na(DATA$sds))] <- 0.01
+
+#DATA$sds[which(is.na(DATA$sds))] <- 55
+
+
 
 
 # Stan model --------------------------------------------------------------
 
 # model strcture to accomodate missing data derived from section 11.3 of Stan reference manual 2.17.0 (p. 182)
+# No need to worry about Jacobian warning - the 'transformation' is linear (just using an indexing trick to accomodate missing data in Y)
+# No need to worry about Parser warning about 'Unknown variable: sum' - known error in stan (as of Oct 26, 2018)
 
-stan_ICAR_no_nonspatial <- '
+#reference Ver Hoef et al. 2018 Eco Monographs for nice overview of spatial autoregressive models
+
+
+IAR_no_obs_error <- '
 data {
 int<lower = 0> N;                                     // number of cells (= number of observations, including NAs)
 int<lower = 0> N_obs;                                 // number of non-missing
@@ -196,39 +205,67 @@ int<lower = 0> N_mis;                                 // number missing
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
 int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
 int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
-real<lower = 0, upper = 200> y_obs[N_obs];            // observed data (excluding NAs)
-int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];
-int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];
-real<lower = 0> sds[N];                               // sds for ALL data (observed and unobserved)
+
+real<lower = 0, upper = 200> y_obs[N_obs];            // observed response data (excluding NAs)
+
+int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];  // indices of observed values
+int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];  // indices of unobserved values
+
+// real<lower = 0> sds_obs[N_obs];
+// real<lower = 0> sds[N];
 }
 
 parameters {
-real<lower = 1, upper = 200> y_mis[N_mis];            // missing data
+real<lower = 1, upper = 200> y_mis[N_mis];            // missing response data
+real<lower = 0> sigma_y;                              // non-spatial error component
 real beta0;                                           // intercept
-vector[N] phi;                                        // spatial effects
-real<lower = 0> sigma_phi;                            // sd of spatial effects
+vector[N] phi;                                        // spatial error component (centered on 0)
+real<lower = 0> sigma_phi;                            // to scale spatial error component
+
+// real<lower = 0> sds_mis[N_mis];                    
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N];
 vector[N] latent;                                     // latent true halfmax values
-y[ii_obs] = y_obs;
-y[ii_mis] = y_mis;
-latent = beta0 + phi * sigma_phi; 
+y[ii_obs] = y_obs;                                    // transform to accomodate missing data in Stan
+y[ii_mis] = y_mis;                                    // transform to accomodate missing data in Stan
+
+mu = beta0 + phi * sigma_phi;                     // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
+
+// real<lower = 0> sd_y[N];
+// sds[ii_obs] = sds_obs;
+// sds[ii_mis] = sds_mis;
 }
 
 
 model {
-y ~ normal(latent, sds);
+// the way this is coded, it assumes y is observed without error
+// check notation - formulation from Herarchical modeling and analysis for spatial data Eq. 3.16, Ver Hoef et al. 2018, and Morris online Stan IAR
+
+// y[i] \sim N(\mu[i], \sigma_y)
+// \mu[i] = \beta_0 + \phi[i]
+// \phi \sim N(0, [\tau(D-W)]^{-1})
+// which rewrites to the *pairwise difference* formulation:
+// \phi[i] \sim N(0, \sigma_{\phi})
+// \sigma_{\phi} = exp(-\frac{1}{2} \sum_{i \sim j}{(\phi[i] - \phi[j])^{2}})
+
+// y[i] is response data
+// \mu[i] is latent half max
+// \sigma_y is non-spatial error component
+// \phi[i] is spatial error component - must be centered on 0 to fit properly
+// \sigma_{\phi} is the pairwise difference formulation 
+// D is n x n diagonal matrix, where d[i,j] = # of neighbors for cell i
+// W is weights matrix, w[i,i] = 0, w[i,j] = 1 if i is neighbor of j and w[i,j] = 0 otherwise
+
+
+y ~ normal(mu, sigma_y);
 
 // the following computes the prior on phi on the unit scale with sd = 1
 target += -0.5 * dot_self(phi[node1] - phi[node2]);
 
-// soft sum-to-zero constraint on phi)
-sum(phi) ~ normal(0, 0.001 * N);  // equivalent to mean(phi) ~ normal(0,0.001)
-
-beta0 ~ normal(0, 100);
-sigma_phi ~ uniform(0, 100);
+// soft sum-to-zero constraint on phi) - equivalent to mean(phi) ~ normal(0,0.001)
+sum(phi) ~ normal(0, 0.001 * N);
 }'
 
 
@@ -237,13 +274,16 @@ sigma_phi ~ uniform(0, 100);
 
 #don't worry about compiler error messages (https://discourse.mc-stan.org/t/boost-and-rcppeigen-warnings-for-r-package-using-stan/3478) - need to include control line to avoid jaconian warning messages
 
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
 out <- stan(model_code = stan_ICAR_no_nonspatial,  # Stan program
             data = DATA,                           # named list of data
-            chains = 1,                            # number of Markov chains
-            iter = 6000,                           # total number of iterations per chain
-            cores = 1,                             # number of cores
-            control = list(max_treedepth = 20, adapt_delta = .9)) # modified control parameters based on warnings;
-            # see http://mc-stan.org/misc/warnings.html
+            chains = 3,                            # number of Markov chains
+            iter = 2000,                           # total number of iterations per chain
+            cores = 3,                             # number of cores
+            control = list(max_treedepth = 25, adapt_delta = 0.90)) # modified control parameters based on warnings;
+# see http://mc-stan.org/misc/warnings.html
 
 
 
