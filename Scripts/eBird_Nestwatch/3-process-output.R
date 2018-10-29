@@ -229,25 +229,26 @@ for (i in 1:length(species_list))
     #of this species, which years to keep
     t_sp_kp <- t_sp[which(t_sp$year %in% yrs_kp),]
     
-    #figure out which cells can be classified as non-winter cells
-    for (k in 1:ncel)
-    {
-      #k <- 1
-      t_sp_kp_c <- dplyr::filter(t_sp_kp, cell == cells[k])
-      
-      t_sp_kp_c$n1[counter] > 29 
-      t_sp_kp_c$n1W[counter] < (diagnostics_frame$n1[counter] / 50) &
-        t_sp_kp_c$n0[counter] > 29 &
-      
-      
-      
-      
-      #of the cells for this particular species/year, does this trigger the winter threshold?
-      t_sp_kp_c_f <- t_sp_kp_c[which(!is.na(t_sp_kp_c$HM_mean)),]
-      
-      #make sure 
-      if (sum(t_sp_kp_c_f$n1W < (t_sp_kp_c_f$n1 / 50)) > 0)
-    }
+    # #figure out which cells can be classified as non-winter cells
+    # COMMENTED OUT as we want to include all cells in model - just no data input for 'winter cells'. 'Winter cells' can be determined later and excluded from downstream analyses
+    # for (k in 1:ncel)
+    # {
+    #   #k <- 1
+    #   t_sp_kp_c <- dplyr::filter(t_sp_kp, cell == cells[k])
+    #   
+    #   t_sp_kp_c$n1[counter] > 29 
+    #   t_sp_kp_c$n1W[counter] < (diagnostics_frame$n1[counter] / 50) &
+    #     t_sp_kp_c$n0[counter] > 29 &
+    #   
+    #   
+    #   
+    #   
+    #   #of the cells for this particular species/year, does this trigger the winter threshold?
+    #   t_sp_kp_c_f <- t_sp_kp_c[which(!is.na(t_sp_kp_c$HM_mean)),]
+    #   
+    #   #make sure 
+    #   if (sum(t_sp_kp_c_f$n1W < (t_sp_kp_c_f$n1 / 50)) > 0)
+    # }
     
     
     
