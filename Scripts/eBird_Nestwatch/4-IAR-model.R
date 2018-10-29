@@ -98,6 +98,15 @@ cells_frame <- readRDS(paste0('cells_frame-', IAR_date, '.rds'))
 yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 
 
+#which species/year has the most cells - to model 'data rich species'
+DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
+DR_yr <- as.numeric(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),2])
+
+
+#explore filter for good data
+sum(diagnostics_frame$min_n.eff < 500, na.rm = TRUE)
+sum(diagnostics_frame$max_Rhat > 1.1, na.rm = TRUE)
+sum(diagnostics_frame$nphen_bad > 100, na.rm = TRUE)
 
 
 # Species list to model ----------------------------------------------------
@@ -155,9 +164,8 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 # Create Stan data object ------------------------------------------------------
 
 #filter by species/year here
-i <- 1
-j <- 15
-f_out <- filter(diagnostics_frame, species == m_species_list[i], year == years[j])
+f_out <- filter(diagnostics_frame, species == DR_sp, year == DR_yr)
+
 
 # if (m_crit == TRUE)
 # {
@@ -190,12 +198,6 @@ DATA <- list(N = length(cells),
 
 # Stan model --------------------------------------------------------------
 
-# model strcture to accomodate missing data derived from section 11.3 of Stan reference manual 2.17.0 (p. 182)
-# No need to worry about Jacobian warning - the 'transformation' is linear (just using an indexing trick to accomodate missing data in Y)
-# No need to worry about Parser warning about 'Unknown variable: sum' - known error in stan (as of Oct 26, 2018)
-
-#reference Ver Hoef et al. 2018 Eco Monographs for nice overview of spatial autoregressive models
-
 
 IAR_no_obs_error <- '
 data {
@@ -227,11 +229,12 @@ real<lower = 0> sigma_phi;                            // to scale spatial error 
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N];
-vector[N] latent;                                     // latent true halfmax values
+
+vector[N] mu;                                         // latent true halfmax values
+mu = beta0 + phi * sigma_phi;                         // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
+
 y[ii_obs] = y_obs;                                    // transform to accomodate missing data in Stan
 y[ii_mis] = y_mis;                                    // transform to accomodate missing data in Stan
-
-mu = beta0 + phi * sigma_phi;                     // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
 
 // real<lower = 0> sd_y[N];
 // sds[ii_obs] = sds_obs;
@@ -242,19 +245,20 @@ mu = beta0 + phi * sigma_phi;                     // scaling by sigma_phi rather
 model {
 // the way this is coded, it assumes y is observed without error
 // check notation - formulation from Herarchical modeling and analysis for spatial data Eq. 3.16, Ver Hoef et al. 2018, and Morris online Stan IAR
+// http://mc-stan.org/users/documentation/case-studies/icar_stan.html
 
-// y[i] \sim N(\mu[i], \sigma_y)
-// \mu[i] = \beta_0 + \phi[i]
-// \phi \sim N(0, [\tau(D-W)]^{-1})
+// y[i] sim N(mu[i], sigma_y)
+// mu[i] = beta_0 + phi[i]
+// phi sim N(0, [tau(D-W)]^{-1})
 // which rewrites to the *pairwise difference* formulation:
-// \phi[i] \sim N(0, \sigma_{\phi})
-// \sigma_{\phi} = exp(-\frac{1}{2} \sum_{i \sim j}{(\phi[i] - \phi[j])^{2}})
+// phi[i] sim N(0, sigma_{phi})
+// sigma_{phi} = exp(-frac{1}{2} sum_{i sim j}{(phi[i] - phi[j])^{2}})
 
 // y[i] is response data
-// \mu[i] is latent half max
-// \sigma_y is non-spatial error component
-// \phi[i] is spatial error component - must be centered on 0 to fit properly
-// \sigma_{\phi} is the pairwise difference formulation 
+// mu[i] is latent half max
+// sigma_y is non-spatial error component
+// phi[i] is spatial error component - must be centered on 0 to fit properly
+// sigma_{phi} is the pairwise difference formulation 
 // D is n x n diagonal matrix, where d[i,j] = # of neighbors for cell i
 // W is weights matrix, w[i,i] = 0, w[i,j] = 1 if i is neighbor of j and w[i,j] = 0 otherwise
 
@@ -272,19 +276,27 @@ sum(phi) ~ normal(0, 0.001 * N);
 
 # Run model ---------------------------------------------------------------
 
-#don't worry about compiler error messages (https://discourse.mc-stan.org/t/boost-and-rcppeigen-warnings-for-r-package-using-stan/3478) - need to include control line to avoid jaconian warning messages
+# Reference Ver Hoef et al. 2018 Eco Monographs for nice overview of spatial autoregressive models
+# Model structure to accomodate missing data derived from section 11.3 of Stan reference manual 2.17.0 (p. 182)
+# No need to worry about Jacobian warning - the 'transformation' is linear (just using an indexing trick to accomodate missing data in Y)
+# No need to worry about Parser warning about 'Unknown variable: sum' - known error in stan (as of Oct 26, 2018)
+
 
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-out <- stan(model_code = stan_ICAR_no_nonspatial,  # Stan program
-            data = DATA,                           # named list of data
-            chains = 3,                            # number of Markov chains
-            iter = 2000,                           # total number of iterations per chain
-            cores = 3,                             # number of cores
-            control = list(max_treedepth = 25, adapt_delta = 0.90)) # modified control parameters based on warnings;
+out <- stan(model_code = IAR_no_obs_error,         # Model
+            data = DATA,                           # Data
+            chains = 3,                            # Number chains
+            iter = 10000,                          # Iterations per chain
+            cores = 3,                             # Number cores to use
+            control = list(max_treedepth = 20, adapt_delta = 0.99)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 
+
+
+library(shinystan)
+sst_out <- launch_shinystan(out)
 
 
 
