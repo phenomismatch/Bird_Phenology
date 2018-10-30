@@ -65,6 +65,7 @@ library(rstan)
 library(dplyr)
 library(dggridR)
 library(geosphere)
+library(ggplot2)
 
 
 # Set wd ------------------------------------------------------------------
@@ -285,14 +286,15 @@ sum(phi) ~ normal(0, 0.001 * N);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
+tt <- proc.time()
 out <- stan(model_code = IAR_no_obs_error,         # Model
             data = DATA,                           # Data
-            chains = 3,                            # Number chains
-            iter = 10000,                          # Iterations per chain
-            cores = 3,                             # Number cores to use
+            chains = 5,                            # Number chains
+            iter = 100000,                          # Iterations per chain
+            cores = 5,                             # Number cores to use
             control = list(max_treedepth = 20, adapt_delta = 0.99)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
-
+proc.time() - tt
 
 
 library(shinystan)
@@ -306,4 +308,63 @@ system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/3-ICAR-model.R
 
 
 proc.time() - tt
+
+
+
+
+
+
+
+# Plot pre-IAR halfmax estimates ------------------------------------------
+
+
+#transform cells to grid
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells)
+cell_grid$cell <- as.numeric(cell_grid$cell)
+cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
+ll_df <- data.frame(cell = cells, lon_deg = cell_centers$lon_deg, lat_deg = cell_centers$lat_deg)
+
+#merge hex spatial data with HM data
+to_plt <- dplyr::inner_join(f_out, cell_grid, by = 'cell')
+to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
+
+#load maps
+usamap <- data.frame(map("world", "USA", plot = FALSE)[c("x", "y")])
+canadamap <- data.frame(map("world", "Canada", plot = FALSE)[c("x", "y")])
+mexicomap <- data.frame(map("world", "Mexico", plot = FALSE)[c("x", "y")])
+
+#plot
+p <- ggplot() +
+  geom_path(data = usamap, 
+            aes(x = x, y = y), color = 'black') + 
+  geom_path(data = canadamap, 
+            aes(x = x, y = y), color = 'black') + 
+  geom_path(data = mexicomap, 
+            aes(x = x, y = y), color = 'black') + 
+  coord_map("ortho", orientation = c(35, -80, 0), 
+            xlim = c(-100, -60), ylim = c(20, 55)) + 
+  geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = HM_mean), 
+               alpha = 0.4) +
+  geom_path(data = to_plt2, aes(x = long, y = lat, group = group), 
+                               alpha = 0.4, color = 'black') + 
+  scale_fill_gradientn(colors = c('red', 'blue')) +
+  annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5, 
+           label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.1,
+           size = 4) +
+  annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5, 
+           label = round(to_plt2$HM_sd, digits = 0), col = 'white', alpha = 0.3,
+           size = 3) +
+  ggtitle(paste0(f_out$species[1], ' - ', f_out$year[1], ' - Pre-IAR')) +
+  theme_bw() +
+  xlab('Longitude') +
+  ylab('Latitude')
+
+
+#estimated half-max in grey, sd in white (derived from logit cubic)
+p
+
+
+
+# Plot post-IAR halfmax estimates -----------------------------------------
+
 
