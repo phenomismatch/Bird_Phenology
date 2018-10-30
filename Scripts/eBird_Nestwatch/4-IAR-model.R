@@ -66,6 +66,8 @@ library(dplyr)
 library(dggridR)
 library(geosphere)
 library(ggplot2)
+library(MCMCvis)
+library(maps)
 
 
 # Set wd ------------------------------------------------------------------
@@ -162,7 +164,7 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 
 
 
-# Create Stan data object ------------------------------------------------------
+# Filter data by species ------------------------------------------------------
 
 #filter by species/year here
 f_out <- filter(diagnostics_frame, species == DR_sp, year == DR_yr)
@@ -179,6 +181,35 @@ f_out <- filter(diagnostics_frame, species == DR_sp, year == DR_yr)
 all.equal(f_out$cell, cells)
 
 
+
+# Estimate scaling factor for BYM2 model with INLA ------------------------
+
+#taken from bym2 example here: http://mc-stan.org/users/documentation/case-studies/icar_stan.html
+library(INLA)
+
+#Build the adjacency matrix using INLA library functions
+adj.matrix <- sparseMatrix(i = DATA$node1, j = DATA$node2, 
+                           x = 1, symmetric = TRUE)
+#The ICAR precision matrix (note! This is singular)
+Q <- Diagonal(DATA$N, rowSums(adj.matrix)) - adj.matrix
+#Add a small jitter to the diagonal for numerical stability (optional but recommended)
+Q_pert <- Q + Diagonal(DATA$N) * max(diag(Q)) * sqrt(.Machine$double.eps)
+
+# Compute the diagonal elements of the covariance matrix subject to the 
+# constraint that the entries of the ICAR sum to zero.
+# See the inla.qinv function help for further details.
+Q_inv <- INLA::inla.qinv(Q_pert, 
+                         constr = list(A = matrix(1, 1, DATA$N), e = 0))
+
+#Compute the geometric mean of the variances, which are on the diagonal of Q.inv
+scaling_factor <- exp(mean(log(diag(Q_inv))))
+
+
+
+
+# create Stan data object -------------------------------------------------
+
+
 #create data list for Stan
 DATA <- list(N = length(cells), 
              N_obs = sum(!is.na(f_out$HM_mean)),
@@ -187,12 +218,13 @@ DATA <- list(N = length(cells),
              node1 = ninds[,1], 
              node2 = ninds[,2],
              y_obs = f_out$HM_mean[which(!is.na(f_out$HM_mean))], 
-             #sds = f_out$HM_sd,
+             sigma_y = f_out$HM_sd,
              ii_obs = which(!is.na(f_out$HM_mean)),
-             ii_mis = which(is.na(f_out$HM_mean)))
+             ii_mis = which(is.na(f_out$HM_mean)),
+             scaling_factor = scaling_factor)
 
 
-#DATA$sds[which(is.na(DATA$sds))] <- 55
+DATA$sigma_y[which(is.na(DATA$sigma_y))] <- 0.01
 
 
 
@@ -242,7 +274,7 @@ y[ii_mis] = y_mis;                                    // transform to accomodate
 // sds[ii_mis] = sds_mis;
 }
 
-
+  
 model {
 // the way this is coded, it assumes y is observed without error
 // check notation - formulation from Herarchical modeling and analysis for spatial data Eq. 3.16, Ver Hoef et al. 2018, and Morris online Stan IAR
@@ -275,6 +307,162 @@ sum(phi) ~ normal(0, 0.001 * N);
 
 
 
+
+
+
+#spatial and non-spatial component - also model obs error
+#setting fair prior in this model is difficult
+
+# 'fair prior' following Carlin and Perez 2000 p. 16
+# K = 0.7
+# n_bar = avg number of neighbors
+# tau_h = K^2 * n_bar * tau_c
+# 
+# tau_h = 0.62^2 * 4.71 * tau_c
+# 
+# 
+# tau_c ~ gamma(a_c, b_c) and tau_h ~ gamma(a_h, b_h)
+# 
+# Set tau_c = 1:
+#   E(tau_c) = 1.0 and Var(tau_c) = sigma^2_c
+# a_c = b_c = 1/sigma^2_c
+# E(tau_h) = 1.81 [from above] and Var(tau_h) = sigma^2_h
+# a_h = (1.81)^2/sigma^2_h and b_h = 1.81/sigma^2_h
+
+
+IAR_bym <- '
+data {
+int<lower = 0> N;                                     // number of cells (= number of observations, including NAs)
+int<lower = 0> N_obs;                                 // number of non-missing
+int<lower = 0> N_mis;                                 // number missing
+int<lower = 0> N_edges;                               // number of edges in adjacency matrix
+int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
+int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
+
+real<lower = 0, upper = 200> y_obs[N_obs];            // observed response data (excluding NAs)
+
+int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];  // indices of observed values
+int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];  // indices of unobserved values
+
+real<lower = 0> sigma_y[N];
+}
+
+parameters {
+real<lower = 1, upper = 200> y_mis[N_mis];            // missing response data
+
+real beta0;                                           // intercept
+vector[N] phi;                                        // spatial error component (centered on 0)
+real<lower = 0> tau_phi;                            // to scale spatial error component
+
+vector[N] theta;                                        // non-spatial error component (centered on 0)
+real<lower = 0> tau_theta;                            // to scale non-spatial error component
+}
+
+transformed parameters {
+real<lower = 0, upper = 200> y[N];
+
+real<lower = 0> sigma_theta = inv(sqrt(tau_theta));
+real<lower = 0> sigma_phi = inv(sqrt(tau_phi));
+
+vector[N] mu;                                         // latent true halfmax values
+mu = beta0 + phi * sigma_phi + theta * sigma_theta;                         // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
+
+y[ii_obs] = y_obs;                                    // transform to accomodate missing data in Stan
+y[ii_mis] = y_mis;                                    // transform to accomodate missing data in Stan
+
+}
+
+
+model {
+
+y ~ normal(mu, sigma_y);
+
+// the following computes the prior on phi on the unit scale with sd = 1
+target += -0.5 * dot_self(phi[node1] - phi[node2]);
+
+// soft sum-to-zero constraint on phi) - equivalent to mean(phi) ~ normal(0,0.001)
+sum(phi) ~ normal(0, 0.001 * N);
+
+beta0 ~ normal(120, 10);
+tau_phi ~ gamma(1, 1);
+theta ~ normal(0, 1);
+tau_theta ~ gamma(3.27 ,1.81 );
+
+}'
+
+
+
+
+
+#spatial and non-spatial component (reparameterized) - also model obs error
+#uses scaling factor fomr INLA to set priors more easily
+
+IAR_bym2 <- '
+data {
+int<lower = 0> N;                                     // number of cells (= number of observations, including NAs)
+int<lower = 0> N_obs;                                 // number of non-missing
+int<lower = 0> N_mis;                                 // number missing
+int<lower = 0> N_edges;                               // number of edges in adjacency matrix
+int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
+int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
+
+real<lower = 0, upper = 200> y_obs[N_obs];            // observed response data (excluding NAs)
+
+int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];  // indices of observed values
+int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];  // indices of unobserved values
+
+real<lower = 0> sigma_y[N];                           // observed sd of data (observation error)
+
+real<lower = 0> scaling_factor;                       // scales variances of spatial effects
+}
+
+parameters {
+real<lower = 1, upper = 200> y_mis[N_mis];            // missing response data
+
+real beta0;                                           // intercept
+
+real<lower = 0> sigma;                                // spatial and non-spatial sd
+real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
+
+vector[N] phi;                                        // spatial error component (centered on 0)
+vector[N] theta;                                      // non-spatial error component (centered on 0)
+}
+
+transformed parameters {
+real<lower = 0, upper = 200> y[N];
+
+vector[N] convolved_re;
+vector[N] mu;                                         // latent true halfmax values
+
+// variance of each component should be approx equal to 1
+convolved_re = sqrt(1 - rho) * theta + sqrt(rho / scaling_factor) * phi;
+
+mu = beta0 + convolved_re * sigma;                    // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
+
+y[ii_obs] = y_obs;                                    // transform to accomodate missing data in Stan
+y[ii_mis] = y_mis;                                    // transform to accomodate missing data in Stan
+}
+
+
+model {
+
+y ~ normal(mu, sigma_y);
+
+// the following computes the prior on phi on the unit scale with sd = 1
+target += -0.5 * dot_self(phi[node1] - phi[node2]);
+
+// soft sum-to-zero constraint on phi) - equivalent to mean(phi) ~ normal(0,0.001)
+sum(phi) ~ normal(0, 0.001 * N);
+
+beta0 ~ normal(120, 10);
+theta ~ normal(0, 1);
+sigma ~ normal(0, 5);
+rho ~ beta(0.5, 0.5);
+
+}'
+
+
+
 # Run model ---------------------------------------------------------------
 
 # Reference Ver Hoef et al. 2018 Eco Monographs for nice overview of spatial autoregressive models
@@ -287,18 +475,50 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 tt <- proc.time()
-out <- stan(model_code = IAR_no_obs_error,         # Model
+fit <- stan(model_code = IAR_bym2,                 # Model
             data = DATA,                           # Data
-            chains = 5,                            # Number chains
-            iter = 100000,                          # Iterations per chain
-            cores = 5,                             # Number cores to use
-            control = list(max_treedepth = 20, adapt_delta = 0.99)) # modified control parameters based on warnings;
+            chains = 3,                            # Number chains
+            iter = 2000,                           # Iterations per chain
+            cores = 3,                             # Number cores to use
+            control = list(max_treedepth = 20, adapt_delta = 0.8)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
 
+
+# saveRDS(fit, 'stan_bym2_fit.rds')
+
+fit
+
+
+#diagnostics
+#https://betanalpha.github.io/assets/case_studies/rstan_workflow.html#1_a_little_bit_about_markov_chain_monte_carlo
+source('~/Google_Drive/R/Bird_Phenology/Scripts/Other/stan_utility.R')
+check_treedepth(fit)
+check_energy(fit)
+check_div(fit)
+
+
+#plotting diverged params
+c_dark <- c("#8F272780")
+green <- c("#00FF0080")
+
+partition <- partition_div(fit)
+div_params <- partition[[1]]
+nondiv_params <- partition[[2]]
+
+par(mar = c(4, 4, 0.5, 0.5))
+plot(nondiv_params$'sigma_y[1]', nondiv_params$'sigma_phi',
+     col=c_dark, pch=16, cex=0.8, xlab="sigma_theta", ylab="sigma_phi")
+points(div_params$'sigma_y[1]', div_params$'sigma_phi',
+       col=green, pch=16, cex=0.8)
+
+
+#shiny stan
 library(shinystan)
-sst_out <- launch_shinystan(out)
+launch_shinystan(fit)
+
+
 
 
 
@@ -329,9 +549,9 @@ to_plt <- dplyr::inner_join(f_out, cell_grid, by = 'cell')
 to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
 
 #load maps
-usamap <- data.frame(map("world", "USA", plot = FALSE)[c("x", "y")])
-canadamap <- data.frame(map("world", "Canada", plot = FALSE)[c("x", "y")])
-mexicomap <- data.frame(map("world", "Mexico", plot = FALSE)[c("x", "y")])
+usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
+canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
+mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
 
 #plot
 p <- ggplot() +
@@ -342,7 +562,7 @@ p <- ggplot() +
   geom_path(data = mexicomap, 
             aes(x = x, y = y), color = 'black') + 
   coord_map("ortho", orientation = c(35, -80, 0), 
-            xlim = c(-100, -60), ylim = c(20, 55)) + 
+            xlim = c(-100, -55), ylim = c(20, 60)) + 
   geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = HM_mean), 
                alpha = 0.4) +
   geom_path(data = to_plt2, aes(x = long, y = lat, group = group), 
@@ -367,4 +587,43 @@ p
 
 # Plot post-IAR halfmax estimates -----------------------------------------
 
+med_fit <- MCMCpstr(fit, params = 'mu', func = median)[[1]]
+sd_fit <- MCMCpstr(fit, params = 'mu', func = sd)[[1]]
+
+m_fit <- data.frame(mean = med_fit, sd = sd_fit, cell = cells)
+
+#merge hex spatial data with HM data
+to_plt_post <- dplyr::inner_join(m_fit, cell_grid, by = 'cell')
+to_plt2_post <- dplyr::inner_join(to_plt_post, ll_df, by = 'cell')
+
+
+#plot
+p_post <- ggplot() +
+  geom_path(data = usamap, 
+            aes(x = x, y = y), color = 'black') + 
+  geom_path(data = canadamap, 
+            aes(x = x, y = y), color = 'black') + 
+  geom_path(data = mexicomap, 
+            aes(x = x, y = y), color = 'black') + 
+  coord_map("ortho", orientation = c(35, -80, 0), 
+            xlim = c(-100, -55), ylim = c(20, 60)) + 
+  geom_polygon(data = to_plt2_post, aes(x = long, y = lat, group = group, fill = mean), 
+               alpha = 0.4) +
+  geom_path(data = to_plt2_post, aes(x = long, y = lat, group = group), 
+            alpha = 0.4, color = 'black') + 
+  scale_fill_gradientn(colors = c('red', 'blue')) +
+  annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg + 0.5, 
+           label = round(to_plt2_post$mean, digits = 0), col = 'black', alpha = 0.1,
+           size = 4) +
+  annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg - 0.5, 
+           label = round(to_plt2_post$sd, digits = 0), col = 'white', alpha = 0.3,
+           size = 3) +
+  ggtitle(paste0(f_out$species[1], ' - ', f_out$year[1], ' - Post-IAR')) +
+  theme_bw() +
+  xlab('Longitude') +
+  ylab('Latitude')
+
+
+#estimated half-max in grey, sd in white (derived from logit cubic)
+p_post
 
