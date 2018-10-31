@@ -96,7 +96,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 
 IAR_date <- substr(IAR_dir, start = 5, stop = 15)
 
-diagnostics_frame <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
+diagnostics_frame_p <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
 cells_frame <- readRDS(paste0('cells_frame-', IAR_date, '.rds'))
 yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 
@@ -106,11 +106,24 @@ DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
 DR_yr <- as.numeric(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),2])
 
 
+# filter cells ------------------------------------------------------------
+
+#cells identified manually from plot (plot_code.R) to filter out
+cells_to_rm <- c(208, 845, 289, 316, 343, 345, 346, 319, 320, 373, 
+                 401, 402, 375, 376, 402, 403, 404, 370, 770, 796, 
+                 766, 765, 763, 735, 734, 731, 758, 813, 3669, 397,
+                 398)
+
+'%ni%' <- Negate('%in%') 
+diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %ni% cells_to_rm),]
+
+
+
+
 #explore filter for good data
 sum(diagnostics_frame$min_n.eff < 500, na.rm = TRUE)
 sum(diagnostics_frame$max_Rhat > 1.1, na.rm = TRUE)
 sum(diagnostics_frame$nphen_bad > 100, na.rm = TRUE)
-
 
 # Species list to model ----------------------------------------------------
 
@@ -134,8 +147,8 @@ if (sum(t_yrsf$n_cells[which(t_yrsf$year %in% 2015:2017)] >= NC) == 3)
 
 # create adjacency matrix -------------------------------------------------
 
-#unique cells (exclude NA as debuggin done on subset of species)
-cells <- unique(diagnostics_frame$cell[!is.na(diagnostics_frame$cell)])
+#unique cells
+cells <- unique(diagnostics_frame$cell)
 #cells <- unique(diagnostics_frame$cell)
 ncel <- length(cells)
 
@@ -151,7 +164,7 @@ for (i in 1:length(cells))
   #i <- 1
   for (j in i:length(cells))
   {
-    #j <- 1
+    #j <- 4
     dists <- geosphere::distm(c(cellcenters$lon_deg[i], cellcenters$lat_deg[i]),
                               c(cellcenters$lon_deg[j], cellcenters$lat_deg[j]))
     adjacency_matrix[i,j] <- as.numeric((dists/1000) > 0 & (dists/1000) < 311)
@@ -160,7 +173,6 @@ for (i in 1:length(cells))
 
 #indices for 1s
 ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
-
 
 
 
@@ -188,18 +200,19 @@ all.equal(f_out$cell, cells)
 library(INLA)
 
 #Build the adjacency matrix using INLA library functions
-adj.matrix <- sparseMatrix(i = DATA$node1, j = DATA$node2, 
+adj.matrix <- sparseMatrix(i = ninds[,1], j = ninds[,2], 
                            x = 1, symmetric = TRUE)
+
 #The ICAR precision matrix (note! This is singular)
-Q <- Diagonal(DATA$N, rowSums(adj.matrix)) - adj.matrix
+Q <- Diagonal(ncel, rowSums(adj.matrix)) - adj.matrix
 #Add a small jitter to the diagonal for numerical stability (optional but recommended)
-Q_pert <- Q + Diagonal(DATA$N) * max(diag(Q)) * sqrt(.Machine$double.eps)
+Q_pert <- Q + Diagonal(ncel) * max(diag(Q)) * sqrt(.Machine$double.eps)
 
 # Compute the diagonal elements of the covariance matrix subject to the 
 # constraint that the entries of the ICAR sum to zero.
 # See the inla.qinv function help for further details.
 Q_inv <- INLA::inla.qinv(Q_pert, 
-                         constr = list(A = matrix(1, 1, DATA$N), e = 0))
+                         constr = list(A = matrix(1, 1, ncel), e = 0))
 
 #Compute the geometric mean of the variances, which are on the diagonal of Q.inv
 scaling_factor <- exp(mean(log(diag(Q_inv))))
@@ -211,7 +224,7 @@ scaling_factor <- exp(mean(log(diag(Q_inv))))
 
 
 #create data list for Stan
-DATA <- list(N = length(cells), 
+DATA <- list(N = ncel, 
              N_obs = sum(!is.na(f_out$HM_mean)),
              N_mis = sum(is.na(f_out$HM_mean)),
              N_edges = nrow(ninds), 
@@ -480,23 +493,26 @@ fit <- stan(model_code = IAR_bym2,                 # Model
             chains = 3,                            # Number chains
             iter = 2000,                           # Iterations per chain
             cores = 3,                             # Number cores to use
-            control = list(max_treedepth = 20, adapt_delta = 0.8)) # modified control parameters based on warnings;
+            control = list(max_treedepth = 25, adapt_delta = 0.85)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
 
-
+#save to RDS
 # saveRDS(fit, 'stan_bym2_fit.rds')
 
-fit
 
 
 #diagnostics
-#https://betanalpha.github.io/assets/case_studies/rstan_workflow.html#1_a_little_bit_about_markov_chain_monte_carlo
-source('~/Google_Drive/R/Bird_Phenology/Scripts/Other/stan_utility.R')
-check_treedepth(fit)
-check_energy(fit)
-check_div(fit)
+pairs(fit, pars = c('sigma', 'rho', 'beta0'))
+
+
+#https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
+sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
+mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
+max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
+get_elapsed_time(fit)
+
 
 
 #plotting diverged params
@@ -520,20 +536,17 @@ launch_shinystan(fit)
 
 
 
-
-
 # put copy of script in dir -----------------------------------------------
 
-system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/3-ICAR-model.R ', ICAR_dir_path, '/3-ICAR-model-', Sys.Date(), '.R'))
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/4-IAR-model.R ', IAR_dir, '/4-ICAR-model-', Sys.Date(), '.R'))
 
 
 proc.time() - tt
 
-
-
-
-
-
+MCMCsummary(fit, params = 'theta')
+ttt <- MCMCsummary(fit, n.eff = TRUE, params = c('beta0', 'sigma', 'rho', 'phi', 'theta'))
+min(ttt[,7])
+fit
 
 # Plot pre-IAR halfmax estimates ------------------------------------------
 
