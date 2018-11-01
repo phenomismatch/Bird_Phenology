@@ -490,10 +490,10 @@ options(mc.cores = parallel::detectCores())
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,                 # Model
             data = DATA,                           # Data
-            chains = 3,                            # Number chains
-            iter = 2000,                           # Iterations per chain
-            cores = 3,                             # Number cores to use
-            control = list(max_treedepth = 25, adapt_delta = 0.85)) # modified control parameters based on warnings;
+            chains = 5,                            # Number chains
+            iter = 5000,                           # Iterations per chain
+            cores = 5,                             # Number cores to use
+            control = list(max_treedepth = 18, adapt_delta = 0.90)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
@@ -502,9 +502,8 @@ proc.time() - tt
 # saveRDS(fit, 'stan_bym2_fit.rds')
 
 
-
 #diagnostics
-pairs(fit, pars = c('sigma', 'rho', 'beta0'))
+# pairs(fit, pars = c('sigma', 'rho', 'beta0'))
 
 
 #https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
@@ -513,21 +512,6 @@ mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept
 max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
 get_elapsed_time(fit)
 
-
-
-#plotting diverged params
-c_dark <- c("#8F272780")
-green <- c("#00FF0080")
-
-partition <- partition_div(fit)
-div_params <- partition[[1]]
-nondiv_params <- partition[[2]]
-
-par(mar = c(4, 4, 0.5, 0.5))
-plot(nondiv_params$'sigma_y[1]', nondiv_params$'sigma_phi',
-     col=c_dark, pch=16, cex=0.8, xlab="sigma_theta", ylab="sigma_phi")
-points(div_params$'sigma_y[1]', div_params$'sigma_phi',
-       col=green, pch=16, cex=0.8)
 
 
 #shiny stan
@@ -541,12 +525,6 @@ launch_shinystan(fit)
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/4-IAR-model.R ', IAR_dir, '/4-ICAR-model-', Sys.Date(), '.R'))
 
 
-proc.time() - tt
-
-MCMCsummary(fit, params = 'theta')
-ttt <- MCMCsummary(fit, n.eff = TRUE, params = c('beta0', 'sigma', 'rho', 'phi', 'theta'))
-min(ttt[,7])
-fit
 
 # Plot pre-IAR halfmax estimates ------------------------------------------
 
@@ -580,7 +558,9 @@ p <- ggplot() +
                alpha = 0.4) +
   geom_path(data = to_plt2, aes(x = long, y = lat, group = group), 
                                alpha = 0.4, color = 'black') + 
-  scale_fill_gradientn(colors = c('red', 'blue')) +
+  scale_fill_gradientn(colors = c('red', 'blue'),
+                       limits = c(75, 180)) +
+  labs(fill = 'Estimated Arrival') +
   annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5, 
            label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.1,
            size = 4) +
@@ -624,7 +604,9 @@ p_post <- ggplot() +
                alpha = 0.4) +
   geom_path(data = to_plt2_post, aes(x = long, y = lat, group = group), 
             alpha = 0.4, color = 'black') + 
-  scale_fill_gradientn(colors = c('red', 'blue')) +
+  scale_fill_gradientn(colors = c('red', 'blue'),
+                       limits = c(75, 180)) +
+  labs(fill = 'Estimated Arrival') +
   annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg + 0.5, 
            label = round(to_plt2_post$mean, digits = 0), col = 'black', alpha = 0.1,
            size = 4) +
