@@ -174,6 +174,8 @@ Q_inv <- INLA::inla.qinv(Q_pert,
 scaling_factor <- exp(mean(log(diag(Q_inv))))
 
 
+
+
 # create Stan data object -------------------------------------------------
 
 #create and fill sds and obs
@@ -214,6 +216,10 @@ for (j in 1:length(DR_yr))
 }
 
 
+#fill 0 where NA in y_obs - Stan does not like NA and zeros are not being used to estimate any param (y_obs is used to fill y)
+y_obs_in[which(is.na(y_obs_in), arr.ind = TRUE)] <- 0
+
+
 #create data list for Stan
 DATA <- list(J = length(unique(f_out$year)),
              N = ncel, 
@@ -226,10 +232,10 @@ DATA <- list(J = length(unique(f_out$year)),
              sigma_y = sigma_y_in,
              ii_obs1 = ii_obs1_in,
              ii_mis1 = ii_mis1_in,
-             ii_obs2 = ii_obs1_in,
-             ii_mis2 = ii_mis1_in,
-             ii_obs3 = ii_obs1_in,
-             ii_mis3 = ii_mis1_in,
+             ii_obs2 = ii_obs2_in,
+             ii_mis2 = ii_mis2_in,
+             ii_obs3 = ii_obs3_in,
+             ii_mis3 = ii_mis3_in,
              scaling_factor = scaling_factor)
 
 
@@ -261,10 +267,13 @@ int<lower = 1, upper = N> ii_obs1[N_obs[1]];
 int<lower = 1, upper = N> ii_mis1[N_mis[1]];
 
 int<lower = 1, upper = N> ii_obs2[N_obs[2]];
-int<lower = 1, upper = N> ii_mis2[N_mis[2]];
+// had to put as int because of a dimension mismatch
+// int<lower = 1, upper = N> ii_mis2[N_mis[2]];
+int<lower = 1, upper = N> ii_mis2;
 
 int<lower = 1, upper = N> ii_obs3[N_obs[3]];
-int<lower = 1, upper = N> ii_mis3[N_mis[3]];
+// had to remove the above due to potential dimension mismatch
+// int<lower = 1, upper = N> ii_mis3[N_mis[3]];
 
 real<lower = 0> sigma_y[N, J];                           // observed sd of data (observation error)
 
@@ -275,12 +284,12 @@ real<lower = 0> scaling_factor;                       // scales variances of spa
 
 parameters {
 
-real<lower = 1, upper = 200> y_mis[N, J];            // missing response data
+real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
 
-real beta0[J];                                           // intercept
+real beta0[J];                                        // intercept
 
 real<lower = 0> sigma[J];                             // spatial and non-spatial sd
-real<lower = 0> sigma_sigma[J];
+
 real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
 
 vector[N] phi;                                        // spatial error component (centered on 0)
@@ -291,47 +300,82 @@ transformed parameters {
 real<lower = 0, upper = 200> y[N, J];
 
 vector[N] convolved_re;
-matrix[N, J] mu;                                         // latent true halfmax values
+matrix[N, J] mu;                                      // latent true halfmax values
 
 // variance of each component should be approx equal to 1
 convolved_re = sqrt(1 - rho) * theta + sqrt(rho / scaling_factor) * phi;
 
 for (j in 1:J)
 {
-  mu[,j] = beta0[j] + convolved_re * sigma[j];                    // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
+  mu[,j] = beta0[j] + convolved_re * sigma[j];          // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
 }
 
 y[ii_obs1, 1] = y_obs[1:N_obs[1], 1];
 y[ii_mis1, 1] = y_mis[1:N_mis[1], 1];
 
 y[ii_obs2, 2] = y_obs[1:N_obs[2], 2];
-y[ii_mis2, 2] = y_mis[1:N_mis[2], 2];
+// had to change due to dimsion mismatch (integer != length 1 vector)
+// y[ii_mis2, 2] = y_mis[1:N_mis[2], 2];
+ y[ii_mis2, 2] = y_mis[1, 2];
 
 y[ii_obs3, 3] = y_obs[1:N_obs[3], 3];
-y[ii_mis3, 3] = y_mis[1:N_mis[3], 3];
+// not needed since there are no missing values for year three
+// y[ii_mis3, 3] = y_mis[1:N_mis[3], 3];
 }
+
 
 
 model {
 
 for (j in 1:J)
 {
+  // 1) one set of phis/thetas (complete pool)
+  // 2) separate sets of phis (no pool)
+  // 3) partial pool
+
+  // #1
+  // One set of phis/thetas (complete pool) - same rho, phis, thetas
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
-  
-  // the following computes the prior on phi on the unit scale with sd = 1
-  target += -0.5 * dot_self(phi[node1] - phi[node2]);
-  
-  // soft sum-to-zero constraint on phi) - equivalent to mean(phi) ~ normal(0,0.001)
-  sum(phi) ~ normal(0, 0.001 * N);
-  
   beta0[j] ~ normal(120, 10);
-  theta ~ normal(0, 1);
-  sigma[j] ~ normal(0, sigma_sigma[j]);
-  rho ~ beta(0.5, 0.5);
+  sigma[j] ~ normal(0, 5);
+
+
+  // #2
+  // Separate sets of phis/thetas (no pool) - same rho, sigma
+  // y[,j] ~ normal(mu[,j], sigma_y[,j]);
+  // target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
+  // sum(phi[,j]) ~ normal(0, 0.001 * N);
+  // theta[j] ~ normal(0, 1);
+  // beta0[j] ~ normal(120, 10);
+
+
+  // #3
+  // Hierarchical phis (partial pool) - same rho, sigma (partial pool phis)
+  // y[,j] ~ normal(mu[,j], sigma_y[,j]);
+  // target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
+  // phi[,j] ~ normal(tphi, tphi_sigma);
+  // beta0[j] ~ normal(120, 10);
+  // theta[j] ~ normal(0,1)
 }
 
-// previously used sigma ~ N(0, 5)
-sigma_sigma ~ uniform(0, 5);
+  // One set of phis/thetas (complete pool)
+  target += -0.5 * dot_self(phi[node1] - phi[node2]);
+  sum(phi) ~ normal(0, 0.001 * N);
+  theta ~ normal(0, 1);
+  rho ~ beta(0.5, 0.5);
+
+
+  // Separate phis/thetas (no pool)
+  // rho ~ beta(0.5, 0.5);
+  // sigma ~ normal(0, 5);
+
+
+  // Hierarchical (partial pool)
+  // tphi ~ normal(0, 1);
+  // tphi_sigma ~ normal(0,1);
+  // sum(tphi) ~ normal(0, 0.001 * N);
+  // rho ~ beta(0.5, 0.5);
+  // sigma ~ normal(0, 5);
 
 }'
 
@@ -348,7 +392,7 @@ fit_PP <- stan(model_code = IAR_bym2_PP,              # Model
             chains = 3,                            # Number chains
             iter = 2000,                           # Iterations per chain
             cores = 3,                             # Number cores to use
-            control = list(max_treedepth = 15, adapt_delta = 0.80)) # modified control parameters based on warnings;
+            control = list(max_treedepth = 18, adapt_delta = 0.95)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
