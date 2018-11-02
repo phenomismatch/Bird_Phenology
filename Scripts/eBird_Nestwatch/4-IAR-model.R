@@ -1,7 +1,7 @@
 ######################
-# 4 - ICAR model (only spatial component)
+# 4 - IAR model 
 #
-# Fit ICAR model - true arrival dates for each species-cell-year are modeled as latent states, with the observed 
+# Fit IAR model - true arrival dates for each species-cell-year are modeled as latent states, with the observed 
 # state derived from 2-logit-cubic.R. 
 #
 # Formerly ICAR_parallel.R
@@ -103,7 +103,8 @@ yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 
 #which species/year has the most cells - to model 'data rich species'
 DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
-DR_yr <- as.numeric(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),2])
+DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
+DR_yr <- 2002
 
 
 # filter cells ------------------------------------------------------------
@@ -119,11 +120,6 @@ diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %ni% cel
 
 
 
-
-#explore filter for good data
-sum(diagnostics_frame$min_n.eff < 500, na.rm = TRUE)
-sum(diagnostics_frame$max_Rhat > 1.1, na.rm = TRUE)
-sum(diagnostics_frame$nphen_bad > 100, na.rm = TRUE)
 
 # Species list to model ----------------------------------------------------
 
@@ -149,7 +145,6 @@ if (sum(t_yrsf$n_cells[which(t_yrsf$year %in% 2015:2017)] >= NC) == 3)
 
 #unique cells
 cells <- unique(diagnostics_frame$cell)
-#cells <- unique(diagnostics_frame$cell)
 ncel <- length(cells)
 
 #get hexgrid cell centers
@@ -180,6 +175,13 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 
 #filter by species/year here
 f_out <- filter(diagnostics_frame, species == DR_sp, year == DR_yr)
+
+
+#explore filter for good data
+sum(f_out$min_n.eff < 500, na.rm = TRUE)
+sum(f_out$max_Rhat > 1.1, na.rm = TRUE)
+sum(f_out$nphen_bad > 100, na.rm = TRUE)
+
 
 
 # if (m_crit == TRUE)
@@ -493,7 +495,7 @@ fit <- stan(model_code = IAR_bym2,                 # Model
             chains = 5,                            # Number chains
             iter = 5000,                           # Iterations per chain
             cores = 5,                             # Number cores to use
-            control = list(max_treedepth = 18, adapt_delta = 0.90)) # modified control parameters based on warnings;
+            control = list(max_treedepth = 18, adapt_delta = 0.99)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
