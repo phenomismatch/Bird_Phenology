@@ -34,6 +34,7 @@ library(geosphere)
 library(ggplot2)
 library(MCMCvis)
 library(maps)
+library(INLA)
 
 
 # Set wd ------------------------------------------------------------------
@@ -77,35 +78,21 @@ DR_yr <- c(2002, 2010, 2017)
 
 # filter cells ------------------------------------------------------------
 
-#cells identified manually from plot (plot_code.R) to filter out
-cells_to_rm <- c(208, 845, 289, 316, 343, 345, 346, 319, 320, 373, 
-                 401, 402, 375, 376, 402, 403, 404, 370, 770, 796, 
-                 766, 765, 763, 735, 734, 731, 758, 813, 3669, 397,
-                 398)
-
-'%ni%' <- Negate('%in%') 
-diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %ni% cells_to_rm),]
-
-
+# #cells identified manually from plot (plot_code.R) to filter out
+# cells_to_rm <- c(208, 845, 289, 316, 343, 345, 346, 319, 320, 373, 
+#                  401, 402, 375, 376, 402, 403, 404, 370, 770, 796, 
+#                  766, 765, 763, 735, 734, 731, 758, 813, 3669, 397,
+#                  398)
+# 
+# '%ni%' <- Negate('%in%') 
+# diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %ni% cells_to_rm),]
 
 
-# Species list to model ----------------------------------------------------
+cells_to_keep <- c(622, 595, 567, 594, 621, 648, 649, 676, 675, 647, 619, 
+                   620, 621, 593, 592, 619, 618, 591, 564, 565, 566, 646, 
+                   674, 702, 703)
 
-
-NC <- 3
-
-#species list to model (greater than or = to 'NC' cells for 2015:2017)
-m_species_list <- c()
-#for (i in 1:nsp)
-#{
-i <- 80
-t_yrsf <- dplyr::filter(yrs_frame, species == species_list[i])
-
-if (sum(t_yrsf$n_cells[which(t_yrsf$year %in% 2015:2017)] >= NC) == 3)
-{
-  m_species_list <- c(m_species_list, species_list[i])
-}
-#}
+diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %in% cells_to_keep),]
 
 
 
@@ -167,7 +154,6 @@ all.equal(unique(f_out$cell), cells)
 # Estimate scaling factor for BYM2 model with INLA ------------------------
 
 #taken from bym2 example here: http://mc-stan.org/users/documentation/case-studies/icar_stan.html
-library(INLA)
 
 #Build the adjacency matrix using INLA library functions
 adj.matrix <- sparseMatrix(i = ninds[,1], j = ninds[,2], 
@@ -188,26 +174,66 @@ Q_inv <- INLA::inla.qinv(Q_pert,
 scaling_factor <- exp(mean(log(diag(Q_inv))))
 
 
-
-
 # create Stan data object -------------------------------------------------
+
+#create and fill sds and obs
+sigma_y_in <- matrix(nrow = ncel, ncol = length(DR_yr))
+y_obs_in <- matrix(nrow = ncel, ncol = length(DR_yr))
+
+#number of observation and NAs for each year
+len_y_obs_in <- rep(NA, length(DR_yr))
+len_y_mis_in <- rep(NA, length(DR_yr))
+
+for (j in 1:length(DR_yr))
+{
+  #j <- 1
+  temp_yr <- filter(f_out, year == DR_yr[j])
+  
+  sigma_y_in[,j] <- temp_yr$HM_sd
+  
+  #which are not NA
+  no_na <- temp_yr$HM_mean[which(!is.na(temp_yr$HM_mean))]
+  
+  #pad end with NAs
+  if (length(no_na) < ncel)
+  {
+    num_na <- ncel - length(no_na)
+    t_y_obs_in <- c(no_na, rep(NA, num_na))
+  }
+  
+  #add NAs to end
+  y_obs_in[,j] <- t_y_obs_in
+  
+  #length of data/miss for each year
+  len_y_obs_in[j] <- length(no_na)
+  len_y_mis_in[j] <- ncel - length(no_na)
+  
+  #create indices of missing and present values
+  assign(paste0('ii_obs', j, '_in'), which(!is.na(temp_yr$HM_mean)))
+  assign(paste0('ii_mis', j, '_in'), which(is.na(temp_yr$HM_mean)))
+}
 
 
 #create data list for Stan
-DATA <- list(N = ncel, 
-             N_obs = sum(!is.na(f_out$HM_mean)),
-             N_mis = sum(is.na(f_out$HM_mean)),
+DATA <- list(J = length(unique(f_out$year)),
+             N = ncel, 
+             N_obs = len_y_obs_in,
+             N_mis = len_y_mis_in,
              N_edges = nrow(ninds), 
-             node1 = ninds[,1], 
+             node1 = ninds[,1],
              node2 = ninds[,2],
-             y_obs = f_out$HM_mean[which(!is.na(f_out$HM_mean))], 
-             sigma_y = f_out$HM_sd,
-             ii_obs = which(!is.na(f_out$HM_mean)),
-             ii_mis = which(is.na(f_out$HM_mean)),
+             y_obs = y_obs_in,
+             sigma_y = sigma_y_in,
+             ii_obs1 = ii_obs1_in,
+             ii_mis1 = ii_mis1_in,
+             ii_obs2 = ii_obs1_in,
+             ii_mis2 = ii_mis1_in,
+             ii_obs3 = ii_obs1_in,
+             ii_mis3 = ii_mis1_in,
              scaling_factor = scaling_factor)
 
 
-DATA$sigma_y[which(is.na(DATA$sigma_y))] <- 0.01
+DATA$sigma_y[which(is.na(DATA$sigma_y), arr.ind = TRUE)] <- 0.01
 
 
 
@@ -219,7 +245,7 @@ DATA$sigma_y[which(is.na(DATA$sigma_y))] <- 0.01
 #matrix[N,J] -> cells in rows, years in columns
 
 
-IAR_bym2 <- '
+IAR_bym2_PP <- '
 data {
 int<lower = 0> J;                                     // number of years      
 int<lower = 0> N;                                     // number of cells
@@ -229,25 +255,32 @@ int<lower = 0> N_edges;                               // number of edges in adja
 int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
 int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
 
-for (j in 1:J)
-{
-  real<lower = 0, upper = 200> y_obs[N_obs[j], J];            // observed response data (excluding NAs)
-}
+real<lower = 0, upper = 200> y_obs[N, J];            // observed response data (add NAs to end)
 
-int<lower = 1, upper = N_obs + N_mis> ii_obs[N_obs];  // indices of observed values
-int<lower = 1, upper = N_obs + N_mis> ii_mis[N_mis];  // indices of unobserved values
+int<lower = 1, upper = N> ii_obs1[N_obs[1]];
+int<lower = 1, upper = N> ii_mis1[N_mis[1]];
+
+int<lower = 1, upper = N> ii_obs2[N_obs[2]];
+int<lower = 1, upper = N> ii_mis2[N_mis[2]];
+
+int<lower = 1, upper = N> ii_obs3[N_obs[3]];
+int<lower = 1, upper = N> ii_mis3[N_mis[3]];
 
 real<lower = 0> sigma_y[N, J];                           // observed sd of data (observation error)
 
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects
 }
 
+
+
 parameters {
-real<lower = 1, upper = 200> y_mis[N_mis];            // missing response data
+
+real<lower = 1, upper = 200> y_mis[N, J];            // missing response data
 
 real beta0[J];                                           // intercept
 
 real<lower = 0> sigma[J];                             // spatial and non-spatial sd
+real<lower = 0> sigma_sigma[J];
 real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
 
 vector[N] phi;                                        // spatial error component (centered on 0)
@@ -255,7 +288,7 @@ vector[N] theta;                                      // non-spatial error compo
 }
 
 transformed parameters {
-real<lower = 0, upper = 200> y[N];
+real<lower = 0, upper = 200> y[N, J];
 
 vector[N] convolved_re;
 matrix[N, J] mu;                                         // latent true halfmax values
@@ -266,12 +299,16 @@ convolved_re = sqrt(1 - rho) * theta + sqrt(rho / scaling_factor) * phi;
 for (j in 1:J)
 {
   mu[,j] = beta0[j] + convolved_re * sigma[j];                    // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
-
-  y[ii_obs, J] = y_obs;                                    // transform to accomodate missing data in Stan
-  y[ii_mis, J] = y_mis;                                    // transform to accomodate missing data in Stan
 }
 
+y[ii_obs1, 1] = y_obs[1:N_obs[1], 1];
+y[ii_mis1, 1] = y_mis[1:N_mis[1], 1];
 
+y[ii_obs2, 2] = y_obs[1:N_obs[2], 2];
+y[ii_mis2, 2] = y_mis[1:N_mis[2], 2];
+
+y[ii_obs3, 3] = y_obs[1:N_obs[3], 3];
+y[ii_mis3, 3] = y_mis[1:N_mis[3], 3];
 }
 
 
@@ -294,9 +331,7 @@ for (j in 1:J)
 }
 
 // previously used sigma ~ N(0, 5)
-sigma_sigma ~ uniform(0, 5)
-
-}
+sigma_sigma ~ uniform(0, 5);
 
 }'
 
@@ -304,36 +339,30 @@ sigma_sigma ~ uniform(0, 5)
 
 # Run model ---------------------------------------------------------------
 
-# Reference Ver Hoef et al. 2018 Eco Monographs for nice overview of spatial autoregressive models
-# Model structure to accomodate missing data derived from section 11.3 of Stan reference manual 2.17.0 (p. 182)
-# No need to worry about Jacobian warning - the 'transformation' is linear (just using an indexing trick to accomodate missing data in Y)
-# No need to worry about Parser warning about 'Unknown variable: sum' - known error in stan (as of Oct 26, 2018)
-
-
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 tt <- proc.time()
-fit <- stan(model_code = IAR_bym2,                 # Model
+fit_PP <- stan(model_code = IAR_bym2_PP,              # Model
             data = DATA,                           # Data
-            chains = 5,                            # Number chains
-            iter = 5000,                           # Iterations per chain
-            cores = 5,                             # Number cores to use
-            control = list(max_treedepth = 18, adapt_delta = 0.90)) # modified control parameters based on warnings;
+            chains = 3,                            # Number chains
+            iter = 2000,                           # Iterations per chain
+            cores = 3,                             # Number cores to use
+            control = list(max_treedepth = 15, adapt_delta = 0.80)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
 
 #save to RDS
-# saveRDS(fit, 'stan_bym2_fit.rds')
+# saveRDS(fit_PP, 'stan_bym2_PP_fit.rds')
 
 
 #diagnostics
-# pairs(fit, pars = c('sigma', 'rho', 'beta0'))
+# pairs(fit_PP, pars = c('sigma', 'rho', 'beta0'))
 
 
 #https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
-sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
+sampler_params <- get_sampler_params(fit_PP, inc_warmup = FALSE)
 mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
 max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
 get_elapsed_time(fit)
@@ -342,7 +371,7 @@ get_elapsed_time(fit)
 
 #shiny stan
 library(shinystan)
-launch_shinystan(fit)
+launch_shinystan(fit_PP)
 
 
 
