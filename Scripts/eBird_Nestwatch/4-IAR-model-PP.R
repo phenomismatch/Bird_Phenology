@@ -412,6 +412,8 @@ max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth_
 get_elapsed_time(fit)
 
 
+MCMCsummary(fit_PP, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
+
 
 #shiny stan
 library(shinystan)
