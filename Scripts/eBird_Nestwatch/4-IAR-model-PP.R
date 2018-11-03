@@ -288,7 +288,7 @@ real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
 
 real beta0[J];                                        // intercept
 
-real<lower = 0> sigma[J];                             // spatial and non-spatial sd
+real<lower = 0> sigma;                             // spatial and non-spatial sd
 
 real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
 
@@ -307,7 +307,7 @@ convolved_re = sqrt(1 - rho) * theta + sqrt(rho / scaling_factor) * phi;
 
 for (j in 1:J)
 {
-  mu[,j] = beta0[j] + convolved_re * sigma[j];          // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
+  mu[,j] = beta0[j] + convolved_re * sigma;          // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
 }
 
 y[ii_obs1, 1] = y_obs[1:N_obs[1], 1];
@@ -334,14 +334,13 @@ for (j in 1:J)
   // 3) partial pool
 
   // #1
-  // One set of phis/thetas (complete pool) - same rho, phis, thetas
+  // One set of phis/thetas (complete pool) - same rho, phis, thetas, sigma (diff betas)
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
   beta0[j] ~ normal(120, 10);
-  sigma[j] ~ normal(0, 5);
 
 
   // #2
-  // Separate sets of phis/thetas (no pool) - same rho, sigma
+  // Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
   // y[,j] ~ normal(mu[,j], sigma_y[,j]);
   // target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
   // sum(phi[,j]) ~ normal(0, 0.001 * N);
@@ -350,7 +349,7 @@ for (j in 1:J)
 
 
   // #3
-  // Hierarchical phis (partial pool) - same rho, sigma (partial pool phis)
+  // Hierarchical phis (partial pool) - same rho, sigma (partial pool phis, diff betas, thetas)
   // y[,j] ~ normal(mu[,j], sigma_y[,j]);
   // target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
   // phi[,j] ~ normal(tphi, tphi_sigma);
@@ -363,6 +362,7 @@ for (j in 1:J)
   sum(phi) ~ normal(0, 0.001 * N);
   theta ~ normal(0, 1);
   rho ~ beta(0.5, 0.5);
+  sigma ~ normal(0, 5);
 
 
   // Separate phis/thetas (no pool)
