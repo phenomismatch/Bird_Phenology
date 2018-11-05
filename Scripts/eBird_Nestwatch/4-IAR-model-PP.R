@@ -339,63 +339,63 @@ y[ii_obs6, 6] = y_obs[1:N_obs[6], 6];
 
 model {
 
+// 1) one set of phis/thetas (complete pool)
+// 2) separate sets of phis (no pool)
+// 3) partial pool
+
+
+// #1
+// One set of phis/thetas (complete pool) - same rho, phis, thetas, sigma (diff betas)
+/* 
 for (j in 1:J)
 {
-  // 1) one set of phis/thetas (complete pool)
-  // 2) separate sets of phis (no pool)
-  // 3) partial pool
-
-  // #1
-  // One set of phis/thetas (complete pool) - same rho, phis, thetas, sigma (diff betas)
-  /* 
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
   beta0[j] ~ normal(120, 10);
-  */
+}
+
+target += -0.5 * dot_self(phi[node1] - phi[node2]);
+sum(phi) ~ normal(0, 0.001 * N);
+theta ~ normal(0, 1);
+rho ~ beta(0.5, 0.5);
+sigma ~ normal(0, 5);
+*/
 
 
-  // #2
-  // Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
-  /*  
+// #2
+// Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
+/*  
+for (j in 1:J)
+{
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
   target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   theta[,j] ~ normal(0, 1);
   beta0[j] ~ normal(120, 10);
-  */
-
-
-  // #3
-  // Hierarchical phis (partial pool) - same rho, sigma (partial pool phis, diff betas, thetas)
-  y[,j] ~ normal(mu[,j], sigma_y[,j]);
-  target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
-  phi_raw[,j] ~ normal(0, 1);                   \\ reparameterize non-centered to optimize
-  beta0[j] ~ normal(120, 10);
-  theta[j] ~ normal(0,1)
 }
 
-  // One set of phis/thetas (complete pool)
-  /*  
-  target += -0.5 * dot_self(phi[node1] - phi[node2]);
-  sum(phi) ~ normal(0, 0.001 * N);
-  theta ~ normal(0, 1);
-  rho ~ beta(0.5, 0.5);
-  sigma ~ normal(0, 5);
-  */
+rho ~ beta(0.5, 0.5);
+sigma ~ normal(0, 5);
+*/
 
 
-  // Separate phis/thetas (no pool)
-  /*
-  rho ~ beta(0.5, 0.5);
-  sigma ~ normal(0, 5);
-  */
+// #3
+// Hierarchical phis (partial pool) - same rho, sigma (partial pool phis, diff betas, thetas)
 
+for (j in 1:J)
+{
+  y[,j] ~ normal(mu[,j], sigma_y[,j]);
+  target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
+  phi_raw[,j] ~ normal(0, 1);                   // reparameterize non-centered to optimize
+  beta0[j] ~ normal(120, 10);
+  theta[j] ~ normal(0,1);
+}
 
-  // Hierarchical (partial pool)
-  mu_phi ~ normal(0, 1);
-  sigma_phi ~ normal(0,1);
-  sum(mu_phi) ~ normal(0, 0.001 * N);
-  rho ~ beta(0.5, 0.5);
-  sigma ~ normal(0, 5);
+mu_phi ~ normal(0, 1);
+sigma_phi ~ normal(0,1);
+sum(mu_phi) ~ normal(0, 0.001 * N);
+rho ~ beta(0.5, 0.5);
+sigma ~ normal(0, 5);
+
 
 }'
 
