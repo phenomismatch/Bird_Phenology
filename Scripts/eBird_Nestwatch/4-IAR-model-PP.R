@@ -73,7 +73,7 @@ yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 #which species/year has the most cells - to model 'data rich species'
 DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
 DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
-DR_yr <- c(2002, 2010, 2017)
+DR_yr <- c(2002, 2005, 2008, 2011, 2014, 2017)
 
 
 # filter cells ------------------------------------------------------------
@@ -230,13 +230,17 @@ DATA <- list(J = length(unique(f_out$year)),
              node2 = ninds[,2],
              y_obs = y_obs_in,
              sigma_y = sigma_y_in,
-             ii_obs1 = ii_obs1_in,
-             ii_mis1 = ii_mis1_in,
-             ii_obs2 = ii_obs2_in,
-             ii_mis2 = ii_mis2_in,
-             ii_obs3 = ii_obs3_in,
-             ii_mis3 = ii_mis3_in,
              scaling_factor = scaling_factor)
+
+#add observation indices to DATA list
+i <- 1
+while (i <= length(DR_yr))
+{
+  DATA[[paste0('ii_obs', i)]] <- get(paste0('ii_obs', i, '_in'))
+  DATA[[paste0('ii_mis', i)]] <- get(paste0('ii_mis', i, '_in'))
+  
+  i <- i + 1
+}
 
 
 DATA$sigma_y[which(is.na(DATA$sigma_y), arr.ind = TRUE)] <- 0.01
@@ -265,15 +269,17 @@ real<lower = 0, upper = 200> y_obs[N, J];            // observed response data (
 
 int<lower = 1, upper = N> ii_obs1[N_obs[1]];
 int<lower = 1, upper = N> ii_mis1[N_mis[1]];
-
 int<lower = 1, upper = N> ii_obs2[N_obs[2]];
-// had to put as int because of a dimension mismatch
-// int<lower = 1, upper = N> ii_mis2[N_mis[2]];
-int<lower = 1, upper = N> ii_mis2;
-
+int<lower = 1, upper = N> ii_mis2[N_mis[2]];
 int<lower = 1, upper = N> ii_obs3[N_obs[3]];
-// had to remove the above due to potential dimension mismatch
-// int<lower = 1, upper = N> ii_mis3[N_mis[3]];
+int<lower = 1, upper = N> ii_mis3[N_mis[3]];
+int<lower = 1, upper = N> ii_obs4[N_obs[4]];          // had to put as int because of a dimension mismatch
+int<lower = 1, upper = N> ii_mis4;
+int<lower = 1, upper = N> ii_obs5[N_obs[5]];
+// int<lower = 1, upper = N> ii_mis5[N_mis[5]];        // had to remove the above due to potential dimension mismatch
+int<lower = 1, upper = N> ii_obs6[N_obs[6]];
+// int<lower = 1, upper = N> ii_mis6[N_mis[6]];        // had to remove the above due to potential dimension mismatch
+
 
 real<lower = 0> sigma_y[N, J];                           // observed sd of data (observation error)
 
@@ -292,35 +298,41 @@ real<lower = 0> sigma;                             // spatial and non-spatial sd
 
 real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
 
-vector[N] phi;                                        // spatial error component (centered on 0)
-vector[N] theta;                                      // non-spatial error component (centered on 0)
+matrix[N, J] phi_raw;                                   // spatial error component (centered on 0)
+matrix[N, J] theta;                                 // non-spatial error component (centered on 0)
+vector[N] mu_phi;
+vector[N] sigma_phi;
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];
 
-vector[N] convolved_re;
+matrix[N, J] convolved_re;
 matrix[N, J] mu;                                      // latent true halfmax values
-
-// variance of each component should be approx equal to 1
-convolved_re = sqrt(1 - rho) * theta + sqrt(rho / scaling_factor) * phi;
+matrix[N, J] phi;
 
 for (j in 1:J)
 {
-  mu[,j] = beta0[j] + convolved_re * sigma;          // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
+  phi[,j] = mu_phi + phi_raw[,j] .* sigma_phi;      //.* for elementwise multiplication of two vectors
+  
+  convolved_re[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j];
+
+  mu[,j] = beta0[j] + convolved_re[,j] * sigma;          // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
 }
 
 y[ii_obs1, 1] = y_obs[1:N_obs[1], 1];
 y[ii_mis1, 1] = y_mis[1:N_mis[1], 1];
-
 y[ii_obs2, 2] = y_obs[1:N_obs[2], 2];
-// had to change due to dimsion mismatch (integer != length 1 vector)
-// y[ii_mis2, 2] = y_mis[1:N_mis[2], 2];
- y[ii_mis2, 2] = y_mis[1, 2];
-
+y[ii_mis2, 2] = y_mis[1:N_mis[2], 2];
 y[ii_obs3, 3] = y_obs[1:N_obs[3], 3];
-// not needed since there are no missing values for year three
-// y[ii_mis3, 3] = y_mis[1:N_mis[3], 3];
+y[ii_mis3, 3] = y_mis[1:N_mis[3], 3];
+y[ii_obs4, 4] = y_obs[1:N_obs[4], 4];
+y[ii_mis4, 4] = y_mis[1, 4];                        // had to change due to dimsion mismatch (integer != length 1 vector)
+y[ii_obs5, 5] = y_obs[1:N_obs[5], 5];
+// y[ii_mis5, 5] = y_mis[1:N_mis[5], 5];               // not needed since there are no missing values this year
+y[ii_obs6, 6] = y_obs[1:N_obs[6], 6];
+// y[ii_mis6, 6] = y_mis[1:N_mis[6], 6];               // not needed since there are no missing values this year
+
 }
 
 
@@ -335,47 +347,55 @@ for (j in 1:J)
 
   // #1
   // One set of phis/thetas (complete pool) - same rho, phis, thetas, sigma (diff betas)
+  /* 
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
   beta0[j] ~ normal(120, 10);
+  */
 
 
   // #2
   // Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
-  // y[,j] ~ normal(mu[,j], sigma_y[,j]);
-  // target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
-  // sum(phi[,j]) ~ normal(0, 0.001 * N);
-  // theta[j] ~ normal(0, 1);
-  // beta0[j] ~ normal(120, 10);
+  /*  
+  y[,j] ~ normal(mu[,j], sigma_y[,j]);
+  target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
+  sum(phi[,j]) ~ normal(0, 0.001 * N);
+  theta[,j] ~ normal(0, 1);
+  beta0[j] ~ normal(120, 10);
+  */
 
 
   // #3
   // Hierarchical phis (partial pool) - same rho, sigma (partial pool phis, diff betas, thetas)
-  // y[,j] ~ normal(mu[,j], sigma_y[,j]);
-  // target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
-  // phi[,j] ~ normal(tphi, tphi_sigma);
-  // beta0[j] ~ normal(120, 10);
-  // theta[j] ~ normal(0,1)
+  y[,j] ~ normal(mu[,j], sigma_y[,j]);
+  target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
+  phi_raw[,j] ~ normal(0, 1);                   \\ reparameterize non-centered to optimize
+  beta0[j] ~ normal(120, 10);
+  theta[j] ~ normal(0,1)
 }
 
   // One set of phis/thetas (complete pool)
+  /*  
   target += -0.5 * dot_self(phi[node1] - phi[node2]);
   sum(phi) ~ normal(0, 0.001 * N);
   theta ~ normal(0, 1);
   rho ~ beta(0.5, 0.5);
   sigma ~ normal(0, 5);
+  */
 
 
   // Separate phis/thetas (no pool)
-  // rho ~ beta(0.5, 0.5);
-  // sigma ~ normal(0, 5);
+  /*
+  rho ~ beta(0.5, 0.5);
+  sigma ~ normal(0, 5);
+  */
 
 
   // Hierarchical (partial pool)
-  // tphi ~ normal(0, 1);
-  // tphi_sigma ~ normal(0,1);
-  // sum(tphi) ~ normal(0, 0.001 * N);
-  // rho ~ beta(0.5, 0.5);
-  // sigma ~ normal(0, 5);
+  mu_phi ~ normal(0, 1);
+  sigma_phi ~ normal(0,1);
+  sum(mu_phi) ~ normal(0, 0.001 * N);
+  rho ~ beta(0.5, 0.5);
+  sigma ~ normal(0, 5);
 
 }'
 
@@ -390,16 +410,16 @@ tt <- proc.time()
 fit_PP <- stan(model_code = IAR_bym2_PP,              # Model
             data = DATA,                           # Data
             chains = 3,                            # Number chains
-            iter = 2000,                           # Iterations per chain
+            iter = 3000,                           # Iterations per chain
             cores = 3,                             # Number cores to use
-            control = list(max_treedepth = 18, adapt_delta = 0.95)) # modified control parameters based on warnings;
+            control = list(max_treedepth = 20, adapt_delta = 0.98)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
 
 #save to RDS
-# saveRDS(fit_PP, 'stan_bym2_PP_fit.rds')
-
+# saveRDS(fit_PP, 'stan_bym2_PP_fit_6yr_hierarchical.rds')
+# fit_PP <- readRDS('stan_bym2_PP_fit_3yr_sep.rds')
 
 #diagnostics
 # pairs(fit_PP, pars = c('sigma', 'rho', 'beta0'))
@@ -413,6 +433,7 @@ get_elapsed_time(fit)
 
 
 MCMCsummary(fit_PP, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
+MCMCsummary(fit_PP, params = c('theta', 'phi'), n.eff = TRUE)
 
 
 #shiny stan
