@@ -231,8 +231,8 @@ DATA <- list(J = length(unique(f_out$year)),
              N_edges = nrow(ninds), 
              node1 = ninds[,1],
              node2 = ninds[,2],
-             y_obs = y_obs_in[,1],
-             sigma_y = sigma_y_in[,1],
+             y_obs = y_obs_in,
+             sigma_y = sigma_y_in,
              scaling_factor = scaling_factor)
 
 #add observation indices to DATA list
