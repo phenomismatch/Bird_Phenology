@@ -73,7 +73,7 @@ yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 #which species/year has the most cells - to model 'data rich species'
 DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
 DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
-DR_yr <- c(2002, 2005, 2008, 2011, 2014, 2017)
+DR_yr <- 2002:2017
 
 
 # filter cells ------------------------------------------------------------
@@ -201,10 +201,13 @@ for (j in 1:length(DR_yr))
   {
     num_na <- ncel - length(no_na)
     t_y_obs_in <- c(no_na, rep(NA, num_na))
+    
+    #add NAs to end
+    y_obs_in[,j] <- t_y_obs_in
+  } else {
+    #no NAs to end
+    y_obs_in[,j] <- no_na
   }
-  
-  #add NAs to end
-  y_obs_in[,j] <- t_y_obs_in
   
   #length of data/miss for each year
   len_y_obs_in[j] <- length(no_na)
@@ -228,8 +231,8 @@ DATA <- list(J = length(unique(f_out$year)),
              N_edges = nrow(ninds), 
              node1 = ninds[,1],
              node2 = ninds[,2],
-             y_obs = y_obs_in,
-             sigma_y = sigma_y_in,
+             y_obs = y_obs_in[,1],
+             sigma_y = sigma_y_in[,1],
              scaling_factor = scaling_factor)
 
 #add observation indices to DATA list
@@ -259,13 +262,17 @@ IAR_bym2_PP <- '
 data {
 int<lower = 0> J;                                     // number of years      
 int<lower = 0> N;                                     // number of cells
+
 int<lower = 0> N_obs[J];                              // number of non-missing for each year
 int<lower = 0> N_mis[J];                              // number missing for each year
+
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
 int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
 int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
 
 real<lower = 0, upper = 200> y_obs[N, J];            // observed response data (add NAs to end)
+real<lower = 0> sigma_y[N, J];                           // observed sd of data (observation error)
+real<lower = 0> scaling_factor;                       // scales variances of spatial effects
 
 int<lower = 1, upper = N> ii_obs1[N_obs[1]];
 int<lower = 1, upper = N> ii_mis1[N_mis[1]];
@@ -273,29 +280,39 @@ int<lower = 1, upper = N> ii_obs2[N_obs[2]];
 int<lower = 1, upper = N> ii_mis2[N_mis[2]];
 int<lower = 1, upper = N> ii_obs3[N_obs[3]];
 int<lower = 1, upper = N> ii_mis3[N_mis[3]];
-int<lower = 1, upper = N> ii_obs4[N_obs[4]];          // had to put as int because of a dimension mismatch
-int<lower = 1, upper = N> ii_mis4;
+int<lower = 1, upper = N> ii_obs4[N_obs[4]];
+int<lower = 1, upper = N> ii_mis4[N_mis[4]];
 int<lower = 1, upper = N> ii_obs5[N_obs[5]];
-// int<lower = 1, upper = N> ii_mis5[N_mis[5]];        // had to remove the above due to potential dimension mismatch
+int<lower = 1, upper = N> ii_mis5[N_mis[5]];
 int<lower = 1, upper = N> ii_obs6[N_obs[6]];
-// int<lower = 1, upper = N> ii_mis6[N_mis[6]];        // had to remove the above due to potential dimension mismatch
+int<lower = 1, upper = N> ii_mis6[N_mis[6]];
+int<lower = 1, upper = N> ii_obs7[N_obs[7]];
+int<lower = 1, upper = N> ii_mis7[N_mis[7]];
 
-real<lower = 0> sigma_y[N, J];                           // observed sd of data (observation error)
+int<lower = 1, upper = N> ii_obs8[N_obs[8]];          // had to put as int because of a dimension mismatch
+int<lower = 1, upper = N> ii_mis8;
+int<lower = 1, upper = N> ii_obs9[N_obs[9]];          // had to put as int because of a dimension mismatch
+int<lower = 1, upper = N> ii_mis9;
+int<lower = 1, upper = N> ii_obs10[N_obs[10]];          // had to put as int because of a dimension mismatch
+int<lower = 1, upper = N> ii_mis10;
 
-real<lower = 0> scaling_factor;                       // scales variances of spatial effects
+int<lower = 1, upper = N> ii_obs11[N_obs[11]];
+int<lower = 1, upper = N> ii_obs12[N_obs[12]];
+int<lower = 1, upper = N> ii_obs13[N_obs[13]];
+int<lower = 1, upper = N> ii_obs14[N_obs[14]];
+int<lower = 1, upper = N> ii_obs15[N_obs[15]];
+int<lower = 1, upper = N> ii_obs16[N_obs[16]];
 }
 
 
 
 parameters {
-
 real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
-
 real beta0[J];                                        // intercept
-real<lower = 0> sigma;                                // spatial and non-spatial sd
-real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
 matrix[N, J] theta;                                   // non-spatial error component (centered on 0)
 matrix[N, J] phi;
+real<lower = 0> sigma;                                // spatial and non-spatial sd
+real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
 
 // matrix[N, J] phi_raw;                              // hierarchical
 // vector[N] mu_phi;                                  //hierarchical
@@ -314,6 +331,7 @@ for (j in 1:J)
   mu[,j] = beta0[j] + convolved_re[,j] * sigma;          // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
 }
 
+
 y[ii_obs1, 1] = y_obs[1:N_obs[1], 1];
 y[ii_mis1, 1] = y_mis[1:N_mis[1], 1];
 y[ii_obs2, 2] = y_obs[1:N_obs[2], 2];
@@ -321,11 +339,27 @@ y[ii_mis2, 2] = y_mis[1:N_mis[2], 2];
 y[ii_obs3, 3] = y_obs[1:N_obs[3], 3];
 y[ii_mis3, 3] = y_mis[1:N_mis[3], 3];
 y[ii_obs4, 4] = y_obs[1:N_obs[4], 4];
-y[ii_mis4, 4] = y_mis[1, 4];                        // had to change due to dimsion mismatch (integer != length 1 vector)
+y[ii_mis4, 4] = y_mis[1:N_mis[4], 4];
 y[ii_obs5, 5] = y_obs[1:N_obs[5], 5];
-// y[ii_mis5, 5] = y_mis[1:N_mis[5], 5];               // not needed since there are no missing values this year
+y[ii_mis5, 5] = y_mis[1:N_mis[5], 5];
 y[ii_obs6, 6] = y_obs[1:N_obs[6], 6];
-// y[ii_mis6, 6] = y_mis[1:N_mis[6], 6];               // not needed since there are no missing values this year
+y[ii_mis6, 6] = y_mis[1:N_mis[6], 6];
+y[ii_obs7, 7] = y_obs[1:N_obs[7], 7];
+y[ii_mis7, 7] = y_mis[1:N_mis[7], 7];
+
+y[ii_obs8, 8] = y_obs[1:N_obs[8], 8];
+y[ii_mis8, 8] = y_mis[1, 8];                        
+y[ii_obs9, 9] = y_obs[1:N_obs[9], 9];
+y[ii_mis9, 9] = y_mis[1, 9];                        
+y[ii_obs10, 10] = y_obs[1:N_obs[10], 10];
+y[ii_mis10, 10] = y_mis[1, 10];                        // had to change due to dimsion mismatch (integer != length 1 vector)
+
+y[ii_obs11, 11] = y_obs[1:N_obs[11], 11];
+y[ii_obs12, 12] = y_obs[1:N_obs[12], 12];
+y[ii_obs13, 13] = y_obs[1:N_obs[13], 13];
+y[ii_obs14, 14] = y_obs[1:N_obs[14], 14];
+y[ii_obs15, 15] = y_obs[1:N_obs[15], 15];
+y[ii_obs16, 16] = y_obs[1:N_obs[16], 16];
 
 }
 
@@ -355,7 +389,7 @@ sigma ~ normal(0, 5);
 
 // #2
 // Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
-  
+
 for (j in 1:J)
 {
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
@@ -367,7 +401,6 @@ for (j in 1:J)
 
 rho ~ beta(0.5, 0.5);
 sigma ~ normal(0, 5);
-
 
 
 // #3
@@ -402,7 +435,7 @@ tt <- proc.time()
 fit_PP <- stan(model_code = IAR_bym2_PP,              # Model
             data = DATA,                           # Data
             chains = 3,                            # Number chains
-            iter = 500,                           # Iterations per chain
+            iter = 4000,                           # Iterations per chain
             cores = 3,                             # Number cores to use
             control = list(max_treedepth = 20, adapt_delta = 0.90)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
@@ -410,7 +443,7 @@ proc.time() - tt
 
 
 #save to RDS
-# saveRDS(fit_PP, 'stan_bym2_PP_fit_6yr_hierarchical.rds')
+# saveRDS(fit_PP, 'stan_bym2_PP_fit_6yr_sep.rds')
 # fit_PP <- readRDS('stan_bym2_PP_fit_3yr_sep.rds')
 
 #diagnostics
@@ -426,7 +459,6 @@ get_elapsed_time(fit_PP)
 
 MCMCsummary(fit_PP, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
 MCMCsummary(fit_PP, params = c('theta', 'phi'), n.eff = TRUE)
-MCMCsummary(fit_PP, params = c('sigma_phi', 'mu_phi'), n.eff = TRUE)
 
 
 #shiny stan
