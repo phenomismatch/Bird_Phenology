@@ -380,7 +380,7 @@ sigma ~ normal(0, 5);
 
 // #3
 // Hierarchical phis (partial pool) - same rho, sigma (partial pool phis, diff betas, thetas)
-
+/*
 for (j in 1:J)
 {
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
@@ -395,7 +395,7 @@ sigma_phi ~ normal(0,1);
 sum(mu_phi) ~ normal(0, 0.001 * N);
 rho ~ beta(0.5, 0.5);
 sigma ~ normal(0, 5);
-
+*/
 
 }'
 
@@ -410,9 +410,9 @@ tt <- proc.time()
 fit_PP <- stan(model_code = IAR_bym2_PP,              # Model
             data = DATA,                           # Data
             chains = 3,                            # Number chains
-            iter = 3000,                           # Iterations per chain
+            iter = 500,                           # Iterations per chain
             cores = 3,                             # Number cores to use
-            control = list(max_treedepth = 20, adapt_delta = 0.98)) # modified control parameters based on warnings;
+            control = list(max_treedepth = 20, adapt_delta = 0.90)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
@@ -429,11 +429,12 @@ proc.time() - tt
 sampler_params <- get_sampler_params(fit_PP, inc_warmup = FALSE)
 mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
 max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
-get_elapsed_time(fit)
+get_elapsed_time(fit_PP)
 
 
 MCMCsummary(fit_PP, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
 MCMCsummary(fit_PP, params = c('theta', 'phi'), n.eff = TRUE)
+MCMCsummary(fit_PP, params = c('sigma_phi', 'mu_phi'), n.eff = TRUE)
 
 
 #shiny stan
