@@ -280,7 +280,6 @@ int<lower = 1, upper = N> ii_obs5[N_obs[5]];
 int<lower = 1, upper = N> ii_obs6[N_obs[6]];
 // int<lower = 1, upper = N> ii_mis6[N_mis[6]];        // had to remove the above due to potential dimension mismatch
 
-
 real<lower = 0> sigma_y[N, J];                           // observed sd of data (observation error)
 
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects
@@ -293,30 +292,25 @@ parameters {
 real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
 
 real beta0[J];                                        // intercept
-
-real<lower = 0> sigma;                             // spatial and non-spatial sd
-
+real<lower = 0> sigma;                                // spatial and non-spatial sd
 real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
+matrix[N, J] theta;                                   // non-spatial error component (centered on 0)
+matrix[N, J] phi;
 
-matrix[N, J] phi_raw;                                   // spatial error component (centered on 0)
-matrix[N, J] theta;                                 // non-spatial error component (centered on 0)
-vector[N] mu_phi;
-vector[N] sigma_phi;
+// matrix[N, J] phi_raw;                              // hierarchical
+// vector[N] mu_phi;                                  //hierarchical
+// vector[N] sigma_phi;                               //hierarchical
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];
-
 matrix[N, J] convolved_re;
 matrix[N, J] mu;                                      // latent true halfmax values
-matrix[N, J] phi;
 
 for (j in 1:J)
 {
-  phi[,j] = mu_phi + phi_raw[,j] .* sigma_phi;      //.* for elementwise multiplication of two vectors
-  
+  // phi[,j] = mu_phi + phi_raw[,j] .* sigma_phi;      //hierarchical: .* for elementwise multiplication of two vectors
   convolved_re[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j];
-
   mu[,j] = beta0[j] + convolved_re[,j] * sigma;          // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
 }
 
@@ -336,13 +330,11 @@ y[ii_obs6, 6] = y_obs[1:N_obs[6], 6];
 }
 
 
-
 model {
 
 // 1) one set of phis/thetas (complete pool)
 // 2) separate sets of phis (no pool)
 // 3) partial pool
-
 
 // #1
 // One set of phis/thetas (complete pool) - same rho, phis, thetas, sigma (diff betas)
@@ -363,7 +355,7 @@ sigma ~ normal(0, 5);
 
 // #2
 // Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
-/*  
+  
 for (j in 1:J)
 {
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
@@ -375,7 +367,7 @@ for (j in 1:J)
 
 rho ~ beta(0.5, 0.5);
 sigma ~ normal(0, 5);
-*/
+
 
 
 // #3
