@@ -65,7 +65,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 
 IAR_date <- substr(IAR_dir, start = 5, stop = 15)
 
-diagnostics_frame_p <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
+diagnostics_frame <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
 cells_frame <- readRDS(paste0('cells_frame-', IAR_date, '.rds'))
 yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 
@@ -76,34 +76,102 @@ DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
 DR_yr <- 2002:2017
 
 
+
+
+# Filter data by species/years ------------------------------------------------------
+
+#MAKE SURE THERE ARE DATA FOR THAT YEAR (see script 3-....R) - can't accomodate no values at all for a given year
+
+
+#filter by species/year here
+df_filt <- filter(diagnostics_frame, species == DR_sp, year %in% DR_yr)
+
+
+#explore filter for good data
+sum(df_filt$min_n.eff < 500, na.rm = TRUE)
+sum(df_filt$max_Rhat > 1.1, na.rm = TRUE)
+sum(df_filt$nphen_bad > 100, na.rm = TRUE)
+
+
+
 # filter cells ------------------------------------------------------------
 
-# #cells identified manually from plot (plot_code.R) to filter out
-# cells_to_rm <- c(208, 845, 289, 316, 343, 345, 346, 319, 320, 373, 
-#                  401, 402, 375, 376, 402, 403, 404, 370, 770, 796, 
-#                  766, 765, 763, 735, 734, 731, 758, 813, 3669, 397,
-#                  398)
+# #cells ID'd as a 'test set'
+# cells_to_keep <- c(622, 595, 567, 594, 621, 648, 649, 676, 675, 647, 619, 
+#                    620, 621, 593, 592, 619, 618, 591, 564, 565, 566, 646, 
+#                    674, 702, 703)
 # 
-# '%ni%' <- Negate('%in%') 
-# diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %ni% cells_to_rm),]
+# diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %in% cells_to_keep),]
 
 
-cells_to_keep <- c(622, 595, 567, 594, 621, 648, 649, 676, 675, 647, 619, 
-                   620, 621, 593, 592, 619, 618, 591, 564, 565, 566, 646, 
-                   674, 702, 703)
 
-diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %in% cells_to_keep),]
+
+#cells chosen based on species range - if cell overlaps species range -> include it
+#create hex cell grid
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+#get boundaries of all cells over earth
+hge <- dggridR::dgearthgrid(hexgrid6)
+
+#load species range map
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+sp_rng <- rgdal::readOGR('Vireo_olivaceus_22705243.shp', verbose = FALSE)
+
+#filter by breeding range - need to convert spdf to sp
+nrng <- subset(sp_rng, SEASONAL == 2)
+nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+
+#convert hex cell vetices to spatial points
+ecells_sp <- sp::SpatialPoints(cbind(hge$long, hge$lat), 
+                               proj4string = sp::CRS(sp::proj4string(nrng)))
+
+#which vertices overlap species breeding range
+ovrlp <- which(!is.na(sp::over(ecells_sp, nrng_sp)))
+overlap_cells <- unique(as.numeric(hge[ovrlp,]$cell))
+
+#get cell centers
+cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
+cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
+                    lat = cell_centers$lat_deg)
+
+#cells only within the range that ebird surveys were filtered to
+n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
+cells <- n_cc_df$cell
+
+#retain rows that match selected cells
+df_filt2 <- df_filt[which(df_filt$cell %in% cells),]
+
+'%ni%' <- Negate('%in%')
+
+#create rows for cells that were missing in ebird data
+missing_cells <- cells[which(cells %ni% df_filt2$cell)]
+
+temp_dff <- df_filt2[1,]
+temp_dff[,2:20] <- NA
+
+nmc <- length(missing_cells)
+nyrs <- length(DR_yr)
+nreps <- nmc * nyrs
+
+temp_dff2 <- temp_dff[rep(row.names(temp_dff), nreps),]
+rownames(temp_dff2) <- NULL
+
+temp_dff2$year <- rep(DR_yr, nmc)
+temp_dff2$cell <- rep(missing_cells, each = nyrs)
+
+
+#combine filtered data with missing cells
+f_out <- rbind(df_filt2, temp_dff2)
 
 
 
 # create adjacency matrix -------------------------------------------------
 
 #unique cells
-cells <- unique(diagnostics_frame$cell)
 ncel <- length(cells)
 
 #get hexgrid cell centers
-hexgrid6 <- dggridR::dgconstruct(res = 6)
 cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
 
 #create adjacency matrix - 1 if adjacent to cell, 0 if not
@@ -124,30 +192,6 @@ for (i in 1:length(cells))
 #indices for 1s
 ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 
-
-
-# Filter data by species ------------------------------------------------------
-
-#filter by species/year here
-f_out <- filter(diagnostics_frame, species == DR_sp, year %in% DR_yr)
-
-
-#explore filter for good data
-sum(f_out$min_n.eff < 500, na.rm = TRUE)
-sum(f_out$max_Rhat > 1.1, na.rm = TRUE)
-sum(f_out$nphen_bad > 100, na.rm = TRUE)
-
-
-
-# if (m_crit == TRUE)
-# {
-#   #proceed
-# } else {
-#   #stop
-# }
-
-#check to make sure cells order == order in f_out
-all.equal(unique(f_out$cell), cells)
 
 
 
@@ -179,16 +223,20 @@ scaling_factor <- exp(mean(log(diag(Q_inv))))
 # create Stan data object -------------------------------------------------
 
 #create and fill sds and obs
-sigma_y_in <- matrix(nrow = ncel, ncol = length(DR_yr))
-y_obs_in <- matrix(nrow = ncel, ncol = length(DR_yr))
+sigma_y_in <- matrix(nrow = ncel, ncol = nyr)
+y_obs_in <- matrix(nrow = ncel, ncol = nyr)
 
 #number of observation and NAs for each year
-len_y_obs_in <- rep(NA, length(DR_yr))
-len_y_mis_in <- rep(NA, length(DR_yr))
+len_y_obs_in <- rep(NA, nyr)
+len_y_mis_in <- rep(NA, nyr)
 
-for (j in 1:length(DR_yr))
+#indices for observed and missing
+ii_obs_in <- matrix(NA, nrow = ncel, ncol = nyr)
+ii_mis_in <- matrix(NA, nrow = ncel, ncol = nyr)
+
+for (j in 1:nyr)
 {
-  #j <- 1
+  #j <- 16
   temp_yr <- filter(f_out, year == DR_yr[j])
   
   sigma_y_in[,j] <- temp_yr$HM_sd
@@ -200,27 +248,38 @@ for (j in 1:length(DR_yr))
   if (length(no_na) < ncel)
   {
     num_na <- ncel - length(no_na)
-    t_y_obs_in <- c(no_na, rep(NA, num_na))
     
     #add NAs to end
+    t_y_obs_in <- c(no_na, rep(NA, num_na))
+    t_obs_in <- c(which(!is.na(temp_yr$HM_mean)), rep(NA, num_na)) 
+    t_mis_in <- c(which(is.na(temp_yr$HM_mean)), rep(NA, length(no_na)))
+    
+    #fill objects
+    ii_obs_in[,j] <- t_obs_in
+    ii_mis_in[,j] <- t_mis_in
     y_obs_in[,j] <- t_y_obs_in
   } else {
-    #no NAs to end
+    #no NAs to end (no mimssing values)
     y_obs_in[,j] <- no_na
+    ii_mis_in[,j] <- which(!is.na(temp_yr$HM_mean))
+    y_obs_in[,j] <- which(is.na(temp_yr$HM_mean))
   }
   
   #length of data/miss for each year
   len_y_obs_in[j] <- length(no_na)
   len_y_mis_in[j] <- ncel - length(no_na)
   
-  #create indices of missing and present values
-  assign(paste0('ii_obs', j, '_in'), which(!is.na(temp_yr$HM_mean)))
-  assign(paste0('ii_mis', j, '_in'), which(is.na(temp_yr$HM_mean)))
+  #assign(paste0('ii_obs', j, '_in'), which(!is.na(temp_yr$HM_mean)))
+  #assign(paste0('ii_mis', j, '_in'), which(is.na(temp_yr$HM_mean)))
 }
 
 
 #fill 0 where NA in y_obs - Stan does not like NA and zeros are not being used to estimate any param (y_obs is used to fill y)
 y_obs_in[which(is.na(y_obs_in), arr.ind = TRUE)] <- 0
+sigma_y_in[which(is.na(sigma_y_in), arr.ind = TRUE)] <- 0
+ii_obs_in[which(is.na(ii_obs_in), arr.ind = TRUE)] <- 0
+ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
+
 
 
 #create data list for Stan
@@ -233,20 +292,19 @@ DATA <- list(J = length(unique(f_out$year)),
              node2 = ninds[,2],
              y_obs = y_obs_in,
              sigma_y = sigma_y_in,
-             scaling_factor = scaling_factor)
+             scaling_factor = scaling_factor,
+             ii_obs = ii_obs_in,
+             ii_mis = ii_mis_in)
 
-#add observation indices to DATA list
-i <- 1
-while (i <= length(DR_yr))
-{
-  DATA[[paste0('ii_obs', i)]] <- get(paste0('ii_obs', i, '_in'))
-  DATA[[paste0('ii_mis', i)]] <- get(paste0('ii_mis', i, '_in'))
-  
-  i <- i + 1
-}
-
-
-DATA$sigma_y[which(is.na(DATA$sigma_y), arr.ind = TRUE)] <- 0.01
+# #add observation indices to DATA list
+# i <- 1
+# while (i <= length(DR_yr))
+# {
+#   DATA[[paste0('ii_obs', i)]] <- get(paste0('ii_obs', i, '_in'))
+#   DATA[[paste0('ii_mis', i)]] <- get(paste0('ii_mis', i, '_in'))
+#   
+#   i <- i + 1
+# }
 
 
 
@@ -272,6 +330,9 @@ int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
 
 real<lower = 0, upper = 200> y_obs[N, J];            // observed response data (add NAs to end)
 real<lower = 0> sigma_y[N, J];                           // observed sd of data (observation error)
+int<lower = 0> ii_obs[N, J];
+int<lower = 0> ii_mis[N, J];
+
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects
 
 int<lower = 1, upper = N> ii_obs1[N_obs[1]];
@@ -288,20 +349,24 @@ int<lower = 1, upper = N> ii_obs6[N_obs[6]];
 int<lower = 1, upper = N> ii_mis6[N_mis[6]];
 int<lower = 1, upper = N> ii_obs7[N_obs[7]];
 int<lower = 1, upper = N> ii_mis7[N_mis[7]];
-
-int<lower = 1, upper = N> ii_obs8[N_obs[8]];          // had to put as int because of a dimension mismatch
-int<lower = 1, upper = N> ii_mis8;
-int<lower = 1, upper = N> ii_obs9[N_obs[9]];          // had to put as int because of a dimension mismatch
-int<lower = 1, upper = N> ii_mis9;
-int<lower = 1, upper = N> ii_obs10[N_obs[10]];          // had to put as int because of a dimension mismatch
-int<lower = 1, upper = N> ii_mis10;
-
+int<lower = 1, upper = N> ii_obs8[N_obs[8]];
+int<lower = 1, upper = N> ii_mis8[N_mis[8]];
+int<lower = 1, upper = N> ii_obs9[N_obs[9]];
+int<lower = 1, upper = N> ii_mis9[N_mis[9]];
+int<lower = 1, upper = N> ii_obs10[N_obs[10]];
+int<lower = 1, upper = N> ii_mis10[N_mis[10]];
 int<lower = 1, upper = N> ii_obs11[N_obs[11]];
+int<lower = 1, upper = N> ii_mis11[N_mis[12]];
 int<lower = 1, upper = N> ii_obs12[N_obs[12]];
+int<lower = 1, upper = N> ii_mis12[N_mis[13]];
 int<lower = 1, upper = N> ii_obs13[N_obs[13]];
+int<lower = 1, upper = N> ii_mis13[N_mis[14]];
 int<lower = 1, upper = N> ii_obs14[N_obs[14]];
+int<lower = 1, upper = N> ii_mis14[N_mis[15]];
 int<lower = 1, upper = N> ii_obs15[N_obs[15]];
+int<lower = 1, upper = N> ii_mis15[N_mis[16]];
 int<lower = 1, upper = N> ii_obs16[N_obs[16]];
+int<lower = 1, upper = N> ii_mis16[N_mis[16]];
 }
 
 
