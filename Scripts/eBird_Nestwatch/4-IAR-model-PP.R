@@ -316,7 +316,7 @@ DATA <- list(J = nyr,
 #matrix[N,J] -> cells in rows, years in columns
 
 
-IAR_bym2_PP <- '
+IAR_bym2 <- '
 data {
 int<lower = 0> J;                                     // number of years      
 int<lower = 0> N;                                     // number of cells
@@ -381,39 +381,38 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 tt <- proc.time()
-fit_PP <- stan(model_code = IAR_bym2_PP,              # Model
-               data = DATA,                           # Data
-               chains = 3,                            # Number chains
-               iter = 100,                           # Iterations per chain
-               cores = 1,                             # Number cores to use
-               control = list(max_treedepth = 20, adapt_delta = 0.80)) # modified control parameters based on warnings;
-# see http://mc-stan.org/misc/warnings.html
+fit <- stan(model_code = IAR_bym2,
+            data = DATA,
+            chains = 3,
+            iter = 4000,
+            cores = 3,
+            control = list(max_treedepth = 20, adapt_delta = 0.80)) # modified control parameters based on warnings
 proc.time() - tt
 
 
 #save to RDS
-# saveRDS(fit_PP, 'stan_bym2_PP_fit_allyr_sep.rds')
-# fit_PP <- readRDS('stan_bym2_PP_fit_3yr_sep.rds')
+saveRDS(fit, 'stan_bym2_allyr_allcells_sep_phis.rds')
+# fit <- readRDS('stan_bym2_PP_fit_3yr_sep.rds')
 
 #diagnostics
-# pairs(fit_PP, pars = c('sigma', 'rho', 'beta0'))
+# pairs(fit, pars = c('sigma', 'rho', 'beta0'))
 
 
 #https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
-sampler_params <- get_sampler_params(fit_PP, inc_warmup = FALSE)
+sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
 mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
 max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
-get_elapsed_time(fit_PP)
+get_elapsed_time(fit)
 
 
-MCMCsummary(fit_PP, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
-MCMCsummary(fit_PP, params = c('theta', 'phi'), n.eff = TRUE)
+MCMCsummary(fit, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
+MCMCsummary(fit, params = c('theta', 'phi'), n.eff = TRUE)
 
-print(fit_PP, pars = c('sigma', 'rho'))
+print(fit, pars = c('sigma', 'rho'))
 
 #shiny stan
 library(shinystan)
-launch_shinystan(fit_PP)
+launch_shinystan(fit)
 
 
 
@@ -429,8 +428,8 @@ system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/4-IAR-model.R 
 #estimated half-max in grey, sd in white (derived from logit cubic)
 
 #extract median and sd estimates for mu params
-med_fit <- MCMCpstr(fit_PP, params = 'mu', func = median)[[1]]
-sd_fit <- MCMCpstr(fit_PP, params = 'mu', func = sd)[[1]]
+med_fit <- MCMCpstr(fit, params = 'mu', func = median)[[1]]
+sd_fit <- MCMCpstr(fit, params = 'mu', func = sd)[[1]]
 
 
 #transform cells to grid
