@@ -1,6 +1,18 @@
 ######################
-# 4 - ICA model PARTIAL POOLING
+# 4 - IAR model
+#
+# Fit IAR model - true arrival dates for each species-cell-year are modeled as latent states, with the observed 
+# state derived from 2-logit-cubic.R. 
+#
+# Model fits different spatial (phi)/non-spatial (theta) params for each year but ONE rho (the degree of spatial vs. non-spatial error) and ONE sigma (scale factor for how large those errors are)
 ######################
+
+#Stan resources:
+#http://mc-stan.org/users/documentation/case-studies/icar_stan.html
+#http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html
+#https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
+
+
 
 # Top-level dir -----------------------------------------------------------
 
@@ -104,8 +116,6 @@ sum(df_filt$nphen_bad > 100, na.rm = TRUE)
 # diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %in% cells_to_keep),]
 
 
-
-
 #cells chosen based on species range - if cell overlaps species range -> include it
 #create hex cell grid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
@@ -166,6 +176,7 @@ f_out <- rbind(df_filt2, temp_dff2)
 
 
 
+
 # create adjacency matrix -------------------------------------------------
 
 #unique cells
@@ -196,8 +207,6 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 
 
 # Estimate scaling factor for BYM2 model with INLA ------------------------
-
-#taken from bym2 example here: http://mc-stan.org/users/documentation/case-studies/icar_stan.html
 
 #Build the adjacency matrix using INLA library functions
 adj.matrix <- sparseMatrix(i = ninds[,1], j = ninds[,2], 
@@ -268,9 +277,6 @@ for (j in 1:nyr)
   #length of data/miss for each year
   len_y_obs_in[j] <- length(no_na)
   len_y_mis_in[j] <- ncel - length(no_na)
-  
-  #assign(paste0('ii_obs', j, '_in'), which(!is.na(temp_yr$HM_mean)))
-  #assign(paste0('ii_mis', j, '_in'), which(is.na(temp_yr$HM_mean)))
 }
 
 
@@ -295,17 +301,6 @@ DATA <- list(J = nyr,
              scaling_factor = scaling_factor,
              ii_obs = ii_obs_in,
              ii_mis = ii_mis_in)
-
-# #add observation indices to DATA list
-# i <- 1
-# while (i <= length(DR_yr))
-# {
-#   DATA[[paste0('ii_obs', i)]] <- get(paste0('ii_obs', i, '_in'))
-#   DATA[[paste0('ii_mis', i)]] <- get(paste0('ii_mis', i, '_in'))
-#   
-#   i <- i + 1
-# }
-
 
 
 
@@ -397,8 +392,6 @@ saveRDS(fit, 'stan_bym2_allyr_allcells_sep_phis.rds')
 #diagnostics
 # pairs(fit, pars = c('sigma', 'rho', 'beta0'))
 
-
-#https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
 sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
 mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
 max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
