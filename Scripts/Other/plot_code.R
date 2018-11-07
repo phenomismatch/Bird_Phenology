@@ -13,7 +13,8 @@ dir <- '~/Google_Drive/R/'
 # load packages -----------------------------------------------------------
 
 library(ggplot2)
-
+library(rgdal)
+library(sp)
 
 
 # db/hm query dir ------------------------------------------------------------
@@ -32,6 +33,7 @@ diagnostics_frame_p <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
 cells_frame <- readRDS(paste0('cells_frame-', IAR_date, '.rds'))
 yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 
+diagnostics_frame <- diagnostics_frame_p
 
 #which species/year has the most cells - to model 'data rich species'
 DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
@@ -42,8 +44,52 @@ DR_yr <- c(2002, 2010, 2017)
 
 # plot cell numbers on map ------------------------------------------------
 
-#create hex cells
+#create hex cell grid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+#get boundaries of all cells over earth
+hge <- dggridR::dgearthgrid(hexgrid6)
+
+#load species range map
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+sp_rng <- rgdal::readOGR('Vireo_olivaceus_22705243.shp', verbose = FALSE)
+
+#filter by breeding range
+nrng <- subset(sp_rng, SEASONAL == 2)
+
+#convert cell vetices to spatial points - need to convert spdf to sp
+nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+ecells_sp <- sp::SpatialPoints(cbind(hge$long, hge$lat), 
+                               proj4string = sp::CRS(sp::proj4string(nrng)))
+
+#which vertices overlap species breeding range
+ovrlp <- which(!is.na(sp::over(ecells_sp, nrng_sp)))
+overlap_cells <- unique(as.numeric(hge[ovrlp,]$cell))
+
+#get cell centers
+cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
+cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
+                    lat = cell_centers$lat_deg)
+
+#cells only within the range that ebird surveys were filtered to
+n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
+
+#create cell grid
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, n_cc_df$cell)
+
+
+
+p <- ggplot() + 
+  coord_map("ortho", orientation = c(35, -80, 0), 
+            xlim = c(-100, -55), ylim = c(20, 90)) + 
+  geom_polygon(data = cell_grid, aes(x=long, y=lat, group=group), fill=NA, color="black") +
+  #geom_polygon(data = nrng, aes(x = long, y = lat), fill = 'red', alpha = 0.5) + 
+  theme_bw()
+p
+
+
+
 cells <- unique(diagnostics_frame$cell)
 ncel <- length(cells)
 
