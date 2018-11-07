@@ -276,14 +276,14 @@ for (j in 1:nyr)
 
 #fill 0 where NA in y_obs - Stan does not like NA and zeros are not being used to estimate any param (y_obs is used to fill y)
 y_obs_in[which(is.na(y_obs_in), arr.ind = TRUE)] <- 0
-sigma_y_in[which(is.na(sigma_y_in), arr.ind = TRUE)] <- 0
+sigma_y_in[which(is.na(sigma_y_in), arr.ind = TRUE)] <- 0.1
 ii_obs_in[which(is.na(ii_obs_in), arr.ind = TRUE)] <- 0
 ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
 
 
 
 #create data list for Stan
-DATA <- list(J = length(unique(f_out$year)),
+DATA <- list(J = nyr,
              N = ncel, 
              N_obs = len_y_obs_in,
              N_mis = len_y_mis_in,
@@ -320,141 +320,46 @@ IAR_bym2_PP <- '
 data {
 int<lower = 0> J;                                     // number of years      
 int<lower = 0> N;                                     // number of cells
-
 int<lower = 0> N_obs[J];                              // number of non-missing for each year
 int<lower = 0> N_mis[J];                              // number missing for each year
-
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
 int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
 int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
-
-real<lower = 0, upper = 200> y_obs[N, J];            // observed response data (add NAs to end)
-real<lower = 0> sigma_y[N, J];                           // observed sd of data (observation error)
-int<lower = 0> ii_obs[N, J];
-int<lower = 0> ii_mis[N, J];
-
-real<lower = 0> scaling_factor;                       // scales variances of spatial effects
-
-int<lower = 1, upper = N> ii_obs1[N_obs[1]];
-int<lower = 1, upper = N> ii_mis1[N_mis[1]];
-int<lower = 1, upper = N> ii_obs2[N_obs[2]];
-int<lower = 1, upper = N> ii_mis2[N_mis[2]];
-int<lower = 1, upper = N> ii_obs3[N_obs[3]];
-int<lower = 1, upper = N> ii_mis3[N_mis[3]];
-int<lower = 1, upper = N> ii_obs4[N_obs[4]];
-int<lower = 1, upper = N> ii_mis4[N_mis[4]];
-int<lower = 1, upper = N> ii_obs5[N_obs[5]];
-int<lower = 1, upper = N> ii_mis5[N_mis[5]];
-int<lower = 1, upper = N> ii_obs6[N_obs[6]];
-int<lower = 1, upper = N> ii_mis6[N_mis[6]];
-int<lower = 1, upper = N> ii_obs7[N_obs[7]];
-int<lower = 1, upper = N> ii_mis7[N_mis[7]];
-int<lower = 1, upper = N> ii_obs8[N_obs[8]];
-int<lower = 1, upper = N> ii_mis8[N_mis[8]];
-int<lower = 1, upper = N> ii_obs9[N_obs[9]];
-int<lower = 1, upper = N> ii_mis9[N_mis[9]];
-int<lower = 1, upper = N> ii_obs10[N_obs[10]];
-int<lower = 1, upper = N> ii_mis10[N_mis[10]];
-int<lower = 1, upper = N> ii_obs11[N_obs[11]];
-int<lower = 1, upper = N> ii_mis11[N_mis[12]];
-int<lower = 1, upper = N> ii_obs12[N_obs[12]];
-int<lower = 1, upper = N> ii_mis12[N_mis[13]];
-int<lower = 1, upper = N> ii_obs13[N_obs[13]];
-int<lower = 1, upper = N> ii_mis13[N_mis[14]];
-int<lower = 1, upper = N> ii_obs14[N_obs[14]];
-int<lower = 1, upper = N> ii_mis14[N_mis[15]];
-int<lower = 1, upper = N> ii_obs15[N_obs[15]];
-int<lower = 1, upper = N> ii_mis15[N_mis[16]];
-int<lower = 1, upper = N> ii_obs16[N_obs[16]];
-int<lower = 1, upper = N> ii_mis16[N_mis[16]];
+real<lower = 0, upper = 200> y_obs[N, J];             // observed response data (add NAs to end)
+real<lower = 0> sigma_y[N, J];                        // observed sd of data (observation error)
+int<lower = 0> ii_obs[N, J];                          // indices of observed data
+int<lower = 0> ii_mis[N, J];                          // indices of missing data
+real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
 }
-
-
 
 parameters {
 real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
 real beta0[J];                                        // intercept
 matrix[N, J] theta;                                   // non-spatial error component (centered on 0)
-matrix[N, J] phi;
-real<lower = 0> sigma;                                // spatial and non-spatial sd
-real<lower = 0, upper = 1> rho;                       // proportion unstructure vs spatially structured variance
-
-// matrix[N, J] phi_raw;                              // hierarchical
-// vector[N] mu_phi;                                  //hierarchical
-// vector[N] sigma_phi;                               //hierarchical
+matrix[N, J] phi;                                     // spatial error component (centered on 0)
+real<lower = 0> sigma;                                // scaling factor for spatial and non-spatial components
+real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 }
 
 transformed parameters {
-real<lower = 0, upper = 200> y[N, J];
-matrix[N, J] convolved_re;
+real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
+matrix[N, J] convolved_re;                            // spatial and non-spatial component
 matrix[N, J] mu;                                      // latent true halfmax values
-
 for (j in 1:J)
 {
-  // phi[,j] = mu_phi + phi_raw[,j] .* sigma_phi;      //hierarchical: .* for elementwise multiplication of two vectors
   convolved_re[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j];
-  mu[,j] = beta0[j] + convolved_re[,j] * sigma;          // scaling by sigma_phi rather than phi ~ N(0, sigma_phi)
+  mu[,j] = beta0[j] + convolved_re[,j] * sigma;
 }
-
-
-y[ii_obs1, 1] = y_obs[1:N_obs[1], 1];
-y[ii_mis1, 1] = y_mis[1:N_mis[1], 1];
-y[ii_obs2, 2] = y_obs[1:N_obs[2], 2];
-y[ii_mis2, 2] = y_mis[1:N_mis[2], 2];
-y[ii_obs3, 3] = y_obs[1:N_obs[3], 3];
-y[ii_mis3, 3] = y_mis[1:N_mis[3], 3];
-y[ii_obs4, 4] = y_obs[1:N_obs[4], 4];
-y[ii_mis4, 4] = y_mis[1:N_mis[4], 4];
-y[ii_obs5, 5] = y_obs[1:N_obs[5], 5];
-y[ii_mis5, 5] = y_mis[1:N_mis[5], 5];
-y[ii_obs6, 6] = y_obs[1:N_obs[6], 6];
-y[ii_mis6, 6] = y_mis[1:N_mis[6], 6];
-y[ii_obs7, 7] = y_obs[1:N_obs[7], 7];
-y[ii_mis7, 7] = y_mis[1:N_mis[7], 7];
-
-y[ii_obs8, 8] = y_obs[1:N_obs[8], 8];
-y[ii_mis8, 8] = y_mis[1, 8];                        
-y[ii_obs9, 9] = y_obs[1:N_obs[9], 9];
-y[ii_mis9, 9] = y_mis[1, 9];                        
-y[ii_obs10, 10] = y_obs[1:N_obs[10], 10];
-y[ii_mis10, 10] = y_mis[1, 10];                        // had to change due to dimsion mismatch (integer != length 1 vector)
-
-y[ii_obs11, 11] = y_obs[1:N_obs[11], 11];
-y[ii_obs12, 12] = y_obs[1:N_obs[12], 12];
-y[ii_obs13, 13] = y_obs[1:N_obs[13], 13];
-y[ii_obs14, 14] = y_obs[1:N_obs[14], 14];
-y[ii_obs15, 15] = y_obs[1:N_obs[15], 15];
-y[ii_obs16, 16] = y_obs[1:N_obs[16], 16];
-
+// indexing to avoid NAs
+for (j in 1:J)
+{
+  y[ii_obs[1:N_obs[j], j], j] = y_obs[1:N_obs[j], j];
+  y[ii_mis[1:N_mis[j], j], j] = y_mis[1:N_mis[j], j];
 }
-
+}
 
 model {
-
-// 1) one set of phis/thetas (complete pool)
-// 2) separate sets of phis (no pool)
-// 3) partial pool
-
-// #1
-// One set of phis/thetas (complete pool) - same rho, phis, thetas, sigma (diff betas)
-/* 
-for (j in 1:J)
-{
-  y[,j] ~ normal(mu[,j], sigma_y[,j]);
-  beta0[j] ~ normal(120, 10);
-}
-
-target += -0.5 * dot_self(phi[node1] - phi[node2]);
-sum(phi) ~ normal(0, 0.001 * N);
-theta ~ normal(0, 1);
-rho ~ beta(0.5, 0.5);
-sigma ~ normal(0, 5);
-*/
-
-
-// #2
 // Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
-
 for (j in 1:J)
 {
   y[,j] ~ normal(mu[,j], sigma_y[,j]);
@@ -466,27 +371,6 @@ for (j in 1:J)
 
 rho ~ beta(0.5, 0.5);
 sigma ~ normal(0, 5);
-
-
-// #3
-// Hierarchical phis (partial pool) - same rho, sigma (partial pool phis, diff betas, thetas)
-/*
-for (j in 1:J)
-{
-  y[,j] ~ normal(mu[,j], sigma_y[,j]);
-  target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
-  phi_raw[,j] ~ normal(0, 1);                   // reparameterize non-centered to optimize
-  beta0[j] ~ normal(120, 10);
-  theta[j] ~ normal(0,1);
-}
-
-mu_phi ~ normal(0, 1);
-sigma_phi ~ normal(0,1);
-sum(mu_phi) ~ normal(0, 0.001 * N);
-rho ~ beta(0.5, 0.5);
-sigma ~ normal(0, 5);
-*/
-
 }'
 
 
@@ -498,11 +382,11 @@ options(mc.cores = parallel::detectCores())
 
 tt <- proc.time()
 fit_PP <- stan(model_code = IAR_bym2_PP,              # Model
-            data = DATA,                           # Data
-            chains = 3,                            # Number chains
-            iter = 4000,                           # Iterations per chain
-            cores = 3,                             # Number cores to use
-            control = list(max_treedepth = 20, adapt_delta = 0.80)) # modified control parameters based on warnings;
+               data = DATA,                           # Data
+               chains = 3,                            # Number chains
+               iter = 100,                           # Iterations per chain
+               cores = 1,                             # Number cores to use
+               control = list(max_treedepth = 20, adapt_delta = 0.80)) # modified control parameters based on warnings;
 # see http://mc-stan.org/misc/warnings.html
 proc.time() - tt
 
@@ -609,10 +493,10 @@ for (i in 1:length(DR_yr))
     theme_bw() +
     xlab('Longitude') +
     ylab('Latitude')
-
+  
   ggsave(plot = p, filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR.pdf'))
-
-
+  
+  
   #post-IAR
   t_med_fit <- med_fit[,i]
   t_sd_fit <- sd_fit[,i]
