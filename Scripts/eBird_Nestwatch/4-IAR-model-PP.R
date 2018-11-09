@@ -246,7 +246,8 @@ ii_mis_in <- matrix(NA, nrow = ncel, ncol = nyr)
 for (j in 1:nyr)
 {
   #j <- 16
-  temp_yr <- filter(f_out, year == DR_yr[j])
+  temp_yr_p <- filter(f_out, year == DR_yr[j])
+  temp_yr <- temp_yr_p[order(temp_yr_p$cell),]
   
   sigma_y_in[,j] <- temp_yr$HM_sd
   
@@ -378,26 +379,28 @@ options(mc.cores = parallel::detectCores())
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
-            chains = 3,
-            iter = 4000,
-            cores = 3,
-            control = list(max_treedepth = 20, adapt_delta = 0.80)) # modified control parameters based on warnings
+            chains = 6,
+            iter = 500,
+            cores = 6,
+            pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
+            control = list(max_treedepth = 20, adapt_delta = 0.90, stepsize = 0.1)) # modified control parameters based on warnings
 proc.time() - tt
 
 
 #save to RDS
-saveRDS(fit, 'stan_bym2_allyr_allcells_sep_phis.rds')
-# fit <- readRDS('stan_bym2_PP_fit_3yr_sep.rds')
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
+saveRDS(fit, 'stan_bym2_allyr_allcells_sep_phis_500.rds')
+# fit <- readRDS('stan_bym2_allyr_allcells_sep_phis.rds')
 
 #diagnostics
-# pairs(fit, pars = c('sigma', 'rho', 'beta0'))
+# pairs(fit, pars = c('sigma', 'rho'))
 
 sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
 mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
 max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
 get_elapsed_time(fit)
 
-
+MCMCtrace(fit)
 MCMCsummary(fit, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
 MCMCsummary(fit, params = c('theta', 'phi'), n.eff = TRUE)
 
@@ -449,7 +452,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps'))
 #loop plots for each year
 for (i in 1:length(DR_yr))
 {
-  #i <- 1
+  #i <- 16
   
   #filter data for year[i]
   f_out_filt <- filter(f_out, year == DR_yr[i])
