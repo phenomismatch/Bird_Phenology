@@ -83,11 +83,16 @@ yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
 
 
 #which species/year has the most cells - to model 'data rich species'
-DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
-DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
-DR_yr <- 2002:2017
+# DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
+# DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
+# DR_yr <- 2002:2017
 
+aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
+aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
 
+#species with very little data
+DR_sp <- 'Ammodramus_nelsoni'
+DR_yr <- 2015:2017
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -125,7 +130,8 @@ hge <- dggridR::dgearthgrid(hexgrid6)
 
 #load species range map
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
-sp_rng <- rgdal::readOGR('Vireo_olivaceus_22705243.shp', verbose = FALSE)
+#sp_rng <- rgdal::readOGR('Vireo_olivaceus_22705243.shp', verbose = FALSE)
+sp_rng <- rgdal::readOGR('Ammodramus_nelsoni_22728393.shp', verbose = FALSE)
 
 #filter by breeding range - need to convert spdf to sp
 nrng <- subset(sp_rng, SEASONAL == 2)
@@ -379,9 +385,9 @@ options(mc.cores = parallel::detectCores())
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
-            chains = 6,
-            iter = 500,
-            cores = 6,
+            chains = 3,
+            iter = 1000,
+            cores = 3,
             pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
             control = list(max_treedepth = 20, adapt_delta = 0.90, stepsize = 0.1)) # modified control parameters based on warnings
 proc.time() - tt
@@ -389,7 +395,7 @@ proc.time() - tt
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
-saveRDS(fit, 'stan_bym2_allyr_allcells_sep_phis_500.rds')
+saveRDS(fit, 'stan_bym2_allyr_allcells_sep_phis_1000_A_nelsoni.rds')
 # fit <- readRDS('stan_bym2_allyr_allcells_sep_phis_500.rds')
 
 #diagnostics
