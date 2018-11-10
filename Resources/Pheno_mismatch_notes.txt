@@ -1,0 +1,24 @@
+===================
+Pheno Mismatch notes
+===================
+
+
+Notes from Oct 2018 meeting
+===========================
+Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) and bird reproduction curve (abundance/biomass on y, time on x) -> overlay curves to calculate weighted index.
+    Would expect positive relationship between productivity and curve area
+
+
+*[DONE] Run single set of phi/theta
+*[DONE] Run different phi/theta for each year
+*[DONE] Run hierarchical phi/theta -> run time too long, params not estimated well
+*[DONE] Run single year (2017) with just test set of cells - LARGE RHO
+*[DONE] Fit all years with different phi/thetas and one phi/thetas
+*[DONE] Filter cells by species ranges
+*[DONE] Generalize creation of Stan script indices
+*Run V_olivaceus for all years/cells
+    *Check maps
+*Setup script to run one species at a time
+*Determine which species to run (separate script?)
+*Run test set of species on Xanadu
+*Run all species on Xanadu

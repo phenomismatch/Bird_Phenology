@@ -11,7 +11,7 @@
 #http://mc-stan.org/users/documentation/case-studies/icar_stan.html
 #http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html
 #https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
-
+#https://chi-feng.github.io/mcmc-demo/app.html#HamiltonianMC,standard
 
 
 # Top-level dir -----------------------------------------------------------
@@ -308,7 +308,7 @@ DATA <- list(J = nyr,
 # Stan model --------------------------------------------------------------
 
 #spatial and non-spatial component (reparameterized) - also model obs error
-#uses scaling factor fomr INLA to set priors more easily
+#uses scaling factor from INLA to set priors more easily
 #matrix[N,J] -> cells in rows, years in columns
 
 
@@ -390,7 +390,7 @@ proc.time() - tt
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 saveRDS(fit, 'stan_bym2_allyr_allcells_sep_phis_500.rds')
-# fit <- readRDS('stan_bym2_allyr_allcells_sep_phis.rds')
+# fit <- readRDS('stan_bym2_allyr_allcells_sep_phis_500.rds')
 
 #diagnostics
 # pairs(fit, pars = c('sigma', 'rho'))
@@ -432,7 +432,9 @@ sd_fit <- MCMCpstr(fit, params = 'mu', func = sd)[[1]]
 cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells)
 cell_grid$cell <- as.numeric(cell_grid$cell)
 cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
-ll_df <- data.frame(cell = cells, lon_deg = cell_centers$lon_deg, lat_deg = cell_centers$lat_deg)
+ll_df <- data.frame(cell = cells, 
+                    lon_deg = cell_centers$lon_deg, 
+                    lat_deg = cell_centers$lat_deg)
 
 #load maps
 usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
