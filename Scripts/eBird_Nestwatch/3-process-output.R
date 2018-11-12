@@ -217,7 +217,7 @@ df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
 {
-  #i <- 49
+  #i <- 13
   
   print(i)
   #filter by species
@@ -231,7 +231,7 @@ for (i in 1:length(species_list))
   #check for synonyms if there are no matches
   if (length(g_ind) == 0)
   {
-    g_ind2 <- grep(species_list[i], sp_key$Synonyms)
+    g_ind2 <- grep(species_list[i], sp_key$BL_Checklist_name)
   } else {
     g_ind2 <- g_ind
   }
@@ -317,6 +317,11 @@ for (i in 1:length(species_list))
   
   df_out <- rbind(df_out, t_sp3)
 }
+
+
+
+
+
 
 
 
