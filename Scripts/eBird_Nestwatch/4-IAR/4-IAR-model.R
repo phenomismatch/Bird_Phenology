@@ -87,12 +87,13 @@ sum(df_filt$max_Rhat > 1.1, na.rm = TRUE)
 sum(df_filt$nphen_bad > 100, na.rm = TRUE)
 
 
-
 #see which cells/years are TRUE
 #f_out <- filter(df_filt_p, , year %in% DR_yr)
 
+#define cells and years to be modeled
 cells <- unique(f_out$cell)
-
+DR_yr <- unqiue(f_out$year)
+nyr <- length(DR_yr)
 
 
 # filter cells ------------------------------------------------------------
@@ -318,7 +319,7 @@ proc.time() - tt
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
-saveRDS(fit, file = paste0('IAR_', args, '.rds'))
+saveRDS(fit, file = paste0('IAR_stan_', args, '.rds'))
 # fit <- readRDS('stan_bym2_allyr_allcells_sep_phis_500.rds')
 
 
