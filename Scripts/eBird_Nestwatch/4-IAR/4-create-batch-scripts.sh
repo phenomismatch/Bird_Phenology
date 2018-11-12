@@ -6,7 +6,7 @@ do
   temp="${temp#\"}"
   echo "#!/bin/bash
 
-#SBATCH --job-name=lc-$temp
+#SBATCH --job-name=iar-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
@@ -15,8 +15,8 @@ do
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species/lc-$temp.out #STDOUT
-#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species/lc-$temp.err #STDERR
+#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/IAR_2018-11-12/iar-$temp.out #STDOUT
+#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/IAR_2018-11-12/iar-$temp.err #STDERR
 
 #echos name of node
 echo \`hostname\`
@@ -28,8 +28,8 @@ module load R/3.5.1
 export R_LIBS=/home/CAM/cyoungflesh/R_libs
 
 #run R script - species arg
-Rscript 2-logit-cubic.R $temp
+Rscript 4-IAR-model.R $temp
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/2-$temp.sh"
-done < ../../../Data/eBird_species_list.txt
+done < ../../../Data/IAR_species_list.txt
