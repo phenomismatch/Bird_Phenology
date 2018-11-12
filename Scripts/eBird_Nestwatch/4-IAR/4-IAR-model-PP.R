@@ -55,11 +55,11 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 
 
-# import eBird species list -----------------------------------------------------
+# species arg -----------------------------------------------------
 
-species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
-species_list <- species_list_i[,1]
-nsp <- length(species_list)
+args <- commandArgs(trailingOnly = TRUE)
+#args <- 'Empidonax_virescens'
+
 
 
 # read in data files ------------------------------------------------------
@@ -70,23 +70,6 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 
 IAR_date <- substr(IAR_dir, start = 5, stop = 15)
 
-diagnostics_frame <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
-cells_frame <- readRDS(paste0('cells_frame-', IAR_date, '.rds'))
-yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
-
-
-#which species/year has the most cells - to model 'data rich species'
-# DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
-# DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
-# DR_yr <- 2002:2017
-
-aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
-aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
-
-#species with very little data
-DR_sp <- 'Ammodramus_nelsoni'
-DR_yr <- 2015:2017
-nyr <- length(DR_yr)
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -94,13 +77,21 @@ nyr <- length(DR_yr)
 
 
 #filter by species/year here
-df_filt <- filter(diagnostics_frame, species == DR_sp, year %in% DR_yr)
+df_filt_p <- filter(diagnostics_frame, species == args)
+
 
 
 #explore filter for good data
 sum(df_filt$min_n.eff < 500, na.rm = TRUE)
 sum(df_filt$max_Rhat > 1.1, na.rm = TRUE)
 sum(df_filt$nphen_bad > 100, na.rm = TRUE)
+
+
+
+#see which cells/years are TRUE
+#f_out <- filter(df_filt_p, , year %in% DR_yr)
+
+cells <- unique(f_out$cell)
 
 
 
@@ -112,64 +103,6 @@ sum(df_filt$nphen_bad > 100, na.rm = TRUE)
 #                    674, 702, 703)
 # 
 # diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %in% cells_to_keep),]
-
-
-#cells chosen based on species range - if cell overlaps species range -> include it
-#create hex cell grid
-hexgrid6 <- dggridR::dgconstruct(res = 6)
-
-#get boundaries of all cells over earth - ADD TO PREVIOUS SCRIPT
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
-dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
-
-#load species range map
-#sp_rng <- rgdal::readOGR('Vireo_olivaceus_22705243.shp', verbose = FALSE)
-sp_rng <- rgdal::readOGR('Ammodramus_nelsoni_22728393.shp', verbose = FALSE)
-
-#filter by breeding (2) and migration (4) range - need to convert spdf to sp
-nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
-nrng_sp <- sp::SpatialPolygons(nrng@polygons)
-sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
-
-hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
-ptsreg <- sp::spsample(nrng, 50000, type = "regular")
-ovrlp <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
-overlap_cells <- ovrlp
-
-#get cell centers
-cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
-cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
-                    lat = cell_centers$lat_deg)
-
-#cells only within the range that ebird surveys were filtered to
-n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
-cells <- n_cc_df$cell
-
-#retain rows that match selected cells
-df_filt2 <- df_filt[which(df_filt$cell %in% cells),]
-
-'%ni%' <- Negate('%in%')
-
-#create rows for cells that were missing in ebird data
-missing_cells <- cells[which(cells %ni% df_filt2$cell)]
-
-temp_dff <- df_filt2[1,]
-temp_dff[,2:20] <- NA
-
-nmc <- length(missing_cells)
-nyrs <- length(DR_yr)
-nreps <- nmc * nyrs
-
-temp_dff2 <- temp_dff[rep(row.names(temp_dff), nreps),]
-rownames(temp_dff2) <- NULL
-
-temp_dff2$year <- rep(DR_yr, nmc)
-temp_dff2$cell <- rep(missing_cells, each = nyrs)
-
-
-#combine filtered data with missing cells
-f_out <- rbind(df_filt2, temp_dff2)
-
 
 
 
@@ -385,26 +318,84 @@ proc.time() - tt
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
-saveRDS(fit, 'stan_bym2_allyr_allcells_sep_phis_1000_A_nelsoni.rds')
+saveRDS(fit, file = paste0('IAR_', args, '.rds'))
 # fit <- readRDS('stan_bym2_allyr_allcells_sep_phis_500.rds')
+
+
+
 
 #diagnostics
 # pairs(fit, pars = c('sigma', 'rho'))
 
-sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
-mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
-max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
-get_elapsed_time(fit)
+# sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
+# mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
+# max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
+# get_elapsed_time(fit)
 
-MCMCtrace(fit)
-MCMCsummary(fit, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
-MCMCsummary(fit, params = c('theta', 'phi'), n.eff = TRUE)
+# MCMCtrace(fit)
+# MCMCsummary(fit, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
+# MCMCsummary(fit, params = c('theta', 'phi'), n.eff = TRUE)
 
-print(fit, pars = c('sigma', 'rho'))
+# print(fit, pars = c('sigma', 'rho'))
 
-#shiny stan
-library(shinystan)
-launch_shinystan(fit)
+# #shiny stan
+# library(shinystan)
+# launch_shinystan(fit)
+
+
+
+
+
+
+
+
+      sink(paste0(jagsID, '/results.txt'))
+      cat(paste0('jagsID: ', jagsID, ' \n'))
+      if (!missing(jagsDsc))
+      {
+        cat(paste0('jagsDsc: ', jagsDsc, ' \n'))
+      } else {
+        cat(paste0('jagsDsc: NONE GIVEN', ' \n'))
+      }
+      if (!missing(db_hash))
+      {
+        cat(paste0('db_hash: ', db_hash, ' \n'))
+      } else {
+        cat(paste0('db_hash: NONE GIVEN', ' \n'))
+      }
+      cat(paste0('Random Inits: ', RANDOM, ' \n'))
+      cat(paste0("Inits object: ", as.character(deparse(substitute(jagsInits))), ' \n'))
+      cat(paste0('Total minutes: ', round(tt, digits = 2), ' \n'))
+      cat(paste0('Total iterations: ', n_total, ' \n'))
+      cat(paste0('n_chain: ', n_chain, ' \n'))
+      cat(paste0('n_adapt: ', n_adapt, ' \n'))
+      cat(paste0('n_burn: ', n_burn, ' \n'))
+      cat(paste0('n_draw: ', n_draw, ' \n'))
+      cat(paste0('n_thin: ', n_thin, ' \n'))
+      cat(paste0('Total samples kept: ', n_chain * (n_draw_total / n_thin), ' \n'))
+      cat(paste0('Extended burnin: ', EXTRA, ' \n'))
+
+      if (EXTRA == TRUE) {
+        cat(paste0('Rhat_max: ', Rhat_max, ' \n'))
+        cat(paste0('n_max: ', n_max, ' \n'))
+        cat(paste0('n_rburn: ', n_rburn, ' \n'))
+        cat(paste0('n_extra: ', n_extra, ' \n'))
+      }
+
+      cat(paste0('convergence: ', CONVERGE, ' \n'))
+
+      if (is.null(ppc) == FALSE) {
+        cat(paste0('ppc: ', MCMCvis::MCMCsummary(out, params = ppc, n.eff = TRUE, round = 4)[, 1], '\n'))
+      }
+
+      cat(' \n')
+      print(s_out)
+      sink()
+
+
+
+
+
 
 
 
@@ -442,13 +433,23 @@ f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
 MIN <- round(min(f_rng))
 MAX <- round(max(f_rng))
 
+
+#read in breeding/migration range shp file
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+sp_rng <- rgdal::readOGR(f_out$shp_fname[1], verbose = FALSE)
+
+#filter by breeding (2) and migration (4) range - need to convert spdf to sp
+nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
+nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+
 #plotting species range
 nrng@data$id <- rownames(nrng@data)
-nrng.points <-fortify(nrng, region="id")
-nrng.df <- plyr::join(nrng.points, nrng@data, by="id")
+nrng.points <- fortify(nrng, region = "id")
+nrng.df <- plyr::join(nrng.points, nrng@data, by = "id")
+
+
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps'))
-
 
 #loop plots for each year
 for (i in 1:length(DR_yr))
