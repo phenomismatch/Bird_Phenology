@@ -112,6 +112,9 @@ nyr <- length(DR_yr)
 #unique cells
 ncel <- length(cells)
 
+#make hexgrid
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+
 #get hexgrid cell centers
 cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
 
@@ -324,6 +327,7 @@ saveRDS(fit, file = paste0('IAR_stan_', args, '.rds'))
 
 
 
+
 # diagnostics -------------------------------------------------------------
 
 
@@ -354,14 +358,6 @@ sink(paste0('IAR_results_', args, '.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 print(fit)
 sink()
-
-
-
-
-# put copy of script in dir -----------------------------------------------
-
-system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/4-IAR/4-IAR-model.R ', 
-              dir, 'Bird_Phenology/Data/Processed', IAR_dir, '/4-IAR_model.R'))
 
 
 
