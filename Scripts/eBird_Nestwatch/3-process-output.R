@@ -21,7 +21,7 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 db_dir <- 'db_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
-IAR_dir <- 'IAR_2018-10-24'
+IAR_dir <- 'IAR_2018-10-26'
 
 
 # runtime -----------------------------------------------------------------
@@ -33,6 +33,8 @@ tt <- proc.time()
 # Load packages -----------------------------------------------------------
 
 library(dplyr)
+library(dggridR)
+library(sp)
 
 
 # Set wd ------------------------------------------------------------------
@@ -52,6 +54,17 @@ nsp <- length(species_list)
 years <- 2002:2017
 nyr <- length(years)
 
+
+# create grid -------------------------------------------------------------
+
+#construct grid
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+#get boundaries of all cells over earth
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
+#read in grid
+hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 
 
 # combine logit cubic results and diagnostic info -----------------------------------------------------------------
@@ -180,7 +193,7 @@ for (i in 1:nsp)
 
 #add 'meets criteria' column
 diagnostics_frame$m_crit <- NA
-
+diagnostics_frame$shp_fname <- NA
 
 
 # Filter data based on criteria -----------------------------------------------------------
@@ -191,26 +204,96 @@ diagnostics_frame$m_crit <- NA
 
 NC <- 3
 
+'%ni%' <- Negate('%in%')
+
+#reference key for species synonyms
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
+sp_key <- read.csv('species_filenames_key.csv')
+
+#change dir to shp files
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+
+df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
 {
-  #i <- 1
+  #i <- 49
+  
+  print(i)
   #filter by species
   t_sp <- dplyr::filter(diagnostics_frame, species == species_list[i])
   
-  #number of cells with good data in each year frmo 2015-2017
+  
+  #filter by breeding/migration cells
+  #match species name to shp file name
+  g_ind <- grep(species_list[i], sp_key$file_names_2016)
+  
+  #check for synonyms if there are no matches
+  if (length(g_ind) == 0)
+  {
+    g_ind2 <- grep(species_list[i], sp_key$Synonyms)
+  } else {
+    g_ind2 <- g_ind
+  }
+  
+  #get filename and read in
+  fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
+  t_sp$shp_fname <- fname
+  sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+  
+  #filter by breeding (2) and migration (4) range - need to convert spdf to sp
+  nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
+  nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+  sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+  
+  ptsreg <- sp::spsample(nrng, 50000, type = "regular")
+  overlap_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
+  
+  #get cell centers
+  cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
+  cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
+                      lat = cell_centers$lat_deg)
+  
+  #cells only within the range that ebird surveys were filtered to
+  n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
+  cells <- n_cc_df$cell
+  
+  #retain rows that match selected cells
+  t_sp2 <- t_sp[which(t_sp$cell %in% cells),]
+  
+  #create rows for cells that were missing in ebird data
+  missing_cells <- cells[which(cells %ni% t_sp2$cell)]
+  
+  temp_dff <- t_sp2[1,]
+  temp_dff[,2:20] <- NA
+  
+  nmc <- length(missing_cells)
+  nreps <- nmc * nyr
+  
+  temp_dff2 <- temp_dff[rep(row.names(temp_dff), nreps),]
+  rownames(temp_dff2) <- NULL
+  
+  temp_dff2$year <- rep(years, nmc)
+  temp_dff2$cell <- rep(missing_cells, each = nyr)
+  
+  #combine filtered data with missing cells
+  t_sp3 <- rbind(t_sp2, temp_dff2)
+  
+  
+  #number of cells with good data in each year from 2015-2017
   nobs_yr <- c()
   for (j in 2015:2017)
   {
     #j <- 2017
-    ty_sp <- dplyr::filter(t_sp, year == j)
-    ind <- which(!is.na(ty_sp$HM_mean))
+    ty_sp3 <- dplyr::filter(t_sp3, year == j)
+    ind <- which(!is.na(ty_sp3$HM_mean))
     nobs_yr <- c(nobs_yr, length(ind))
     #ty_sp[ind,]
   }
   
   
   #if all three years have greater than or = to 'NC' cells of data, figure out which years have at least 'NC' cells
+  yrs_kp <- c()
   if (sum(nobs_yr >= NC) == 3)
   {
     #see which years have more than 3 cells of data
@@ -218,45 +301,48 @@ for (i in 1:length(species_list))
     for (j in min(years):max(years))
     {
       #j <- 2012
-      ty_sp2 <- dplyr::filter(t_sp, year == j)
-      ind2 <- which(!is.na(ty_sp2$HM_mean))
+      ty2_sp3 <- dplyr::filter(t_sp3, year == j)
+      ind2 <- which(!is.na(ty2_sp3$HM_mean))
       nobs_yr2 <- c(nobs_yr2, length(ind2))
     }
     
     #years to keep (more than three cells of data)
     yrs_kp <- years[which(nobs_yr2 >= NC)]
-    
-    #of this species, which years to keep
-    t_sp_kp <- t_sp[which(t_sp$year %in% yrs_kp),]
-    
-    # #figure out which cells can be classified as non-winter cells
-    # COMMENTED OUT as we want to include all cells in model - just no data input for 'winter cells'. 'Winter cells' can be determined later and excluded from downstream analyses
-    # for (k in 1:ncel)
-    # {
-    #   #k <- 1
-    #   t_sp_kp_c <- dplyr::filter(t_sp_kp, cell == cells[k])
-    #   
-    #   t_sp_kp_c$n1[counter] > 29 
-    #   t_sp_kp_c$n1W[counter] < (diagnostics_frame$n1[counter] / 50) &
-    #     t_sp_kp_c$n0[counter] > 29 &
-    #   
-    #   
-    #   
-    #   
-    #   #of the cells for this particular species/year, does this trigger the winter threshold?
-    #   t_sp_kp_c_f <- t_sp_kp_c[which(!is.na(t_sp_kp_c$HM_mean)),]
-    #   
-    #   #make sure 
-    #   if (sum(t_sp_kp_c_f$n1W < (t_sp_kp_c_f$n1 / 50)) > 0)
-    # }
-    
-    
-    
-    #add m_crit == TRUE if that species/year meets criteria
-    diagnostics_frame[which(diagnostics_frame$species == species_list[i] & 
-                              diagnostics_frame$year %in% yrs_kp),]$m_crit <- TRUE
   }
+  
+  if (length(yrs_kp) > 0)
+  {
+    t_sp3[which(t_sp3$year %in% yrs_kp),]$m_crit <- TRUE
+  }
+  
+  df_out <- rbind(df_out, t_sp3)
 }
+
+
+
+#order diagnostics frame by year and cell #
+
+
+#look at diagnostics
+
+diagnostics_frame <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
+cells_frame <- readRDS(paste0('cells_frame-', IAR_date, '.rds'))
+yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
+
+
+#which species/year has the most cells - to model 'data rich species'
+# DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
+# DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
+# DR_yr <- 2002:2017
+
+aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
+aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
+
+#species with very little data
+DR_sp <- 'Ammodramus_nelsoni'
+DR_yr <- 2015:2017
+nyr <- length(DR_yr)
+
 
 
 # write diagnostics data.frame to RDS
@@ -266,7 +352,10 @@ IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_', Sys.Date())
 dir.create(IAR_dir_path)
 setwd(IAR_dir_path)
 
-saveRDS(diagnostics_frame, paste0('diagnostics_frame-', Sys.Date(), '.rds'))
+saveRDS(df_out, paste0('diagnostics_frame-', Sys.Date(), '.rds'))
+
+
+
 
 
 
