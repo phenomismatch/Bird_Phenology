@@ -62,16 +62,9 @@ species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
 
-
+# read in data files ------------------------------------------------------
 
 #DATA ONLY VALID THROUGH 2017 (2018 data only goes to ~ jday 60 as of 2018-10-15 query)
-years <- 2002:2017
-nyr <- length(years)
-
-
-
-
-# read in data files ------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 
@@ -93,7 +86,7 @@ aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
 #species with very little data
 DR_sp <- 'Ammodramus_nelsoni'
 DR_yr <- 2015:2017
-
+nyr <- length(DR_yr)
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -125,26 +118,23 @@ sum(df_filt$nphen_bad > 100, na.rm = TRUE)
 #create hex cell grid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
 
-#get boundaries of all cells over earth
-hge <- dggridR::dgearthgrid(hexgrid6)
+#get boundaries of all cells over earth - ADD TO PREVIOUS SCRIPT
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
 
 #load species range map
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
 #sp_rng <- rgdal::readOGR('Vireo_olivaceus_22705243.shp', verbose = FALSE)
 sp_rng <- rgdal::readOGR('Ammodramus_nelsoni_22728393.shp', verbose = FALSE)
 
-#filter by breeding range - need to convert spdf to sp
-nrng <- subset(sp_rng, SEASONAL == 2)
+#filter by breeding (2) and migration (4) range - need to convert spdf to sp
+nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
 nrng_sp <- sp::SpatialPolygons(nrng@polygons)
 sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
 
-#convert hex cell vetices to spatial points
-ecells_sp <- sp::SpatialPoints(cbind(hge$long, hge$lat), 
-                               proj4string = sp::CRS(sp::proj4string(nrng)))
-
-#which vertices overlap species breeding range
-ovrlp <- which(!is.na(sp::over(ecells_sp, nrng_sp)))
-overlap_cells <- unique(as.numeric(hge[ovrlp,]$cell))
+hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
+ptsreg <- sp::spsample(nrng, 50000, type = "regular")
+ovrlp <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
+overlap_cells <- ovrlp
 
 #get cell centers
 cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
@@ -389,7 +379,7 @@ fit <- stan(model_code = IAR_bym2,
             iter = 1000,
             cores = 3,
             pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = 20, adapt_delta = 0.90, stepsize = 0.1)) # modified control parameters based on warnings
+            control = list(max_treedepth = 20, adapt_delta = 0.90, stepsize = 0.01)) # modified control parameters based on warnings
 proc.time() - tt
 
 
@@ -452,7 +442,10 @@ f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
 MIN <- round(min(f_rng))
 MAX <- round(max(f_rng))
 
-
+#plotting species range
+nrng@data$id <- rownames(nrng@data)
+nrng.points <-fortify(nrng, region="id")
+nrng.df <- plyr::join(nrng.points, nrng@data, by="id")
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps'))
 
@@ -460,7 +453,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps'))
 #loop plots for each year
 for (i in 1:length(DR_yr))
 {
-  #i <- 16
+  #i <- 1
   
   #filter data for year[i]
   f_out_filt <- filter(f_out, year == DR_yr[i])
@@ -477,6 +470,8 @@ for (i in 1:length(DR_yr))
               aes(x = x, y = y), color = 'black') + 
     geom_path(data = mexicomap, 
               aes(x = x, y = y), color = 'black') + 
+    geom_polygon(data = nrng.df, 
+              aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.5) + 
     coord_map("ortho", orientation = c(35, -80, 0), 
               xlim = c(-100, -55), ylim = c(20, 60)) + 
     geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = HM_mean), 
@@ -487,7 +482,7 @@ for (i in 1:length(DR_yr))
                          limits = c(MIN, MAX)) +
     labs(fill = 'Estimated Arrival') +
     annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5, 
-             label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.1,
+             label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.3,
              size = 4) +
     annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5, 
              label = round(to_plt2$HM_sd, digits = 0), col = 'white', alpha = 0.3,
@@ -497,7 +492,8 @@ for (i in 1:length(DR_yr))
     xlab('Longitude') +
     ylab('Latitude')
   
-  ggsave(plot = p, filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR.pdf'))
+  ggsave(plot = p, 
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR.pdf'))
   
   
   #post-IAR
@@ -520,6 +516,8 @@ for (i in 1:length(DR_yr))
               aes(x = x, y = y), color = 'black') + 
     geom_path(data = mexicomap, 
               aes(x = x, y = y), color = 'black') + 
+    geom_polygon(data = nrng.df, 
+                 aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.5) + 
     coord_map("ortho", orientation = c(35, -80, 0), 
               xlim = c(-100, -55), ylim = c(20, 60)) + 
     geom_polygon(data = to_plt2_post, aes(x = long, y = lat, group = group, fill = med_mu), 
@@ -540,5 +538,6 @@ for (i in 1:length(DR_yr))
     xlab('Longitude') +
     ylab('Latitude')
   
-  ggsave(plot = p_post, filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR.pdf'))
+  ggsave(plot = p_post, 
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR.pdf'))
 }
