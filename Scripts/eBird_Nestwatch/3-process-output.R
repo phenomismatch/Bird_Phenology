@@ -2,6 +2,7 @@
 # 3 - proces cubic output
 #
 # Aggeregate posterior info and diagnostic info from 2-logit-cubic.R to be used in IAR model
+# Determine which cells should be used in IAR model (cells that overlap breeding and migratory ranges, but do not overlap resident or non-breeding ranges) 
 #
 # Parts formerly in ICAR_parallel.R
 ######################
@@ -72,7 +73,7 @@ hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 counter <- 0
 for (i in 1:nsp)
 {
-  #i <- 1
+  #i <- 114
   
   #import presence absence ebird data for each specices
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
@@ -185,14 +186,8 @@ for (i in 1:nsp)
 } # i - species
 
 
-# #how many have crazy estimates for halfmax (1 for some iter)
-# sum(diagnostics_frame$nphen_bad > 0, na.rm = TRUE)
-
-#add species_cell column
-#diagnostics_frame$spCel <- paste(diagnostics_frame$species, diagnostics_frame$cell, sep="_")
-
 #add 'meets criteria' column
-diagnostics_frame$m_crit <- NA
+diagnostics_frame$MODEL <- NA
 diagnostics_frame$shp_fname <- NA
 
 
@@ -217,105 +212,133 @@ df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
 {
-  #i <- 13
-  
-  print(i)
-  #filter by species
-  t_sp <- dplyr::filter(diagnostics_frame, species == species_list[i])
-  
-  
-  #filter by breeding/migration cells
-  #match species name to shp file name
-  g_ind <- grep(species_list[i], sp_key$file_names_2016)
-  
-  #check for synonyms if there are no matches
-  if (length(g_ind) == 0)
-  {
-    g_ind2 <- grep(species_list[i], sp_key$BL_Checklist_name)
-  } else {
-    g_ind2 <- g_ind
-  }
-  
-  #get filename and read in
-  fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
-  t_sp$shp_fname <- fname
-  sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
-  
-  #filter by breeding (2) and migration (4) range - need to convert spdf to sp
-  nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
-  nrng_sp <- sp::SpatialPolygons(nrng@polygons)
-  sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
-  
-  ptsreg <- sp::spsample(nrng, 50000, type = "regular")
-  overlap_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
-  
-  #get cell centers
-  cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
-  cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
-                      lat = cell_centers$lat_deg)
-  
-  #cells only within the range that ebird surveys were filtered to
-  n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
-  cells <- n_cc_df$cell
-  
-  #retain rows that match selected cells
-  t_sp2 <- t_sp[which(t_sp$cell %in% cells),]
-  
-  #create rows for cells that were missing in ebird data
-  missing_cells <- cells[which(cells %ni% t_sp2$cell)]
-  
-  temp_dff <- t_sp2[1,]
-  temp_dff[,2:20] <- NA
-  
-  nmc <- length(missing_cells)
-  nreps <- nmc * nyr
-  
-  temp_dff2 <- temp_dff[rep(row.names(temp_dff), nreps),]
-  rownames(temp_dff2) <- NULL
-  
-  temp_dff2$year <- rep(years, nmc)
-  temp_dff2$cell <- rep(missing_cells, each = nyr)
-  
-  #combine filtered data with missing cells
-  t_sp3 <- rbind(t_sp2, temp_dff2)
-  
-  
-  #number of cells with good data in each year from 2015-2017
-  nobs_yr <- c()
-  for (j in 2015:2017)
-  {
-    #j <- 2017
-    ty_sp3 <- dplyr::filter(t_sp3, year == j)
-    ind <- which(!is.na(ty_sp3$HM_mean))
-    nobs_yr <- c(nobs_yr, length(ind))
-    #ty_sp[ind,]
-  }
-  
-  
-  #if all three years have greater than or = to 'NC' cells of data, figure out which years have at least 'NC' cells
-  yrs_kp <- c()
-  if (sum(nobs_yr >= NC) == 3)
-  {
-    #see which years have more than 3 cells of data
-    nobs_yr2 <- c()
-    for (j in min(years):max(years))
+    #i <- 16
+    
+    print(i)
+    #filter by species
+    t_sp <- dplyr::filter(diagnostics_frame, species == species_list[i])
+    
+    #filter by breeding/migration cells
+    #match species name to shp file name
+    g_ind <- grep(species_list[i], sp_key$file_names_2016)
+    
+    #check for synonyms if there are no matches
+    if (length(g_ind) == 0)
     {
-      #j <- 2012
-      ty2_sp3 <- dplyr::filter(t_sp3, year == j)
-      ind2 <- which(!is.na(ty2_sp3$HM_mean))
-      nobs_yr2 <- c(nobs_yr2, length(ind2))
+      g_ind2 <- grep(species_list[i], sp_key$BL_Checklist_name)
+    } else {
+      g_ind2 <- g_ind
     }
     
-    #years to keep (more than three cells of data)
-    yrs_kp <- years[which(nobs_yr2 >= NC)]
-  }
-  
-  if (length(yrs_kp) > 0)
-  {
-    t_sp3[which(t_sp3$year %in% yrs_kp),]$m_crit <- TRUE
-  }
-  
-  df_out <- rbind(df_out, t_sp3)
+    #get filename and read in
+    fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
+    t_sp$shp_fname <- fname
+    sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+    
+    #filter by breeding (2) and migration (4) range - need to convert spdf to sp
+    nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
+    
+    #filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
+    nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
+    
+    #only process if there is a seasonal range
+    if (NROW(nrng@data) > 0)
+    {
+      #good cells
+      nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+      sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+      ptsreg <- sp::spsample(nrng, 50000, type = "regular")
+      br_mig_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
+      
+      #bad cells
+      nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
+      sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
+      ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
+      res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
+
+      #remove cells that appear in resident and overwinter range that also appear in breeding range
+      cell_mrg <- c(br_mig_cells, res_ovr_cells)
+      to_rm <- cell_mrg[duplicated(cell_mrg)]
+      
+      if (length(to_rm) > 0)
+      {
+        overlap_cells <- br_mig_cells[-which(br_mig_cells %in% to_rm)]
+      } else {
+        overlap_cells <- br_mig_cells
+      }
+      
+      #get cell centers
+      cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
+      cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
+                          lat = cell_centers$lat_deg)
+      
+      #cells only within the range that ebird surveys were filtered to
+      n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
+      cells <- n_cc_df$cell
+      
+      #retain rows that match selected cells
+      t_sp2 <- t_sp[which(t_sp$cell %in% cells),]
+      
+      #create rows for cells that were missing in ebird data
+      missing_cells <- cells[which(cells %ni% t_sp2$cell)]
+      
+      temp_dff <- t_sp2[1,]
+      temp_dff[,2:20] <- NA
+      
+      nmc <- length(missing_cells)
+      nreps <- nmc * nyr
+      
+      temp_dff2 <- temp_dff[rep(row.names(temp_dff), nreps),]
+      rownames(temp_dff2) <- NULL
+      
+      temp_dff2$year <- rep(years, nmc)
+      temp_dff2$cell <- rep(missing_cells, each = nyr)
+      
+      #combine filtered data with missing cells
+      t_sp3 <- rbind(t_sp2, temp_dff2)
+      
+      
+      #number of cells with good data in each year from 2015-2017
+      nobs_yr <- c()
+      for (j in 2015:2017)
+      {
+        #j <- 2017
+        ty_sp3 <- dplyr::filter(t_sp3, year == j)
+        ind <- which(!is.na(ty_sp3$HM_mean))
+        nobs_yr <- c(nobs_yr, length(ind))
+        #ty_sp[ind,]
+      }
+      
+      
+      #if all three years have greater than or = to 'NC' cells of data, figure 
+      #...out which years have at least 'NC' cells
+      yrs_kp <- c()
+      if (sum(nobs_yr >= NC) == 3)
+      {
+        #see which years have more than 3 cells of data
+        nobs_yr2 <- c()
+        for (j in min(years):max(years))
+        {
+          #j <- 2012
+          ty2_sp3 <- dplyr::filter(t_sp3, year == j)
+          ind2 <- which(!is.na(ty2_sp3$HM_mean))
+          nobs_yr2 <- c(nobs_yr2, length(ind2))
+        }
+        
+        #years to keep (more than three cells of data)
+        yrs_kp <- years[which(nobs_yr2 >= NC)]
+      }
+      
+      if (length(yrs_kp) > 0)
+      {
+        t_sp3[which(t_sp3$year %in% yrs_kp),]$MODEL <- TRUE
+      }
+      
+      df_out <- rbind(df_out, t_sp3)
+    } else {
+      #merge unchanged data if there isn't a seasonal range
+      df_out <- rbind(df_out, t_sp)
+    }
 }
 
 
@@ -347,6 +370,12 @@ aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
 DR_sp <- 'Ammodramus_nelsoni'
 DR_yr <- 2015:2017
 nyr <- length(DR_yr)
+
+
+#create list of species to run through IAR model
+
+#IAR_species_list.txt
+
 
 
 
