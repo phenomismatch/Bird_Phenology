@@ -28,7 +28,7 @@ dir <- '~/Google_Drive/R/'
 
 db_dir <- 'db_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
-IAR_dir <- 'IAR_2018-10-26'
+IAR_dir <- 'IAR_2018-11-12'
 
 
 # runtime -----------------------------------------------------------------
@@ -58,13 +58,11 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 # species arg -----------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
-#args <- 'Empidonax_virescens'
+# args <- as.character(read.table('IAR_species_list.txt')[1,])
 
 
 
 # read in data files ------------------------------------------------------
-
-#DATA ONLY VALID THROUGH 2017 (2018 data only goes to ~ jday 60 as of 2018-10-15 query)
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 
@@ -73,27 +71,25 @@ IAR_date <- substr(IAR_dir, start = 5, stop = 15)
 
 # Filter data by species/years ------------------------------------------------------
 
-#MAKE SURE THERE ARE DATA FOR THAT YEAR (see script 3-....R) - can't accomodate no values at all for a given year
+#read in master df
+df_master <- readRDS(paste0('IAR_input-', IAR_date, '.rds'))
 
+#filter by species
+f_in <- filter(df_master, species == args)
 
-#filter by species/year here
-df_filt_p <- filter(diagnostics_frame, species == args)
-
-
+#filter by year
+f_out <- f_in[which(f_in$MODEL == TRUE),]
 
 #explore filter for good data
-sum(df_filt$min_n.eff < 500, na.rm = TRUE)
-sum(df_filt$max_Rhat > 1.1, na.rm = TRUE)
-sum(df_filt$nphen_bad > 100, na.rm = TRUE)
-
-
-#see which cells/years are TRUE
-#f_out <- filter(df_filt_p, , year %in% DR_yr)
+sum(f_out$min_n.eff < 500, na.rm = TRUE)
+sum(f_out$max_Rhat > 1.1, na.rm = TRUE)
+sum(f_out$nphen_bad > 100, na.rm = TRUE)
 
 #define cells and years to be modeled
 cells <- unique(f_out$cell)
-DR_yr <- unqiue(f_out$year)
-nyr <- length(DR_yr)
+years <- unique(f_out$year)
+nyr <- length(years)
+ncel <- length(cells)
 
 
 # filter cells ------------------------------------------------------------
@@ -102,15 +98,10 @@ nyr <- length(DR_yr)
 # cells_to_keep <- c(622, 595, 567, 594, 621, 648, 649, 676, 675, 647, 619, 
 #                    620, 621, 593, 592, 619, 618, 591, 564, 565, 566, 646, 
 #                    674, 702, 703)
-# 
-# diagnostics_frame <- diagnostics_frame_p[which(diagnostics_frame_p$cell %in% cells_to_keep),]
 
 
 
 # create adjacency matrix -------------------------------------------------
-
-#unique cells
-ncel <- length(cells)
 
 #make hexgrid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
@@ -142,8 +133,7 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 # Estimate scaling factor for BYM2 model with INLA ------------------------
 
 #Build the adjacency matrix using INLA library functions
-adj.matrix <- sparseMatrix(i = ninds[,1], j = ninds[,2], 
-                           x = 1, symmetric = TRUE)
+adj.matrix <- sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
 
 #The ICAR precision matrix (note! This is singular)
 Q <- Diagonal(ncel, rowSums(adj.matrix)) - adj.matrix
@@ -179,7 +169,7 @@ ii_mis_in <- matrix(NA, nrow = ncel, ncol = nyr)
 for (j in 1:nyr)
 {
   #j <- 16
-  temp_yr_p <- filter(f_out, year == DR_yr[j])
+  temp_yr_p <- filter(f_out, year == years[j])
   temp_yr <- temp_yr_p[order(temp_yr_p$cell),]
   
   sigma_y_in[,j] <- temp_yr$HM_sd
@@ -313,7 +303,7 @@ tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
             chains = 3,
-            iter = 1000,
+            iter = 5,
             cores = 3,
             pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
             control = list(max_treedepth = 20, adapt_delta = 0.90, stepsize = 0.01)) # modified control parameters based on warnings
@@ -322,7 +312,7 @@ proc.time() - tt
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '.rds'))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_date, '.rds'))
 # fit <- readRDS('stan_bym2_allyr_allcells_sep_phis_500.rds')
 
 
@@ -397,22 +387,30 @@ sp_rng <- rgdal::readOGR(f_out$shp_fname[1], verbose = FALSE)
 nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
 nrng_sp <- sp::SpatialPolygons(nrng@polygons)
 
+#filter by resident (1) and over winter (3) range - need to convert spdf to sp
+nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
+nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
+
+
 #plotting species range
 nrng@data$id <- rownames(nrng@data)
 nrng.points <- fortify(nrng, region = "id")
 nrng.df <- plyr::join(nrng.points, nrng@data, by = "id")
 
+nrng_rm@data$id <- rownames(nrng_rm@data)
+nrng_rm.points <- fortify(nrng_rm, region = "id")
+nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps'))
 
 #loop plots for each year
-for (i in 1:length(DR_yr))
+for (i in 1:length(years))
 {
   #i <- 1
   
   #filter data for year[i]
-  f_out_filt <- filter(f_out, year == DR_yr[i])
+  f_out_filt <- filter(f_out, year == years[i])
   
   #merge hex spatial data with HM data
   to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
@@ -426,10 +424,12 @@ for (i in 1:length(DR_yr))
               aes(x = x, y = y), color = 'black') + 
     geom_path(data = mexicomap, 
               aes(x = x, y = y), color = 'black') + 
-    geom_polygon(data = nrng.df, 
-              aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.5) + 
+    # geom_polygon(data = nrng.df, 
+    #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) + 
+    # geom_polygon(data = nrng_rm.df, 
+    #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) + 
     coord_map("ortho", orientation = c(35, -80, 0), 
-              xlim = c(-100, -55), ylim = c(20, 60)) + 
+              xlim = c(-100, -55), ylim = c(25, 66)) + 
     geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = HM_mean), 
                  alpha = 0.4) +
     geom_path(data = to_plt2, aes(x = long, y = lat, group = group), 
@@ -472,10 +472,12 @@ for (i in 1:length(DR_yr))
               aes(x = x, y = y), color = 'black') + 
     geom_path(data = mexicomap, 
               aes(x = x, y = y), color = 'black') + 
-    geom_polygon(data = nrng.df, 
-                 aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.5) + 
+    # geom_polygon(data = nrng.df, 
+    #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) + 
+    # geom_polygon(data = nrng_rm.df, 
+    #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) + 
     coord_map("ortho", orientation = c(35, -80, 0), 
-              xlim = c(-100, -55), ylim = c(20, 60)) + 
+              xlim = c(-100, -55), ylim = c(25, 66)) + 
     geom_polygon(data = to_plt2_post, aes(x = long, y = lat, group = group, fill = med_mu), 
                  alpha = 0.4) +
     geom_path(data = to_plt2_post, aes(x = long, y = lat, group = group), 
