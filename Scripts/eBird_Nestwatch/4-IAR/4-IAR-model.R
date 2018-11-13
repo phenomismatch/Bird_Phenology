@@ -302,11 +302,11 @@ options(mc.cores = parallel::detectCores())
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
-            chains = 3,
+            chains = 4,
             iter = 5,
-            cores = 3,
+            cores = 4,
             pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = 20, adapt_delta = 0.90, stepsize = 0.01)) # modified control parameters based on warnings
+            control = list(max_treedepth = 25, adapt_delta = 0.90, stepsize = 0.01)) # modified control parameters based on warnings
 proc.time() - tt
 
 

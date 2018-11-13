@@ -1,12 +1,6 @@
 #!/bin/bash
 
-while read name
-do
-  temp="${name%\"}"
-  temp="${temp#\"}"
-  echo "#!/bin/bash
-
-#SBATCH --job-name=iar-$temp
+#SBATCH --job-name=iar-Regulus_calendula
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
@@ -15,11 +9,11 @@ do
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/IAR_2018-11-12/iar-$temp.out #STDOUT
-#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/IAR_2018-11-12/iar-$temp.err #STDERR
+#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/IAR_2018-11-12/iar-Regulus_calendula.out #STDOUT
+#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/IAR_2018-11-12/iar-Regulus_calendula.err #STDERR
 
 #echos name of node
-echo \`hostname\`
+echo `hostname`
 
 #load R module
 module load R/3.5.1
@@ -28,8 +22,7 @@ module load R/3.5.1
 export R_LIBS=/home/CAM/cyoungflesh/R_libs
 
 #run R script - species arg
-Rscript 4-IAR-model.R $temp
+Rscript 4-IAR-model.R Regulus_calendula
 
 #displays amount of memory used
-sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/4-$temp.sh"
-done < ../../../Data/IAR_species_list.txt
+sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
