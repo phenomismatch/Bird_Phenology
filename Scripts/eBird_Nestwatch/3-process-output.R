@@ -353,7 +353,7 @@ IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_', Sys.Date())
 dir.create(IAR_dir_path)
 setwd(IAR_dir_path)
 
-saveRDS(df_master, paste0('diagnostics_frame-', Sys.Date(), '.rds'))
+saveRDS(df_master, paste0('IAR_input-', Sys.Date(), '.rds'))
 
 
 
