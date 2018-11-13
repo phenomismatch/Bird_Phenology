@@ -11,10 +11,10 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+#dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 
 
@@ -343,52 +343,26 @@ for (i in 1:length(species_list))
 
 
 
+# order and write to RDS --------------------------------------------------
 
-
-
-
-
-#order diagnostics frame by year and cell #
-
-
-#look at diagnostics
-
-diagnostics_frame <- readRDS(paste0('diagnostics_frame-', IAR_date,'.rds'))
-cells_frame <- readRDS(paste0('cells_frame-', IAR_date, '.rds'))
-yrs_frame <- readRDS(paste0('yrs_frame-', IAR_date, '.rds'))
-
-
-#which species/year has the most cells - to model 'data rich species'
-# DR_sp <- as.character(yrs_frame[which.max(yrs_frame[,1:3]$n_cells),1])
-# DR_filt <- dplyr::filter(yrs_frame, species == DR_sp)[,1:3]
-# DR_yr <- 2002:2017
-
-aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
-aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
-
-#species with very little data
-DR_sp <- 'Ammodramus_nelsoni'
-DR_yr <- 2015:2017
-nyr <- length(DR_yr)
-
-
-#create list of species to run through IAR model
-
-#IAR_species_list.txt
-
-
-
-
-# write diagnostics data.frame to RDS
+#order diagnostics frame by species, year, and cell #
+df_master <- df_out[with(df_out, order(species, year, cell)),]
 
 IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_', Sys.Date())
 
 dir.create(IAR_dir_path)
 setwd(IAR_dir_path)
 
-saveRDS(df_out, paste0('diagnostics_frame-', Sys.Date(), '.rds'))
+saveRDS(df_master, paste0('diagnostics_frame-', Sys.Date(), '.rds'))
 
 
+
+# create list of species to run through IAR model -------------------------
+
+species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))$species
+
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
+write.table(species_tm, file = 'IAR_species_list.txt', row.names = FALSE, col.names = FALSE)
 
 
 
@@ -467,7 +441,15 @@ for (i in 1:nsp)
 }
 
 #write to RDS
-
+setwd(IAR_dir_path)
 saveRDS(cells_frame, paste0('cells_frame-', Sys.Date(), '.rds'))
 saveRDS(yrs_frame, paste0('yrs_frame-', Sys.Date(), '.rds'))
+
+
+
+# explore data ------------------------------------------------------------
+
+aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
+aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
+
 
