@@ -303,7 +303,7 @@ tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
             chains = 4,
-            iter = 5,
+            iter = 6000,
             cores = 4,
             pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
             control = list(max_treedepth = 25, adapt_delta = 0.90, stepsize = 0.01)) # modified control parameters based on warnings
@@ -313,7 +313,7 @@ proc.time() - tt
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_date, '.rds'))
-# fit <- readRDS('stan_bym2_allyr_allcells_sep_phis_500.rds')
+# fit <- readRDS('IAR_stan_Vireo_olivaceus-2018-11-12.rds')
 
 
 
@@ -438,7 +438,7 @@ for (i in 1:length(years))
                          limits = c(MIN, MAX)) +
     labs(fill = 'Estimated Arrival') +
     annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5, 
-             label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.3,
+             label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.2,
              size = 4) +
     annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5, 
              label = round(to_plt2$HM_sd, digits = 0), col = 'white', alpha = 0.3,
@@ -486,7 +486,7 @@ for (i in 1:length(years))
                          limits = c(MIN, MAX)) +
     labs(fill = 'Estimated Arrival') +
     annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg + 0.5, 
-             label = round(to_plt2_post$med_mu, digits = 0), col = 'black', alpha = 0.1,
+             label = round(to_plt2_post$med_mu, digits = 0), col = 'black', alpha = 0.2,
              size = 4) +
     annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg - 0.5, 
              label = round(to_plt2_post$sd_mu, digits = 0), col = 'white', alpha = 0.3,
