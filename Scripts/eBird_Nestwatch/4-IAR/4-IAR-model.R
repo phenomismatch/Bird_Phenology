@@ -307,8 +307,7 @@ fit <- stan(model_code = IAR_bym2,
             cores = 4,
             pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
             control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
-proc.time() - tt
-
+run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
@@ -346,6 +345,7 @@ saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_date, '.rds'))
 options(max.print = 50000)
 sink(paste0('IAR_results_', args, '.txt'))
 cat(paste0('IAR results ', args, ' \n'))
+cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 print(fit)
 sink()
 
