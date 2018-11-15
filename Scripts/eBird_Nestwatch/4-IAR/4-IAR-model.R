@@ -306,14 +306,14 @@ fit <- stan(model_code = IAR_bym2,
             iter = 6000,
             cores = 4,
             pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = 25, adapt_delta = 0.90, stepsize = 0.01)) # modified control parameters based on warnings
+            control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
 proc.time() - tt
 
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
 saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_date, '.rds'))
-# fit <- readRDS('IAR_stan_Vireo_olivaceus-2018-11-12.rds')
+# fit <- readRDS('IAR_stan_Catharus_minimus-2018-11-12.rds')
 
 
 
