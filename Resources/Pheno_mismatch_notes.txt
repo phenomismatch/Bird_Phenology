@@ -16,9 +16,9 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Fit all years with different phi/thetas and one phi/thetas
 *[DONE] Filter cells by species ranges
 *[DONE] Generalize creation of Stan script indices
-*Run V_olivaceus for all years/cells
-    *Check maps
-*Setup script to run one species at a time
-*Determine which species to run (separate script?)
+*[DONE] Run V_olivaceus for all years/cells
+    *[DONE] Check maps
+*[DONE] Setup script to run one species at a time
+*[DONE] Determine which species to run (separate script?)
 *Run test set of species on Xanadu
 *Run all species on Xanadu
