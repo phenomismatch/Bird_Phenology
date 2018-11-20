@@ -17,10 +17,10 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 
 
