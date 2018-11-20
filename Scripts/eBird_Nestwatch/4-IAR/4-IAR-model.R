@@ -303,7 +303,7 @@ tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
             chains = 4,
-            iter = 6000,
+            iter = 2,
             cores = 4,
             pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
             control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
