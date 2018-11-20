@@ -19,7 +19,7 @@ echo `hostname`
 module load R/3.5.1
 
 #R library
-export R_LIBS=/home/CAM/cyoungflesh/R_libs
+#export R_LIBS=/home/CAM/cyoungflesh/R_libs
 
 #run R script - species arg
 Rscript 4-IAR-model.R Seiurus_aurocapilla
