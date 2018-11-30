@@ -28,8 +28,13 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 db_dir <- 'db_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
-IAR_dir <- 'IAR_2018-11-12'
+IAR_in_dir <- 'IAR_input_2018-11-12'
+IAR_out_dir <- 'IAR_output_2018-11-30'
 
+#create output dir if it doesn't exist
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
+       dir.create(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
+       FALSE)
 
 # runtime -----------------------------------------------------------------
 
@@ -51,7 +56,10 @@ library(INLA)
 
 # Set wd ------------------------------------------------------------------
 
-setwd(paste0(dir, 'Bird_Phenology/Data/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_in_dir))
+
+IAR_in_date <- substr(IAR_in_dir, start = 11, stop = 20)
+IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 
 
@@ -60,19 +68,10 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 args <- commandArgs(trailingOnly = TRUE)
 # args <- as.character(read.table('IAR_species_list.txt')[1,])
 
-
-
-# read in data files ------------------------------------------------------
-
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
-
-IAR_date <- substr(IAR_dir, start = 5, stop = 15)
-
-
 # Filter data by species/years ------------------------------------------------------
 
 #read in master df
-df_master <- readRDS(paste0('IAR_input-', IAR_date, '.rds'))
+df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
 #filter by species
 f_in <- filter(df_master, species == args)
@@ -310,8 +309,8 @@ fit <- stan(model_code = IAR_bym2,
 run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 # fit <- readRDS('IAR_stan_Catharus_minimus-2018-11-12.rds')
 
 
@@ -402,7 +401,18 @@ nrng_rm.points <- fortify(nrng_rm, region = "id")
 nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps'))
+
+
+
+
+#create output image dir if it doesn't exist
+
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)), 
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)), 
+       FALSE)
+
+
+setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
 
 #loop plots for each year
 for (i in 1:length(years))
