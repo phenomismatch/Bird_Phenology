@@ -31,10 +31,10 @@ hm_dir <- 'halfmax_species_2018-10-16'
 IAR_in_dir <- 'IAR_input_2018-11-12'
 IAR_out_dir <- 'IAR_output_2018-11-30'
 
-#create output dir if it doesn't exist
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
-       dir.create(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
-       FALSE)
+#create output dir if it doesn't exist - need to create before running script bc STD out and STD error are written there
+# ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
+#        dir.create(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
+#        FALSE)
 
 # runtime -----------------------------------------------------------------
 
