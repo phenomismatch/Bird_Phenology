@@ -1,36 +1,15 @@
+####################
+# 7 - query other nesting phenology data
+#
+# *MAPS observations
+# *MAPS data
+# *eBird breeding codes
+####################
 
 
 
 
-# top-level dir --------------------------------------------------------------
-
-dir <- '~/Google_Drive/R/'
-
-
-# Load packages -----------------------------------------------------------
-
-library(dplyr)
-library(RPostgreSQL)
-library(DBI)
-library(dggridR)
-library(doParallel)
-library(foreach)
-
-# set wd ------------------------------------------------------------------
-
-setwd(paste0(dir, 'Bird_Phenology/Data/'))
-
-
-
-# import eBird species list -----------------------------------------------------
-
-species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
-
-#remove underscore and coerce to vector
-species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
-
-#combine species names into a single string with quotes
-SL <- paste0("'", species_list_i2, "'", collapse = ", ")
+# eBird breeding codes ----------------------------------------------------
 
 
 # access DB ---------------------------------------------------------------
@@ -148,4 +127,21 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND RADIUS < 100000;
                                     "))
 
+
+
+
+
+
+
+
+
+# MAPS observations -------------------------------------------------------
+
+
+
+
+
+
+
+# MAPS captures -----------------------------------------------------------
 
