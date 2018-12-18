@@ -66,7 +66,7 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 # species arg -----------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
-# args <- as.character(read.table('IAR_species_list.txt')[1,])
+# args <- as.character('Vireo_olivaceus')
 
 # Filter data by species/years ------------------------------------------------------
 
