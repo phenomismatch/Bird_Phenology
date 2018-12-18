@@ -112,20 +112,23 @@ for (i in 1:length(species))
   }
 }
 
+
+
+
+
 #hierarchical model to relate arrival date (from IAR model) to nesting date (from Nest Watch)
 
-#for species/year/cell
-
-#obs_IAR_arrival ~ N(true_IAR_arrival, IAR_uncertainty)
-#obs_NW_nesting ~ N(true_NW_nesting, nw_uncertainty)
-
-
-#tru_NW_nesting ~ N(mu, sd)
-#mu = alpha + beta * true_IAR_nesting
+#one model per species
 
 
 
-#each species gets its own slope/r^2
+
+
+
+#############################
+#Process data for model input
+#############################
+
 
 
 
