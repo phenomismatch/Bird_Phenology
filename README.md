@@ -47,7 +47,7 @@ Repository structure:
        * `species/` - contains job scripts for each species
          * `4-<Genus_species>.sh` - scripts to submit jobs for each species (153 scripts, one for each species); run with `4-master-submit.sh`
     * `5-extract-arr-dates.R` - extract arrival dates for each species-cell-year
-    * `6-nesting0arrival-model.R` - model nesting date (Nestwatch) as a function of arrival date (IAR output)
+    * `6-nesting-arrival-model.R` - model nesting date (Nestwatch) as a function of arrival date (IAR output)
     * `7-query-nesting-data.R` - query nesting data from other data sources (MAPS, eBird breeding codes, etc.)
     * `8-phen-compare.R` - correlations among veg and bird phenology products (NEEDS UPDATING)
     * `9-breed-arr-model.R` - breeding date (nest watch) as a function of arrival date (eBird) (NEEDS UPDATING)
