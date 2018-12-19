@@ -42,7 +42,8 @@ species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
 #remove underscore and coerce to vector
 species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
 
-
+#combine species names into a single string with quotes
+SL <- paste0("'", species_list_i2, "'", collapse = ", ")
 
 # create hex grid ---------------------------------------------------------
 
@@ -147,11 +148,10 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     (event_json ->> 'ALL_SPECIES_REPORTED')::int AS all_species_reported,
                                     (event_json ->> 'DURATION_MINUTES')::int AS duration_minutes,
                                     count_json ->> 'OBSERVER_ID' AS observer_id,
-                                    count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS BBA_code,
                                     (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
-                                    event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
-                                    count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS BBA_code
-                                    count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS BBA_category
+                                    event_json ->> 'GROUP_IDENTIFIER' AS group_identifier,
+                                    count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code,
+                                    count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
                                     FROM places
                                     JOIN events USING (place_id)
                                     JOIN counts USING (event_id)
@@ -206,7 +206,7 @@ doParallel::registerDoParallel(cores = 7)
 tt <- proc.time()
 foreach::foreach(i = 1:nsp) %dopar%
 {
-  #i <- 89
+  #i <- 1
   print(i)
   
   pg <- DBI::dbDriver("PostgreSQL")
