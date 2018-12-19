@@ -4,6 +4,9 @@
 # *MAPS observations
 # *MAPS data
 # *eBird breeding codes
+#   -0 if not observed in that survey at all (independent of breeding code)
+#   -NA if observed but no breeding code recorded
+#   -letter code if observed and breeding code recorded
 ####################
 
 
@@ -72,11 +75,11 @@ cxn <- DBI::dbConnect(pg,
 # create query dir and navigate there -------------------------------------------
 
 
-# query_dir_path <- paste0('Processed/db_query_', Sys.Date())
-# 
-# dir.create(query_dir_path)
-# setwd(query_dir_path)
-# 
+query_dir_path <- paste0('Processed/breeding_cat_query_', Sys.Date())
+
+dir.create(query_dir_path)
+setwd(query_dir_path)
+
 
 
 
@@ -149,9 +152,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     (event_json ->> 'DURATION_MINUTES')::int AS duration_minutes,
                                     count_json ->> 'OBSERVER_ID' AS observer_id,
                                     (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
-                                    event_json ->> 'GROUP_IDENTIFIER' AS group_identifier,
-                                    count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code,
-                                    count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
+                                    event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
                                     FROM places
                                     JOIN events USING (place_id)
                                     JOIN counts USING (event_id)
@@ -218,7 +219,9 @@ foreach::foreach(i = 1:nsp) %dopar%
                         port = 5432, 
                         dbname = "sightings")
   
-  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id
+  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name,
+                                      count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code,
+                                      count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
                                       FROM events
                                       JOIN places USING (place_id)
                                       JOIN counts USING (event_id)
@@ -231,26 +234,28 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       AND (sci_name IN ('", species_list_i2[i],"'));
                                       "))
   
-  #indices to fill with 1s (observations of species made for these events)
+  #observations of species made for these events) - indices
   ind <- which(data2$event_id %in% temp$event_id)
   
-  #indices to fill with 0s (observations of species not made for these events)
+  #observations of species not made for these events - indices
   n_ind <- (1:NROW(data2))[-ind]
   
-  #fill observersations for species i with 1s
-  data2[ind, species_list_i[i,1]] <- 1
+  
+  #0 if not observed in that survey at all (independent of breeding code)
+  #NA if observed but no breeding code recorded
+  #letter code if observed and breeding code recorded
+  data2[ind, species_list_i[i,1]] <- temp$bba_category[ind]
   
   #fill no observations for species i with 0s
   data2[n_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         year, day, sjday, sjday2, 
-                         sjday3, shr, cell6, species_list_i[i,1])
+                         year, day, cell6, species_list_i[i,1])
   
-  names(sdata)[8] <- "detect"
+  names(sdata)[8] <- "bba_breeding_category"
   sdata['species'] <- species_list_i[i,1]
   
-  saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
+  saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
 }
 proc.time() - tt
 
@@ -286,7 +291,9 @@ for (i in 1:length(m_sp2))
                         port = 5432, 
                         dbname = "sightings")
   
-  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id
+  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name,
+                                      count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code,
+                                      count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
                                       FROM events
                                       JOIN places USING (place_id)
                                       JOIN counts USING (event_id)
@@ -296,38 +303,40 @@ for (i in 1:length(m_sp2))
                                       AND day < 200
                                       AND lng BETWEEN -100 AND -50
                                       AND lat > 26
-                                      AND (sci_name IN ('", m_sp2[i],"'));
+                                      AND (sci_name IN ('", species_list_i2[i],"'));
                                       "))
   
-  #indices to fill with 1s (observations of species made for these events)
+  
+  #observations of species made for these events) - indices
   ind <- which(data2$event_id %in% temp$event_id)
   
-  #indices to fill with 0s (observations of species not made for these events)
+  #observations of species not made for these events - indices
   n_ind <- (1:NROW(data2))[-ind]
   
-  #fill observersations for species i with 1s
-  data2[ind, m_sp2[i]] <- 1
+  
+  #0 if not observed in that survey at all (independent of breeding code)
+  #NA if observed but no breeding code recorded
+  #letter code if observed and breeding code recorded
+  data2[ind, m_sp2[i]] <- temp$bba_category[ind]
   
   #fill no observations for species i with 0s
   data2[n_ind, m_sp2[i]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         year, day, sjday, sjday2, 
-                         sjday3, shr, cell6, m_sp2[i])
+                         year, day, cell6, m_sp2[i])
   
-  names(sdata)[8] <- "detect"
+  names(sdata)[8] <- "bba_breeding_category"
   sdata['species'] <- m_sp2[i]
   
-  saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', m_sp[i], '.rds'))
+  saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
 }
 
 
 
+# copy script to query folder for records ---------------------------------
+
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/7-query-nesting-data.R ', 
+              dir, 'Bird_Phenology/Data/', query_dir_path, '/7-query-nesting-data-', Sys.Date(), '.R'))
 
 
-
-
-
-
-
-
+proc.time() - tt
