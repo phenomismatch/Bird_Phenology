@@ -22,8 +22,10 @@ library(MCMCvis)
 
 # import IAR data ---------------------------------------------------------
 
-
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+
+IAR_out_dir <- 'IAR_output_2018-11-12'
+IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 IAR_data <- readRDS(paste0('master_arrival_', IAR_out_date, '.rds'))
 
@@ -99,16 +101,18 @@ for (i in 1:length(species))
   sp <- species[i]
   t_IAR <- dplyr::filter(IAR_data, species == sp)
   t_nw <- dplyr::filter(nw_data4, SCI_NAME == sp)
-
-  #for Nestwatch, only keep cells that are in the IAR data
-  t_mrg <- left_join(t_nw, t_IAR, by = c('CELL', 'cell'))
-
-  #determine how many rows of data there are 
-  t_nr <- NROW(t_mrg)
   
-  if (t_nr > 20)
+  #for Nestwatch, only keep cell/years that are in the IAR data
+  #merge by multiple metrics
+  t_mrg <- left_join(t_nw, t_IAR, by = c('CELL' = 'cell', 'YEAR' = 'year'))
+
+  #determine how many obs there are for each cell/year
+  t_nr <- plyr::count(t_nw, c('CELL', 'YEAR'))
+
+  #make sure there are at least three data points per cell/year??
+  if (t_nr > 3)
   {
-    #USE THAT SPECIES
+    #USE THOSE CELL/YEARS FOR THAT SPECIES
   }
 }
 
