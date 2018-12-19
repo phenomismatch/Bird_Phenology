@@ -1,12 +1,12 @@
 ####################
 # 7 - query other nesting phenology data
 #
-# *MAPS observations
-# *MAPS data
 # *eBird breeding codes
 #   -0 if not observed in that survey at all (independent of breeding code)
 #   -NA if observed but no breeding code recorded
 #   -letter code if observed and breeding code recorded
+# *MAPS observations
+# *MAPS data
 ####################
 
 
