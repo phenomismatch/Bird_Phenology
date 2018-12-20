@@ -252,7 +252,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   sdata <- dplyr::select(data2, 
                          year, day, cell6, species_list_i[i,1])
   
-  names(sdata)[8] <- "bba_breeding_category"
+  names(sdata)[4] <- "bba_breeding_category"
   sdata['species'] <- species_list_i[i,1]
   
   saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
@@ -325,7 +325,7 @@ for (i in 1:length(m_sp2))
   sdata <- dplyr::select(data2, 
                          year, day, cell6, m_sp2[i])
   
-  names(sdata)[8] <- "bba_breeding_category"
+  names(sdata)[4] <- "bba_breeding_category"
   sdata['species'] <- m_sp2[i]
   
   saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
