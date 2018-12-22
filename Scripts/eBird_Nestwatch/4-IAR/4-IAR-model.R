@@ -132,12 +132,12 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 # Estimate scaling factor for BYM2 model with INLA ------------------------
 
 #Build the adjacency matrix using INLA library functions
-adj.matrix <- sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
+adj.matrix <- Matrix::sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
 
 #The ICAR precision matrix (note! This is singular)
-Q <- Diagonal(ncel, rowSums(adj.matrix)) - adj.matrix
+Q <- Matrix::Diagonal(ncel, Matrix::rowSums(adj.matrix)) - adj.matrix
 #Add a small jitter to the diagonal for numerical stability (optional but recommended)
-Q_pert <- Q + Diagonal(ncel) * max(diag(Q)) * sqrt(.Machine$double.eps)
+Q_pert <- Q + Matrix::Diagonal(ncel) * max(diag(Q)) * sqrt(.Machine$double.eps)
 
 # Compute the diagonal elements of the covariance matrix subject to the 
 # constraint that the entries of the ICAR sum to zero.
@@ -168,7 +168,7 @@ ii_mis_in <- matrix(NA, nrow = ncel, ncol = nyr)
 for (j in 1:nyr)
 {
   #j <- 16
-  temp_yr_p <- filter(f_out, year == years[j])
+  temp_yr_p <- dplyr::filter(f_out, year == years[j])
   temp_yr <- temp_yr_p[order(temp_yr_p$cell),]
   
   sigma_y_in[,j] <- temp_yr$HM_sd
