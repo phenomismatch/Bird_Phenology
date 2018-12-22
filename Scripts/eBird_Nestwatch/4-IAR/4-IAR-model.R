@@ -74,7 +74,7 @@ args <- commandArgs(trailingOnly = TRUE)
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
 #filter by species
-f_in <- filter(df_master, species == args)
+f_in <- dplyr::filter(df_master, species == args)
 
 #filter by year
 f_out <- f_in[which(f_in$MODEL == TRUE),]
@@ -127,7 +127,6 @@ for (i in 1:length(cells))
 ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 
 
-print('Through adj step')
 
 # Estimate scaling factor for BYM2 model with INLA ------------------------
 
@@ -148,7 +147,6 @@ Q_inv <- INLA::inla.qinv(Q_pert,
 #Compute the geometric mean of the variances, which are on the diagonal of Q.inv
 scaling_factor <- exp(mean(log(diag(Q_inv))))
 
-print('Through INLA step')
 
 
 # create Stan data object -------------------------------------------------
