@@ -1,3 +1,5 @@
+library(INLA)
+
 n <- 10
 A <- matrix(runif(n^2), n, n)
 Q <- A %*% t(A)
