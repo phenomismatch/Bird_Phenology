@@ -17,10 +17,10 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+#dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 
 
@@ -65,8 +65,8 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 # species arg -----------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
-# args <- as.character('Vireo_olivaceus')
+# args <- commandArgs(trailingOnly = TRUE)
+args <- as.character('Vireo_olivaceus')
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -253,8 +253,10 @@ real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
 real beta0[J];                                        // intercept
 matrix[N, J] theta;                                   // non-spatial error component (centered on 0)
 matrix[N, J] phi;                                     // spatial error component (centered on 0)
-real<lower = 0> sigma;                                // scaling factor for spatial and non-spatial components
+real<lower = 0> sigma[J];                                // scaling factor for spatial and non-spatial components
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
+real<lower = 0> mu_sigma;
+real<lower = 0, upper = 5> sigma_sigma;
 }
 
 transformed parameters {
@@ -264,7 +266,7 @@ matrix[N, J] mu;                                      // latent true halfmax val
 for (j in 1:J)
 {
   convolved_re[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j];
-  mu[,j] = beta0[j] + convolved_re[,j] * sigma;
+  mu[,j] = beta0[j] + convolved_re[,j] * sigma[j];
 }
 // indexing to avoid NAs
 for (j in 1:J)
@@ -283,10 +285,13 @@ for (j in 1:J)
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   theta[,j] ~ normal(0, 1);
   beta0[j] ~ normal(120, 10);
+  sigma[j] ~ normal(mu_sigma, sigma_sigma);
 }
 
 rho ~ beta(0.5, 0.5);
-sigma ~ normal(0, 5);
+mu_sigma ~ normal(0, 3);
+sigma_sigma ~ uniform(0, 5);
+
 }'
 
 
@@ -299,18 +304,24 @@ options(mc.cores = parallel::detectCores())
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
-            chains = 4,
-            iter = 2,
-            cores = 4,
-            pars = c('sigma', 'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
+            chains = 3,
+            iter = 2000,
+            cores = 3,
+            pars = c('sigma', 'mu_sigma', 'sigma_sigma', 
+                     'rho', 'beta0', 'theta', 'phi', 'mu'),
+            control = list(max_treedepth = 20, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
+#25, 0.95, 0.005
 run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
-# fit <- readRDS('IAR_stan_Catharus_minimus-2018-11-12.rds')
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+# saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test.rds'))
+
+# fit <- readRDS('IAR_stan_sigma_test2.rds')
+# pairs(fit, pars = c('mu_sigma', 'sigma_sigma'))
 
 
 
@@ -325,7 +336,7 @@ saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 # get_elapsed_time(fit)
 
 # MCMCtrace(fit)
-# MCMCsummary(fit, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
+# MCMCsummary(fit, params = c('sigma', 'rho', 'beta0', 'mu_sigma'), n.eff = TRUE)
 # MCMCsummary(fit, params = c('theta', 'phi'), n.eff = TRUE)
 
 # print(fit, pars = c('sigma', 'rho'))
@@ -340,8 +351,9 @@ saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('IAR_results_', args, '.txt'))
-cat(paste0('IAR results ', args, ' \n'))
+sink(paste0('IAR_results_sigma_sigma.txt'))
+#sink(paste0('IAR_results_', args, '.txt'))
+#cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 print(fit)
 sink()
@@ -507,3 +519,48 @@ for (i in 1:length(years))
   ggsave(plot = p_post, 
          filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR.pdf'))
 }
+
+
+
+# Trace plots with PPO ----------------------------------------------------
+
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/test_sigma_sigma_model'))
+
+#beta0[j] ~ normal(120, 10)
+#rho ~ beta(0.5, 0.5);
+#mu_sigma ~ normal(0, 3);
+#sigma_sigma ~ uniform(0, 5);
+
+#beta0
+PR <- rnorm(10000, 120, 10)
+MCMCtrace(fit, 
+          params = 'beta0',
+          priors = PR,
+          open_pdf = FALSE,
+          filename = 'beta0_trace.pdf')
+
+#rho
+PR <- rbeta(10000, 0.5, 0.5)
+MCMCtrace(fit, 
+          params = 'rho',
+          priors = PR,
+          open_pdf = FALSE,
+          filename = 'rho_trace.pdf')
+
+#mu_sigma
+PR <- rnorm(10000, 0, 3)
+MCMCtrace(fit, 
+          params = 'mu_sigma',
+          priors = PR,
+          open_pdf = FALSE,
+          filename = 'mu_sigma_trace.pdf')
+
+#sigma_sigma
+PR <- runif(10000, 0, 5)
+MCMCtrace(fit, 
+          params = 'sigma_sigma',
+          priors = PR,
+          open_pdf = FALSE,
+          filename = 'sigma_sigma_trace.pdf')
+
