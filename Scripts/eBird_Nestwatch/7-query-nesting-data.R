@@ -27,12 +27,12 @@ library(foreach)
 
 # import IAR data ---------------------------------------------------------
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+# 
+# IAR_out_dir <- 'IAR_output_2018-11-12'
+# IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
-IAR_out_dir <- 'IAR_output_2018-11-12'
-IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
-
-IAR_data <- readRDS(paste0('master_arrival_', IAR_out_date, '.rds'))
+#IAR_data <- readRDS(paste0('master_arrival_', IAR_out_date, '.rds'))
 
 
 
@@ -202,7 +202,7 @@ data2[species_list_i[,1]] <- NA
 nsp <- NROW(species_list_i)
 
 #run in parallel with 7 logical cores
-doParallel::registerDoParallel(cores = 7)
+doParallel::registerDoParallel(cores = 6)
 
 tt <- proc.time()
 foreach::foreach(i = 1:nsp) %dopar%
@@ -256,6 +256,8 @@ foreach::foreach(i = 1:nsp) %dopar%
   sdata['species'] <- species_list_i[i,1]
   
   saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
+  
+  DBI::dbDisconnect(cxn)
 }
 proc.time() - tt
 
@@ -268,7 +270,7 @@ nms <- c()
 for (i in 1:length(fls))
 {
   #i <- 1
-  nms <- c(nms, substr(fls[i], 20, (nchar(fls[i]) - 4)))
+  nms <- c(nms, substr(fls[i], 23, (nchar(fls[i]) - 4)))
 }
 
 #missed species
@@ -276,61 +278,64 @@ m_sp <- species_list_i[which(!species_list_i[,1] %in% nms),1]
 #remove underscore
 m_sp2 <- gsub("_", " ", m_sp)
 
-#create those files
-for (i in 1:length(m_sp2))
+if (length(m_sp2) > 0)
 {
-  #i <- 1
-  print(i)
-  
-  pg <- DBI::dbDriver("PostgreSQL")
-  
-  cxn <- DBI::dbConnect(pg, 
-                        user = "cyoungflesh", 
-                        password = pass, 
-                        host = "35.221.16.125", 
-                        port = 5432, 
-                        dbname = "sightings")
-  
-  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name,
-                                      count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code,
-                                      count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
-                                      FROM events
-                                      JOIN places USING (place_id)
-                                      JOIN counts USING (event_id)
-                                      JOIN taxons USING (taxon_id)
-                                      WHERE dataset_id = 'ebird'
-                                      AND year > 2001
-                                      AND day < 200
-                                      AND lng BETWEEN -100 AND -50
-                                      AND lat > 26
-                                      AND (sci_name IN ('", species_list_i2[i],"'));
-                                      "))
-  
-  
-  #observations of species made for these events) - indices
-  ind <- which(data2$event_id %in% temp$event_id)
-  
-  #observations of species not made for these events - indices
-  n_ind <- (1:NROW(data2))[-ind]
-  
-  
-  #0 if not observed in that survey at all (independent of breeding code)
-  #NA if observed but no breeding code recorded
-  #letter code if observed and breeding code recorded
-  data2[ind, m_sp2[i]] <- temp$bba_category[ind]
-  
-  #fill no observations for species i with 0s
-  data2[n_ind, m_sp2[i]] <- 0
-  
-  sdata <- dplyr::select(data2, 
-                         year, day, cell6, m_sp2[i])
-  
-  names(sdata)[4] <- "bba_breeding_category"
-  sdata['species'] <- m_sp2[i]
-  
-  saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
+  #create those files
+  for (i in 1:length(m_sp2))
+  {
+    #i <- 1
+    print(i)
+    
+    pg <- DBI::dbDriver("PostgreSQL")
+    
+    cxn <- DBI::dbConnect(pg, 
+                          user = "cyoungflesh", 
+                          password = pass, 
+                          host = "35.221.16.125", 
+                          port = 5432, 
+                          dbname = "sightings")
+    
+    temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name,
+                                        count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code,
+                                        count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
+                                        FROM events
+                                        JOIN places USING (place_id)
+                                        JOIN counts USING (event_id)
+                                        JOIN taxons USING (taxon_id)
+                                        WHERE dataset_id = 'ebird'
+                                        AND year > 2001
+                                        AND day < 200
+                                        AND lng BETWEEN -100 AND -50
+                                        AND lat > 26
+                                        AND (sci_name IN ('", species_list_i2[i],"'));
+                                        "))
+    
+    
+    #observations of species made for these events) - indices
+    ind <- which(data2$event_id %in% temp$event_id)
+    
+    #observations of species not made for these events - indices
+    n_ind <- (1:NROW(data2))[-ind]
+    
+    
+    #0 if not observed in that survey at all (independent of breeding code)
+    #NA if observed but no breeding code recorded
+    #letter code if observed and breeding code recorded
+    data2[ind, m_sp2[i]] <- temp$bba_category[ind]
+    
+    #fill no observations for species i with 0s
+    data2[n_ind, m_sp2[i]] <- 0
+    
+    sdata <- dplyr::select(data2, 
+                           year, day, cell6, m_sp2[i])
+    
+    names(sdata)[4] <- "bba_breeding_category"
+    sdata['species'] <- m_sp2[i]
+    
+    saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', msp[i,1], '.rds'))
+    DBI::dbDisconnect(cxn)
+  }
 }
-
 
 
 # copy script to query folder for records ---------------------------------
