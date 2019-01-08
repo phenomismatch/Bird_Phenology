@@ -272,6 +272,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   sdata['species'] <- species_list_i[i,1]
   
   saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
+  DBI::dbDisconnect(cxn)
 }
 proc.time() - tt
 
