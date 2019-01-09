@@ -1,7 +1,7 @@
 ####################
 # 6 - nesting date (from Nestwatch) ~ nesting date (from IAR model)
 #
-# *How well do arrival dates (as determined from the IAR model) predict nesting dates (as determined frmo Nestwatch)
+# *How well do arrival dates (as determined from the IAR model) predict nesting dates (as determined from Nestwatch)
 ####################
 
 
@@ -85,7 +85,7 @@ nw_data3 <- nw_data2[-to.rm, ]
 nw_data4 <- dplyr::filter(nw_data3, SCI_NAME %in% species_list_i[,1])
 
 #number of Nestwatch observations for each species
-plyr::count(nw_data4, "SCI_NAME")
+plyr::count(nw_data4, 'SCI_NAME')
 
 
 species <- sort(unique(nw_data4$SCI_NAME))
