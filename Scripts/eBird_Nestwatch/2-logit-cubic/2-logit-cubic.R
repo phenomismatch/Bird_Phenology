@@ -31,6 +31,8 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 db_dir <- 'db_query_2018-10-15'
 
+RUN_DATE <- '2018-10-16'
+
 
 # runtime -----------------------------------------------------------------
 
@@ -81,21 +83,20 @@ predictDays3 <- scale(c(1:200)^3, scale = FALSE)
 
 newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
 
-fit_diag <- halfmax_matrix_list <- list()
-
-
 
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
 ITER <- 2000
+CHAINS <- 4
 
+fit_diag <- halfmax_matrix_list <- list()
 
 #loop through each species, year, cell and extract half-max parameter
 for (j in 1:nyr)
 {
   #j <- 10
-  halfmax_matrix_list[[j]] <- matrix(data = NA, nrow = ncel, ncol = (ITER*2))
+  halfmax_matrix_list[[j]] <- matrix(data = NA, nrow = ncel, ncol = ((ITER/2)*CHAINS))
   fit_diag[[j]] <- list()
   yspdata <- spdata[which(spdata$year == years[j]), ]
   
@@ -115,18 +116,18 @@ for (j in 1:nyr)
     
     if (n1 > 29 & n1W < (n1/50) & n0 > 29)
     {
-      fit2 <- stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
+      fit2 <- rstanarm::stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
                        data = cyspdata,
                        family = binomial(link = "logit"),
                        algorithm = 'sampling',
                        iter = ITER,
-                       chains = 4,
-                       cores = 4)
+                       chains = CHAINS,
+                       cores = CHAINS)
 
-      dfit <- posterior_linpred(fit2, newdata = newdata, transform = T)
-      halfmax_fit <- rep(NA, ITER*2)
+      dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
+      halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
       
-      for (L in 1:(ITER*2))
+      for (L in 1:((ITER/2)*CHAINS))
       {
         #L <- 1
         rowL <- as.vector(dfit[L,])
@@ -175,7 +176,7 @@ for (j in 1:nyr)
 
 
 #save to rds object
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species', RUN_DATE))
 
 #list where each list element is a different year, and each row is a different cell, and each column is an iteration
 saveRDS(halfmax_matrix_list, file = paste0('halfmax_matrix_list_', args, '.rds'))
