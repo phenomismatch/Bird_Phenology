@@ -10,6 +10,44 @@
 ####################
 
 
+
+# data fusion model for arrival ~ breeding --------------------------------
+
+
+#obs_EB_breeding_date is halfmax estimate for EB breeding date for that species/cell/year
+#known_EB_uncertainty is uncertainty in halfmax estimate for EB breeding date for that species/cell/year
+#obs_NW_breeding_date is mean NW breeding date for that species/cell/year
+#known_NW_uncertainty is sd of NW breeding date for that species/cell/year
+#obs_MAPS_breeding_date is mean of breeding date period for that species/cell/year
+#known_MAPS_uncertainty is length of period (uniform distribution)
+
+###observation models
+#obs_IAR_arrival_date ~ N(true_IAR_arrival_date, known_IAR_uncertainty)
+#obs_EB_breeding_date ~ N(true_EB_breeding_date, known_EB_uncertainty)
+#obs_NW_breeding_date ~ N(true_NW_breeding_date, known_NW_uncertainty)
+#obs_MAPS_breeding_date ~ N(true_MAPS_breeding_date, known_MAPS_uncertainty)
+
+
+#ONE WAY (arrival ~ breeding):
+###process model for explanatory var
+#true_EB_breeding_date ~ N(mu_EB, sigma_EB)
+#mu_EB = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+
+###process model for response var
+#true_IAR_arrival_date ~ N(mu, sigma)
+#mu = alpha + beta * true_EB_breeding_date
+
+
+#ALTERNATIVELY (breeding ~ arrival):
+#true_EB_breeding_date ~ N(master_breeding_date, sigma_EB)
+#mu_EB = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+
+#master_breeding_date ~ N(mu, sigma)
+#mu = alpha + beta * true_IAR_arrival_date
+
+
+
+
 # top-level dir --------------------------------------------------------------
 
 dir <- '~/Google_Drive/R/'
@@ -45,13 +83,9 @@ species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
 #remove underscore and coerce to vector
 species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
 
+
 #combine species names into a single string with quotes
 SL <- paste0("'", species_list_i2, "'", collapse = ", ")
-
-# create hex grid ---------------------------------------------------------
-
-hexgrid6 <- dggridR::dgconstruct(res = 6) 
-
 
 
 # eBird breeding codes ----------------------------------------------------
@@ -77,7 +111,7 @@ cxn <- DBI::dbConnect(pg,
 
 query_dir_path <- paste0('Processed/breeding_cat_query_', Sys.Date())
 
-dir.create(query_dir_path)
+#dir.create(query_dir_path)
 setwd(query_dir_path)
 
 
@@ -179,6 +213,22 @@ data2 <- data[!duplicated(data[,'group_identifier'],
 rm(data)
 
 
+#calculate polynomial then center data
+#scaled julian day, scaled julian day^2, and scaled julian day^3
+SJDAY  <- as.vector(scale(data2$day, scale = FALSE))
+SJDAY2 <- as.vector(scale(data2$day^2, scale = FALSE))
+SJDAY3 <- as.vector(scale(data2$day^3, scale = FALSE))
+
+data2$sjday <- SJDAY
+data2$sjday2 <- SJDAY2
+data2$sjday3 <- SJDAY3
+
+#scaled effort hours
+SHR <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
+
+data2$shr <- SHR
+
+
 
 
 # bin lat/lon to hex grid and add to data ---------------------------------------------------------
@@ -186,7 +236,7 @@ rm(data)
 # Construct geospatial hexagonal grid
 
 hexgrid6 <- dggridR::dgconstruct(res = 6) 
-data2$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+data2$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
                                         in_lon_deg = data2$lng, 
                                         in_lat_deg = data2$lat)[[1]]
 
@@ -201,13 +251,13 @@ data2[species_list_i[,1]] <- NA
 
 nsp <- NROW(species_list_i)
 
-#run in parallel with 7 logical cores
-doParallel::registerDoParallel(cores = 6)
+#run in parallel with 6 logical cores
+doParallel::registerDoParallel(cores = 2)
 
 tt <- proc.time()
 foreach::foreach(i = 1:nsp) %dopar%
 {
-  #i <- 1
+  #i <- 96
   print(i)
   
   pg <- DBI::dbDriver("PostgreSQL")
@@ -250,9 +300,10 @@ foreach::foreach(i = 1:nsp) %dopar%
   data2[n_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         year, day, cell6, species_list_i[i,1])
+                         year, day, cell, sjday, sjday2, 
+                         sjday3, shr, species_list_i[i,1])
   
-  names(sdata)[4] <- "bba_breeding_category"
+  names(sdata)[8] <- "bba_breeding_category"
   sdata['species'] <- species_list_i[i,1]
   
   saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
@@ -307,7 +358,7 @@ if (length(m_sp2) > 0)
                                         AND day < 200
                                         AND lng BETWEEN -100 AND -50
                                         AND lat > 26
-                                        AND (sci_name IN ('", species_list_i2[i],"'));
+                                        AND (sci_name IN ('", m_sp2[i],"'));
                                         "))
     
     
@@ -327,9 +378,10 @@ if (length(m_sp2) > 0)
     data2[n_ind, m_sp2[i]] <- 0
     
     sdata <- dplyr::select(data2, 
-                           year, day, cell6, m_sp2[i])
+                           year, day, sjday, sjday2, 
+                           sjday3, shr, cell, m_sp2[i])
     
-    names(sdata)[4] <- "bba_breeding_category"
+    names(sdata)[8] <- "bba_breeding_category"
     sdata['species'] <- m_sp2[i]
     
     saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', msp[i,1], '.rds'))
@@ -345,3 +397,53 @@ system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/7-query-nestin
 
 
 proc.time() - tt
+
+
+
+
+
+
+
+
+
+# MAPS obs ----------------------------------------------------------------
+
+
+setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs'))
+
+MAPS_obs <- read.csv('1117M.csv')
+
+#0 - observed but not breeding
+#P - probably breeding
+#C - confirmed breeding
+
+#PS1 - May 1-May 10
+#PS2 - May 11-May 20
+#PS3 - May 21-May 30
+#PS4 - May 31-June 9
+#PS5 - June 10-June 19
+#PS6 - June 20-June 29
+#PS7 - June 30-July 9
+#PS8 - July 10-July 19
+#PS9 - July 20-July 29
+#PS10 - July 30-August 8
+#PS11 - August 9-August 18
+
+
+#get grid cell of each station by lat/lon
+setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs/CntrlStations'))
+
+MAPS_stations <- read.csv('MAPSstations2.csv')
+
+MAPS_mrg <- dplyr::left_join(MAPS_obs, MAPS_stations, by = 'LOC')
+
+MAPS_mrg$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+                                       in_lon_deg = MAPS_mrg$LONGITUDE, 
+                                       in_lat_deg = MAPS_mrg$LATITUDE)[[1]]
+
+
+
+#species codes - merge with MAPS_mrg
+
+#filter by species, get breeding date (period) for each year/cell
+
