@@ -5,6 +5,40 @@
 ####################
 
 
+# data fusion model for arrival ~ breeding --------------------------------
+
+
+#obs_EB_breeding_date is halfmax estimate for EB breeding date for that species/cell/year
+#known_EB_uncertainty is uncertainty in halfmax estimate for EB breeding date for that species/cell/year
+#obs_NW_breeding_date is mean NW breeding date for that species/cell/year
+#known_NW_uncertainty is sd of NW breeding date for that species/cell/year
+#obs_MAPS_breeding_date is mean of breeding date period for that species/cell/year
+#known_MAPS_uncertainty is length of period (uniform distribution)
+
+###observation models
+#obs_IAR_arrival_date ~ N(true_IAR_arrival_date, known_IAR_uncertainty)
+#obs_EB_breeding_date ~ N(true_EB_breeding_date, known_EB_uncertainty)
+#obs_NW_breeding_date ~ N(true_NW_breeding_date, known_NW_uncertainty)
+#obs_MAPS_breeding_date ~ N(true_MAPS_breeding_date, known_MAPS_uncertainty)
+
+
+#ONE WAY (arrival ~ breeding):
+###process model for explanatory var
+#true_EB_breeding_date ~ N(mu_EB, sigma_EB)
+#mu_EB = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+
+###process model for response var
+#true_IAR_arrival_date ~ N(mu, sigma)
+#mu = alpha + beta * true_EB_breeding_date
+
+
+#ALTERNATIVELY (breeding ~ arrival):
+#true_EB_breeding_date ~ N(master_breeding_date, sigma_EB)
+#mu_EB = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+
+#master_breeding_date ~ N(mu, sigma)
+#mu = alpha + beta * true_IAR_arrival_date
+
 
 # top-level dir --------------------------------------------------------------
 
