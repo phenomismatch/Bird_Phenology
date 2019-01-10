@@ -10,44 +10,6 @@
 ####################
 
 
-
-# data fusion model for arrival ~ breeding --------------------------------
-
-
-#obs_EB_breeding_date is halfmax estimate for EB breeding date for that species/cell/year
-#known_EB_uncertainty is uncertainty in halfmax estimate for EB breeding date for that species/cell/year
-#obs_NW_breeding_date is mean NW breeding date for that species/cell/year
-#known_NW_uncertainty is sd of NW breeding date for that species/cell/year
-#obs_MAPS_breeding_date is mean of breeding date period for that species/cell/year
-#known_MAPS_uncertainty is length of period (uniform distribution)
-
-###observation models
-#obs_IAR_arrival_date ~ N(true_IAR_arrival_date, known_IAR_uncertainty)
-#obs_EB_breeding_date ~ N(true_EB_breeding_date, known_EB_uncertainty)
-#obs_NW_breeding_date ~ N(true_NW_breeding_date, known_NW_uncertainty)
-#obs_MAPS_breeding_date ~ N(true_MAPS_breeding_date, known_MAPS_uncertainty)
-
-
-#ONE WAY (arrival ~ breeding):
-###process model for explanatory var
-#true_EB_breeding_date ~ N(mu_EB, sigma_EB)
-#mu_EB = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
-
-###process model for response var
-#true_IAR_arrival_date ~ N(mu, sigma)
-#mu = alpha + beta * true_EB_breeding_date
-
-
-#ALTERNATIVELY (breeding ~ arrival):
-#true_EB_breeding_date ~ N(master_breeding_date, sigma_EB)
-#mu_EB = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
-
-#master_breeding_date ~ N(mu, sigma)
-#mu = alpha + beta * true_IAR_arrival_date
-
-
-
-
 # top-level dir --------------------------------------------------------------
 
 dir <- '~/Google_Drive/R/'
@@ -111,7 +73,7 @@ cxn <- DBI::dbConnect(pg,
 
 query_dir_path <- paste0('Processed/breeding_cat_query_', Sys.Date())
 
-#dir.create(query_dir_path)
+dir.create(query_dir_path)
 setwd(query_dir_path)
 
 
@@ -252,7 +214,7 @@ data2[species_list_i[,1]] <- NA
 nsp <- NROW(species_list_i)
 
 #run in parallel with 6 logical cores
-doParallel::registerDoParallel(cores = 2)
+doParallel::registerDoParallel(cores = 4)
 
 tt <- proc.time()
 foreach::foreach(i = 1:nsp) %dopar%
@@ -433,17 +395,17 @@ MAPS_obs <- read.csv('1117M.csv')
 #get grid cell of each station by lat/lon
 setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs/CntrlStations'))
 
-MAPS_stations <- read.csv('MAPSstations2.csv')
+MAPS_stations <- read.csv('STATIONS.csv', skipNul = TRUE)
 
 MAPS_mrg <- dplyr::left_join(MAPS_obs, MAPS_stations, by = 'LOC')
 
 MAPS_mrg$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                       in_lon_deg = MAPS_mrg$LONGITUDE, 
-                                       in_lat_deg = MAPS_mrg$LATITUDE)[[1]]
-
-
+                                       in_lon_deg = MAPS_mrg$DECLNG, 
+                                       in_lat_deg = MAPS_mrg$DECLAT)[[1]]
 
 #species codes - merge with MAPS_mrg
 
 #filter by species, get breeding date (period) for each year/cell
+
+
 
