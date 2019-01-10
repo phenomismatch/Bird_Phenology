@@ -80,7 +80,7 @@ f_in <- dplyr::filter(df_master, species == args)
 f_out <- f_in[which(f_in$MODEL == TRUE),]
 
 #explore filter for good data
-sum(f_out$min_n.eff < 500, na.rm = TRUE)
+sum(f_out$min_n.eff < 400, na.rm = TRUE)
 sum(f_out$max_Rhat > 1.1, na.rm = TRUE)
 sum(f_out$nphen_bad > 100, na.rm = TRUE)
 
@@ -253,7 +253,7 @@ real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
 real beta0[J];                                        // intercept
 matrix[N, J] theta;                                   // non-spatial error component (centered on 0)
 matrix[N, J] phi;                                     // spatial error component (centered on 0)
-real<lower = 0> sigma[J];                                // scaling factor for spatial and non-spatial components
+real<lower = 0> sigma_raw[J];                                // scaling factor for spatial and non-spatial components
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 real<lower = 0> mu_sigma_raw;
 real<lower = 0> sigma_sigma_raw;
@@ -262,15 +262,20 @@ real<lower = 0> sigma_sigma_raw;
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
 
+real<lower = 0> mu_sigma;
+real<lower = 0> sigma_sigma;
+real<lower = 0> sigma[J];
+
+matrix[N, J] convolved_re;                            // spatial and non-spatial component
+matrix[N, J] mu;                                      // latent true halfmax values
+
 mu_sigma = 3 * mu_sigma_raw;                          // non-centered parameterization
 sigma_sigma = 3 * sigma_sigma_raw;                    // non-centered parameterization
 for (j in 1:J)
 {
-  sigma[j] = mu_sigma + sigma_raw[j] * sigma_sigma    // non-centered parameterization
+  sigma[j] = mu_sigma + sigma_raw[j] * sigma_sigma;   // non-centered parameterization
 }
 
-matrix[N, J] convolved_re;                            // spatial and non-spatial component
-matrix[N, J] mu;                                      // latent true halfmax values
 for (j in 1:J)
 {
   convolved_re[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j];
