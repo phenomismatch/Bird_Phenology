@@ -364,9 +364,76 @@ proc.time() - tt
 
 
 
+# counts for breeding codes -----------------------------------------------
 
+# #IAR input data (to get relevant cells)
+# DATE_MA <- '2018-11-12'
+# 
+# setwd(paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', DATE_MA))
+# df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
+# 
+# nsp <- NROW(species_list_i)
+# 
+# output_df <- data.frame()
+# for (i in 1:nsp)
+# {
+#   #i <- 8
+#   #read in ebird breeding code data
+#   DATE_BC <- '2019-01-09'
+#   
+#   setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
+#   temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
+#   temp_master <- dplyr::filter(df_master, species == species_list_i[i,1])
+#   
+#   #only cells that are in IAR input
+#   kp_cells <- unique(temp_master$cell)
+#   temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
+#   
+#   #probable/confirmed
+#   t_C34 <- dplyr::filter(temp_bc_f,
+#                         bba_breeding_category == 'C3' |
+#                           bba_breeding_category == 'C4')
+#   
+#     #how many C3/C4 obs for a given year
+#     tt <- plyr::count(t_C34, vars = c('year'))
+#     #how many C3/C4 obs for a given year/cell
+#     cy <- plyr::count(t_C34, vars = c('cell', 'year'))
+#     #filter by > 20 obs in cell
+#     gr20 <- dplyr::filter(cy, freq > 20)
+#     #how cells in each year have # C3/C4 obs > 20
+#     nc_gr20 <- plyr::count(gr20[,1:2], vars = c('year'))
+#     colnames(nc_gr20)[2] <- 'num_usable_cells'
+#     #merge with number of C3/C4 obs
+#     mrg <- dplyr::left_join(tt, nc_gr20, by = 'year')
+#     colnames(mrg)[2] <- 'num_br_obs'
+#     #merge with years
+#     nn <- data.frame(year = 2002:2017)
+#     mrg2 <- dplyr::left_join(nn, mrg, by = 'year')
+#     #insert zeros for NA vals
+#     to.z.use <- which(is.na(mrg2[,3]))
+#     mrg2[to.z.use, 3] <- 0
+#     to.z.obs <- which(is.na(mrg2[,2]))
+#     mrg2[to.z.obs, 2] <- 0
+#     
+#     t_out <- data.frame(species = species_list_i[i,1], mrg2)
+#     output_df <- rbind(output_df, t_out)
+# }
+# 
+# 
+# summary_output_df <- aggregate(num_usable_cells ~ species, data = output_df, FUN = sum)
+# colnames(summary_output_df)[2] <- 'num_cell_years'
+# 
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+# write.csv(output_df, 'br_code_data_avail.csv', row.names = FALSE)
+# write.csv(summary_output_df, 'summary_br_code_data_avail.csv', row.names = FALSE)
 
-
+# #read in data
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+# summary_output_df <- read.csv('summary_br_code_data_avail.csv')
+# sum(summary_output_df[,2] > 20)
+# hist(summary_output_df[,2], col = 'grey', 
+#      xlab = 'Number cell/years of data',
+#      main = 'eBird breeding code availability')
 
 # MAPS obs ----------------------------------------------------------------
 
