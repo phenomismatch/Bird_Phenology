@@ -14,14 +14,17 @@ library(dplyr)
 
 # directory ---------------------------------------------------------------
 
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
+
+#Xanadu
+dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 
 
 # get args ----------------------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
-#args <- 'Empidonax_virescens'
+#args <- 'Vireo_olivaceus'
 
 
 # read in data ------------------------------------------------------------
@@ -55,7 +58,7 @@ temp_master <- dplyr::filter(df_master, species == args)
 
 #model settings
 ITER <- 2000
-CHAINS <- 3
+CHAINS <- 4
 
 
 #only cells that are in IAR input
@@ -69,7 +72,7 @@ cells <- unique(temp_bc_f$cell)
 ncell <- length(cells)
 
 t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
-colnames(t_mat) <- paste0('iter_', 1:ITER)
+colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
 halfmax_df <- data.frame(species = args, 
                          year = rep(yrs, each = ncell), 
                          cell = rep(cells, nyr), 
@@ -94,7 +97,6 @@ for (j in 1:nyr)
   for (k in 1:ncell)
   {
     #k <- 44
-    print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     t_cell <- dplyr::filter(t_yr, cell == cells[k])
     
     #new column with 'probable' or 'confirmed' breeding
@@ -132,6 +134,8 @@ for (j in 1:nyr)
     njd0i <- length(unique(t_cell2$day[which(t_cell2$br == 0 & t_cell2$day < 
                                                min(t_cell2$day[which(t_cell2$br == 1)]))]))
     
+    print(paste0('species: ', args, ', year: ', j, ', cell: ', k, ', br obs: ', n1))
+    
     #different thresholds from arrival models
     if (n1 > 20 & n1W < (n1/50) & n0 > 29 & njd1 > 15 & njd0i > 29)
     {
@@ -168,7 +172,7 @@ for (j in 1:nyr)
       pdf(paste0(args, '_', yrs[j], '_', cells[k], '_breeding.pdf'))
       plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
-           main = paste0(args, ' - ', years[j], ' - ', cells[k]),
+           main = paste0(args, ' - ', yrs[j], ' - ', cells[k]),
            xlab = 'Julian Day', ylab = 'Detection Probability')
       lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(mn_dfit, lwd = 2)
@@ -197,20 +201,5 @@ for (j in 1:nyr)
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_09'))
 saveRDS(halfmax_df, file = paste0('halfmax_df_breeding_', args, '.rds'))
 
-
-
-
-
-# counts ------------------------------------------------------------------
-
-# #possible
-# t_C34 <- dplyr::filter(temp_bc_f,
-#                       bba_breeding_category == 'C3' |
-#                         bba_breeding_category == 'C4')
-# grp <- group_by(t_C34, cell)
-# tt <- plyr::count(t_C34, vars = c('year'))
-# #plyr::count(t_C2, vars = c('cell', 'year'))
-# print(as.character(IAR_species_list[i,1]))
-# print(tt)
 
 
