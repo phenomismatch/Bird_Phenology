@@ -12,7 +12,7 @@
 #http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html
 #https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
 #https://chi-feng.github.io/mcmc-demo/app.html#HamiltonianMC,standard
-
+#https://groups.google.com/forum/#!msg/stan-users/zOjAeJC4x_E/OyCOfJo8AwAJ (non-centered parameterization on sd should be fine)
 
 # Top-level dir -----------------------------------------------------------
 
@@ -255,12 +255,20 @@ matrix[N, J] theta;                                   // non-spatial error compo
 matrix[N, J] phi;                                     // spatial error component (centered on 0)
 real<lower = 0> sigma[J];                                // scaling factor for spatial and non-spatial components
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
-real<lower = 0> mu_sigma;
-real<lower = 0, upper = 5> sigma_sigma;
+real<lower = 0> mu_sigma_raw;
+real<lower = 0> sigma_sigma_raw;
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
+
+mu_sigma = 3 * mu_sigma_raw;                          // non-centered parameterization
+sigma_sigma = 3 * sigma_sigma_raw;                    // non-centered parameterization
+for (j in 1:J)
+{
+  sigma[j] = mu_sigma + sigma_raw[j] * sigma_sigma    // non-centered parameterization
+}
+
 matrix[N, J] convolved_re;                            // spatial and non-spatial component
 matrix[N, J] mu;                                      // latent true halfmax values
 for (j in 1:J)
@@ -268,6 +276,7 @@ for (j in 1:J)
   convolved_re[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j];
   mu[,j] = beta0[j] + convolved_re[,j] * sigma[j];
 }
+
 // indexing to avoid NAs
 for (j in 1:J)
 {
@@ -285,13 +294,12 @@ for (j in 1:J)
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   theta[,j] ~ normal(0, 1);
   beta0[j] ~ normal(120, 10);
-  sigma[j] ~ normal(mu_sigma, sigma_sigma);
+  sigma_raw[j] ~ normal(0, 1); // implies sigma[j] ~ normal(mu_sigma, sigma_sigma)
 }
 
 rho ~ beta(0.5, 0.5);
-mu_sigma ~ normal(0, 3);
-sigma_sigma ~ uniform(0, 5);
-
+mu_sigma_raw ~ normal(0, 1); // implies mu_sigma ~ halfnormal(0, 3)
+sigma_sigma_raw ~ normal(0, 1); // implies sigma_sigma ~ halfnormal(0, 3)
 }'
 
 
@@ -304,13 +312,12 @@ options(mc.cores = parallel::detectCores())
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
-            chains = 3,
-            iter = 2000,
-            cores = 3,
+            chains = 4,
+            iter = 6000,
+            cores = 4,
             pars = c('sigma', 'mu_sigma', 'sigma_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = 20, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
-#25, 0.95, 0.005
+            control = list(max_treedepth = 25, adapt_delta = 0.98, stepsize = 0.005)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
@@ -318,10 +325,10 @@ run_time <- (proc.time() - tt[3]) / 60
 # saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test.rds'))
+saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_6k_ncp.rds'))
 
 # fit <- readRDS('IAR_stan_sigma_test2.rds')
-# pairs(fit, pars = c('mu_sigma', 'sigma_sigma'))
+# pairs(fit, pars = c('mu_sigma', 'sigma_sigma', 'rho'))
 
 
 
