@@ -322,15 +322,16 @@ fit <- stan(model_code = IAR_bym2,
             cores = 4,
             pars = c('sigma', 'mu_sigma', 'sigma_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
+            control = list(max_treedepth = 25, adapt_delta = 0.98, stepsize = 0.005)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 # saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 
+#try 0.98 then fix sd of sigma
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_5k_aa95_ncp.rds'))
+saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_5k_aa98_ncp.rds'))
 
 # fit <- readRDS('IAR_stan_sigma_test2.rds')
 # pairs(fit, pars = c('mu_sigma', 'sigma_sigma', 'rho'))
