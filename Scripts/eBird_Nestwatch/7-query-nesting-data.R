@@ -434,6 +434,9 @@ proc.time() - tt
 # hist(summary_output_df[,2], col = 'grey',
 #      xlab = 'Number cell/years of data',
 #      main = 'eBird breeding code availability')
+# 
+# output_df <- read.csv('br_code_data_avail.csv')
+
 
 # MAPS obs ----------------------------------------------------------------
 
