@@ -168,10 +168,10 @@ data <- DBI::dbGetQuery(cxn, paste0("
 
 
 
-
+data2 <- data
 #only values with unique group identifiers (or no group identifier)
-data2 <- data[!duplicated(data[,'group_identifier'], 
-                          incomparables = NA),]
+#data2 <- data[!duplicated(data[,'group_identifier'], 
+#                          incomparables = NA),]
 
 rm(data)
 
@@ -220,7 +220,7 @@ doParallel::registerDoParallel(cores = 4)
 tt <- proc.time()
 foreach::foreach(i = 1:nsp) %dopar%
 {
-  #i <- 96
+  #i <- 17
   print(i)
   
   pg <- DBI::dbDriver("PostgreSQL")
@@ -232,9 +232,10 @@ foreach::foreach(i = 1:nsp) %dopar%
                         port = 5432, 
                         dbname = "sightings")
   
-  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name,
+  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name, year, day,
                                       count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code,
-                                      count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
+                                      count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category,
+                                      count_json ->> 'GLOBAL_UNIQUE_IDENTIFIER' AS global_unique_identifier
                                       FROM events
                                       JOIN places USING (place_id)
                                       JOIN counts USING (event_id)
@@ -247,17 +248,19 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       AND (sci_name IN ('", species_list_i2[i],"'));
                                       "))
   
-  #observations of species made for these events) - indices
+  #which data indicies are found in temp
   ind <- which(data2$event_id %in% temp$event_id)
+  
+  #which temp indices are found in data
+  t_ind <- which(temp$event_id %in% data2$event_id)
   
   #observations of species not made for these events - indices
   n_ind <- (1:NROW(data2))[-ind]
   
-  
   #0 if not observed in that survey at all (independent of breeding code)
   #NA if observed but no breeding code recorded
   #letter code if observed and breeding code recorded
-  data2[ind, species_list_i[i,1]] <- temp$bba_category[ind]
+  data2[ind, species_list_i[i,1]] <- temp$bba_category[t_ind]
   
   #fill no observations for species i with 0s
   data2[n_ind, species_list_i[i,1]] <- 0
@@ -328,6 +331,9 @@ if (length(m_sp2) > 0)
     #observations of species made for these events) - indices
     ind <- which(data2$event_id %in% temp$event_id)
     
+    #which temp indices are found in data
+    t_ind <- which(temp$event_id %in% data2$event_id)
+    
     #observations of species not made for these events - indices
     n_ind <- (1:NROW(data2))[-ind]
     
@@ -335,7 +341,7 @@ if (length(m_sp2) > 0)
     #0 if not observed in that survey at all (independent of breeding code)
     #NA if observed but no breeding code recorded
     #letter code if observed and breeding code recorded
-    data2[ind, m_sp2[i]] <- temp$bba_category[ind]
+    data2[ind, m_sp2[i]] <- temp$bba_category[t_ind]
     
     #fill no observations for species i with 0s
     data2[n_ind, m_sp2[i]] <- 0
@@ -380,7 +386,7 @@ for (i in 1:nsp)
 {
   #i <- 17
   #read in ebird breeding code data
-  DATE_BC <- '2019-01-09'
+  DATE_BC <- '2019-01-14'
 
   setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
   temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
@@ -389,8 +395,6 @@ for (i in 1:nsp)
   #only cells that are in IAR input
   kp_cells <- unique(temp_master$cell)
   temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
-  temp_bc_f <- temp_bc
-  
   
   #probable/confirmed
   t_C34 <- dplyr::filter(temp_bc_f,

@@ -30,7 +30,7 @@ raw_data <- read.csv('Contopus_virens.txt',
                  stringsAsFactors = FALSE)
 
 
-data <- read.csv('C34_Contopus_virens.txt', 
+ebd_data <- read.csv('C34_Contopus_virens.txt', 
                  header = FALSE,
                  sep = '\t',
                  quote= '',
@@ -49,17 +49,24 @@ cn <- read.csv('ebd_relFeb-2018.txt',
 
   
 colnames(raw_data) <- gsub(' ', '_', cn)
-colnames(data) <- gsub(' ', '_', cn)
+colnames(ebd_data) <- gsub(' ', '_', cn)
 
-d_filt <- dplyr::select(data, c('SCIENTIFIC_NAME', 'BREEDING_BIRD_ATLAS_CATEGORY', 'LATITUDE', 'LONGITUDE', 
+rd_filt <- dplyr::select(raw_data[,-50], c('SCIENTIFIC_NAME', 'BREEDING_BIRD_ATLAS_CATEGORY', 'LATITUDE', 'LONGITUDE', 
+                                           'OBSERVATION_DATE', 'TIME_OBSERVATIONS_STARTED', 'PROJECT_CODE', 'DURATION_MINUTES', 
+                                           'EFFORT_DISTANCE_KM', 'ALL_SPECIES_REPORTED', 'APPROVED'))
+
+
+d_filt <- dplyr::select(ebd_data, c('SCIENTIFIC_NAME', 'BREEDING_BIRD_ATLAS_CATEGORY', 'LATITUDE', 'LONGITUDE', 
                             'OBSERVATION_DATE', 'TIME_OBSERVATIONS_STARTED', 'PROJECT_CODE', 'DURATION_MINUTES', 
                             'EFFORT_DISTANCE_KM', 'ALL_SPECIES_REPORTED', 'APPROVED'))
 
 
-
-
 # new cols for year and day -----------------------------------------------
 
+
+rd_filt$YEAR <- as.numeric(format(as.Date(rd_filt[,'OBSERVATION_DATE']), '%Y'))
+rd_filt$DAY <- as.numeric(format(as.Date(rd_filt[,'OBSERVATION_DATE']), '%j'))
+rd_filt$TIME <- as.numeric(substr(rd_filt[,'TIME_OBSERVATIONS_STARTED'], start = 1, stop = 2))
 
 d_filt$YEAR <- as.numeric(format(as.Date(d_filt[,'OBSERVATION_DATE']), '%Y'))
 d_filt$DAY <- as.numeric(format(as.Date(d_filt[,'OBSERVATION_DATE']), '%j'))
@@ -75,14 +82,33 @@ d_filt2 <- dplyr::filter(d_filt,
               DAY < 200,
               LONGITUDE > -100,
               LONGITUDE < -50,
-              LATITUDE > 26,
-              ALL_SPECIES_REPORTED == 1,
-              TIME < 16,
-              DURATION_MINUTES > 6,
-              DURATION_MINUTES < 1440,
-              EFFORT_DISTANCE_KM < 100)
+              LATITUDE > 26)#,
+              #ALL_SPECIES_REPORTED == 1,
+              #TIME < 16,
+              #DURATION_MINUTES > 6,
+              #DURATION_MINUTES < 1440,
+              #EFFORT_DISTANCE_KM < 100)
 
 plyr::count(d_filt2, vars = 'YEAR')
+
+
+rd_filt2 <- dplyr::filter(rd_filt, 
+                         YEAR > 2001,
+                         DAY < 200,
+                         LONGITUDE > -100,
+                         LONGITUDE < -50,
+                         LATITUDE > 26)#,
+#ALL_SPECIES_REPORTED == 1,
+#TIME < 16,
+#DURATION_MINUTES > 6,
+#DURATION_MINUTES < 1440,
+#EFFORT_DISTANCE_KM < 100)
+
+
+head(raw_data)
+#check subspecies common names
+
+
 
 
 # db query ---------------------------------------------------
@@ -151,11 +177,14 @@ raw_data[head(which(rd_id %in% db_id)),]
 
 #see if there are some missing event ids in data (first db query) in script 7
 
+#see if filter by year and day is screwing things up (run second db query from 7)
 
 
 
-#only one species for raw data
-unique(raw_data[,6])
+
+
+
+
 
 
 
