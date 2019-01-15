@@ -31,7 +31,7 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 db_dir <- 'db_query_2018-10-15'
 
-RUN_DATE <- '2018-10-16'
+RUN_DATE <- '2019-10-16'
 
 
 # runtime -----------------------------------------------------------------
@@ -90,21 +90,27 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predi
 ITER <- 2000
 CHAINS <- 4
 
-fit_diag <- halfmax_matrix_list <- list()
+t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
+colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
+halfmax_df <- data.frame(species = args, 
+                         year = rep(yrs, each = ncell), 
+                         cell = rep(cells, nyr), 
+                         Rhat = NA,
+                         neff = NA,
+                         t_mat)
 
 #loop through each species, year, cell and extract half-max parameter
+counter <- 1
 for (j in 1:nyr)
 {
   #j <- 10
-  halfmax_matrix_list[[j]] <- matrix(data = NA, nrow = ncel, ncol = ((ITER/2)*CHAINS))
-  fit_diag[[j]] <- list()
   yspdata <- spdata[which(spdata$year == years[j]), ]
   
   for (k in 1:ncel)
   {
     #k <- 1
-    print(paste(j,k))
-    fit_diag[[j]][[k]] <- list(maxRhat = NA, mineffsSize = NA)
+    print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
+    
     cyspdata <- yspdata[which(yspdata$cell6 == cells[k]), ]
     
     #number of surveys where species was detected
@@ -146,7 +152,7 @@ for (j in 1:nyr)
       LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
       
-      pdf(paste0(args, '_', years[j], '_', cells[k], '.pdf'))
+      pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
       plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)), 
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
@@ -166,23 +172,19 @@ for (j in 1:nyr)
       
       ########################
       
-      
-      halfmax_matrix_list[[j]][k,] <- halfmax_fit
-      fit_diag[[j]][[k]]$maxRhat <- max(summary(fit2)[, "Rhat"])
-      fit_diag[[j]][[k]]$mineffsSize <- min(summary(fit2)[, "n_eff"])
+      iter_ind <- grep('iter', colnames(halfmax_df))
+      halfmax_df[counter,iter_ind] <- halfmax_fit
+      halfmax_df$Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
+      halfmax_df$neff[counter] <- min(summary(fit2)[, "n_eff"])
     }
-  }
-}
+    counter <- counter + 1
+  } #k
+} #j
 
 
 #save to rds object
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species', RUN_DATE))
-
-#list where each list element is a different year, and each row is a different cell, and each column is an iteration
-saveRDS(halfmax_matrix_list, file = paste0('halfmax_matrix_list_', args, '.rds'))
-
-#list where each primary list element is a different year, each secondary element is a different cell - $maxRhat, #mineffsSize
-saveRDS(fit_diag, file = paste0('halfmax_fit_diag_', args, '.rds'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
+saveRDS(halfmax_df, file = paste0('halfmax_df_arrival_', args, '.rds'))
 
 
 
