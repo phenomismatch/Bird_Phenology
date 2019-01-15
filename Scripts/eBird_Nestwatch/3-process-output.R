@@ -22,7 +22,6 @@ dir <- '~/Google_Drive/R/'
 
 db_dir <- 'db_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
-IAR_dir <- 'IAR_2018-10-26'
 
 
 # runtime -----------------------------------------------------------------
@@ -36,6 +35,7 @@ tt <- proc.time()
 library(dplyr)
 library(dggridR)
 library(sp)
+library(INLA)
 
 
 # Set wd ------------------------------------------------------------------
@@ -82,7 +82,6 @@ for (i in 1:nsp)
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
   temp_halfmax <- readRDS(paste0('halfmax_matrix_list_', species_list[i], '.rds'))
-  temp_diag <- readRDS(paste0('halfmax_fit_diag_', species_list[i], '.rds'))
   
   if (i == 1)
   {
@@ -91,10 +90,10 @@ for (i in 1:nsp)
     ncel <- length(cells)
     
     #create data.frame to fill
-    diagnostics_frame <- as.data.frame(matrix(data = NA, nrow = nsp*ncel*nyr, ncol = 19))
+    diagnostics_frame <- as.data.frame(matrix(data = NA, nrow = nsp*ncel*nyr, ncol = 18))
     names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
-                                  "nphen_bad", "min_n.eff", "max_Rhat", "HM_n.eff", "HM_Rhat",
-                                  "HM_mean", "HM_sd", "HM_LCI", "HM_UCI")
+                                  "nphen_bad", "min_n.eff", "max_Rhat", "ks_pv", "HM_mean", "HM_sd", "HM_LCI", 
+                                  "HM_UCI")
   }
   
   #loop through years
@@ -143,19 +142,20 @@ for (i in 1:nsp)
           diagnostics_frame$njd0i[counter] > 29 &
           diagnostics_frame$njd1[counter] > 19)
       {
-        diagnostics_frame$min_n.eff[counter] <- temp_diag[[j]][[k]]$mineffsSize
-        diagnostics_frame$max_Rhat[counter] <- temp_diag[[j]][[k]]$maxRhat
+        tt_halfmax <- filter(temp_halfmax, year == years[j], cell = cells[k])
         
-        halfmax_posterior <- as.vector(temp_halfmax[[j]][k,])
+        diagnostics_frame$min_n.eff[counter] <- tt_halfmax$min_n_eff
+        diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
+        diagnostics_frame$ks_pv[counter] <- tt_halfmax$ks
+        
+        iter_ind <- grep('iter', colnames(tt_halfmax))
+        halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
         
         #convert to mcmc.list and calc n_eff and Rhat using coda (DIFFERENT THAN STAN ESTIMATES)
         halfmax_mcmcList <- coda::mcmc.list(coda::as.mcmc(halfmax_posterior[1:500]), 
                                             coda::as.mcmc(halfmax_posterior[501:1000]),
                                             coda::as.mcmc(halfmax_posterior[1001:1500]), 
                                             coda::as.mcmc(halfmax_posterior[1501:2000]))
-        
-        diagnostics_frame$HM_n.eff[counter] <- round(coda::effectiveSize(halfmax_mcmcList), digits = 0)
-        diagnostics_frame$HM_Rhat[counter] <- round(coda::gelman.diag(halfmax_mcmcList)$psrf[1], digits = 2)
         
         #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
         diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
@@ -167,19 +167,6 @@ for (i in 1:nsp)
         
         diagnostics_frame$HM_LCI[counter] <- quantile(halfmax_posterior, probs = 0.025)
         diagnostics_frame$HM_UCI[counter] <- quantile(halfmax_posterior, probs = 0.975)
-        
-        # #fit normal and cauchy distributions to data
-        # normfit <- fitdistrplus::fitdist(halfmax_posterior2, "norm")
-        # diagnostics_frame$Nloglik[counter] <- normfit$loglik
-        # 
-        # cfit <- NA
-        # #cfit <- tryCatch(fitdistrplus::fitdist(halfmax_posterior2,"cauchy"), error=function(e){return(NA)})
-        # if(!is.na(cfit))
-        # {
-        #   diagnostics_frame$HM_c_loc[counter] <- cfit$estimate[1]
-        #   diagnostics_frame$HM_c_scale[counter] <- cfit$estimate[2]
-        #   diagnostics_frame$Cloglik[counter] <- cfit$loglik
-        # }
       }
     } # k -cell
   } # j - year
@@ -342,11 +329,81 @@ for (i in 1:length(species_list))
 }
 
 
-
-# order and write to RDS --------------------------------------------------
+# order -------------------------------------------------------------------
 
 #order diagnostics frame by species, year, and cell #
 df_master <- df_out[with(df_out, order(species, year, cell)),]
+
+#create scaling factor column
+df_master$scaling_factor <- NA
+
+
+# add scaling factor to df ------------------------------------------------
+
+for (k in 1:length(species_list))
+{
+  #filter by species
+  f_in <- dplyr::filter(df_master, species == species_list[k])
+
+  #filter by year
+  f_out <- f_in[which(f_in$MODEL == TRUE),]
+
+  #define cells and years to be modeled
+  cells <- unique(f_out$cell)
+  years <- unique(f_out$year)
+  nyr <- length(years)
+  ncel <- length(cells)
+
+  # create adjacency matrix
+  #make hexgrid
+  hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+  #get hexgrid cell centers
+  cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
+
+  #create adjacency matrix - 1 if adjacent to cell, 0 if not
+  adjacency_matrix <- matrix(data = NA, nrow = length(cells), ncol = length(cells))
+
+  for (i in 1:length(cells))
+  {
+    #i <- 1
+    for (j in i:length(cells))
+    {
+      #j <- 4
+      dists <- geosphere::distm(c(cellcenters$lon_deg[i], cellcenters$lat_deg[i]),
+                                c(cellcenters$lon_deg[j], cellcenters$lat_deg[j]))
+      adjacency_matrix[i,j] <- as.numeric((dists/1000) > 0 & (dists/1000) < 311)
+    }
+  }
+
+  #indices for 1s
+  ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
+
+  # Estimate scaling factor for BYM2 model with INLA
+  #Build the adjacency matrix using INLA library functions
+  adj.matrix <- Matrix::sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
+
+  #The IAR precision matrix (note! This is singular)
+  Q <- Matrix::Diagonal(ncel, Matrix::rowSums(adj.matrix)) - adj.matrix
+  #Add a small jitter to the diagonal for numerical stability (optional but recommended)
+  Q_pert <- Q + Matrix::Diagonal(ncel) * max(diag(Q)) * sqrt(.Machine$double.eps)
+
+  # Compute the diagonal elements of the covariance matrix subject to the 
+  # constraint that the entries of the ICAR sum to zero.
+  # See the inla.qinv function help for further details.
+  Q_inv <- INLA::inla.qinv(Q_pert, 
+                           constr = list(A = matrix(1, 1, ncel), e = 0))
+
+  #Compute the geometric mean of the variances, which are on the diagonal of Q.inv
+  scaling_factor <- exp(mean(log(diag(Q_inv))))
+  
+  t_sc_ind <- which(df_master$species == species_list[k])
+  df_master$scaling_factor[t_sc_ind] <- scaling_factor
+}
+
+
+
+# write to RDS --------------------------------------------------
 
 IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_', Sys.Date())
 
@@ -363,6 +420,12 @@ species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 write.table(species_tm, file = 'IAR_species_list.txt', row.names = FALSE, col.names = FALSE)
+
+
+
+
+
+
 
 
 
