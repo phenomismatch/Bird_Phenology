@@ -66,7 +66,9 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 # species arg -----------------------------------------------------
 
 # args <- commandArgs(trailingOnly = TRUE)
-args <- as.character('Vireo_olivaceus')
+#args <- as.character('Vireo_olivaceus')
+#args <- as.character('Catharus_minimus')
+args <- as.character('Empidonax_virescens')
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -318,11 +320,11 @@ tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
             chains = 4,
-            iter = 5000,
+            iter = 8000,
             cores = 4,
             pars = c('sigma', 'mu_sigma', 'sigma_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = 25, adapt_delta = 0.98, stepsize = 0.005)) # modified control parameters based on warnings
+            control = list(max_treedepth = 25, adapt_delta = 0.99, stepsize = 0.005)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
@@ -331,7 +333,7 @@ run_time <- (proc.time() - tt[3]) / 60
 
 #try 0.98 then fix sd of sigma
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_5k_aa98_ncp.rds'))
+saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_5k_aa99_ncp_E_virescens.rds'))
 
 # fit <- readRDS('IAR_stan_sigma_test2.rds')
 # pairs(fit, pars = c('mu_sigma', 'sigma_sigma', 'rho'))

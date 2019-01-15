@@ -39,7 +39,7 @@ df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
 
 
 #read in ebird breeding code data
-DATE_BC <- '2019-01-09'
+DATE_BC <- '2019-01-14'
 
 setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
 temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', args, '.rds'))
@@ -198,7 +198,7 @@ for (j in 1:nyr)
 } #j
 
 
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_09'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_14'))
 saveRDS(halfmax_df, file = paste0('halfmax_df_breeding_', args, '.rds'))
 
 

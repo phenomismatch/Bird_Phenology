@@ -148,7 +148,6 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     (event_json ->> 'DURATION_MINUTES')::int AS duration_minutes,
                                     count_json ->> 'OBSERVER_ID' AS observer_id,
                                     (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
-                                    count_json ->> 'GLOBAL_UNIQUE_IDENTIFIER' AS global_unique_identifier,
                                     event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
                                     FROM places
                                     JOIN events USING (place_id)
@@ -167,11 +166,9 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     "))
 
 
-
-data2 <- data
 #only values with unique group identifiers (or no group identifier)
-#data2 <- data[!duplicated(data[,'group_identifier'], 
-#                          incomparables = NA),]
+data2 <- data[!duplicated(data[,'group_identifier'], 
+                          incomparables = NA),]
 
 rm(data)
 
@@ -200,16 +197,14 @@ data2$shr <- SHR
 
 hexgrid6 <- dggridR::dgconstruct(res = 6) 
 data2$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                        in_lon_deg = data2$lng, 
-                                        in_lat_deg = data2$lat)[[1]]
+                                       in_lon_deg = data2$lng, 
+                                       in_lat_deg = data2$lat)[[1]]
 
 
 
 
 # query individual species, zero fill, and create RDS objects ----------------------------------
 
-
-#create species columns
 data2[species_list_i[,1]] <- NA
 
 nsp <- NROW(species_list_i)
@@ -232,10 +227,8 @@ foreach::foreach(i = 1:nsp) %dopar%
                         port = 5432, 
                         dbname = "sightings")
   
-  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name, year, day,
-                                      count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code,
-                                      count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category,
-                                      count_json ->> 'GLOBAL_UNIQUE_IDENTIFIER' AS global_unique_identifier
+  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name,
+                                      count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
                                       FROM events
                                       JOIN places USING (place_id)
                                       JOIN counts USING (event_id)
@@ -247,23 +240,28 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       AND lat > 26
                                       AND (sci_name IN ('", species_list_i2[i],"'));
                                       "))
+  #cannot use global ID, as this is per species seen - there may be two species for a given survey (due to sub species)
+  data2 <- data[!duplicated(data[,'group_identifier'], 
+                            incomparables = NA),]
   
-  #which data indicies are found in temp
-  ind <- which(data2$event_id %in% temp$event_id)
   
-  #which temp indices are found in data
-  t_ind <- which(temp$event_id %in% data2$event_id)
+  #just c3/4
+  c3_uid <- temp$global_unique_identifier[which(temp$bba_category == 'C3')]
+  c4_uid <- temp$global_unique_identifier[which(temp$bba_category == 'C4')]
+  z_uid <- temp$global_unique_identifier[which(is.na(temp$bba_category))]
+  length(c(c3_uid, c4_uid, z_uid)) == NROW(temp)
   
-  #observations of species not made for these events - indices
-  n_ind <- (1:NROW(data2))[-ind]
+  c3_ind <- which(data2$global_unique_identifier %in% c3_uid)
+  c4_ind <- which(data2$global_unique_identifier %in% c4_uid)
+  z_ind <- which(data2$global_unique_identifier %in% z_uid)
   
   #0 if not observed in that survey at all (independent of breeding code)
   #NA if observed but no breeding code recorded
   #letter code if observed and breeding code recorded
-  data2[ind, species_list_i[i,1]] <- temp$bba_category[t_ind]
   
-  #fill no observations for species i with 0s
-  data2[n_ind, species_list_i[i,1]] <- 0
+  data2[c3_ind, species_list_i[i,1]] <- 'C3'
+  data2[c4_ind, species_list_i[i,1]] <- 'C4'
+  data2[z_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
                          year, day, cell, sjday, sjday2, 
@@ -327,24 +325,23 @@ if (length(m_sp2) > 0)
                                         AND (sci_name IN ('", m_sp2[i],"'));
                                         "))
     
+    #just c3/4
+    c3_uid <- temp$global_unique_identifier[which(temp$bba_category == 'C3')]
+    c4_uid <- temp$global_unique_identifier[which(temp$bba_category == 'C4')]
+    z_uid <- temp$global_unique_identifier[which(is.na(temp$bba_category))]
+    length(c(c3_uid, c4_uid, z_uid)) == NROW(temp)
     
-    #observations of species made for these events) - indices
-    ind <- which(data2$event_id %in% temp$event_id)
-    
-    #which temp indices are found in data
-    t_ind <- which(temp$event_id %in% data2$event_id)
-    
-    #observations of species not made for these events - indices
-    n_ind <- (1:NROW(data2))[-ind]
-    
+    c3_ind <- which(data2$global_unique_identifier %in% c3_uid)
+    c4_ind <- which(data2$global_unique_identifier %in% c4_uid)
+    z_ind <- which(data2$global_unique_identifier %in% z_uid)
     
     #0 if not observed in that survey at all (independent of breeding code)
     #NA if observed but no breeding code recorded
     #letter code if observed and breeding code recorded
-    data2[ind, m_sp2[i]] <- temp$bba_category[t_ind]
     
-    #fill no observations for species i with 0s
-    data2[n_ind, m_sp2[i]] <- 0
+    data2[c3_ind, m_sp2[i]] <- 'C3'
+    data2[c4_ind, m_sp2[i]] <- 'C4'
+    data2[z_ind, m_sp2[i]] <- 0
     
     sdata <- dplyr::select(data2, 
                            year, day, sjday, sjday2, 
@@ -353,7 +350,7 @@ if (length(m_sp2) > 0)
     names(sdata)[8] <- "bba_breeding_category"
     sdata['species'] <- m_sp2[i]
     
-    saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', msp[i,1], '.rds'))
+    saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', m_sp[i,1], '.rds'))
     DBI::dbDisconnect(cxn)
   }
 }
@@ -387,43 +384,43 @@ for (i in 1:nsp)
   #i <- 17
   #read in ebird breeding code data
   DATE_BC <- '2019-01-14'
-
+  
   setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
   temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
   temp_master <- dplyr::filter(df_master, species == species_list_i[i,1])
-
+  
   #only cells that are in IAR input
   kp_cells <- unique(temp_master$cell)
   temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
   
   #probable/confirmed
   t_C34 <- dplyr::filter(temp_bc_f,
-                        bba_breeding_category == 'C3' |
-                          bba_breeding_category == 'C4')
-
-    #how many C3/C4 obs for a given year
-    tt <- plyr::count(t_C34, vars = c('year'))
-    #how many C3/C4 obs for a given year/cell
-    cy <- plyr::count(t_C34, vars = c('cell', 'year'))
-    #filter by > 20 obs in cell
-    gr20 <- dplyr::filter(cy, freq > 20)
-    #how cells in each year have # C3/C4 obs > 20
-    nc_gr20 <- plyr::count(gr20[,1:2], vars = c('year'))
-    colnames(nc_gr20)[2] <- 'num_usable_cells'
-    #merge with number of C3/C4 obs
-    mrg <- dplyr::left_join(tt, nc_gr20, by = 'year')
-    colnames(mrg)[2] <- 'num_br_obs'
-    #merge with years
-    nn <- data.frame(year = 2002:2017)
-    mrg2 <- dplyr::left_join(nn, mrg, by = 'year')
-    #insert zeros for NA vals
-    to.z.use <- which(is.na(mrg2[,3]))
-    mrg2[to.z.use, 3] <- 0
-    to.z.obs <- which(is.na(mrg2[,2]))
-    mrg2[to.z.obs, 2] <- 0
-
-    t_out <- data.frame(species = species_list_i[i,1], mrg2)
-    output_df <- rbind(output_df, t_out)
+                         bba_breeding_category == 'C3' |
+                           bba_breeding_category == 'C4')
+  
+  #how many C3/C4 obs for a given year
+  tt <- plyr::count(t_C34, vars = c('year'))
+  #how many C3/C4 obs for a given year/cell
+  cy <- plyr::count(t_C34, vars = c('cell', 'year'))
+  #filter by > 20 obs in cell
+  gr20 <- dplyr::filter(cy, freq > 20)
+  #how cells in each year have # C3/C4 obs > 20
+  nc_gr20 <- plyr::count(gr20[,1:2], vars = c('year'))
+  colnames(nc_gr20)[2] <- 'num_usable_cells'
+  #merge with number of C3/C4 obs
+  mrg <- dplyr::left_join(tt, nc_gr20, by = 'year')
+  colnames(mrg)[2] <- 'num_br_obs'
+  #merge with years
+  nn <- data.frame(year = 2002:2017)
+  mrg2 <- dplyr::left_join(nn, mrg, by = 'year')
+  #insert zeros for NA vals
+  to.z.use <- which(is.na(mrg2[,3]))
+  mrg2[to.z.use, 3] <- 0
+  to.z.obs <- which(is.na(mrg2[,2]))
+  mrg2[to.z.obs, 2] <- 0
+  
+  t_out <- data.frame(species = species_list_i[i,1], mrg2)
+  output_df <- rbind(output_df, t_out)
 }
 
 
@@ -434,15 +431,15 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 write.csv(output_df, 'br_code_data_avail.csv', row.names = FALSE)
 write.csv(summary_output_df, 'summary_br_code_data_avail.csv', row.names = FALSE)
 
-#read in data
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-summary_output_df <- read.csv('summary_br_code_data_avail.csv')
-sum(summary_output_df[,2] > 20)
-hist(summary_output_df[,2], col = 'grey',
-     xlab = 'Number cell/years of data',
-     main = 'eBird breeding code availability')
-
-output_df <- read.csv('br_code_data_avail.csv')
+# #read in data
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+# summary_output_df <- read.csv('summary_br_code_data_avail.csv')
+# sum(summary_output_df[,2] > 20)
+# hist(summary_output_df[,2], col = 'grey',
+#      xlab = 'Number cell/years of data',
+#      main = 'eBird breeding code availability')
+# 
+# output_df <- read.csv('br_code_data_avail.csv')
 
 
 # MAPS obs ----------------------------------------------------------------
@@ -477,8 +474,8 @@ MAPS_stations <- read.csv('STATIONS.csv', skipNul = TRUE)
 MAPS_mrg <- dplyr::left_join(MAPS_obs, MAPS_stations, by = 'LOC')
 
 MAPS_mrg$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                       in_lon_deg = MAPS_mrg$DECLNG, 
-                                       in_lat_deg = MAPS_mrg$DECLAT)[[1]]
+                                          in_lon_deg = MAPS_mrg$DECLNG, 
+                                          in_lat_deg = MAPS_mrg$DECLAT)[[1]]
 
 #species codes - merge with MAPS_mrg
 
