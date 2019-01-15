@@ -15,8 +15,8 @@ do
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_09/lc-$temp.out #STDOUT
-#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_09/lc-$temp.err #STDERR
+#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_14/lc-$temp.out #STDOUT
+#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_14/lc-$temp.err #STDERR
 
 #echos name of node
 echo \`hostname\`

@@ -170,20 +170,10 @@ sum(db_id %in% rd_id) #YES
 rd_id[which(rd_id %ni% db_id)] #THESE ARE THE MISSING EBIRD IDS
 
 
-#sample missing ids
+#sample missing ids - which raw data ARE NOT in query
 raw_data[head(which(rd_id %ni% db_id)),]
-#sample non-missing ids
+#sample non-missing ids - which raw data ARE in query
 raw_data[head(which(rd_id %in% db_id)),]
-
-#see if there are some missing event ids in data (first db query) in script 7
-
-#see if filter by year and day is screwing things up (run second db query from 7)
-
-
-
-
-
-
 
 
 
