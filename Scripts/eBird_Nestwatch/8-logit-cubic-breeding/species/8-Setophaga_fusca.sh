@@ -9,20 +9,17 @@
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_14/lc-Setophaga_fusca.out #STDOUT
-#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_14/lc-Setophaga_fusca.err #STDERR
+#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019-01-16/lc-Setophaga_fusca.out #STDOUT
+#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019-01-16/lc-Setophaga_fusca.err #STDERR
 
 #echos name of node
 echo `hostname`
 
-#load R module
-module load R/3.5.1
+#load singularity module
+module load singularity/3.0.2
 
-#R library
-export R_LIBS=/home/CAM/cyoungflesh/R_libs
-
-#run R script - species arg
-Rscript 8-logit-cubic-breeding.R Setophaga_fusca
+#run R script using singularity - species arg
+singularity exec /home/CAM/cyoungflesh/R.sif Rscript /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/8-logit-cubic-breeding Setophaga_fusca
 
 #displays amount of memory used
 sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
