@@ -87,7 +87,7 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predi
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 2000t
+ITER <- 2500
 CHAINS <- 4
 
 t_mat <- matrix(data = NA, nrow = ncel*nyr, ncol = ((ITER/2)*CHAINS))
