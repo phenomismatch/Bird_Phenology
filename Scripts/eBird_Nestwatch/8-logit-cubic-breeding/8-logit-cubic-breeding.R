@@ -26,7 +26,7 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
 
-RUN_DATE <- '2019-01-15'
+RUN_DATE <- '2019-01-16'
 
 
 
@@ -60,7 +60,8 @@ temp_master <- dplyr::filter(df_master, species == args)
 
 
 #model settings
-ITER <- 2500
+#ITER <- 2500
+ITER <- 10
 CHAINS <- 4
 
 
