@@ -26,6 +26,9 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
 
+RUN_DATE <- '2019-01-15'
+
+
 
 # read in data ------------------------------------------------------------
 
@@ -39,7 +42,7 @@ df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
 
 
 #read in ebird breeding code data
-DATE_BC <- '2019-01-14'
+DATE_BC <- '2019-01-15'
 
 setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
 temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', args, '.rds'))
@@ -57,7 +60,7 @@ temp_master <- dplyr::filter(df_master, species == args)
 
 
 #model settings
-ITER <- 2000
+ITER <- 2500
 CHAINS <- 4
 
 
@@ -76,8 +79,9 @@ colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
 halfmax_df <- data.frame(species = args, 
                          year = rep(yrs, each = ncell), 
                          cell = rep(cells, nyr), 
-                         Rhat = NA,
-                         neff = NA,
+                         max_Rhat = NA,
+                         min_neff = NA,
+                         sh = NA,
                          t_mat)
 
 
@@ -100,7 +104,7 @@ for (j in 1:nyr)
     t_cell <- dplyr::filter(t_yr, cell == cells[k])
     
     #new column with 'probable' or 'confirmed' breeding
-    t_cell$br <- as.numeric(t_cell$bba_breeding_category == 'C3' | t_cell$bba_breeding_category == 'C4')
+    t_cell$br <- as.numeric(t_cell$bba_category == 'C3' | t_cell$bba_category == 'C4')
     
     #remove instances where bird was not observed
     # to.rm <- which(t_cell$br == 0)
@@ -113,13 +117,13 @@ for (j in 1:nyr)
     
     t_cell2 <- t_cell
     
-    #bird seen but not breeding
+    #bird not seen - fill with zeros
     na.ind <- which(is.na(t_cell2$br))
     t_cell2$br[na.ind] <- 0
     
     #number of surveys where breeding was detected (confirmed or probable)
     n1 <- sum(t_cell2$br)
-    #number of surveys where breeding was not detected (bird not seen breeding)
+    #number of surveys where breeding was not detected (bird not seen breeding or not seen)
     n0 <- sum(t_cell2$br == 0)
     
     #check
@@ -190,15 +194,16 @@ for (j in 1:nyr)
       
       iter_ind <- grep('iter', colnames(halfmax_df))
       halfmax_df[counter,iter_ind] <- halfmax_fit
-      halfmax_df$Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
-      halfmax_df$neff[counter] <- min(summary(fit2)[, "n_eff"])
+      halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
+      halfmax_df$min_neff[counter] <- min(summary(fit2)[, "n_eff"])
+      halfmax_df$sh[counter] <- round(shapiro.test(halfmax_fit)$p.value, 2)
     }
     counter <- counter + 1
   } #k
 } #j
 
 
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_2019_01_14'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
 saveRDS(halfmax_df, file = paste0('halfmax_df_breeding_', args, '.rds'))
 
 
