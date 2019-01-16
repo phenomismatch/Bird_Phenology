@@ -87,7 +87,7 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predi
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 20
+ITER <- 2000t
 CHAINS <- 4
 
 t_mat <- matrix(data = NA, nrow = ncel*nyr, ncol = ((ITER/2)*CHAINS))
@@ -97,19 +97,19 @@ halfmax_df <- data.frame(species = args,
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
-                         ks = NA,
+                         sh = NA,
                          t_mat)
 
 #loop through each species, year, cell and extract half-max parameter
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 15
+  #j <- 1
   yspdata <- spdata[which(spdata$year == years[j]), ]
   
   for (k in 1:ncel)
   {
-    #k <- 1
+    #k <- 8
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- yspdata[which(yspdata$cell6 == cells[k]), ]
@@ -145,40 +145,39 @@ for (j in 1:nyr)
       #PLOT MODEL FIT AND DATA
       
       #summary(fit2)
-      # setwd(paste0(dir, 'Bird_Phenology/Results/Plots'))
-      # mn_dfit <- apply(dfit, 2, mean)
-      # LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
-      # UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
-      # mn_hm <- mean(halfmax_fit)
-      # LCI_hm <- quantile(halfmax_fit, probs = 0.025)
-      # UCI_hm <- quantile(halfmax_fit, probs = 0.975)
-      # 
-      # pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
-      # plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
-      #      ylim = c(0, max(UCI_dfit)), 
-      #      main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-      #      xlab = 'Julian Day', ylab = 'Detection Probability')
-      # lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
-      # lines(mn_dfit, lwd = 2)
-      # cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
-      # points(cyspdata$day, cyspdata$detect, col = rgb(0,0,0,0.25))
-      # abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
-      # abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
-      # abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
-      # legend('topleft',
-      #        legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
-      #        col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
-      #        lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
-      # dev.off()
-      # 
-      
+      setwd(paste0(dir, 'Bird_Phenology/Results/Plots'))
+      mn_dfit <- apply(dfit, 2, mean)
+      LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
+      UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+      mn_hm <- mean(halfmax_fit)
+      LCI_hm <- quantile(halfmax_fit, probs = 0.025)
+      UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+
+      pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
+      plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
+           ylim = c(0, max(UCI_dfit)),
+           main = paste0(args, ' - ', years[j], ' - ', cells[k]),
+           xlab = 'Julian Day', ylab = 'Detection Probability')
+      lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
+      lines(mn_dfit, lwd = 2)
+      cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
+      points(cyspdata$day, cyspdata$detect, col = rgb(0,0,0,0.25))
+      abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
+      abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
+      abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
+      legend('topleft',
+             legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
+             col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
+             lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
+      dev.off()
+
       ########################
       
       iter_ind <- grep('iter', colnames(halfmax_df))
       halfmax_df[counter,iter_ind] <- halfmax_fit
-      halfmax_df$Rhat[counter] <- round(max(summary(fit2)[, "max_Rhat"]), 2)
-      halfmax_df$neff[counter] <- min(summary(fit2)[, "min_n_eff"])
-      halfmax_df$ks[counter] <- round(ks.test(halfmax_fit, 'pnorm')$p.value, 2)
+      halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
+      halfmax_df$min_neff[counter] <- min(summary(fit2)[, "n_eff"])
+      halfmax_df$sh[counter] <- round(shapiro.test(halfmax_fit)$p.value, 2)
     }
     counter <- counter + 1
   } #k
