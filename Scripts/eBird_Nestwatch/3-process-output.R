@@ -92,7 +92,7 @@ for (i in 1:nsp)
     #create data.frame to fill
     diagnostics_frame <- as.data.frame(matrix(data = NA, nrow = nsp*ncel*nyr, ncol = 18))
     names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
-                                  "nphen_bad", "min_n.eff", "max_Rhat", "ks_pv", "HM_mean", "HM_sd", "HM_LCI", 
+                                  "nphen_bad", "min_n.eff", "max_Rhat", "sh_pv", "HM_mean", "HM_sd", "HM_LCI", 
                                   "HM_UCI")
   }
   
@@ -146,7 +146,7 @@ for (i in 1:nsp)
         
         diagnostics_frame$min_n.eff[counter] <- tt_halfmax$min_n_eff
         diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
-        diagnostics_frame$ks_pv[counter] <- tt_halfmax$ks
+        diagnostics_frame$sh_pv[counter] <- tt_halfmax$sh
         
         iter_ind <- grep('iter', colnames(tt_halfmax))
         halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
