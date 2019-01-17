@@ -87,7 +87,8 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predi
 # fit logit cubic ---------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 2500
+#ITER <- 2500
+ITER <- 10
 CHAINS <- 4
 
 t_mat <- matrix(data = NA, nrow = ncel*nyr, ncol = ((ITER/2)*CHAINS))
@@ -99,6 +100,15 @@ halfmax_df <- data.frame(species = args,
                          min_neff = NA,
                          sh = NA,
                          t_mat)
+
+
+#create dir for figs if doesn't exist
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', RUN_DATE)), 
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', RUN_DATE)), 
+       FALSE)
+
+setwd(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', RUN_DATE))
+
 
 #loop through each species, year, cell and extract half-max parameter
 counter <- 1
@@ -145,7 +155,6 @@ for (j in 1:nyr)
       #PLOT MODEL FIT AND DATA
       
       #summary(fit2)
-      setwd(paste0(dir, 'Bird_Phenology/Results/Plots'))
       mn_dfit <- apply(dfit, 2, mean)
       LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
       UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
