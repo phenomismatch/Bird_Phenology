@@ -31,7 +31,7 @@ dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 db_dir <- 'db_query_2018-10-15'
 
-RUN_DATE <- '2019-10-16'
+RUN_DATE <- '2019-01-16'
 
 
 # runtime -----------------------------------------------------------------
