@@ -9,4 +9,4 @@ do
 done < ../../../Data/test_species_list.txt
 
 DATE=`date +%Y-%m-%d`
-cp 4-IAR-model.R ../../../Data/Processed/IAR_2018-01-16/4-IAR-model-$DATE.R
+cp 4-IAR-model.R ../../../Data/Processed/IAR_output_2019-01-16/4-IAR-model-$DATE.R
