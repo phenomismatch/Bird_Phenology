@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=lc-Archilochus_colubris
+#SBATCH --job-name=lc-arr-Archilochus_colubris
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
@@ -9,20 +9,17 @@
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o lc-Archilochus_colubris.out #STDOUT
-#SBATCH -e lc-Archilochus_colubris.err #STDERR
+#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-01-16/lc-arr-Archilochus_colubris.out #STDOUT
+#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-01-16/lc-arr-Archilochus_colubris.err #STDERR
 
 #echos name of node
 echo `hostname`
 
-#load R module
-module load R/3.5.1
+#load singularity module
+module load singularity/3.0.2
 
-#R library
-export R_LIBS=/home/CAM/cyoungflesh/R_libs
-
-#run R script - species arg
-Rscript 2-logit-cubic.R Archilochus_colubris
+#run R script using singularity - species arg
+singularity exec /home/CAM/cyoungflesh/R.sif Rscript /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/2-logit-cubic/2-logit-cubic.R Archilochus_colubris
 
 #displays amount of memory used
 sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
