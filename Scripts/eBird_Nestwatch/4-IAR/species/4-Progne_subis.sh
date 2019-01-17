@@ -15,11 +15,13 @@
 #echos name of node
 echo `hostname`
 
-#load R module (through singularity)
-module load R/3.5.2
+#load R module (auto loads singularity and run script)
+#module load R/3.5.2
+#Rscript /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Progne_subis
 
-#run R script using singularity - species arg
-Rscript /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Progne_subis
+#load singularity and run R script using singularity
+module load singularity 3.0.2
+singularity exec /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Progne_subis
 
 #displays amount of memory used
 sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
