@@ -532,7 +532,7 @@ write.csv(summary_output_df, 'summary_br_code_data_avail.csv', row.names = FALSE
 
 setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs'))
 
-MAPS_obs <- read.csv('1117M.csv')
+MAPS_obs <- read.csv('1117M.csv', stringsAsFactors = FALSE)
 
 #0 - observed but not breeding
 #P - probably breeding
@@ -554,17 +554,56 @@ MAPS_obs <- read.csv('1117M.csv')
 #get grid cell of each station by lat/lon
 setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs/CntrlStations'))
 
-MAPS_stations <- read.csv('STATIONS.csv', skipNul = TRUE)
+MAPS_stations <- read.csv('STATIONS.csv', skipNul = TRUE, stringsAsFactors = FALSE)
 
-MAPS_mrg <- dplyr::left_join(MAPS_obs, MAPS_stations, by = 'LOC')
+#STA2 appears to be unqiue station code
+# head(MAPS_obs)
+# head(MAPS_stations)
+# unique(MAPS_obs$STA)
+# unique(MAPS_stations$STA2)
+
+MAPS_mrg <- dplyr::left_join(MAPS_obs, MAPS_stations, by = 'STA')
+
+#check to make sure STATION names are in same
+#sum(MAPS_mrg$STATION.x != MAPS_mrg$STATION.y)
+
+#LAT/LON PROBLEM STATIONS: 
+#DFME (Harrison, OH) - NOT IN OBS
+#SSPT (Ashford, WA) - NOT IN OBS
+#HDQR (Weldon, CA) - NOT IN OBS
+#MAMA (Weldon, CA) - NOT IN OBS
+#PLMR (Weldon, CA) - NOT IN OBS
+#SUNY (Old Westbury, NY) - NOT IN OBS
+#RKCK (REMOVE) - NOT IN OBS
+#EASA (New Waverly, TX) - (30.54, -95.48)
+#ANWR (Kotz Springs, LA) - (30.54, -91.75)
+#REGR (Columbus, AR) - (33.78, -93.82)
+#CEFB (Clemson, SC) - (34.68, -82.81)
+#HRAE (REMOVE) - NOT IN OBS
+
+#insert lat/lons for these stations
+st_rep <- data.frame(STATION = c('EASA', 'ANWR', 'REGR', 'CEFB'), 
+                     LAT = c(30.54, 30.54, 33.78, 34.68),
+                     LNG = c(-95.48, -91.75, -93.82, -82.81))
+
+for (i in 1:NROW(st_rep))
+{
+  #i <- 2
+  tt <- which(MAPS_mrg$STATION.x == st_rep$STATION[i])
+  MAPS_mrg[tt,'DECLAT'] <- st_rep$LAT[i]
+  MAPS_mrg[tt,'DECLNG'] <- st_rep$LNG[i]
+}
 
 MAPS_mrg$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
                                           in_lon_deg = MAPS_mrg$DECLNG, 
                                           in_lat_deg = MAPS_mrg$DECLAT)[[1]]
 
-#species codes - merge with MAPS_mrg
+#filter by species, get breeding date (breeding period in this case) for each year/cell
 
-#filter by species, get breeding date (period) for each year/cell
+setwd(paste0(dir, 'Bird_Phenology/Data/MAPS_Obs'))
+sp_codes <- read.csv('sp_4_letter_codes.csv')
+
+
 
 
 
