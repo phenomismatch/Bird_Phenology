@@ -21,7 +21,6 @@
 
 #Xanadu
 dir <- '/home/CAM/cyoungflesh/phenomismatch/'
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
@@ -554,7 +553,7 @@ MCMCtrace(fit,
           params = 'beta0',
           priors = PR,
           open_pdf = FALSE,
-          filename = 'beta0_trace.pdf')
+          filename = 'trace_beta0.pdf')
 
 #rho
 PR <- rbeta(10000, 0.5, 0.5)
@@ -562,7 +561,7 @@ MCMCtrace(fit,
           params = 'rho',
           priors = PR,
           open_pdf = FALSE,
-          filename = 'rho_trace.pdf')
+          filename = 'trace_rho.pdf')
 
 #mu_sigma
 PR <- rnorm(10000, 0, 3)
@@ -570,7 +569,7 @@ MCMCtrace(fit,
           params = 'mu_sigma',
           priors = PR,
           open_pdf = FALSE,
-          filename = 'mu_sigma_trace.pdf')
+          filename = 'trace_mu_sigma.pdf')
 
 #sigma_sigma
 PR <- runif(10000, 0, 3)
@@ -578,5 +577,10 @@ MCMCtrace(fit,
           params = 'sigma_sigma',
           priors = PR,
           open_pdf = FALSE,
-          filename = 'sigma_sigma_trace.pdf')
+          filename = 'trace_sigma_sigma.pdf')
 
+
+if ('Rplots.pdf' %in% list.files())
+{
+  file.remove('Rplots.pdf')
+}
