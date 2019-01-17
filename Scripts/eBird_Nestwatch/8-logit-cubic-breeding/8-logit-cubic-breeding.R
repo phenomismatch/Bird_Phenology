@@ -203,7 +203,12 @@ for (j in 1:nyr)
       halfmax_df[counter,iter_ind] <- halfmax_fit
       halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
       halfmax_df$min_neff[counter] <- min(summary(fit2)[, "n_eff"])
-      halfmax_df$sh[counter] <- round(shapiro.test(halfmax_fit)$p.value, 2)
+      if (var(halfmax_fit) != 0)
+      {
+        halfmax_df$sh[counter] <- round(shapiro.test(halfmax_fit)$p.value, 2)
+      } else {
+        halfmax_df$sh[counter] <- NA
+      }
     }
     counter <- counter + 1
   } #k
