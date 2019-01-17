@@ -20,7 +20,7 @@ echo `hostname`
 #Rscript /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Troglodytes_aedon
 
 #load singularity and run R script using singularity
-module load singularity 3.0.2
+module load singularity/3.0.2
 singularity exec /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Troglodytes_aedon
 
 #displays amount of memory used
