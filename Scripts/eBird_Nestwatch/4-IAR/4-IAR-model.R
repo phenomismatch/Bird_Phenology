@@ -17,10 +17,10 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+dir <- '/home/CAM/cyoungflesh/phenomismatch/'
 
 
 
@@ -29,7 +29,7 @@ dir <- '~/Google_Drive/R/'
 db_dir <- 'db_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
 IAR_in_dir <- 'IAR_input_2018-11-12'
-IAR_out_dir <- 'IAR_output_2018-11-30'
+IAR_out_dir <- 'IAR_output_2019-01-16'
 
 #create output dir if it doesn't exist - need to create before running script bc STD out and STD error are written there
 # ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
@@ -45,13 +45,14 @@ tt <- proc.time()
 # Load packages -----------------------------------------------------------
 
 library(rstan)
-library(dplyr)
-library(dggridR)
+library(INLA)
 library(geosphere)
 library(ggplot2)
-library(MCMCvis)
 library(maps)
-library(INLA)
+library(dplyr)
+library(dggridR)
+library(MCMCvis)
+
 
 
 # Set wd ------------------------------------------------------------------
@@ -65,10 +66,12 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 # species arg -----------------------------------------------------
 
-# args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Catharus_minimus')
-args <- as.character('Empidonax_virescens')
+#args <- as.character('Empidonax_virescens')
+
+
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -135,7 +138,7 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 #Build the adjacency matrix using INLA library functions
 adj.matrix <- Matrix::sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
 
-#The ICAR precision matrix (note! This is singular)
+#The IAR precision matrix (note! This is singular)
 Q <- Matrix::Diagonal(ncel, Matrix::rowSums(adj.matrix)) - adj.matrix
 #Add a small jitter to the diagonal for numerical stability (optional but recommended)
 Q_pert <- Q + Matrix::Diagonal(ncel) * max(diag(Q)) * sqrt(.Machine$double.eps)
@@ -320,7 +323,7 @@ tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
             chains = 4,
-            iter = 8000,
+            iter = 10,
             cores = 4,
             pars = c('sigma', 'mu_sigma', 'sigma_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
@@ -328,15 +331,12 @@ fit <- stan(model_code = IAR_bym2,
 run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-# saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 
-#try 0.98 then fix sd of sigma
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_5k_aa99_ncp_E_virescens.rds'))
 
-# fit <- readRDS('IAR_stan_sigma_test2.rds')
-# pairs(fit, pars = c('mu_sigma', 'sigma_sigma', 'rho'))
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+# saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_5k_aa99_ncp_E_virescens.rds'))
 
 
 
@@ -367,8 +367,8 @@ saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_5k_aa99_ncp_E_virescens.rd
 
 options(max.print = 50000)
 sink(paste0('IAR_results_sigma_sigma.txt'))
-#sink(paste0('IAR_results_', args, '.txt'))
-#cat(paste0('IAR results ', args, ' \n'))
+sink(paste0('IAR_results_', args, '.txt'))
+cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 print(fit)
 sink()
@@ -539,8 +539,8 @@ for (i in 1:length(years))
 
 # Trace plots with PPO ----------------------------------------------------
 
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/test_sigma_sigma_model'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+
 
 #beta0[j] ~ normal(120, 10)
 #rho ~ beta(0.5, 0.5);
@@ -572,7 +572,7 @@ MCMCtrace(fit,
           filename = 'mu_sigma_trace.pdf')
 
 #sigma_sigma
-PR <- runif(10000, 0, 5)
+PR <- runif(10000, 0, 3)
 MCMCtrace(fit, 
           params = 'sigma_sigma',
           priors = PR,
