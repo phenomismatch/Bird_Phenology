@@ -20,7 +20,8 @@
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+#dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
