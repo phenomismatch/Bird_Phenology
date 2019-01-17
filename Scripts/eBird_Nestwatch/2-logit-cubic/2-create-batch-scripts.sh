@@ -4,9 +4,10 @@ while read name
 do
   temp="${name%\"}"
   temp="${temp#\"}"
+  DATE="2019-01-16"
   echo "#!/bin/bash
 
-#SBATCH --job-name=lc-$temp
+#SBATCH --job-name=lc-arr-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
@@ -15,20 +16,17 @@ do
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species/lc-$temp.out #STDOUT
-#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species/lc-$temp.err #STDERR
+#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE/lc-arr-$temp.out #STDOUT
+#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE/lc-arr-$temp.err #STDERR
 
 #echos name of node
 echo \`hostname\`
 
-#load R module
-module load R/3.5.1
+#load singularity module
+module load singularity/3.0.2
 
-#R library
-export R_LIBS=/home/CAM/cyoungflesh/R_libs
-
-#run R script - species arg
-Rscript 2-logit-cubic.R $temp
+#run R script using singularity - species arg
+singularity exec /home/CAM/cyoungflesh/R.sif Rscript /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/2-logit-cubic/2-logit-cubic.R $temp
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/2-$temp.sh"

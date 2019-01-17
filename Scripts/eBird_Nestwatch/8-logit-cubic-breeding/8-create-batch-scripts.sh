@@ -4,9 +4,10 @@ while read name
 do
   temp="${name%\"}"
   temp="${temp#\"}"
+  DATE="2019-01-16"
   echo "#!/bin/bash
 
-#SBATCH --job-name=lc-$temp
+#SBATCH --job-name=lc-br-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
@@ -15,8 +16,8 @@ do
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019-01-16/lc-$temp.out #STDOUT
-#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019-01-16/lc-$temp.err #STDERR
+#SBATCH -o /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_$DATE/lc-br-$temp.out #STDOUT
+#SBATCH -e /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_$DATE/lc-br-$temp.err #STDERR
 
 #echos name of node
 echo \`hostname\`

@@ -8,5 +8,5 @@ do
 #done < ../../../Data/IAR_species_list.txt
 done < ../../../Data/test_species_list.txt
 
-DATE=`date +%Y-%m-%d`
-cp 8-logit-cubic-breeding.R ../../../Data/Processed/halfmax_breeding_2019-01-16/8-logit-cubic-breeding-$DATE.R
+DATE="2019-01-16"
+cp 8-logit-cubic-breeding.R ../../../Data/Processed/halfmax_breeding_$DATE/8-logit-cubic-breeding-$DATE.R

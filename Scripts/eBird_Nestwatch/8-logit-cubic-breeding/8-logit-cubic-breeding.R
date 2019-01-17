@@ -93,6 +93,13 @@ predictDays3 <- scale(c(1:200)^3, scale = FALSE)
 newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
 
 
+#create dir for figs if doesn't exist
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/breeding_', RUN_DATE)), 
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/breeding_', RUN_DATE)), 
+       FALSE)
+
+setwd(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/breeding_', RUN_DATE))
+
 counter <- 1
 for (j in 1:nyr)
 {
@@ -166,7 +173,6 @@ for (j in 1:nyr)
       #PLOT MODEL FIT AND DATA
       
       #summary(fit2)
-      setwd(paste0(dir, 'Bird_Phenology/Results/Plots'))
       mn_dfit <- apply(dfit, 2, mean)
       LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
       UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
