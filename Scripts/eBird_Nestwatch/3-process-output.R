@@ -81,7 +81,7 @@ for (i in 1:nsp)
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
-  temp_halfmax <- readRDS(paste0('halfmax_matrix_list_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('halfmax_df_arrival_', species_list[i], '.rds'))
   
   if (i == 1)
   {
