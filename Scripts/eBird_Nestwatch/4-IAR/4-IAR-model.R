@@ -20,8 +20,8 @@
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/home/CAM/cyoungflesh/phenomismatch/'
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
@@ -53,6 +53,7 @@ library(maps)
 library(dplyr)
 library(dggridR)
 library(MCMCvis)
+#Also need to be installed, but not loaded: rgeos, maptools, mapproj
 
 
 
@@ -367,7 +368,6 @@ saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('IAR_results_sigma_sigma.txt'))
 sink(paste0('IAR_results_', args, '.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
@@ -419,11 +419,11 @@ nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
 
 #plotting species range
 nrng@data$id <- rownames(nrng@data)
-nrng.points <- fortify(nrng, region = "id")
+nrng.points <- ggplot2::fortify(nrng, region = "id")
 nrng.df <- plyr::join(nrng.points, nrng@data, by = "id")
 
 nrng_rm@data$id <- rownames(nrng_rm@data)
-nrng_rm.points <- fortify(nrng_rm, region = "id")
+nrng_rm.points <- ggplot2::fortify(nrng_rm, region = "id")
 nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 
