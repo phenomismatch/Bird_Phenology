@@ -199,7 +199,7 @@ for (j in 1:nyr)
 
 
 #save to rds object
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_arrival_', RUN_DATE))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
 saveRDS(halfmax_df, file = paste0('halfmax_df_arrival_', args, '.rds'))
 
 
