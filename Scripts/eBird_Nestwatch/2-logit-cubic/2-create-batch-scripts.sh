@@ -27,7 +27,7 @@ echo \`hostname\`
 #Rscript /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/2-logit-cubic/2-logit-cubic.R $temp
 
 #load singularity and run R script using singularity
-module load singularity 3.0.2
+module load singularity/3.0.2
 singularity exec /home/CAM/cyoungflesh/R.sif Rscript /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/2-logit-cubic/2-logit-cubic.R $temp
 
 #displays amount of memory used
