@@ -36,7 +36,7 @@ RUN_DATE <- '2019-01-16'
 #IAR input data (to get relevant cells)
 DATE_MA <- '2018-11-12'
 
-setwd(paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', DATE_MA))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', DATE_MA))
 df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
 
 
@@ -44,7 +44,7 @@ df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
 #read in ebird breeding code data
 DATE_BC <- '2019-01-15'
 
-setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', DATE_BC))
 temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', args, '.rds'))
 temp_master <- dplyr::filter(df_master, species == args)
 
