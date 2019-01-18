@@ -60,8 +60,8 @@ temp_master <- dplyr::filter(df_master, species == args)
 
 
 #model settings
-ITER <- 2500
-#ITER <- 10
+#ITER <- 2500
+ITER <- 10
 CHAINS <- 4
 
 

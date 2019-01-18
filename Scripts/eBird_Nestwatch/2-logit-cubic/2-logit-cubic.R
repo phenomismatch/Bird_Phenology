@@ -88,7 +88,7 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predi
 
 #number of iterations each model should be run
 #ITER <- 2500
-#ITER <- 10
+ITER <- 10
 CHAINS <- 4
 
 t_mat <- matrix(data = NA, nrow = ncel*nyr, ncol = ((ITER/2)*CHAINS))
