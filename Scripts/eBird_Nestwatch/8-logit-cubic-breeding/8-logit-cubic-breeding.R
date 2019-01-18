@@ -21,6 +21,14 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
+# model settings ----------------------------------------------------------
+
+#model settings
+ITER <- 2500
+#ITER <- 10
+CHAINS <- 4
+
+
 # get args ----------------------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -57,12 +65,6 @@ temp_master <- dplyr::filter(df_master, species == args)
 #C2 - breeding possible
 #C3 - breeding probable
 #C4 - breeding confirmed
-
-
-#model settings
-#ITER <- 2500
-ITER <- 10
-CHAINS <- 4
 
 
 #only cells that are in IAR input
