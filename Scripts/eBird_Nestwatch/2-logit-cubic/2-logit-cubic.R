@@ -34,6 +34,16 @@ db_dir <- 'db_query_2018-10-15'
 RUN_DATE <- '2019-01-16'
 
 
+
+# model settings ----------------------------------------------------------
+
+#number of iterations each model should be run
+ITER <- 2500
+#ITER <- 10
+CHAINS <- 4
+
+
+
 # runtime -----------------------------------------------------------------
 
 tt <- proc.time()
@@ -85,11 +95,6 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predi
 
 
 # fit logit cubic ---------------------------------------------------------
-
-#number of iterations each model should be run
-#ITER <- 2500
-ITER <- 10
-CHAINS <- 4
 
 t_mat <- matrix(data = NA, nrow = ncel*nyr, ncol = ((ITER/2)*CHAINS))
 colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
