@@ -22,7 +22,7 @@ echo `hostname`
 #load singularity and run R script using singularity
 module load singularity/3.0.2
 #singularity exec /home/CAM/cyoungflesh/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Euphagus_carolinus
-singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Euphagus_carolinus
+singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Euphagus_carolinus
 
 
 #displays amount of memory used
