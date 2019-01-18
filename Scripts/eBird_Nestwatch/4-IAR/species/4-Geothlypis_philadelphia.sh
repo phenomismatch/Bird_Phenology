@@ -15,15 +15,9 @@
 #echos name of node
 echo `hostname`
 
-#load R module (auto loads singularity and run script)
-#module load R/3.5.2
-#Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Geothlypis_philadelphia
-
 #load singularity and run R script using singularity
 module load singularity/3.0.2
-#singularity exec /home/CAM/cyoungflesh/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Geothlypis_philadelphia
 singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/4-IAR/4-IAR-model.R Geothlypis_philadelphia
-
 
 #displays amount of memory used
 sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
