@@ -326,7 +326,7 @@ fit <- stan(model_code = IAR_bym2,
             pars = c('sigma', 'mu_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
             control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
-run_time <- (proc.time() - tt[3]) / 60
+run_time <- (proc.time()[3] - tt[3]) / 60
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
