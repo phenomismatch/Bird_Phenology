@@ -221,4 +221,4 @@ setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
 saveRDS(halfmax_df, file = paste0('halfmax_df_breeding_', args, '.rds'))
 
 
-
+print('I completed!')

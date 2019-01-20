@@ -584,3 +584,7 @@ if ('Rplots.pdf' %in% list.files())
 {
   file.remove('Rplots.pdf')
 }
+
+
+print('I completed!')
+
