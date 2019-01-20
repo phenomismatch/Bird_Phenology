@@ -262,24 +262,22 @@ matrix[N, J] phi;                                     // spatial error component
 real<lower = 0> sigma_raw[J];                                // scaling factor for spatial and non-spatial components
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 real<lower = 0> mu_sigma_raw;
-real<lower = 0> sigma_sigma_raw;
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
 
 real<lower = 0> mu_sigma;
-real<lower = 0> sigma_sigma;
 real<lower = 0> sigma[J];
 
 matrix[N, J] convolved_re;                            // spatial and non-spatial component
 matrix[N, J] mu;                                      // latent true halfmax values
 
 mu_sigma = 3 * mu_sigma_raw;                          // non-centered parameterization
-sigma_sigma = 3 * sigma_sigma_raw;                    // non-centered parameterization
+
 for (j in 1:J)
 {
-  sigma[j] = mu_sigma + sigma_raw[j] * sigma_sigma;   // non-centered parameterization
+  sigma[j] = mu_sigma + sigma_raw[j] * 3;   // non-centered parameterization
 }
 
 for (j in 1:J)
@@ -305,12 +303,11 @@ for (j in 1:J)
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   theta[,j] ~ normal(0, 1);
   beta0[j] ~ normal(120, 10);
-  sigma_raw[j] ~ normal(0, 1); // implies sigma[j] ~ normal(mu_sigma, sigma_sigma)
+  sigma_raw[j] ~ normal(0, 1); // implies sigma[j] ~ normal(mu_sigma, 3)
 }
 
 rho ~ beta(0.5, 0.5);
 mu_sigma_raw ~ normal(0, 1); // implies mu_sigma ~ halfnormal(0, 3)
-sigma_sigma_raw ~ normal(0, 1); // implies sigma_sigma ~ halfnormal(0, 3)
 }'
 
 
@@ -324,9 +321,9 @@ tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
             chains = 4,
-            iter = 6000,
+            iter = 7000,
             cores = 4,
-            pars = c('sigma', 'mu_sigma', 'sigma_sigma', 
+            pars = c('sigma', 'mu_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
             control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
@@ -335,9 +332,6 @@ run_time <- (proc.time() - tt[3]) / 60
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 
-
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-# saveRDS(fit, file = paste0('IAR_stan_sigma_sigma_test_5k_aa99_ncp_E_virescens.rds'))
 
 
 
@@ -570,14 +564,6 @@ MCMCtrace(fit,
           priors = PR,
           open_pdf = FALSE,
           filename = 'trace_mu_sigma.pdf')
-
-#sigma_sigma
-PR <- runif(10000, 0, 3)
-MCMCtrace(fit, 
-          params = 'sigma_sigma',
-          priors = PR,
-          open_pdf = FALSE,
-          filename = 'trace_sigma_sigma.pdf')
 
 
 if ('Rplots.pdf' %in% list.files())
