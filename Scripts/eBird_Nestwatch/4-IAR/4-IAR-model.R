@@ -321,7 +321,7 @@ tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
             chains = 4,
-            iter = 7000,
+            iter = 8000,
             cores = 4,
             pars = c('sigma', 'mu_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
