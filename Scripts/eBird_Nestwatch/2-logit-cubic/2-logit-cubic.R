@@ -215,3 +215,5 @@ time <- proc.time() - tt
 rtime <- round(time[3]/60, 2)
 paste0('Runtime (minutes): ', rtime)
 
+
+print('I completed!')
