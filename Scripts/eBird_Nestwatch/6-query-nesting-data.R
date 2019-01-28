@@ -1,11 +1,12 @@
 ####################
-# 7 - query other nesting phenology data
+# 6 - query other nesting phenology data
 #
 # *eBird breeding codes - approx 7 hours
 #   -0 if not observed in that survey at all (independent of breeding code)
 #   -NA if observed but no breeding code recorded
 #   -letter code if observed and breeding code recorded
 # *MAPS observations
+# *Nestwatch
 # *MAPS data
 ####################
 
@@ -48,6 +49,9 @@ species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ",
 
 #combine species names into a single string with quotes
 SL <- paste0("'", species_list_i2, "'", collapse = ", ")
+
+
+
 
 
 # eBird breeding codes ----------------------------------------------------
@@ -439,7 +443,8 @@ if (length(m_sp2) > 0)
 # copy script to query folder for records ---------------------------------
 
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/7-query-nesting-data.R ', 
-              dir, 'Bird_Phenology/Data/', query_dir_path, '/7-query-nesting-data-', Sys.Date(), '.R'))
+              dir, 'Bird_Phenology/Data/', query_dir_path, 
+              '/7-query-nesting-data-', Sys.Date(), '.R'))
 
 
 proc.time() - tt
@@ -450,71 +455,74 @@ proc.time() - tt
 
 # counts for breeding codes -----------------------------------------------
 
-#IAR input data (to get relevant cells)
-DATE_MA <- '2018-11-12'
-
-setwd(paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', DATE_MA))
-df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
-
-nsp <- NROW(species_list_i)
-
-output_df <- data.frame()
-for (i in 1:nsp)
-{
-  #i <- 17
-  #read in ebird breeding code data
-  DATE_BC <- '2019-01-15'
-  
-  setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
-  temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
-  temp_master <- dplyr::filter(df_master, species == species_list_i[i,1])
-  
-  #only cells that are in IAR input
-  kp_cells <- unique(temp_master$cell)
-  temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
-  
-  #probable/confirmed
-  t_C34 <- dplyr::filter(temp_bc_f,
-                         bba_category == 'C3' |
-                           bba_category == 'C4')
-  
-  #how many C3/C4 obs for a given year
-  tt <- plyr::count(t_C34, vars = c('year'))
-  #how many C3/C4 obs for a given year/cell
-  cy <- plyr::count(t_C34, vars = c('cell', 'year'))
-  #filter by > 20 obs in cell
-  gr20 <- dplyr::filter(cy, freq > 20)
-  #how cells in each year have # C3/C4 obs > 20
-  nc_gr20 <- plyr::count(gr20[,1:2], vars = c('year'))
-  colnames(nc_gr20)[2] <- 'num_usable_cells'
-  #merge with number of C3/C4 obs
-  mrg <- dplyr::left_join(tt, nc_gr20, by = 'year')
-  colnames(mrg)[2] <- 'num_br_obs'
-  #merge with years
-  nn <- data.frame(year = 2002:2017)
-  mrg2 <- dplyr::left_join(nn, mrg, by = 'year')
-  #insert zeros for NA vals
-  to.z.use <- which(is.na(mrg2[,'num_usable_cells']))
-  mrg2[to.z.use, 'num_usable_cells'] <- 0
-  to.z.obs <- which(is.na(mrg2[,'num_br_obs']))
-  mrg2[to.z.obs, 'num_br_obs'] <- 0
-  
-  t_out <- data.frame(species = species_list_i[i,1], mrg2)
-  output_df <- rbind(output_df, t_out)
-}
-
-
-num_years <- aggregate(num_usable_cells ~ species, data = output_df, FUN = function(x) sum(x > 0))
-colnames(num_years)[2] <- 'num_years'
-
-summary_output_df <- aggregate(num_usable_cells ~ species, data = output_df, FUN = sum)
-colnames(summary_output_df)[2] <- 'num_cell_years'
-summary_output_df$num_years <- num_years[,'num_years']
-
-
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-write.csv(output_df, 'br_code_data_avail.csv', row.names = FALSE)
-write.csv(summary_output_df, 'summary_br_code_data_avail.csv', row.names = FALSE)
+# #IAR input data (to get relevant cells)
+# DATE_MA <- '2018-11-12'
+# 
+# setwd(paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', DATE_MA))
+# df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
+# 
+# nsp <- NROW(species_list_i)
+# 
+# DATE_BC <- '2019-01-28'
+# 
+# output_df <- data.frame()
+# for (i in 1:nsp)
+# {
+#   #i <- 17
+#   #read in ebird breeding code data
+#   
+#   setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
+#   temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
+#   temp_master <- dplyr::filter(df_master, species == species_list_i[i,1])
+#   
+#   #only cells that are in IAR input
+#   kp_cells <- unique(temp_master$cell)
+#   temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
+#   
+#   #probable/confirmed
+#   t_C34 <- dplyr::filter(temp_bc_f,
+#                          bba_category == 'C3' |
+#                            bba_category == 'C4')
+#   
+#   #how many C3/C4 obs for a given year
+#   tt <- plyr::count(t_C34, vars = c('year'))
+#   #how many C3/C4 obs for a given year/cell
+#   cy <- plyr::count(t_C34, vars = c('cell', 'year'))
+#   #filter by > 20 obs in cell
+#   gr20 <- dplyr::filter(cy, freq > 20)
+#   #how cells in each year have # C3/C4 obs > 20
+#   nc_gr20 <- plyr::count(gr20[,1:2], vars = c('year'))
+#   colnames(nc_gr20)[2] <- 'num_usable_cells'
+#   #merge with number of C3/C4 obs
+#   mrg <- dplyr::left_join(tt, nc_gr20, by = 'year')
+#   colnames(mrg)[2] <- 'num_br_obs'
+#   #merge with years
+#   nn <- data.frame(year = 2002:2017)
+#   mrg2 <- dplyr::left_join(nn, mrg, by = 'year')
+#   #insert zeros for NA vals
+#   to.z.use <- which(is.na(mrg2[,'num_usable_cells']))
+#   mrg2[to.z.use, 'num_usable_cells'] <- 0
+#   to.z.obs <- which(is.na(mrg2[,'num_br_obs']))
+#   mrg2[to.z.obs, 'num_br_obs'] <- 0
+#   
+#   t_out <- data.frame(species = species_list_i[i,1], mrg2)
+#   output_df <- rbind(output_df, t_out)
+# }
+# 
+# 
+# num_years <- aggregate(num_usable_cells ~ species, data = output_df, FUN = function(x) sum(x > 0))
+# colnames(num_years)[2] <- 'num_years'
+# 
+# summary_output_df <- aggregate(num_usable_cells ~ species, data = output_df, FUN = sum)
+# colnames(summary_output_df)[2] <- 'num_cell_years'
+# summary_output_df$num_years <- num_years[,'num_years']
+# 
+# 
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+# write.csv(output_df, paste0('br_code_data_avail-', 
+#                             DATE_BC, '.csv'), row.names = FALSE)
+# write.csv(summary_output_df, paste0('summary_br_code_data_avail-', 
+#                                     DATE_BC, '.csv'), row.names = FALSE)
 
 # #read in data
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
@@ -525,6 +533,9 @@ write.csv(summary_output_df, 'summary_br_code_data_avail.csv', row.names = FALSE
 #      main = 'eBird breeding code availability')
 # 
 # output_df <- read.csv('br_code_data_avail.csv')
+
+
+
 
 
 # MAPS obs ----------------------------------------------------------------
@@ -594,16 +605,224 @@ for (i in 1:NROW(st_rep))
   MAPS_mrg[tt,'DECLNG'] <- st_rep$LNG[i]
 }
 
+hexgrid6 <- dggridR::dgconstruct(res = 6) 
 MAPS_mrg$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
                                           in_lon_deg = MAPS_mrg$DECLNG, 
                                           in_lat_deg = MAPS_mrg$DECLAT)[[1]]
 
-#filter by species, get breeding date (breeding period in this case) for each year/cell
-
+#merge MAPS data with species codes
 setwd(paste0(dir, 'Bird_Phenology/Data/MAPS_Obs'))
-sp_codes <- read.csv('sp_4_letter_codes.csv')
+sp_codes <- read.csv('sp_4_letter_codes.csv', stringsAsFactors = FALSE)
+MAPS_mrg2 <- dplyr::left_join(MAPS_mrg, sp_codes, by = 'SPEC')
+
+
+#filter by species, get breeding date (breeding period in this case) for each year/cell
+na_reps <- rep(NA, NROW(unique(MAPS_mrg2[c('YR', 'cell', 'SCINAME')])))
+
+MAPS_out <- data.frame(YR = na_reps,
+                       cell = na_reps,
+                       SCINAME = na_reps,
+                       midpoint = na_reps,
+                       l_bounds = na_reps,
+                       u_bounds = na_reps,
+                       n_stations = na_reps)
+
+counter <- 1
+for (i in 1:length(species_list_i2))
+{
+  #i <- 2
+  temp <- dplyr::filter(MAPS_mrg2, SCINAME == species_list_i2[i])
+  if (NROW(temp) > 0)
+  {
+    
+    t_cell <- unique(temp$cell)
+    
+    for (j in 1:length(t_cell))
+    {
+      #j <- 4
+      temp2 <- dplyr::filter(temp, cell == t_cell[j])
+      t_yr <- unique(temp2$YR)
+      
+      for (k in 1:length(t_yr))
+      {
+        
+        print(paste0('species: ', species_list_i2[i],
+                     'cell: ', t_cell[j],
+                     'year: ', t_yr[k]))
+        
+        #k <- 12
+        temp3 <- dplyr::filter(temp2, YR == t_yr[k])
+        
+        #C = confirmed breeder
+        #P = probably breeder
+        #0 = observed
+        #- = not observed
+        
+        #input is 'MM-DD' (05-01)
+        #returns julian day
+        dfun <- function(input)
+        {
+          t_date_lb <- paste0(t_yr[k], '-', input)
+          t_j_lb <- format(as.Date(t_date_lb), '%j')
+          return(t_j_lb)
+        }
+        
+        PS1 <- dfun('05-01')
+        PS2 <- dfun('05-11')
+        PS3 <- dfun('05-21')
+        PS4 <- dfun('05-31')
+        PS5 <- dfun('06-10')
+        PS6 <- dfun('06-20')
+        PS7 <- dfun('06-30')
+        PS8 <- dfun('07-10')
+        PS9 <- dfun('07-20')
+        PS10 <- dfun('07-30')
+        PS11 <- dfun('08-09')
+        PS12 <- dfun('08-18')
+        
+        periods <- c(PS1, PS2, PS3, PS4, PS5, PS6, PS7, PS8, PS9, PS10, PS11, PS12)
+        
+        #from first observaton observed breeding in hex cell:
+        #input julian day if breeding
+        #input 0 if observed in the season but not breeding
+        #input NA if not observed at all
+        
+        cind <- grep('PS', colnames(temp3))
+        
+        #confirmed or possbile breeding for each station
+        cp_ind <- c()
+        ob_ind <- c()
+        no_ind <- c()
+        for (m in 1:NROW(temp3))
+        {
+          #m <- 1
+          cp_ind <- c(cp_ind, which(temp3[m,cind] == 'C' | temp3[m,cind] == 'P'))
+          ob_ind <- c(ob_ind, which(temp3[m,cind] == 'O'))
+          no_ind <- c(no_ind, which(temp3[m,cind] == '-'))
+        }
+        
+        if (length(cp_ind) > 0)
+        {
+          #lower bounds of period observed
+          first_br_obs_lb <- as.numeric(periods[min(cp_ind)])
+          #upper bounds of period observed
+          first_br_obs_ub <- first_br_obs_lb + 9
+          midpoint_br <- mean(c(first_br_obs_lb, first_br_obs_ub))
+        } else {
+          if (length(ob_ind) > 0)
+          {
+            first_br_obs_lb <- 0
+            first_br_obs_ub <- 0
+            midpoint_br <- 0
+          } else {
+            first_br_obs_lb <- NA
+            first_br_obs_ub <- NA
+            midpoint_br <- NA
+          }
+        }
+        
+        #column for midpoint breeding date
+        #column for lower bounds breeding date
+        #column for upper bounds breeding date
+        #column for cell
+        #column for year
+        #column for species SCI NAME (with underscore)
+        
+        t_info <- dplyr::select(temp3, YR, cell, SCINAME)[1,]
+        
+        t_info$SCINAME <- gsub(' ', '_', t_info$SCINAME)
+        
+        t_info$midpoint <- midpoint_br
+        t_info$l_bounds <- first_br_obs_lb
+        t_info$u_bounds <- first_br_obs_ub
+        t_info$n_stations <- NROW(temp3)
+        
+        MAPS_out[counter,] <- t_info
+        counter <- counter + 1
+      }
+    }
+  }
+}
+
+
+#remove NA padding (find first year row to have NA and subtract one from that index)
+fin_ind <- min(which(is.na(MAPS_out$YR)))
+MAPS_out2 <- MAPS_out[1:(fin_ind - 1),]
+
+#write to rds
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+saveRDS(MAPS_out, paste0('breeding_MAPS_obs-', Sys.Date()))
 
 
 
 
+
+# Process Nestwatch data ---------------------------------------------------------------
+
+#ebird specices codes
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
+
+ebird_tax <- read.csv('eBird_Taxonomy_v2018_14Aug2018.csv')
+ebird_tax2 <- dplyr::select(ebird_tax, SPECIES_CODE, PRIMARY_COM_NAME, SCI_NAME)
+#replace space with underscore
+ebird_tax2$SCI_NAME <- gsub(" ", "_", ebird_tax2$SCI_NAME)
+
+
+#nestwatch data
+setwd(paste0(dir, 'Bird_Phenology/Data/Nestwatch'))
+
+nw_data <- read.csv('Nestwatch_2018_1026.csv')
+
+#add grid cells
+nw_data$CELL <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+                                         in_lon_deg = nw_data$LONGITUDE, 
+                                         in_lat_deg = nw_data$LATITUDE)[[1]]
+
+#add year
+nw_data$YEAR <- substr(nw_data$PROJ_PERIOD_ID, start = 4, stop = 7)
+
+#merge with ebird taxonomy
+nw_data2 <- dplyr::left_join(nw_data, ebird_tax2, by = 'SPECIES_CODE')
+
+#only keep entries that have dates - convert to julian day
+nw_data2$FIRST_LAY_DT <- format(as.Date(substr(nw_data2$FIRST_LAY_DT, 1, 9), format = '%d%B%Y'), '%j')
+nw_data2$HATCH_DT <- format(as.Date(substr(nw_data2$HATCH_DT, 1, 9), format = '%d%B%Y'), '%j')
+nw_data2$FLEDGE_DT <- format(as.Date(substr(nw_data2$FLEDGE_DT, 1, 9), format = '%d%B%Y'), '%j')
+to.rm <- which(is.na(nw_data2$FIRST_LAY_DT))
+nw_data3 <- nw_data2[-to.rm, ]
+
+#filter by species used in IAR
+nw_data4 <- dplyr::filter(nw_data3, SCI_NAME %in% species_list_i[,1])
+
+#number of Nestwatch observations for each species
+plyr::count(nw_data4, 'SCI_NAME')
+
+
+species <- sort(unique(nw_data4$SCI_NAME))
+
+#determine if Nestwatch data is sufficicent for that species/year
+#combine nest watch data with IAR data
+nw_IAR <- data.frame()
+for (i in 1:length(species))
+{
+  #i <- 34
+  
+  #filter by species
+  sp <- species[i]
+  t_IAR <- dplyr::filter(IAR_data, species == sp)
+  t_nw <- dplyr::filter(nw_data4, SCI_NAME == sp)
+  
+  #for Nestwatch, only keep cell/years that are in the IAR data
+  #merge by multiple metrics
+  t_mrg <- left_join(t_nw, t_IAR, by = c('CELL' = 'cell', 'YEAR' = 'year'))
+  
+  #determine how many obs there are for each cell/year
+  t_nr <- plyr::count(t_nw, c('CELL', 'YEAR'))
+  
+  #make sure there are at least three data points per cell/year??
+  if (t_nr > 3)
+  {
+    #USE THOSE CELL/YEARS FOR THAT SPECIES
+  }
+}
 
