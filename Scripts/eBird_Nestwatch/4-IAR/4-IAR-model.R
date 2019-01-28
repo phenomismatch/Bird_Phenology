@@ -547,7 +547,7 @@ MCMCtrace(fit,
           params = 'beta0',
           priors = PR,
           open_pdf = FALSE,
-          filename = 'trace_beta0.pdf')
+          filename = paste0('trace_beta0_', args, '-', IAR_out_date, '.pdf'))
 
 #rho
 PR <- rbeta(10000, 0.5, 0.5)
@@ -555,7 +555,7 @@ MCMCtrace(fit,
           params = 'rho',
           priors = PR,
           open_pdf = FALSE,
-          filename = 'trace_rho.pdf')
+          filename = paste0('trace_rho_', args, '-', IAR_out_date, '.pdf'))
 
 #mu_sigma
 PR <- rnorm(10000, 0, 3)
@@ -563,7 +563,7 @@ MCMCtrace(fit,
           params = 'mu_sigma',
           priors = PR,
           open_pdf = FALSE,
-          filename = 'trace_mu_sigma.pdf')
+          filename = paste0('trace_mu_sigma_', args, '-', IAR_out_date, '.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
