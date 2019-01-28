@@ -1,5 +1,5 @@
 ####################
-# 6 - nesting date (from Nestwatch) ~ nesting date (from IAR model)
+# 9 - nesting date (from Nestwatch and others) ~ nesting date (from IAR model)
 #
 # *How well do arrival dates (as determined from the IAR model) predict nesting dates (as determined from Nestwatch)
 ####################
@@ -78,79 +78,6 @@ species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ",
 # create hex grid ---------------------------------------------------------
 
 hexgrid6 <- dggridR::dgconstruct(res = 6) 
-
-
-
-# Process Nestwatch data ---------------------------------------------------------------
-
-#ebird specices codes
-setwd(paste0(dir, 'Bird_Phenology/Data/'))
-
-ebird_tax <- read.csv('eBird_Taxonomy_v2018_14Aug2018.csv')
-ebird_tax2 <- dplyr::select(ebird_tax, SPECIES_CODE, PRIMARY_COM_NAME, SCI_NAME)
-#replace space with underscore
-ebird_tax2$SCI_NAME <- gsub(" ", "_", ebird_tax2$SCI_NAME)
-
-
-#nestwatch data
-setwd(paste0(dir, 'Bird_Phenology/Data/Nestwatch'))
-
-nw_data <- read.csv('Nestwatch_2018_1026.csv')
-
-#add grid cells
-nw_data$CELL <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                         in_lon_deg = nw_data$LONGITUDE, 
-                                         in_lat_deg = nw_data$LATITUDE)[[1]]
-
-#add year
-nw_data$YEAR <- substr(nw_data$PROJ_PERIOD_ID, start = 4, stop = 7)
-
-#merge with ebird taxonomy
-nw_data2 <- dplyr::left_join(nw_data, ebird_tax2, by = 'SPECIES_CODE')
-
-#only keep entries that have dates - convert to julian day
-nw_data2$FIRST_LAY_DT <- format(as.Date(substr(nw_data2$FIRST_LAY_DT, 1, 9), format = '%d%B%Y'), '%j')
-nw_data2$HATCH_DT <- format(as.Date(substr(nw_data2$HATCH_DT, 1, 9), format = '%d%B%Y'), '%j')
-nw_data2$FLEDGE_DT <- format(as.Date(substr(nw_data2$FLEDGE_DT, 1, 9), format = '%d%B%Y'), '%j')
-to.rm <- which(is.na(nw_data2$FIRST_LAY_DT))
-nw_data3 <- nw_data2[-to.rm, ]
-
-#filter by species used in IAR
-nw_data4 <- dplyr::filter(nw_data3, SCI_NAME %in% species_list_i[,1])
-
-#number of Nestwatch observations for each species
-plyr::count(nw_data4, 'SCI_NAME')
-
-
-species <- sort(unique(nw_data4$SCI_NAME))
-
-#determine if Nestwatch data is sufficicent for that species/year
-#combine nest watch data with IAR data
-nw_IAR <- data.frame()
-for (i in 1:length(species))
-{
-  #i <- 34
-
-  #filter by species
-  sp <- species[i]
-  t_IAR <- dplyr::filter(IAR_data, species == sp)
-  t_nw <- dplyr::filter(nw_data4, SCI_NAME == sp)
-  
-  #for Nestwatch, only keep cell/years that are in the IAR data
-  #merge by multiple metrics
-  t_mrg <- left_join(t_nw, t_IAR, by = c('CELL' = 'cell', 'YEAR' = 'year'))
-
-  #determine how many obs there are for each cell/year
-  t_nr <- plyr::count(t_nw, c('CELL', 'YEAR'))
-
-  #make sure there are at least three data points per cell/year??
-  if (t_nr > 3)
-  {
-    #USE THOSE CELL/YEARS FOR THAT SPECIES
-  }
-}
-
-
 
 
 
