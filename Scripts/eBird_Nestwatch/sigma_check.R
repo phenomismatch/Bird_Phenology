@@ -1,4 +1,4 @@
-
+#checks and compares IAR models using different parameteriations for sigma (scaling parameter for combined spatial and non-spatial random effects)
 
 
 # packages -----------------------------------------------------------------
