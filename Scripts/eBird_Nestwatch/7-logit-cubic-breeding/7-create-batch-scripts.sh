@@ -24,8 +24,8 @@ echo \`hostname\`
 
 #load singularity and run R script using singularity
 module load singularity/3.0.2
-singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/8-logit-cubic-breeding/8-logit-cubic-breeding.R $temp
+singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/7-logit-cubic-breeding/8-logit-cubic-breeding.R $temp
 
 #displays amount of memory used
-sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/8-$temp.sh"
+sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/7-$temp.sh"
 done < ../../../Data/IAR_species_list.txt
