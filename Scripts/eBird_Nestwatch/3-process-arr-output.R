@@ -151,12 +151,6 @@ for (i in 1:nsp)
         iter_ind <- grep('iter', colnames(tt_halfmax))
         halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
         
-        #convert to mcmc.list and calc n_eff and Rhat using coda (DIFFERENT THAN STAN ESTIMATES)
-        halfmax_mcmcList <- coda::mcmc.list(coda::as.mcmc(halfmax_posterior[1:500]), 
-                                            coda::as.mcmc(halfmax_posterior[501:1000]),
-                                            coda::as.mcmc(halfmax_posterior[1001:1500]), 
-                                            coda::as.mcmc(halfmax_posterior[1501:2000]))
-        
         #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
         diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
         #halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
