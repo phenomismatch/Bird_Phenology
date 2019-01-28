@@ -6,7 +6,7 @@
 #
 ######################
 
-#Run using bash - issue runningon cluster
+#Run using bash - issue running on cluster
 #awk -F'\t' '$6=="Contopus virens" {print $0}' ebd_relFeb-2018.txt > Contopus_virens.txt
 #awk -F'\t' '$11=="C3" || $11=="C4" {print $0}' Contopus_virens.txt > C34_Contopus_virens.txt
 
