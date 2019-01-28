@@ -646,8 +646,8 @@ for (i in 1:length(species_list_i2))
       for (k in 1:length(t_yr))
       {
         
-        print(paste0('species: ', species_list_i2[i],
-                     'cell: ', t_cell[j],
+        print(paste0('species: ', species_list_i2[i], ', ',
+                     'cell: ', t_cell[j], ', ',
                      'year: ', t_yr[k]))
         
         #k <- 12
@@ -745,13 +745,19 @@ for (i in 1:length(species_list_i2))
 }
 
 
+
 #remove NA padding (find first year row to have NA and subtract one from that index)
 fin_ind <- min(which(is.na(MAPS_out$YR)))
 MAPS_out2 <- MAPS_out[1:(fin_ind - 1),]
 
+
+#NA = station operating in that year/cell, but bird not observed
+#0 = station operating in that year/cell, bird observed, but not observed breeding
+#JDAY = station operating in that year/cell, bird observed breeding
+
 #write to rds
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-saveRDS(MAPS_out, paste0('breeding_MAPS_obs-', Sys.Date()))
+saveRDS(MAPS_out2, paste0('breeding_MAPS_obs_', Sys.Date(), '.rds'))
 
 
 
@@ -795,34 +801,60 @@ nw_data3 <- nw_data2[-to.rm, ]
 nw_data4 <- dplyr::filter(nw_data3, SCI_NAME %in% species_list_i[,1])
 
 #number of Nestwatch observations for each species
-plyr::count(nw_data4, 'SCI_NAME')
+#plyr::count(nw_data4, 'SCI_NAME')
 
 
 species <- sort(unique(nw_data4$SCI_NAME))
 
-#determine if Nestwatch data is sufficicent for that species/year
-#combine nest watch data with IAR data
-nw_IAR <- data.frame()
+na_reps <- rep(NA, NROW(unique(nw_data4[,c('SCI_NAME', 'YEAR', 'CELL')])))
+
+NW_df <- data.frame(SCI_NAME = na_reps, 
+                    YEAR = na_reps,
+                    CELL = na_reps,
+                    NUM_OBS = na_reps,
+                    MEAN_FIRST_HATCH = na_reps,
+                    SD_FIRST_HATCH = na_reps)
+
+counter <- 1
+#get metrics from nestwatch data
 for (i in 1:length(species))
 {
-  #i <- 34
+  #i <- 1
   
   #filter by species
   sp <- species[i]
-  t_IAR <- dplyr::filter(IAR_data, species == sp)
   t_nw <- dplyr::filter(nw_data4, SCI_NAME == sp)
   
-  #for Nestwatch, only keep cell/years that are in the IAR data
-  #merge by multiple metrics
-  t_mrg <- left_join(t_nw, t_IAR, by = c('CELL' = 'cell', 'YEAR' = 'year'))
-  
-  #determine how many obs there are for each cell/year
-  t_nr <- plyr::count(t_nw, c('CELL', 'YEAR'))
-  
-  #make sure there are at least three data points per cell/year??
-  if (t_nr > 3)
+  t_cell <- unique(t_nw$CELL)
+  for (j in 1:length(t_cell))
   {
-    #USE THOSE CELL/YEARS FOR THAT SPECIES
+    #j <- 1
+    t_nw2 <- dplyr::filter(t_nw, CELL == t_cell[j])
+    
+    t_yr <- unique(t_nw2$YEAR)
+    
+    for (k in 1:length(t_yr))
+    {
+      #k <- 2
+      t_nw3 <- dplyr::filter(t_nw2, YEAR == t_yr[k])
+      
+      NW_df[counter,] <- sp
+      NW_df[counter,'YEAR'] <- t_yr[k]
+      NW_df[counter,'CELL'] <- t_cell[j]
+      NW_df[counter,'NUM_OBS'] <- NROW(t_nw3)
+      NW_df[counter,'MEAN_FIRST_HATCH'] <- round(mean(as.numeric(t_nw3$FIRST_LAY_DT)), 3)
+      NW_df[counter,'SD_FIRST_HATCH'] <- round(sd(as.numeric(t_nw3$FIRST_LAY_DT)), 3)
+      counter <- counter + 1
+    }
   }
 }
+
+
+
+#NA for sd = only one obs
+#very large sd in observed lay date for a given cell/year
+
+#write to rds
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+saveRDS(NW_df, paste0('breeding_NW_', Sys.Date(), '.rds'))
 
