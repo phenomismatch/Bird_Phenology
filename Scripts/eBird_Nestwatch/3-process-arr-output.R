@@ -70,7 +70,7 @@ hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 
 # combine logit cubic results and diagnostic info -----------------------------------------------------------------
 
-counter <- 0
+counter <- 1
 for (i in 1:nsp)
 {
   #i <- 114
@@ -92,7 +92,7 @@ for (i in 1:nsp)
     #create data.frame to fill
     diagnostics_frame <- as.data.frame(matrix(data = NA, nrow = nsp*ncel*nyr, ncol = 18))
     names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
-                                  "nphen_bad", "min_n.eff", "max_Rhat", "sh_pv", "HM_mean", "HM_sd", "HM_LCI", 
+                                  "nphen_bad", "min_neff", "max_Rhat", "sh_pv", "HM_mean", "HM_sd", "HM_LCI", 
                                   "HM_UCI")
   }
   
@@ -106,12 +106,20 @@ for (i in 1:nsp)
     for (k in 1:ncel)
     {
       #k <- 1
-      counter <- counter + 1
+      
       diagnostics_frame$species[counter] <- species_list[i]
       diagnostics_frame$year[counter] <- years[j]
       diagnostics_frame$cell[counter] <- cells[k]
       
-      cysdata <- dplyr::filter(ysdata, cell6 == cells[k])
+      #filter presence/absence
+      cysdata <- dplyr::filter(ysdata, 
+                               cell6 == cells[k])
+      
+      #get model fits
+      tt_halfmax <- filter(temp_halfmax, 
+                           year == years[j], 
+                           cell == cells[k])
+      
       
       #number of surveys where species was detected
       diagnostics_frame$n1[counter] <- sum(cysdata$detect)
@@ -135,33 +143,28 @@ for (i in 1:nsp)
       #number of unique days with non-detection
       diagnostics_frame$njd0[counter] <- length(unique(cysdata$day[which(cysdata$detect == 0)]))
       
+        
+      diagnostics_frame$min_neff[counter] <- tt_halfmax$min_neff
+      diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
+      diagnostics_frame$sh_pv[counter] <- tt_halfmax$sh
+        
+      iter_ind <- grep('iter', colnames(tt_halfmax))
+      halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
       
-      if (diagnostics_frame$n1[counter] > 29 & 
-          diagnostics_frame$n1W[counter] < (diagnostics_frame$n1[counter] / 50) &
-          diagnostics_frame$n0[counter] > 29 &
-          diagnostics_frame$njd0i[counter] > 29 &
-          diagnostics_frame$njd1[counter] > 19)
+      #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
+      diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
+      #halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
+      
+      #calculate posterior mean and sd
+      if (sum(!is.na(halfmax_posterior)) > 0)
       {
-        tt_halfmax <- filter(temp_halfmax, year == years[j], cell = cells[k])
-        
-        diagnostics_frame$min_n.eff[counter] <- tt_halfmax$min_n_eff
-        diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
-        diagnostics_frame$sh_pv[counter] <- tt_halfmax$sh
-        
-        iter_ind <- grep('iter', colnames(tt_halfmax))
-        halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
-        
-        #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
-        diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
-        #halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
-        
-        #calculate posterior mean and sd
         diagnostics_frame$HM_mean[counter] <- mean(halfmax_posterior)
         diagnostics_frame$HM_sd[counter] <- sd(halfmax_posterior)
-        
         diagnostics_frame$HM_LCI[counter] <- quantile(halfmax_posterior, probs = 0.025)
         diagnostics_frame$HM_UCI[counter] <- quantile(halfmax_posterior, probs = 0.975)
       }
+      
+      counter <- counter + 1
     } # k -cell
   } # j - year
 } # i - species
