@@ -34,7 +34,7 @@
 
 #ALTERNATIVELY (breeding ~ arrival):
 #true_EB_breeding_date ~ N(master_breeding_date, sigma_EB)
-#mu_EB = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+#master_breeding_date = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
 
 #master_breeding_date ~ N(mu, sigma)
 #mu = alpha + beta * true_IAR_arrival_date
