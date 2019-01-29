@@ -136,7 +136,20 @@ for (j in 1:nyr)
     #number of detections that came before jday 60
     n1W <- sum(cyspdata$detect * as.numeric(cyspdata$day < 60))
     
-    if (n1 > 29 & n1W < (n1/50) & n0 > 29)
+    if (n1 > 0)
+    {
+      #number of non-detections before first detection
+      n0i <- length(which(cysdata$detect == 0 & 
+                            cysdata$day < min(cysdata$day[which(cysdata$detect == 1)])))
+      #number of unique days of non-detections before first detection
+      njd0i <- length(unique(cysdata$day[which(cysdata$detect == 0 & cysdata$day < 
+                                                 min(cysdata$day[which(cysdata$detect == 1)]))]))
+    } else {
+      njd0i <- 0
+      n0i <- 0
+    }
+    
+    if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     {
       fit2 <- rstanarm::stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
                        data = cyspdata,
