@@ -144,9 +144,19 @@ for (j in 1:nyr)
     
     #number of unique days with detections
     njd1 <- length(unique(t_cell2$day[which(t_cell2$br == 1)]))
+    
+    if (n1 > 1)
+    {
+      #number of unique days of non-detections before first detection
+      njd0i <- length(unique(t_cell2$day[which(t_cell2$br == 0 & t_cell2$day < 
+                                                 min(t_cell2$day[which(t_cell2$br == 1)]))]))
+    } else {
+      njd0i <- 0
+    }
+    
+    
     #number of unique days of non-detections before first detection
-    njd0i <- length(unique(t_cell2$day[which(t_cell2$br == 0 & t_cell2$day < 
-                                               min(t_cell2$day[which(t_cell2$br == 1)]))]))
+
     
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k, ', br obs: ', n1))
     
