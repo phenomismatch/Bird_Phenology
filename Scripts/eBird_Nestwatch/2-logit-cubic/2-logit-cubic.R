@@ -104,6 +104,13 @@ halfmax_df <- data.frame(species = args,
                          max_Rhat = NA,
                          min_neff = NA,
                          sh = NA,
+                         n1 = NA,
+                         n1W = NA,
+                         n0 = NA,
+                         n0i = NA,
+                         njd1 = NA,
+                         njd0 = NA,
+                         njd0i = NA,
                          t_mat)
 
 
@@ -135,15 +142,20 @@ for (j in 1:nyr)
     n0 <- sum(cyspdata$detect == 0)
     #number of detections that came before jday 60
     n1W <- sum(cyspdata$detect * as.numeric(cyspdata$day < 60))
+    #number of unique days with detections
+    njd1 <- length(unique(cyspdata$day[which(cyspdata$detect == 1)]))
+    #number of unique days with non-detection
+    njd0 <- length(unique(cyspdata$day[which(cyspdata$detect == 0)]))
+    
     
     if (n1 > 0)
     {
-      #number of non-detections before first detection
-      n0i <- length(which(cysdata$detect == 0 & 
-                            cysdata$day < min(cysdata$day[which(cysdata$detect == 1)])))
       #number of unique days of non-detections before first detection
       njd0i <- length(unique(cysdata$day[which(cysdata$detect == 0 & cysdata$day < 
                                                  min(cysdata$day[which(cysdata$detect == 1)]))]))
+      #number of non-detections before first detection
+      n0i <- length(which(cysdata$detect == 0 & 
+                            cysdata$day < min(cysdata$day[which(cysdata$detect == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
@@ -199,6 +211,14 @@ for (j in 1:nyr)
       dev.off()
 
       ########################
+      
+      halfmax_df$n1[counter] <- n1
+      halfmax_df$n1W[counter] <- n1W
+      halfmax_df$n0[counter] <- n0
+      halfmax_df$n0i[counter] <- n0i
+      halfmax_df$njd1[counter] <- njd1
+      halfmax_df$njd0[counter] <- njd0
+      halfmax_df$njd0i[counter] <- njd0i
       
       iter_ind <- grep('iter', colnames(halfmax_df))
       halfmax_df[counter,iter_ind] <- halfmax_fit

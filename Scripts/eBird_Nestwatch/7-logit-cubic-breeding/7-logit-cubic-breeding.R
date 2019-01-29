@@ -154,12 +154,11 @@ for (j in 1:nyr)
     njd0 <- length(unique(t_cell2$day[which(t_cell2$br == 0)]))
     
     
-    if (n1 > 1)
+    if (n1 > 0)
     {
       #number of unique days of non-detections before first detection
       njd0i <- length(unique(t_cell2$day[which(t_cell2$br == 0 & t_cell2$day < 
                                                  min(t_cell2$day[which(t_cell2$br == 1)]))]))
-      
       #number of non-detections before first detection
       n0i <- length(which(t_cell2$br == 0 & t_cell2$day < min(t_cell2$day[which(t_cell2$br == 1)])))
     } else {
