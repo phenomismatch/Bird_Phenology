@@ -89,23 +89,39 @@ for (i in 1:nsp)
     cells <- unique(spdata$cell6)
     ncel <- length(cells)
     
-    #create data.frame to fill
-    diagnostics_frame <- as.data.frame(matrix(data = NA, nrow = nsp*ncel*nyr, ncol = 18))
-    names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
-                                  "nphen_bad", "min_neff", "max_Rhat", "sh_pv", "HM_mean", "HM_sd", "HM_LCI", 
-                                  "HM_UCI")
+    na_reps <- rep(NA, nsp*ncel*nyr)
+      
+    diagnostics_frame <- data.frame(species = na_reps,
+                                cell = na_reps,
+                                year = na_reps,
+                                HM_mean = na_reps,
+                                HM_sd = na_reps,
+                                n1 = na_reps,
+                                n1W = na_reps,
+                                n0 = na_reps,
+                                n0i = na_reps,
+                                njd1 = na_reps,
+                                njd0 = na_reps,
+                                njd0i = na_reps,
+                                max_Rhat = na_reps,
+                                min_neff = na_reps,
+                                sh_pv = na_reps,
+                                nphen_bad = na_reps)
   }
   
   #loop through years
   for (j in 1:nyr)
   {
     #j <- 7
-    print(paste(i,j))
-    ysdata <- dplyr::filter(spdata, year == years[j])
-    
+
     for (k in 1:ncel)
     {
       #k <- 1
+      
+      print(paste0('species: ', species_list[i], ', ',
+                   'year: ', years[j], ', ',
+                   'cell: ', cells[k]))
+      
       
       diagnostics_frame$species[counter] <- species_list[i]
       diagnostics_frame$year[counter] <- years[j]
@@ -113,6 +129,7 @@ for (i in 1:nsp)
       
       #filter presence/absence
       cysdata <- dplyr::filter(ysdata, 
+                               year == years[j],
                                cell6 == cells[k])
       
       #get model fits
@@ -160,8 +177,6 @@ for (i in 1:nsp)
       {
         diagnostics_frame$HM_mean[counter] <- mean(halfmax_posterior)
         diagnostics_frame$HM_sd[counter] <- sd(halfmax_posterior)
-        diagnostics_frame$HM_LCI[counter] <- quantile(halfmax_posterior, probs = 0.025)
-        diagnostics_frame$HM_UCI[counter] <- quantile(halfmax_posterior, probs = 0.975)
       }
       
       counter <- counter + 1
