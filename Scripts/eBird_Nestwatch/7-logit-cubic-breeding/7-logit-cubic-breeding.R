@@ -85,6 +85,13 @@ halfmax_df <- data.frame(species = args,
                          max_Rhat = NA,
                          min_neff = NA,
                          sh = NA,
+                         n1 = NA,
+                         n1W = NA,
+                         n0 = NA,
+                         n0i = NA,
+                         njd1 = NA,
+                         njd0 = NA,
+                         njd0i = NA,
                          t_mat)
 
 
@@ -141,23 +148,26 @@ for (j in 1:nyr)
     
     #number of detections that came before jday 60
     n1W <- sum(t_cell2$br * as.numeric(t_cell2$day < 60))
-    
     #number of unique days with detections
     njd1 <- length(unique(t_cell2$day[which(t_cell2$br == 1)]))
+    #number of unique days with non-detection
+    njd0 <- length(unique(t_cell2$day[which(t_cell2$br == 0)]))
+    
     
     if (n1 > 1)
     {
       #number of unique days of non-detections before first detection
       njd0i <- length(unique(t_cell2$day[which(t_cell2$br == 0 & t_cell2$day < 
                                                  min(t_cell2$day[which(t_cell2$br == 1)]))]))
+      
+      #number of non-detections before first detection
+      n0i <- length(which(t_cell2$br == 0 & t_cell2$day < min(t_cell2$day[which(t_cell2$br == 1)])))
     } else {
       njd0i <- 0
+      n0i <- 0
     }
     
-    
-    #number of unique days of non-detections before first detection
 
-    
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k, ', br obs: ', n1))
     
     #different thresholds from arrival models
@@ -210,6 +220,16 @@ for (j in 1:nyr)
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
       ########################
+      
+      
+      halfmax_df$n1[counter] <- n1
+      halfmax_df$n1W[counter] <- n1W
+      halfmax_df$n0[counter] <- n0
+      halfmax_df$n0i[counter] <- n0i
+      halfmax_df$njd1[counter] <- njd1
+      halfmax_df$njd0[counter] <- njd0
+      halfmax_df$njd0i[counter] <- njd0i
+      
       
       iter_ind <- grep('iter', colnames(halfmax_df))
       halfmax_df[counter,iter_ind] <- halfmax_fit
