@@ -812,8 +812,8 @@ NW_df <- data.frame(SCI_NAME = na_reps,
                     YEAR = na_reps,
                     CELL = na_reps,
                     NUM_OBS = na_reps,
-                    MEAN_FIRST_HATCH = na_reps,
-                    SD_FIRST_HATCH = na_reps)
+                    MEAN_FIRST_LAY = na_reps,
+                    SD_FIRST_LAY = na_reps)
 
 counter <- 1
 #get metrics from nestwatch data
@@ -842,8 +842,8 @@ for (i in 1:length(species))
       NW_df[counter,'YEAR'] <- t_yr[k]
       NW_df[counter,'CELL'] <- t_cell[j]
       NW_df[counter,'NUM_OBS'] <- NROW(t_nw3)
-      NW_df[counter,'MEAN_FIRST_HATCH'] <- round(mean(as.numeric(t_nw3$FIRST_LAY_DT)), 3)
-      NW_df[counter,'SD_FIRST_HATCH'] <- round(sd(as.numeric(t_nw3$FIRST_LAY_DT)), 3)
+      NW_df[counter,'MEAN_FIRST_LAY'] <- round(mean(as.numeric(t_nw3$FIRST_LAY_DT)), 3)
+      NW_df[counter,'SD_FIRST_LAY'] <- round(sd(as.numeric(t_nw3$FIRST_LAY_DT)), 3)
       counter <- counter + 1
     }
   }
