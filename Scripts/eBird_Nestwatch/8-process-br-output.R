@@ -20,22 +20,17 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-db_dir <- 'db_query_2018-10-15'
-hm_dir <- 'halfmax_species_2018-10-16'
-
-
-# runtime -----------------------------------------------------------------
-
-tt <- proc.time()
-
+ebird_date <- '2019-01-16'
+bc_query_date <- '2019-01-15'
+NW_date <- '2019-01-28'
+MAPS_date <- '2019-01-28'
+db_query_dir <- 'db_query_2018-10-15'
 
 
 # Load packages -----------------------------------------------------------
 
 library(dplyr)
 library(dggridR)
-library(sp)
-library(INLA)
 
 
 # Set wd ------------------------------------------------------------------
@@ -46,7 +41,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 # import eBird species list -----------------------------------------------------
 
-species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
+species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
@@ -61,117 +56,194 @@ nyr <- length(years)
 #construct grid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
 
-#get boundaries of all cells over earth
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
-dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
-#read in grid
-hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 
 
-# combine logit cubic results and diagnostic info -----------------------------------------------------------------
+# read in NW and MAPS data ------------------------------------------------
 
-counter <- 0
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+
+NW_data <- readRDS(paste0('breeding_NW_', NW_date, '.rds'))
+MAPS_data <- readRDS(paste0('breeding_MAPS_obs_', MAPS_date, '.rds'))
+
+
+# create and fill df ------------------------------------------------------
+
+#read in ebird surveys to get full list of cells
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_query_dir))
+t_data <- readRDS(paste0('ebird_NA_phen_proc_', species_list[1], '.rds'))
+
+na_reps <- rep(NA, (nsp*nyr*length(unique(t_data$cell6))))
+rm(t_data)
+
+
+m_breeding_df <- data.frame(SPECIES = na_reps,
+                            CELL = na_reps,
+                            YEAR = na_reps,
+                            EB_HM_mean = na_reps,
+                            EB_HM_sd = na_reps,
+                            EB_HM_LCI = na_reps,
+                            EB_HM_UCI = na_reps,
+                            EB_n1 = na_reps,
+                            EB_n1W = na_reps,
+                            EB_n0 = na_reps,
+                            EB_n0i = na_reps,
+                            EB_njd1 = na_reps,
+                            EB_njd0 = na_reps,
+                            EB_njd0i = na_reps,
+                            EB_max_Rhat = na_reps,
+                            EB_min_neff = na_reps,
+                            EB_sh_pv = na_reps,
+                            EB_nphen_bad = na_reps,
+                            NW_mean_cid = na_reps,
+                            NW_sd_cid = na_reps,
+                            NW_num_obs = na_reps,
+                            MAPS_midpoint = na_reps,
+                            MAPS_l_bounds = na_reps,
+                            MAPS_u_bounds = na_reps,
+                            MAPS_n_stations = na_reps)
+
+counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 114
+  #i <- 1
   
-  #import presence absence ebird data for each specices
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
-  spdata <- readRDS(paste0('ebird_NA_phen_proc_', species_list[i], '.rds'))
+  #readin halfmax data
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', ebird_date))
+  temp_halfmax <- readRDS(paste0('halfmax_df_breeding_', species_list[i], '.rds'))
   
-  #import halfmax estimates and diagnostics from logit cubic model
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
-  temp_halfmax <- readRDS(paste0('halfmax_df_arrival_', species_list[i], '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', bc_query_date))
+  temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list[i], '.rds'))
   
-  if (i == 1)
-  {
-    #get number of unique cells
-    cells <- unique(spdata$cell6)
-    ncel <- length(cells)
-    
-    #create data.frame to fill
-    diagnostics_frame <- as.data.frame(matrix(data = NA, nrow = nsp*ncel*nyr, ncol = 18))
-    names(diagnostics_frame) <- c("species", "cell", "year", "n1", "n1W", "n0", "n0i", "njd1", "njd0", "njd0i",
-                                  "nphen_bad", "min_n.eff", "max_Rhat", "sh_pv", "HM_mean", "HM_sd", "HM_LCI", 
-                                  "HM_UCI")
-  }
+  cells <- unique(temp_halfmax$cell)
+  years <- unique(temp_halfmax$year)
+  nyr <- length(years)
+  ncell <- length(cells)
   
   #loop through years
   for (j in 1:nyr)
   {
-    #j <- 7
-    print(paste(i,j))
-    ysdata <- dplyr::filter(spdata, year == years[j])
+    #j <- 1
     
-    for (k in 1:ncel)
+    for (k in 1:ncell)
     {
       #k <- 1
-      counter <- counter + 1
-      diagnostics_frame$species[counter] <- species_list[i]
-      diagnostics_frame$year[counter] <- years[j]
-      diagnostics_frame$cell[counter] <- cells[k]
+      print(paste0('species: ', species_list[i], ', ',
+                   'year: ', years[j], ', ',
+                   'cell: ', cells[k]))
       
-      cysdata <- dplyr::filter(ysdata, cell6 == cells[k])
+      #####################
+      #ebird breeding codes
+      #####################
       
-      #number of surveys where species was detected
-      diagnostics_frame$n1[counter] <- sum(cysdata$detect)
-      #number of surveys where species was not detected
-      diagnostics_frame$n0[counter] <- sum(cysdata$detect == 0)
+      cysdata <- dplyr::filter(temp_bc, 
+                               year == years[j] & 
+                               cell == cells[k])
+      
+      tt_halfmax <- filter(temp_halfmax, 
+                           year == years[j], 
+                           cell == cells[k])
+      
+      #write species/cell/year data
+      m_breeding_df$SPECIES[counter] <- species_list[i]
+      m_breeding_df$CELL[counter] <- cells[k]
+      m_breeding_df$YEAR[counter] <- years[j]
+        
+      #add column with 1/0 breeding or not
+      cysdata$br <- as.numeric(cysdata$bba_category == 'C3' | cysdata$bba_category == 'C4')
+      
+      #bird not seen - fill with zeros
+      na.ind <- which(is.na(cysdata$br))
+      cysdata$br[na.ind] <- 0
+      
+      #number of surveys where breeding was detected (confirmed or probable)
+      m_breeding_df$EB_n1[counter] <- sum(cysdata$br)
+      #number of surveys where breeding was not detected (bird not seen breeding or not seen)
+      m_breeding_df$EB_n0[counter] <- sum(cysdata$br == 0)
       #number of detections that came before jday 60
-      diagnostics_frame$n1W[counter] <- sum(cysdata$detect*as.numeric(cysdata$day < 60))
-      
-      if (diagnostics_frame$n1[counter] > 0)
-      {
-        #number of non-detections before first detection
-        diagnostics_frame$n0i[counter] <- length(which(cysdata$detect == 0 & 
-                                                         cysdata$day < min(cysdata$day[which(cysdata$detect == 1)])))
-        #number of unique days with detections
-        diagnostics_frame$njd1[counter] <- length(unique(cysdata$day[which(cysdata$detect == 1)]))
-        #number of unique days of non-detections before first detection
-        diagnostics_frame$njd0i[counter] <- length(unique(cysdata$day[which(cysdata$detect == 0 & 
-                                                                              cysdata$day < min(cysdata$day[which(cysdata$detect == 1)]))]))
-      }
-      
+      m_breeding_df$EB_n1W[counter] <- sum(cysdata$br * as.numeric(cysdata$day < 60))
+      #number of unique days with detections
+      m_breeding_df$EB_njd1[counter] <- length(unique(cysdata$day[which(cysdata$br == 1)]))
       #number of unique days with non-detection
-      diagnostics_frame$njd0[counter] <- length(unique(cysdata$day[which(cysdata$detect == 0)]))
+      m_breeding_df$EB_njd0[counter] <- length(unique(cysdata$day[which(cysdata$br == 0)]))
       
       
-      if (diagnostics_frame$n1[counter] > 29 & 
-          diagnostics_frame$n1W[counter] < (diagnostics_frame$n1[counter] / 50) &
-          diagnostics_frame$n0[counter] > 29 &
-          diagnostics_frame$njd0i[counter] > 29 &
-          diagnostics_frame$njd1[counter] > 19)
+      if (m_breeding_df$EB_n1[counter] > 0)
       {
-        tt_halfmax <- filter(temp_halfmax, year == years[j], cell = cells[k])
-        
-        diagnostics_frame$min_n.eff[counter] <- tt_halfmax$min_n_eff
-        diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
-        diagnostics_frame$sh_pv[counter] <- tt_halfmax$sh
-        
-        iter_ind <- grep('iter', colnames(tt_halfmax))
-        halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
-        
-        #convert to mcmc.list and calc n_eff and Rhat using coda (DIFFERENT THAN STAN ESTIMATES)
-        halfmax_mcmcList <- coda::mcmc.list(coda::as.mcmc(halfmax_posterior[1:500]), 
-                                            coda::as.mcmc(halfmax_posterior[501:1000]),
-                                            coda::as.mcmc(halfmax_posterior[1001:1500]), 
-                                            coda::as.mcmc(halfmax_posterior[1501:2000]))
-        
-        #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
-        diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
-        #halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
-        
-        #calculate posterior mean and sd
-        diagnostics_frame$HM_mean[counter] <- mean(halfmax_posterior)
-        diagnostics_frame$HM_sd[counter] <- sd(halfmax_posterior)
-        
-        diagnostics_frame$HM_LCI[counter] <- quantile(halfmax_posterior, probs = 0.025)
-        diagnostics_frame$HM_UCI[counter] <- quantile(halfmax_posterior, probs = 0.975)
+        #number of unique days of non-detections before first detection
+        m_breeding_df$EB_njd0i[counter] <- length(unique(cysdata$day[which(cysdata$br == 0 & cysdata$day < 
+                                                                        min(cysdata$day[which(cysdata$br == 1)]))]))
+        #number of non-detections before first detection
+        m_breeding_df$EB_n0i[counter] <- length(which(cysdata$br == 0 & 
+                                                         cysdata$day < min(cysdata$day[which(cysdata$br == 1)])))
+      } else {
+        m_breeding_df$EB_njd0i[counter] <- 0
+        m_breeding_df$EB_n0i[counter] <- 0
       }
+      
+      m_breeding_df$EB_min_neff[counter] <- tt_halfmax$min_neff
+      m_breeding_df$EB_max_Rhat[counter] <- tt_halfmax$max_Rhat
+      m_breeding_df$EB_sh_pv[counter] <- tt_halfmax$sh
+        
+      iter_ind <- grep('iter', colnames(tt_halfmax))
+      halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
+      
+      #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
+      m_breeding_df$EB_nphen_bad[counter] <- sum(halfmax_posterior == 1)
+
+      #calculate posterior mean and sd
+      if (sum(!is.na(halfmax_posterior)) > 0)
+      {
+        m_breeding_df$EB_HM_mean[counter] <- mean(halfmax_posterior)
+        m_breeding_df$EB_HM_sd[counter] <- sd(halfmax_posterior)
+        m_breeding_df$EB_HM_LCI[counter] <- quantile(halfmax_posterior, probs = 0.025)
+        m_breeding_df$EB_HM_UCI[counter] <- quantile(halfmax_posterior, probs = 0.975)
+      }
+      
+      
+      ########
+      #NW data
+      ########
+      
+      t_NW <- dplyr::filter(NW_data, 
+                            CELL == cells[k],
+                            YEAR == years[j])
+      
+      if (NROW(t_NW) > 0)
+      {
+        m_breeding_df$NW_mean_cid[counter] <- t_NW$MEAN_FIRST_LAY
+        m_breeding_df$NW_sd_cid[counter] <- t_NW$SD_FIRST_LAY
+        m_breeding_df$NW_num_obs[counter] <- t_NW$NUM_OBS
+      }
+      
+      #########
+      #MAPS obs
+      #########
+
+      t_MAPS <- dplyr::filter(MAPS_data, 
+                            cell == cells[k],
+                            YR == years[j])
+      
+      if (NROW(t_MAPS) > 0)
+      {
+        m_breeding_df$MAPS_midpoint[counter] <- t_MAPS$midpoint
+        m_breeding_df$MAPS_l_bounds[counter] <- t_MAPS$l_bounds
+        m_breeding_df$MAPS_u_bounds[counter] <- t_MAPS$u_bounds
+        m_breeding_df$MAPS_n_stations[counter] <- t_MAPS$n_stations
+      }
+      
+      counter <- counter + 1
     } # k -cell
   } # j - year
 } # i - species
 
+
+
+
+
+
+
+
+#vvv OLD vvv
 
 #add 'meets criteria' column
 diagnostics_frame$MODEL <- NA
