@@ -206,7 +206,7 @@ data2$shr <- SHR
 # Construct geospatial hexagonal grid
 
 hexgrid6 <- dggridR::dgconstruct(res = 6) 
-data2$cell6 <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+data2$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
                                         in_lon_deg = data2$lng, 
                                         in_lat_deg = data2$lat)[[1]]
 
@@ -266,7 +266,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   
   sdata <- dplyr::select(data2, 
                          year, day, sjday, sjday2, 
-                         sjday3, shr, cell6, species_list_i[i,1])
+                         sjday3, shr, cell, species_list_i[i,1])
   
   names(sdata)[8] <- "detect"
   sdata['species'] <- species_list_i[i,1]
@@ -335,7 +335,7 @@ for (i in 1:length(m_sp2))
   
   sdata <- dplyr::select(data2, 
                          year, day, sjday, sjday2, 
-                         sjday3, shr, cell6, m_sp2[i])
+                         sjday3, shr, cell, m_sp2[i])
   
   names(sdata)[8] <- "detect"
   sdata['species'] <- m_sp2[i]
