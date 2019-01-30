@@ -81,7 +81,6 @@ m_breeding_df <- data.frame(SPECIES = na_reps,
                             EB_njd0i = na_reps,
                             EB_max_Rhat = na_reps,
                             EB_min_neff = na_reps,
-                            EB_sh_pv = na_reps,
                             EB_nphen_bad = na_reps,
                             NW_mean_cid = na_reps,
                             NW_sd_cid = na_reps,
@@ -103,19 +102,19 @@ for (i in 1:nsp)
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', bc_query_date))
   temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list[i], '.rds'))
   
-  cells <- unique(temp_halfmax$cell)
-  years <- unique(temp_halfmax$year)
+  cells <- sort(unique(temp_halfmax$cell))
+  years <- sort(unique(temp_halfmax$year))
   nyr <- length(years)
   ncell <- length(cells)
   
   #loop through years
   for (j in 1:nyr)
   {
-    #j <- 1
+    #j <- 17
     
     for (k in 1:ncell)
     {
-      #k <- 1
+      #k <- 35
       print(paste0('species: ', species_list[i], ', ',
                    'year: ', years[j], ', ',
                    'cell: ', cells[k]))
@@ -171,10 +170,9 @@ for (i in 1:nsp)
       
       m_breeding_df$EB_min_neff[counter] <- tt_halfmax$min_neff
       m_breeding_df$EB_max_Rhat[counter] <- tt_halfmax$max_Rhat
-      m_breeding_df$EB_sh_pv[counter] <- tt_halfmax$sh
       
       iter_ind <- grep('iter', colnames(tt_halfmax))
-      halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
+      halfmax_posterior <- as.numeric(tt_halfmax[,iter_ind])
       
       #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
       m_breeding_df$EB_nphen_bad[counter] <- sum(halfmax_posterior == 1)
@@ -192,7 +190,7 @@ for (i in 1:nsp)
       ########
       
       t_NW <- dplyr::filter(NW_data, 
-                            SCI_NAME = species_list[i],
+                            SCI_NAME == species_list[i],
                             CELL == cells[k],
                             YEAR == years[j])
       
@@ -208,7 +206,7 @@ for (i in 1:nsp)
       #########
 
       t_MAPS <- dplyr::filter(MAPS_data, 
-                              SCINAME = species_list[i], 
+                              SCINAME == species_list[i], 
                               cell == cells[k],
                               YR == years[j])
       
@@ -224,9 +222,10 @@ for (i in 1:nsp)
     } # k -cell
   } # j - year
 } # i - species
+tail(m_breeding_df)
 
-head(m_breeding_df)
 
+m_breeding_df[which(!is.na(m_breeding_df$EB_HM_mean)),]
 #vvv OLD vvv
 
 
@@ -247,7 +246,7 @@ MAPS_out2 <- MAPS_out[1:(fin_ind - 1),]
 
 #write to rds
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-saveRDS(MAPS_out2, paste0('breeding_master_', Sys.Date(), '.rds'))
+saveRDS(m_breeding_df, paste0('temp_breeding_master_', Sys.Date(), '.rds'))
 
 
 
