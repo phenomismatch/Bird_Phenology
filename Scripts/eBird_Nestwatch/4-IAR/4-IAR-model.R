@@ -29,7 +29,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 db_dir <- 'db_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
 IAR_in_dir <- 'IAR_input_2018-11-12'
-IAR_out_dir <- 'IAR_output_2019-01-16'
+IAR_out_dir <- 'IAR_output_2019-01-16-supp'
 
 #create output dir if it doesn't exist - need to create before running script bc STD out and STD error are written there
 # ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
@@ -312,6 +312,10 @@ mu_sigma_raw ~ normal(0, 1); // implies mu_sigma ~ halfnormal(0, 3)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
+MAX_TREE = 20
+ADAPT_DELTA = 0.9
+#STEP_SIZE = 0.005
+
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
@@ -320,7 +324,7 @@ fit <- stan(model_code = IAR_bym2,
             cores = 4,
             pars = c('sigma', 'mu_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
+            control = list(max_treedepth = MAX_TREE, adapt_delta = ADAPT_DELTA))#, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 #save to RDS
@@ -359,8 +363,12 @@ options(max.print = 50000)
 sink(paste0('IAR_results_', args, '.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Max tree depth: ', MAX_TREE, ' \n'))
+cat(paste0('Adapt delta: ', ADAPT_DELTA, ' \n'))
+#cat(paste0('Step size: ', STEP_SIZE, ' \n'))
 print(fit)
 sink()
+
 
 
 
