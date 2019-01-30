@@ -33,6 +33,7 @@ CHAINS <- 4
 
 args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
+#args <- 'Agelaius_phoeniceus'
 
 RUN_DATE <- '2019-01-16'
 
@@ -71,10 +72,10 @@ temp_master <- dplyr::filter(df_master, species == args)
 kp_cells <- unique(temp_master$cell)
 temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
 
-yrs <- unique(temp_bc_f$year)
+yrs <- sort(unique(temp_bc_f$year))
 nyr <- length(yrs)
 
-cells <- unique(temp_bc_f$cell)
+cells <- sort(unique(temp_bc_f$cell))
 ncell <- length(cells)
 
 t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
@@ -84,7 +85,6 @@ halfmax_df <- data.frame(species = args,
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
-                         sh = NA,
                          n1 = NA,
                          n1W = NA,
                          n0 = NA,
@@ -112,12 +112,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/breeding_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 13
+  #j <- 14
   t_yr <- dplyr::filter(temp_bc_f, year == yrs[j])
   
   for (k in 1:ncell)
   {
-    #k <- 44
+    #k <- 32
     t_cell <- dplyr::filter(t_yr, cell == cells[k])
     
     #new column with 'probable' or 'confirmed' breeding
@@ -234,12 +234,6 @@ for (j in 1:nyr)
       halfmax_df[counter,iter_ind] <- halfmax_fit
       halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
       halfmax_df$min_neff[counter] <- min(summary(fit2)[, "n_eff"])
-      if (var(halfmax_fit) != 0)
-      {
-        halfmax_df$sh[counter] <- round(shapiro.test(halfmax_fit)$p.value, 2)
-      } else {
-        halfmax_df$sh[counter] <- NA
-      }
     }
     counter <- counter + 1
   } #k
