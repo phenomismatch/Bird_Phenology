@@ -14,7 +14,7 @@
 dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/home/CAM/cyoungflesh/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
@@ -35,7 +35,6 @@ tt <- proc.time()
 library(dplyr)
 library(dggridR)
 library(sp)
-library(INLA)
 
 
 # Set wd ------------------------------------------------------------------
@@ -86,10 +85,10 @@ for (i in 1:nsp)
   if (i == 1)
   {
     #get number of unique cells
-    cells <- sort(unique(spdata$cell6))
-    ncel <- length(cells)
+    cells <- sort(unique(spdata$cell))
+    ncell <- length(cells)
     
-    na_reps <- rep(NA, nsp*ncel*nyr)
+    na_reps <- rep(NA, nsp*ncell*nyr)
       
     diagnostics_frame <- data.frame(species = na_reps,
                                 cell = na_reps,
@@ -113,7 +112,7 @@ for (i in 1:nsp)
   {
     #j <- 7
 
-    for (k in 1:ncel)
+    for (k in 1:ncell)
     {
       #k <- 1
       
@@ -129,7 +128,7 @@ for (i in 1:nsp)
       #filter presence/absence
       cysdata <- dplyr::filter(ysdata, 
                                year == years[j],
-                               cell6 == cells[k])
+                               cell == cells[k])
       
       #get model fits
       tt_halfmax <- filter(temp_halfmax, 
@@ -336,74 +335,6 @@ for (i in 1:length(species_list))
 #order diagnostics frame by species, year, and cell #
 df_master <- df_out[with(df_out, order(species, year, cell)),]
 
-#create scaling factor column
-df_master$scaling_factor <- NA
-
-
-# add scaling factor to df ------------------------------------------------
-
-for (k in 1:length(species_list))
-{
-  #filter by species
-  f_in <- dplyr::filter(df_master, species == species_list[k])
-
-  #filter by year
-  f_out <- f_in[which(f_in$MODEL == TRUE),]
-
-  #define cells and years to be modeled
-  cells <- unique(f_out$cell)
-  years <- unique(f_out$year)
-  nyr <- length(years)
-  ncel <- length(cells)
-
-  # create adjacency matrix
-  #make hexgrid
-  hexgrid6 <- dggridR::dgconstruct(res = 6)
-
-  #get hexgrid cell centers
-  cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
-
-  #create adjacency matrix - 1 if adjacent to cell, 0 if not
-  adjacency_matrix <- matrix(data = NA, nrow = length(cells), ncol = length(cells))
-
-  for (i in 1:length(cells))
-  {
-    #i <- 1
-    for (j in i:length(cells))
-    {
-      #j <- 4
-      dists <- geosphere::distm(c(cellcenters$lon_deg[i], cellcenters$lat_deg[i]),
-                                c(cellcenters$lon_deg[j], cellcenters$lat_deg[j]))
-      adjacency_matrix[i,j] <- as.numeric((dists/1000) > 0 & (dists/1000) < 311)
-    }
-  }
-
-  #indices for 1s
-  ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
-
-  # Estimate scaling factor for BYM2 model with INLA
-  #Build the adjacency matrix using INLA library functions
-  adj.matrix <- Matrix::sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
-
-  #The IAR precision matrix (note! This is singular)
-  Q <- Matrix::Diagonal(ncel, Matrix::rowSums(adj.matrix)) - adj.matrix
-  #Add a small jitter to the diagonal for numerical stability (optional but recommended)
-  Q_pert <- Q + Matrix::Diagonal(ncel) * max(diag(Q)) * sqrt(.Machine$double.eps)
-
-  # Compute the diagonal elements of the covariance matrix subject to the 
-  # constraint that the entries of the ICAR sum to zero.
-  # See the inla.qinv function help for further details.
-  Q_inv <- INLA::inla.qinv(Q_pert, 
-                           constr = list(A = matrix(1, 1, ncel), e = 0))
-
-  #Compute the geometric mean of the variances, which are on the diagonal of Q.inv
-  scaling_factor <- exp(mean(log(diag(Q_inv))))
-  
-  t_sc_ind <- which(df_master$species == species_list[k])
-  df_master$scaling_factor[t_sc_ind] <- scaling_factor
-}
-
-
 
 # write to RDS --------------------------------------------------
 
@@ -426,12 +357,6 @@ write.table(species_tm, file = 'IAR_species_list.txt', row.names = FALSE, col.na
 
 
 
-
-
-
-
-
-
 # create dfs that show # cells with data in each year/species, and # years with data in each cell/species -----------------
 
 #create vector of year names
@@ -443,7 +368,7 @@ for (i in min(years):max(years))
 
 #create vector of cell names
 cell_vec <- c()
-for (i in 1:ncel)
+for (i in 1:ncell)
 {
   cell_vec <- c(cell_vec, paste0('cell_', cells[i]))
 }
@@ -468,7 +393,7 @@ for (i in 1:nsp)
 {
   #i <- 80
   
-  for (k in 1:ncel)
+  for (k in 1:ncell)
   {
     #k <- 30
     t_cell <- dplyr::filter(diagnostics_frame, species == species_list[i], cell == cells[k])
@@ -514,7 +439,7 @@ saveRDS(yrs_frame, paste0('yrs_frame-', Sys.Date(), '.rds'))
 
 # explore data ------------------------------------------------------------
 
-aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
-aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
+# aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
+# aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
 
 

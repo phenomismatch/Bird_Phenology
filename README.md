@@ -12,6 +12,10 @@ For transfer FROM Xanadu use:
 
 `scp -r USER_NAME@transfer.cam.uchc.edu:SOURCE/PATH ~/DESTINATION/PATH`
 
+To check for divergences (or other cluster issues) in STDERR:
+
+`grep WORD *.err -lR`
+
 Repository structure:
 
 * `Data/` - Datasets relevant for project (consider using [Piggyback](https://cran.r-project.org/web/packages/piggyback/vignettes/intro.html))

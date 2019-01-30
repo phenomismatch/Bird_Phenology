@@ -72,8 +72,8 @@ temp_master <- dplyr::filter(df_master, species == args)
 kp_cells <- unique(temp_master$cell)
 temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
 
-yrs <- sort(unique(temp_bc_f$year))
-nyr <- length(yrs)
+years <- sort(unique(temp_bc_f$year))
+nyr <- length(years)
 
 cells <- sort(unique(temp_bc_f$cell))
 ncell <- length(cells)
@@ -81,7 +81,7 @@ ncell <- length(cells)
 t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
 colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
 halfmax_df <- data.frame(species = args, 
-                         year = rep(yrs, each = ncell), 
+                         year = rep(years, each = ncell), 
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
@@ -113,7 +113,7 @@ counter <- 1
 for (j in 1:nyr)
 {
   #j <- 14
-  t_yr <- dplyr::filter(temp_bc_f, year == yrs[j])
+  t_yr <- dplyr::filter(temp_bc_f, year == years[j])
   
   for (k in 1:ncell)
   {
@@ -201,10 +201,10 @@ for (j in 1:nyr)
       LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
       
-      pdf(paste0(args, '_', yrs[j], '_', cells[k], '_breeding.pdf'))
+      pdf(paste0(args, '_', years[j], '_', cells[k], '_breeding.pdf'))
       plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
-           main = paste0(args, ' - ', yrs[j], ' - ', cells[k]),
+           main = paste0(args, ' - ', years[j], ' - ', cells[k]),
            xlab = 'Julian Day', ylab = 'Detection Probability')
       lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(mn_dfit, lwd = 2)

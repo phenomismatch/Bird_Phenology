@@ -85,16 +85,11 @@ f_in <- dplyr::filter(df_master, species == args)
 #filter by year
 f_out <- f_in[which(f_in$MODEL == TRUE),]
 
-#explore filter for good data
-sum(f_out$min_n.eff < 400, na.rm = TRUE)
-sum(f_out$max_Rhat > 1.1, na.rm = TRUE)
-sum(f_out$nphen_bad > 100, na.rm = TRUE)
-
 #define cells and years to be modeled
 cells <- unique(f_out$cell)
 years <- unique(f_out$year)
 nyr <- length(years)
-ncel <- length(cells)
+ncell <- length(cells)
 
 
 # filter cells ------------------------------------------------------------
@@ -140,15 +135,15 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 adj.matrix <- Matrix::sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
 
 #The IAR precision matrix (note! This is singular)
-Q <- Matrix::Diagonal(ncel, Matrix::rowSums(adj.matrix)) - adj.matrix
+Q <- Matrix::Diagonal(ncell, Matrix::rowSums(adj.matrix)) - adj.matrix
 #Add a small jitter to the diagonal for numerical stability (optional but recommended)
-Q_pert <- Q + Matrix::Diagonal(ncel) * max(diag(Q)) * sqrt(.Machine$double.eps)
+Q_pert <- Q + Matrix::Diagonal(ncell) * max(diag(Q)) * sqrt(.Machine$double.eps)
 
 # Compute the diagonal elements of the covariance matrix subject to the 
 # constraint that the entries of the ICAR sum to zero.
 # See the inla.qinv function help for further details.
 Q_inv <- INLA::inla.qinv(Q_pert, 
-                         constr = list(A = matrix(1, 1, ncel), e = 0))
+                         constr = list(A = matrix(1, 1, ncell), e = 0))
 
 #Compute the geometric mean of the variances, which are on the diagonal of Q.inv
 scaling_factor <- exp(mean(log(diag(Q_inv))))
@@ -158,16 +153,16 @@ scaling_factor <- exp(mean(log(diag(Q_inv))))
 # create Stan data object -------------------------------------------------
 
 #create and fill sds and obs
-sigma_y_in <- matrix(nrow = ncel, ncol = nyr)
-y_obs_in <- matrix(nrow = ncel, ncol = nyr)
+sigma_y_in <- matrix(nrow = ncell, ncol = nyr)
+y_obs_in <- matrix(nrow = ncell, ncol = nyr)
 
 #number of observation and NAs for each year
 len_y_obs_in <- rep(NA, nyr)
 len_y_mis_in <- rep(NA, nyr)
 
 #indices for observed and missing
-ii_obs_in <- matrix(NA, nrow = ncel, ncol = nyr)
-ii_mis_in <- matrix(NA, nrow = ncel, ncol = nyr)
+ii_obs_in <- matrix(NA, nrow = ncell, ncol = nyr)
+ii_mis_in <- matrix(NA, nrow = ncell, ncol = nyr)
 
 for (j in 1:nyr)
 {
@@ -181,9 +176,9 @@ for (j in 1:nyr)
   no_na <- temp_yr$HM_mean[which(!is.na(temp_yr$HM_mean))]
   
   #pad end with NAs
-  if (length(no_na) < ncel)
+  if (length(no_na) < ncell)
   {
-    num_na <- ncel - length(no_na)
+    num_na <- ncell - length(no_na)
     
     #add NAs to end
     t_y_obs_in <- c(no_na, rep(NA, num_na))
@@ -203,7 +198,7 @@ for (j in 1:nyr)
   
   #length of data/miss for each year
   len_y_obs_in[j] <- length(no_na)
-  len_y_mis_in[j] <- ncel - length(no_na)
+  len_y_mis_in[j] <- ncell - length(no_na)
 }
 
 
@@ -217,7 +212,7 @@ ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
 
 #create data list for Stan
 DATA <- list(J = nyr,
-             N = ncel, 
+             N = ncell, 
              N_obs = len_y_obs_in,
              N_mis = len_y_mis_in,
              N_edges = nrow(ninds), 
