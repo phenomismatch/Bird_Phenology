@@ -86,7 +86,7 @@ for (i in 1:nsp)
   if (i == 1)
   {
     #get number of unique cells
-    cells <- unique(spdata$cell6)
+    cells <- sort(unique(spdata$cell6))
     ncel <- length(cells)
     
     na_reps <- rep(NA, nsp*ncel*nyr)
@@ -105,7 +105,6 @@ for (i in 1:nsp)
                                 njd0i = na_reps,
                                 max_Rhat = na_reps,
                                 min_neff = na_reps,
-                                sh_pv = na_reps,
                                 nphen_bad = na_reps)
   }
   
@@ -139,34 +138,25 @@ for (i in 1:nsp)
       
       
       #number of surveys where species was detected
-      diagnostics_frame$n1[counter] <- sum(cysdata$detect)
+      diagnostics_frame$n1[counter] <- n1
       #number of surveys where species was not detected
-      diagnostics_frame$n0[counter] <- sum(cysdata$detect == 0)
+      diagnostics_frame$n0[counter] <- n0
       #number of detections that came before jday 60
-      diagnostics_frame$n1W[counter] <- sum(cysdata$detect*as.numeric(cysdata$day < 60))
-      
-      if (diagnostics_frame$n1[counter] > 0)
-      {
-        #number of non-detections before first detection
-        diagnostics_frame$n0i[counter] <- length(which(cysdata$detect == 0 & 
-                                                         cysdata$day < min(cysdata$day[which(cysdata$detect == 1)])))
-        #number of unique days with detections
-        diagnostics_frame$njd1[counter] <- length(unique(cysdata$day[which(cysdata$detect == 1)]))
-        #number of unique days of non-detections before first detection
-        diagnostics_frame$njd0i[counter] <- length(unique(cysdata$day[which(cysdata$detect == 0 & 
-                                                                              cysdata$day < min(cysdata$day[which(cysdata$detect == 1)]))]))
-      }
-      
+      diagnostics_frame$n1W[counter] <- n1W
+      #number of non-detections before first detection
+      diagnostics_frame$n0i[counter] <- n0i
+      #number of unique days with detections
+      diagnostics_frame$njd1[counter] <- njd1
       #number of unique days with non-detection
-      diagnostics_frame$njd0[counter] <- length(unique(cysdata$day[which(cysdata$detect == 0)]))
-      
+      diagnostics_frame$njd0[counter] <- njd0
+      #number of unique days of non-detections before first detection
+      diagnostics_frame$njd0i[counter] <- njd0i
         
       diagnostics_frame$min_neff[counter] <- tt_halfmax$min_neff
       diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
-      diagnostics_frame$sh_pv[counter] <- tt_halfmax$sh
         
       iter_ind <- grep('iter', colnames(tt_halfmax))
-      halfmax_posterior <- as.vector(tt_halfmax[,iter_ind])
+      halfmax_posterior <- as.numeric(tt_halfmax[,iter_ind])
       
       #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
       diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
