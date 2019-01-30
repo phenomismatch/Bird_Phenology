@@ -30,7 +30,6 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # db query dir ------------------------------------------------------------
 
 db_dir <- 'db_query_2018-10-15'
-
 RUN_DATE <- '2019-01-16'
 
 
@@ -75,8 +74,8 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
 #import data for species
 spdata <- readRDS(paste0('ebird_NA_phen_proc_', args, '.rds'))
 
-cells <- unique(spdata$cell6)
-ncel <- length(cells)
+cells <- sort(unique(spdata$cell))
+ncell <- length(cells)
 
 years <- min(spdata$year):max(spdata$year)
 nyr <- length(years)
@@ -96,10 +95,10 @@ newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predi
 
 # fit logit cubic ---------------------------------------------------------
 
-t_mat <- matrix(data = NA, nrow = ncel*nyr, ncol = ((ITER/2)*CHAINS))
+t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
 colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
 halfmax_df <- data.frame(species = args, 
-                         year = rep(years, each = ncel), 
+                         year = rep(years, each = ncell), 
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
@@ -128,12 +127,12 @@ for (j in 1:nyr)
   #j <- 1
   yspdata <- spdata[which(spdata$year == years[j]), ]
   
-  for (k in 1:ncel)
+  for (k in 1:ncell)
   {
     #k <- 8
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
-    cyspdata <- yspdata[which(yspdata$cell6 == cells[k]), ]
+    cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
     
     #number of surveys where species was detected
     n1 <- sum(cyspdata$detect)
