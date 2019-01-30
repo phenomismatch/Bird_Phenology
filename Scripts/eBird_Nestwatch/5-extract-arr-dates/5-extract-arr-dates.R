@@ -55,6 +55,7 @@ out <- data.frame()
 for (i in 1:length(species))
 {
   #i <- 96 #Vireo olivaceus
+  #i <- 1
   
   #filter by species
   sp <- species[i]
@@ -62,7 +63,7 @@ for (i in 1:length(species))
   #if that species RDS object exists in dir
   if (length(grep(sp, list.files())) > 0)
   {
-    f_in <- dplyr::filter(df_master, species == sp)
+    f_in <- dplyr::filter(df_master, species == sp & MODEL == TRUE)
     
     #cells and years that were modeled
     t_cells <- unique(f_in$cell)
@@ -85,7 +86,7 @@ for (i in 1:length(species))
     #loop through years
     for (j in 1:length(t_years))
     {
-      #j <- 1
+      #j <- 5
       print(paste0('species: ', sp, ', ', 
                    'year: ', t_years[j]))
       
