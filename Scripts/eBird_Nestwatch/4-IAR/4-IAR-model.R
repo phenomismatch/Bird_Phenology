@@ -79,11 +79,8 @@ args <- commandArgs(trailingOnly = TRUE)
 #read in master df
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
-#filter by species
-f_in <- dplyr::filter(df_master, species == args)
-
-#filter by year
-f_out <- f_in[which(f_in$MODEL == TRUE),]
+#filter by species and year to be modeled
+f_out <- dplyr::filter(df_master, species == args & MODEL == TRUE)
 
 #define cells and years to be modeled
 cells <- unique(f_out$cell)
