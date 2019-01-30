@@ -92,7 +92,7 @@ setwd(query_dir_path)
 # * duration minutes (6 min to 24 hours)
 # * lat (> 26) and lon (-100 to -50)
 # * year > 2001
-# * day of year (< julian day 200)
+# * day of year (< julian day 300)
 # * time started before 16:00
 # * radius < 100km
 
@@ -160,7 +160,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     JOIN taxons USING (taxon_id)
                                     WHERE dataset_id = 'ebird'
                                     AND year > 2001
-                                    AND day < 200
+                                    AND day < 300
                                     AND lng BETWEEN -100 AND -50
                                     AND lat > 26
                                     AND (sci_name IN (", SL,"))
@@ -240,7 +240,7 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       JOIN taxons USING (taxon_id)
                                       WHERE dataset_id = 'ebird'
                                       AND year > 2001
-                                      AND day < 200
+                                      AND day < 300
                                       AND lng BETWEEN -100 AND -50
                                       AND lat > 26
                                       AND (sci_name IN ('", species_list_i2[i],"'));
@@ -362,7 +362,7 @@ if (length(m_sp2) > 0)
                                         JOIN taxons USING (taxon_id)
                                         WHERE dataset_id = 'ebird'
                                         AND year > 2001
-                                        AND day < 200
+                                        AND day < 300
                                         AND lng BETWEEN -100 AND -50
                                         AND lat > 26
                                         AND (sci_name IN ('", m_sp2[i],"'));

@@ -8,6 +8,8 @@
 # data fusion model for arrival ~ breeding --------------------------------
 
 
+#need to determine how to assign uncertainty for NW data (maybe have one sigma for NW, where that is informed by sigma values for each cell obs - sd tend to be large for this dataset, though some cells only have one obs so no sd [e.g., perfect detection])
+
 #obs_EB_breeding_date is halfmax estimate for EB breeding date for that species/cell/year
 #known_EB_uncertainty is uncertainty in halfmax estimate for EB breeding date for that species/cell/year
 #obs_NW_breeding_date is mean NW breeding date for that species/cell/year
@@ -16,25 +18,43 @@
 #known_MAPS_uncertainty is length of period (uniform distribution)
 
 ###observation models
-#obs_IAR_arrival_date ~ N(true_IAR_arrival_date, known_IAR_uncertainty)
-#obs_EB_breeding_date ~ N(true_EB_breeding_date, known_EB_uncertainty)
-#obs_NW_breeding_date ~ N(true_NW_breeding_date, known_NW_uncertainty)
-#obs_MAPS_breeding_date ~ N(true_MAPS_breeding_date, known_MAPS_uncertainty)
+#obs_IAR_arrival_date[i] ~ N(true_IAR_arrival_date[i], known_IAR_uncertainty[i])
+#obs_EB_breeding_date[i] ~ N(true_EB_breeding_date[i], known_EB_uncertainty[i])
+#obs_NW_breeding_date[i] ~ N(true_NW_breeding_date[i], known_NW_uncertainty[i]) #index so that positions without data aren't modeled here
+#known_NW_uncertainty[i] ~ N(mu_NW_sigma, sigma_NW_sigma) #to accomodate missing values in covariate - See Statisitical Rethinking Ch. 14; can accomodate relationship of this with other predictor as well, using: mu_NW_sigma[i] = alpha + beta*true_MAPS_breeding_date[i]
+#true_MAPS_breeding_date[i] ~ U(lower_bounds_period[i], upper_bounds_period[i]) #informed by obs_MAPS_breeding_date; true in as NAs; assuming that MAPS obs for most EB obs - this true?
 
 
 #ONE WAY (arrival ~ breeding):
 ###process model for explanatory var
-#true_EB_breeding_date ~ N(mu_EB, sigma_EB)
-#mu_EB = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+#true_EB_breeding_date ~ N(master_breeding_date, sigma_EB)
+#master_breeding_date = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+
+#OR
+
+#true_EB_breeding_date ~ N(master_breeding_date, sigma_EB)
+#true_NW_breeding_date ~ N(master_breeding_date, sigma_NW) #NAs in places where there are EB data but not NW data
+#master_breeding_date = alpha_EB + beta2_EB * true_MAPS_breeding date
 
 ###process model for response var
 #true_IAR_arrival_date ~ N(mu, sigma)
-#mu = alpha + beta * true_EB_breeding_date
+#mu = alpha + beta * master_breeding_date
 
 
 #ALTERNATIVELY (breeding ~ arrival):
 #true_EB_breeding_date ~ N(master_breeding_date, sigma_EB)
 #master_breeding_date = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+
+#OBS_EB_breeding_date ~ N(master_breeding_date, known_EB_uncertainty)
+#OBS_NW_breeding_date ~ N(master_breeding_date, known_NW_uncertainty)
+#OBS_MAPS_breeding_date ~ N(master_breeding_date, known_MAPS_uncertainty)
+#master_breeding_date = alpha_EB + beta1_EB * true_NW_breeding_date + beta2_EB * true_MAPS_breeding date
+
+#OR (though may not be possible bc MAPS is a uniform distribution)
+
+#OBS_EB_breeding_date ~ N(master_breeding_date, known_EB_uncertainty)
+#OBS_NW_breeding_date ~ N(master_breeding_date, known_NW_uncertainty)
+#OBS_MAPS_breeding_date ~ N(master_breeding_date, known_MAPS_uncertainty)
 
 #master_breeding_date ~ N(mu, sigma)
 #mu = alpha + beta * true_IAR_arrival_date
