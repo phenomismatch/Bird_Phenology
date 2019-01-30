@@ -63,7 +63,7 @@ MAPS_data <- readRDS(paste0('breeding_MAPS_obs_', MAPS_date, '.rds'))
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_query_dir))
 t_data <- readRDS(paste0('ebird_NA_phen_proc_', species_list[1], '.rds'))
 
-na_reps <- rep(NA, (nsp*nyr*length(unique(t_data$cell6))))
+na_reps <- rep(NA, (nsp*nyr*length(unique(t_data$cell))))
 rm(t_data)
 
 
@@ -222,16 +222,17 @@ for (i in 1:nsp)
     } # k -cell
   } # j - year
 } # i - species
-tail(m_breeding_df)
-
-
-m_breeding_df[which(!is.na(m_breeding_df$EB_HM_mean)),]
-#vvv OLD vvv
 
 
 #remove NA padding (find first year row to have NA and subtract one from that index)
-fin_ind <- min(which(is.na(MAPS_out$YR)))
-MAPS_out2 <- MAPS_out[1:(fin_ind - 1),]
+fin_ind <- min(which(is.na(m_breeding_df$YEAR)))
+m_breeding_df2 <- m_breeding_df[1:(fin_ind - 1),]
+
+
+#check diags - look okay
+ct <- m_breeding_df2[which(!is.na(m_breeding_df$EB_HM_mean)),]
+min(ct$EB_min_neff)
+max(ct$EB_max_Rhat)
 
 
 
@@ -242,6 +243,16 @@ MAPS_out2 <- MAPS_out[1:(fin_ind - 1),]
 #for example: 001 = no EB, no NW, yes MAPS
 #111 = yes EB, yes NW, yes MAPS
 
+EB <- as.numeric(!is.na(m_breeding_df2$EB_HM_mean))
+NW <- as.numeric(!is.na(m_breeding_df2$NW_mean_cid))
+MAPS <- as.numeric(!is.na(m_breeding_df2$MAPS_midpoint))
+
+m_breeding_df2$d_avail <- paste0(EB, NW, MAPS)
+
+sum(m_breeding_df2$d_avail == '111')
+sum(m_breeding_df2$d_avail == '110')
+sum(m_breeding_df2$d_avail == '101')
+sum(m_breeding_df2$d_avail == '100')
 
 
 #write to rds
