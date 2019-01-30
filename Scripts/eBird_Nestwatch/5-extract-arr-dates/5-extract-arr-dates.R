@@ -55,13 +55,13 @@ out <- data.frame()
 for (i in 1:length(species))
 {
   #i <- 96 #Vireo olivaceus
-  #i <- 1
+  #i <- 5
   
   #filter by species
   sp <- species[i]
   
   #if that species RDS object exists in dir
-  if (length(grep(sp, list.files())) > 0)
+  if (length(grep(paste0('IAR_stan_', sp, '-', IAR_out_date, '.rds'), list.files())) > 0)
   {
     f_in <- dplyr::filter(df_master, species == sp & MODEL == TRUE)
     
