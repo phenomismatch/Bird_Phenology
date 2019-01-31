@@ -8,6 +8,6 @@ do
   head -n 1 ${temp}.out
 done < tfile
 
-num=wc tfile
-echo "$num jobs have this issue"
+
+echo "${wc tfile} jobs have this issue"
 rm tfile
