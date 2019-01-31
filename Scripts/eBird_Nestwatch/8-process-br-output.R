@@ -67,9 +67,9 @@ na_reps <- rep(NA, (nsp*nyr*length(unique(t_data$cell))))
 rm(t_data)
 
 
-m_breeding_df <- data.frame(SPECIES = na_reps,
-                            CELL = na_reps,
-                            YEAR = na_reps,
+m_breeding_df <- data.frame(species = na_reps,
+                            cell = na_reps,
+                            year = na_reps,
                             EB_HM_mean = na_reps,
                             EB_HM_sd = na_reps,
                             EB_n1 = na_reps,
@@ -277,13 +277,28 @@ tt2 <- dplyr::select(tt, SPECIES, CELL, YEAR, EB_HM_mean, EB_HM_sd,
                      NW_mean_cid, NW_sd_cid, NW_num_obs,
                      MAPS_midpoint, MAPS_n_stations, d_avail)
 
-head(tt2)
+tt2$MAPS_midpoint[which(tt2$MAPS_midpoint == 0)] <- NA
+tt2[which(tt2$NW_num_obs > 5),]
+tt2[which(tt2$MAPS_midpoint > 180),]
+tt2[which(abs(tt2$MAPS_midpoint - tt2$EB_HM_mean) > 20),]
 
-
+#quick plots - so much uncertainty, hard to say anything from this
 plot(tt2$NW_mean_cid, tt2$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5))
 plot(tt2$MAPS_midpoint, tt2$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5))
 
 tt2[which(tt2$MAPS_midpoint == 0),]
+
+aa <- readRDS('Processed/arrival_master_2019-01-16.rds')
+head(tt2)
+colnames(tt2)[1:3] <- c('species', 'cell', 'year')
+m2 <- dplyr::left_join(aa, tt2, by = c('species', 'cell', 'year'))
+
+head(m2)
+plot(m2$mean_post_IAR, m2$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5),
+     xlim = c(50, 220), ylim = c(50, 220))
+abline(a = 0, b = 1, lty = 2)
+summary(lm(m2$EB_HM_mean ~ m2$mean_post_IAR))
+
 #vvv OLD OLD vvv
 
 
