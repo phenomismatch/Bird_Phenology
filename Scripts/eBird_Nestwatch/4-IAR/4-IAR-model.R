@@ -351,8 +351,8 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 MAX_TREE = 20
-ADAPT_DELTA = 0.9
-#STEP_SIZE = 0.005
+ADAPT_DELTA = 0.98
+STEP_SIZE = 0.005
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
@@ -362,7 +362,7 @@ fit <- stan(model_code = IAR_bym2,
             cores = 4,
             pars = c('sigma', 'mu_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = MAX_TREE, adapt_delta = ADAPT_DELTA))#, stepsize = STEP_SIZE)) # modified control parameters based on warnings
+            control = list(max_treedepth = MAX_TREE, adapt_delta = ADAPT_DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 #save to RDS
