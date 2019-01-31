@@ -24,8 +24,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # model settings ----------------------------------------------------------
 
 #model settings
-#ITER <- 2500
-ITER <- 10
+ITER <- 2500
+#ITER <- 10
 CHAINS <- 4
 
 
