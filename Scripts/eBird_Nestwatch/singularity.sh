@@ -5,7 +5,9 @@ grep libseccomp.so.2 /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Pro
 while read name
 do
   temp="${name%.*}"
-  cat ${temp}.out
+  head -n 1 ${temp}.out
 done < tfile
 
+num=wc tfile
+echo "$num jobs have this issue"
 rm tfile
