@@ -6,7 +6,7 @@
 #SBATCH -c 2 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=8G #memory requested
+#SBATCH --mem=12G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
 #SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/5-extract-arr-dates/5-extract-arr-dates.out #STDOUT

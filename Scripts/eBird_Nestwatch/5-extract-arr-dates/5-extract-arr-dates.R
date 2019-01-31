@@ -106,7 +106,7 @@ for (i in 1:length(species))
       out <- rbind(out, t_full)
     } #end year loop
   } else {
-    print('.rds file not found in directory')
+    print(paste0('.rds file for ', sp, ' not found in directory'))
   }
 } #end species loop
 
