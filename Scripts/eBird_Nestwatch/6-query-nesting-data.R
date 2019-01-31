@@ -442,9 +442,9 @@ if (length(m_sp2) > 0)
 
 # copy script to query folder for records ---------------------------------
 
-system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/7-query-nesting-data.R ', 
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/6-query-nesting-data.R ', 
               dir, 'Bird_Phenology/Data/', query_dir_path, 
-              '/7-query-nesting-data-', Sys.Date(), '.R'))
+              '/6-query-nesting-data-', Sys.Date(), '.R'))
 
 
 proc.time() - tt
