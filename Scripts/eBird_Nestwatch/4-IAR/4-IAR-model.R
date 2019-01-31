@@ -71,6 +71,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
+#args <- as.character('Cistothorus_palustris')
 
 
 
@@ -107,12 +108,12 @@ hexgrid6 <- dggridR::dgconstruct(res = 6)
 cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
 
 #create adjacency matrix - 1 if adjacent to cell, 0 if not
-adjacency_matrix <- matrix(data = NA, nrow = length(cells), ncol = length(cells))
+adjacency_matrix <- matrix(data = NA, nrow = ncell, ncol = ncell)
 
-for (i in 1:length(cells))
+for (i in 1:ncell)
 {
   #i <- 1
-  for (j in i:length(cells))
+  for (j in i:ncell)
   {
     #j <- 4
     dists <- geosphere::distm(c(cellcenters$lon_deg[i], cellcenters$lat_deg[i]),
@@ -123,6 +124,38 @@ for (i in 1:length(cells))
 
 #indices for 1s
 ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
+
+
+#if a cell doesn't border any other cells, drop it and redefine objects
+if (max(ninds) < ncell)
+{
+  s_cols <- apply(adjacency_matrix, 2, function(x) sum(x, na.rm = TRUE))
+  s_rows <- apply(adjacency_matrix, 1, function(x) sum(x, na.rm = TRUE))
+  to.rm.ind <- which((s_cols + s_rows) == 0)
+  
+  cells <- cells[-to.rm.ind]
+  ncell <- length(cells)
+  f_out <- dplyr::filter(f_out, cell %in% cells)
+  cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
+  
+  #create adjacency matrix - 1 if adjacent to cell, 0 if not
+  adjacency_matrix <- matrix(data = NA, nrow = ncell, ncol = ncell)
+  
+  for (i in 1:ncell)
+  {
+    #i <- 1
+    for (j in i:ncell)
+    {
+      #j <- 4
+      dists <- geosphere::distm(c(cellcenters$lon_deg[i], cellcenters$lat_deg[i]),
+                                c(cellcenters$lon_deg[j], cellcenters$lat_deg[j]))
+      adjacency_matrix[i,j] <- as.numeric((dists/1000) > 0 & (dists/1000) < 311)
+    }
+  }
+  
+  #indices for 1s
+  ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
+}
 
 
 
@@ -570,6 +603,8 @@ if ('Rplots.pdf' %in% list.files())
 {
   file.remove('Rplots.pdf')
 }
+
+
 
 
 print('I completed!')
