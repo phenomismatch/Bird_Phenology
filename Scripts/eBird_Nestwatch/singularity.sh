@@ -6,6 +6,10 @@
 #creates a text file with lines to resbumit jobs +
 #removes all STDOUT SRDERR files associated with those jobs
 
+#SUM of two lines below should == total number of jobs submitted
+#grep 'completed' *.out -lR | wc -l #jobs completed
+#squeue -u cyoungflesh | grep lc-br | wc -l #lc-br jobs running
+
 grep libseccomp.so.2 $1 -lR > tfile
 
 while read name
