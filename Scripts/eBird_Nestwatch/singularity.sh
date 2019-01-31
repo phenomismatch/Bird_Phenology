@@ -10,4 +10,4 @@ done < tfile
 
 num=$(wc -l tfile)
 echo  "$num jobs have this issue"
-rm tfile
+#rm tfile
