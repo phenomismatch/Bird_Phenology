@@ -9,7 +9,7 @@ do
   NAME2="${temp##*/}"
   NAME3="${NAME2##*-}"
   NAME4="${NAME3%.*}" 
-  echo "sbatch 4-$NAME4.sh" >> mis_jobs.txt
+  echo "sbatch 7-$NAME4.sh" >> miss_jobs.txt
   rm $temp*
 done < tfile
 
