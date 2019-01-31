@@ -1,10 +1,11 @@
 #!/bin/bash
 
+DATE="2019-01-16"
+
 while read name
 do
   temp="${name%\"}"
   temp="${temp#\"}"
-  DATE="2019-01-16"
   echo "#!/bin/bash
 
 #SBATCH --job-name=iar-$temp

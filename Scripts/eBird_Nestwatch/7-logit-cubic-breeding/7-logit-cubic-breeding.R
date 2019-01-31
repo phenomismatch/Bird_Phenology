@@ -24,8 +24,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # model settings ----------------------------------------------------------
 
 #model settings
-ITER <- 2500
-#ITER <- 10
+#ITER <- 2500
+ITER <- 10
 CHAINS <- 4
 
 
@@ -35,7 +35,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
 #args <- 'Agelaius_phoeniceus'
 
-RUN_DATE <- '2019-01-16'
+RUN_DATE <- '2019-01-30'
 
 
 
@@ -51,7 +51,7 @@ df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
 
 
 #read in ebird breeding code data
-DATE_BC <- '2019-01-15'
+DATE_BC <- '2019-01-30'
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', DATE_BC))
 temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', args, '.rds'))
