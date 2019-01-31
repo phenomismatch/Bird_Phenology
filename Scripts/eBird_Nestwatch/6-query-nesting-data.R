@@ -630,7 +630,7 @@ MAPS_out <- data.frame(YR = na_reps,
 counter <- 1
 for (i in 1:length(species_list_i2))
 {
-  #i <- 2
+  #i <- 19
   temp <- dplyr::filter(MAPS_mrg2, SCINAME == species_list_i2[i])
   if (NROW(temp) > 0)
   {
@@ -655,7 +655,7 @@ for (i in 1:length(species_list_i2))
         
         #C = confirmed breeder
         #P = probably breeder
-        #0 = observed
+        #O = observed
         #- = not observed
         
         #input is 'MM-DD' (05-01)
