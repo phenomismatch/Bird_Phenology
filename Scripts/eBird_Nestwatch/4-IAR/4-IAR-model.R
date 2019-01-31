@@ -71,7 +71,12 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
+
+#species for which one cell had to be dropped, bc it did not border any others
 #args <- as.character('Cistothorus_palustris')
+#args <- as.character('Setophaga_dominica')
+#args <- as.character('Melospiza_lincolnii')
+#args <- as.character('Zonotrichia_leucophrys')
 
 
 
@@ -127,11 +132,14 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 
 
 #if a cell doesn't border any other cells, drop it and redefine objects
+DROP <- FALSE
 if (max(ninds) < ncell)
 {
   s_cols <- apply(adjacency_matrix, 2, function(x) sum(x, na.rm = TRUE))
   s_rows <- apply(adjacency_matrix, 1, function(x) sum(x, na.rm = TRUE))
   to.rm.ind <- which((s_cols + s_rows) == 0)
+ 
+  DROP <- cells[to.rm.ind]
   
   cells <- cells[-to.rm.ind]
   ncell <- length(cells)
@@ -396,6 +404,7 @@ cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Max tree depth: ', MAX_TREE, ' \n'))
 cat(paste0('Adapt delta: ', ADAPT_DELTA, ' \n'))
 #cat(paste0('Step size: ', STEP_SIZE, ' \n'))
+cat(paste0('Cell drop: ', DROP, ' \n'))
 print(fit)
 sink()
 
