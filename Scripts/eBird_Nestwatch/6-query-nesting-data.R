@@ -735,7 +735,8 @@ for (i in 1:length(species_list_i2))
         t_info$midpoint <- midpoint_br
         t_info$l_bounds <- first_br_obs_lb
         t_info$u_bounds <- first_br_obs_ub
-        t_info$n_stations <- NROW(temp3)
+        #n_stations is number of stations that recorded probably or confirmed breeding
+        t_info$n_stations <- length(cp_ind)
         
         MAPS_out[counter,] <- t_info
         counter <- counter + 1
