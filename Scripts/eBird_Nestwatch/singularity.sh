@@ -1,11 +1,10 @@
 #!/bin/bash
 
-grep libseccomp.so.2 /home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Processed/halfmax_breeding_2019-01-30 -lR > tfile
+grep libseccomp.so.2 $1 -lR > tfile
 
 while read name
 do
   temp="${name%.*}"
-  echo "$temp"
   head -n 1 ${temp}.out
 done < tfile
 
