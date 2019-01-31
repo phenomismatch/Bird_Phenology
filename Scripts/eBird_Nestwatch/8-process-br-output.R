@@ -110,11 +110,11 @@ for (i in 1:nsp)
   #loop through years
   for (j in 1:nyr)
   {
-    #j <- 17
+    #j <- 1
     
     for (k in 1:ncell)
     {
-      #k <- 35
+      #k <- 1
       print(paste0('species: ', species_list[i], ', ',
                    'year: ', years[j], ', ',
                    'cell: ', cells[k]))
@@ -212,10 +212,15 @@ for (i in 1:nsp)
       
       if (NROW(t_MAPS) > 0)
       {
-        m_breeding_df$MAPS_midpoint[counter] <- t_MAPS$midpoint
-        m_breeding_df$MAPS_l_bounds[counter] <- t_MAPS$l_bounds
-        m_breeding_df$MAPS_u_bounds[counter] <- t_MAPS$u_bounds
-        m_breeding_df$MAPS_n_stations[counter] <- t_MAPS$n_stations
+        #julian day used if breeding was observed
+        #values of 0 for midpoint indicate observed, but not observed breeding - NA indicated not observed
+        if (t_MAPS$midpoint > 0)
+        {
+          m_breeding_df$MAPS_midpoint[counter] <- t_MAPS$midpoint
+          m_breeding_df$MAPS_l_bounds[counter] <- t_MAPS$l_bounds
+          m_breeding_df$MAPS_u_bounds[counter] <- t_MAPS$u_bounds
+          m_breeding_df$MAPS_n_stations[counter] <- t_MAPS$n_stations
+        }
       }
       
       counter <- counter + 1
@@ -255,14 +260,30 @@ sum(m_breeding_df2$d_avail == '101')
 sum(m_breeding_df2$d_avail == '100')
 
 
+#ALL YEARS/CELLS MODELED IN IAR MODEL
 #write to rds
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-saveRDS(m_breeding_df, paste0('temp_breeding_master_', Sys.Date(), '.rds'))
+saveRDS(m_breeding_df2, paste0('temp_breeding_master_', Sys.Date(), '.rds'))
+
+#m_breeding_df2 <- readRDS('temp_breeding_master_2019-01-30.rds')
+
+#data where ebird is present
+tt <- m_breeding_df2[which(m_breeding_df2$d_avail == '100' |
+                       m_breeding_df2$d_avail == '110' |
+                       m_breeding_df2$d_avail == '111' |
+                       m_breeding_df2$d_avail == '101'),]
+
+tt2 <- dplyr::select(tt, SPECIES, CELL, YEAR, EB_HM_mean, EB_HM_sd, 
+                     NW_mean_cid, NW_sd_cid, NW_num_obs,
+                     MAPS_midpoint, MAPS_n_stations, d_avail)
+
+head(tt2)
 
 
+plot(tt2$NW_mean_cid, tt2$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5))
+plot(tt2$MAPS_midpoint, tt2$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5))
 
-
-
+tt2[which(tt2$MAPS_midpoint == 0),]
 #vvv OLD OLD vvv
 
 
