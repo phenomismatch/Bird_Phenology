@@ -113,7 +113,7 @@ for (i in 1:length(species))
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 
-saveRDS(out, file = paste0('arrival_master', IAR_out_date, '.rds'))
+saveRDS(out, file = paste0('arrival_master_', IAR_out_date, '.rds'))
 
 print('I completed!')
 
