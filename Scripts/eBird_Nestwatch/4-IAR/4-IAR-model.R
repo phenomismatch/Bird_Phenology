@@ -77,7 +77,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Setophaga_dominica')
 #args <- as.character('Melospiza_lincolnii')
 #args <- as.character('Zonotrichia_leucophrys')
-
+#args <- as.character('Bombycilla_cedrorum')
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -351,8 +351,8 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 MAX_TREE = 20
-ADAPT_DELTA = 0.98
-STEP_SIZE = 0.005
+ADAPT_DELTA = 0.999
+STEP_SIZE = 0.0005
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
@@ -391,7 +391,7 @@ saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 # #shiny stan
 # library(shinystan)
 # launch_shinystan(fit)
-#fit <- readRDS('IAR_stan_Vireo_olivaceus-2018-11-12.rds')
+#fit <- readRDS('IAR_stan_Bombycilla_cedrorum-2019-01-16.rds')
 
 num_diverge <- get_num_divergent(fit)
 
@@ -479,7 +479,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
 #loop plots for each year
 for (i in 1:length(years))
 {
-  #i <- 1
+  #i <- 4
   
   #filter data for year[i]
   f_out_filt <- filter(f_out, year == years[i])
