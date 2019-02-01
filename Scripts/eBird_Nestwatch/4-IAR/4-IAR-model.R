@@ -391,9 +391,9 @@ saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 # #shiny stan
 # library(shinystan)
 # launch_shinystan(fit)
+#fit <- readRDS('IAR_stan_Vireo_olivaceus-2018-11-12.rds')
 
-
-
+num_diverge <- get_num_divergent(fit)
 
 # write model results to file ---------------------------------------------
 
@@ -403,8 +403,9 @@ cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Max tree depth: ', MAX_TREE, ' \n'))
 cat(paste0('Adapt delta: ', ADAPT_DELTA, ' \n'))
-#cat(paste0('Step size: ', STEP_SIZE, ' \n'))
+cat(paste0('Step size: ', STEP_SIZE, ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
+cat(paste0('Number of divergences: ', num_diverge, ' \n'))
 print(fit)
 sink()
 
