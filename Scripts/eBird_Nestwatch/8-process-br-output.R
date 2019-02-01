@@ -19,10 +19,10 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-ebird_date <- '2019-01-16'
-bc_query_date <- '2019-01-15'
+halfmax_breeding_date <- '2019-01-16'
+bc_query_date <- '2019-01-30'
 NW_date <- '2019-01-28'
-MAPS_date <- '2019-01-28'
+MAPS_date <- '2019-01-31'
 db_query_dir <- 'db_query_2018-10-15'
 
 
@@ -96,7 +96,7 @@ for (i in 1:nsp)
   #i <- 1
   
   #readin halfmax data
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', ebird_date))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', halfmax_breeding_date))
   temp_halfmax <- readRDS(paste0('halfmax_df_breeding_', species_list[i], '.rds'))
   
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', bc_query_date))
@@ -136,37 +136,20 @@ for (i in 1:nsp)
       m_breeding_df$CELL[counter] <- cells[k]
       m_breeding_df$YEAR[counter] <- years[j]
         
-      #add column with 1/0 breeding or not
-      cysdata$br <- as.numeric(cysdata$bba_category == 'C3' | cysdata$bba_category == 'C4')
-      
-      #bird not seen - fill with zeros
-      na.ind <- which(is.na(cysdata$br))
-      cysdata$br[na.ind] <- 0
-      
       #number of surveys where breeding was detected (confirmed or probable)
-      m_breeding_df$EB_n1[counter] <- sum(cysdata$br)
+      m_breeding_df$EB_n1[counter] <- tt_halfmax$n1
       #number of surveys where breeding was not detected (bird not seen breeding or not seen)
-      m_breeding_df$EB_n0[counter] <- sum(cysdata$br == 0)
+      m_breeding_df$EB_n0[counter] <- tt_halfmax$n0
       #number of detections that came before jday 60
-      m_breeding_df$EB_n1W[counter] <- sum(cysdata$br * as.numeric(cysdata$day < 60))
+      m_breeding_df$EB_n1W[counter] <- tt_halfmax$n1W
       #number of unique days with detections
-      m_breeding_df$EB_njd1[counter] <- length(unique(cysdata$day[which(cysdata$br == 1)]))
+      m_breeding_df$EB_njd1[counter] <- tt_halfmax$njd1
       #number of unique days with non-detection
-      m_breeding_df$EB_njd0[counter] <- length(unique(cysdata$day[which(cysdata$br == 0)]))
-      
-      
-      if (m_breeding_df$EB_n1[counter] > 0)
-      {
-        #number of unique days of non-detections before first detection
-        m_breeding_df$EB_njd0i[counter] <- length(unique(cysdata$day[which(cysdata$br == 0 & cysdata$day < 
-                                                                        min(cysdata$day[which(cysdata$br == 1)]))]))
-        #number of non-detections before first detection
-        m_breeding_df$EB_n0i[counter] <- length(which(cysdata$br == 0 & 
-                                                         cysdata$day < min(cysdata$day[which(cysdata$br == 1)])))
-      } else {
-        m_breeding_df$EB_njd0i[counter] <- 0
-        m_breeding_df$EB_n0i[counter] <- 0
-      }
+      m_breeding_df$EB_njd0[counter] <- tt_halfmax$njd0
+      #number of unique days of non-detections before first detection
+      m_breeding_df$EB_njd0i[counter] <- tt_halfmax$njd0i
+      #number of non-detections before first detection
+      m_breeding_df$EB_n0i[counter] <- tt_halfmax$n0i
       
       m_breeding_df$EB_min_neff[counter] <- tt_halfmax$min_neff
       m_breeding_df$EB_max_Rhat[counter] <- tt_halfmax$max_Rhat
