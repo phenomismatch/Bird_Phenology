@@ -541,37 +541,51 @@ proc.time() - tt
 # MAPS obs ----------------------------------------------------------------
 
 
-setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs'))
+setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs/Export_2018_11'))
 
-MAPS_obs <- read.csv('1117M.csv', stringsAsFactors = FALSE)
+MAPS_obs <- read.csv('1106Band18.csv', stringsAsFactors = FALSE)
 
-#0 - observed but not breeding
-#P - probably breeding
-#C - confirmed breeding
-
-#PS1 - May 1-May 10
-#PS2 - May 11-May 20
-#PS3 - May 21-May 30
-#PS4 - May 31-June 9
-#PS5 - June 10-June 19
-#PS6 - June 20-June 29
-#PS7 - June 30-July 9
-#PS8 - July 10-July 19
-#PS9 - July 20-July 29
-#PS10 - July 30-August 8
-#PS11 - August 9-August 18
-
+#Capture_code: only codes N,R,U are used for analyses
+#Species: 4-letter codes
+#Age: 
+#0 - unknown
+#4 - local (young bird incapable of flight)
+#2 - hatching-year bird
+#1 - after hartching-year bird
+#5 - second-year bird
+#6 - after second-year bird
+#7 - third-year bird
+#8 - after third-year bird
+#Sex: 
+#M - male
+#F - female
+#U - unknown
+#X - unattempted
+#Cloacal protuberance:
+#0 - none
+#1 - small
+#2 - medium
+#3 - large
+#Brood patch:
+#0 - none
+#1 - smooth
+#2 - vascularized
+#3 - heavy
+#4 - wrinkled
+#5 - molting
+#Fat content:
+#0 - none
+#1 - trace
+#2 - light
+#3 - half
+#4 - full
+#5 - bulging
+#6 - greatly bulging
+#7 - very excessive
 
 #get grid cell of each station by lat/lon
 setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs/CntrlStations'))
-
 MAPS_stations <- read.csv('STATIONS.csv', skipNul = TRUE, stringsAsFactors = FALSE)
-
-#STA2 appears to be unqiue station code
-# head(MAPS_obs)
-# head(MAPS_stations)
-# unique(MAPS_obs$STA)
-# unique(MAPS_stations$STA2)
 
 MAPS_mrg <- dplyr::left_join(MAPS_obs, MAPS_stations, by = 'STA')
 
@@ -592,18 +606,21 @@ MAPS_mrg <- dplyr::left_join(MAPS_obs, MAPS_stations, by = 'STA')
 #CEFB (Clemson, SC) - (34.68, -82.81)
 #HRAE (REMOVE) - NOT IN OBS
 
-#insert lat/lons for these stations
-st_rep <- data.frame(STATION = c('EASA', 'ANWR', 'REGR', 'CEFB'), 
-                     LAT = c(30.54, 30.54, 33.78, 34.68),
-                     LNG = c(-95.48, -91.75, -93.82, -82.81))
+#These stations do not appear in the data
+# #insert lat/lons for these stations
+# st_rep <- data.frame(STATION = c('EASA', 'ANWR', 'REGR', 'CEFB'), 
+#                      LAT = c(30.54, 30.54, 33.78, 34.68),
+#                      LNG = c(-95.48, -91.75, -93.82, -82.81))
+# 
+# 
+# for (i in 1:NROW(st_rep))
+# {
+#   #i <- 4
+#   tt <- which(MAPS_mrg$STATION.x == st_rep$STATION[i])
+#   MAPS_mrg[tt,'DECLAT'] <- st_rep$LAT[i]
+#   MAPS_mrg[tt,'DECLNG'] <- st_rep$LNG[i]
+# }
 
-for (i in 1:NROW(st_rep))
-{
-  #i <- 2
-  tt <- which(MAPS_mrg$STATION.x == st_rep$STATION[i])
-  MAPS_mrg[tt,'DECLAT'] <- st_rep$LAT[i]
-  MAPS_mrg[tt,'DECLNG'] <- st_rep$LNG[i]
-}
 
 hexgrid6 <- dggridR::dgconstruct(res = 6) 
 MAPS_mrg$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
@@ -614,6 +631,129 @@ MAPS_mrg$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 setwd(paste0(dir, 'Bird_Phenology/Data/MAPS_Obs'))
 sp_codes <- read.csv('sp_4_letter_codes.csv', stringsAsFactors = FALSE)
 MAPS_mrg2 <- dplyr::left_join(MAPS_mrg, sp_codes, by = 'SPEC')
+
+#split date into separate cols
+dsplit <- strsplit(MAPS_mrg2$DATE, '/')
+MAPS_mrg2$month <- unlist(dsplit)[3*(1:length(MAPS_mrg2$DATE)) - 2]
+MAPS_mrg2$day <- unlist(dsplit)[3*(1:length(MAPS_mrg2$DATE)) - 1]
+MAPS_mrg2$year <- unlist(dsplit)[3*(1:length(MAPS_mrg2$DATE))]
+
+post_2000 <- which(as.numeric(MAPS_mrg2$year) < 70)
+pre_2000 <- which(as.numeric(MAPS_mrg2$year) > 70)
+
+MAPS_mrg2$year[post_2000] <- paste0('20', MAPS_mrg2$year[post_2000])
+MAPS_mrg2$year[pre_2000] <- paste0('19', MAPS_mrg2$year[pre_2000])
+
+MAPS_mrg2$jday <- as.numeric(format(as.Date(paste0(MAPS_mrg2$year, '-', 
+                                                  MAPS_mrg2$month, '-', MAPS_mrg2$day)), '%j'))
+
+MAPS_mrg3 <- dplyr::select(MAPS_mrg2, STA, LOC.x, cell, DATE, year, month, day, jday, C, BAND, 
+                           SPEC, SCINAME, AGE, SEX, CP, BP, F, WEIGHT)
+
+colnames(MAPS_mrg3) <- c('STA', 'Location_code', 'Cell', 'Date', 'Year', 'Month', 'Day', 
+                         'Jday', 'Capture_code', 'Band_id', 'Species', 'Sci_name', 'Age_code', 'Sex', 
+                         'Cloacal_prot', 'Brood_patch', 'Fat_content', 'Weight')
+
+#filter by species and capture code (only codes N,R,U are used for analyses)
+MAPS_mrg4 <- dplyr::filter(MAPS_mrg3, Sci_name %in% species_list_i2 &
+                              Capture_code %in% c('N', 'R', 'U'))
+
+#Age split up into AFTER... codes - these may or may not have been advanced in database for recaptures
+#What characterizes breeding?
+#Does effort need to be controlled for?
+
+#2 - zero year
+#4 - zero year
+#5 - second year
+#7 - third year
+#...
+
+#add col for true age (actual age, not 'year' of bird)
+tt <- MAPS_mrg4
+tt$True_age <- NA
+
+#fill 0 for all birds banded in birth year
+tt$True_age[which(tt$Age_code %in% c(2,4))] <- 0 
+
+#ids for birds banded in birth year
+ids <- unique(as.numeric(tt$Band_id))[1:10000]
+
+
+#enter in true age for all birds banded in birth year
+# create progress bar
+pb <- txtProgressBar(min = 0, max = length(ids), style = 3)
+for (i in 1:length(ids))
+{
+  #i <- 61
+  #filter for band_id (all years)
+  temp <- dplyr::filter(tt, Band_id == ids[i])
+  t_yrs <- sort(as.numeric(unique(temp$Year)))
+  
+  birth_year <- NA
+  
+  #define birth year based on assigned age class (band in birth year trumps other ages)
+  if (sum(!is.na(temp$True_age)) > 0 & length(t_yrs) > 1)
+  {
+    birth_year <- t_yrs[1]
+  } else {
+    if (sum(temp$Age_code == 5) > 0 & length(t_yrs) > 1)
+    {
+      birth_year <- (t_yrs[1] - 1)
+    } else {
+      if (sum(temp$Age_code == 7) > 0 & length(t_yrs) > 1)
+      {
+        birth_year <- (t_yrs[1] - 2)
+      }
+    }
+  }
+  
+  #fill in age values for subsequent year if birth year was defined
+  if (!is.na(birth_year))
+  {
+    for (j in 2:length(t_yrs))
+    {
+      #j <- 2
+      #insert age
+      tt[which(tt$Band_id == ids[i] & tt$Year == t_yrs[j]), 'True_age'] <- (t_yrs[j] - birth_year)
+    }
+  }
+  setTxtProgressBar(pb, i)
+}
+close(pb)
+
+#proportion of captures that have a True_age
+sum(!is.na(tt$True_age))/NROW(tt)
+
+
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+# saveRDS(tt, 'MAPS_age_filled.rds')
+
+
+tt[which(tt$True_age > 15),]
+#possibly look at distributions of times caught (or appearance of brood patch) for older and younger birds
+hist(tt$True_age)
+range(tt$True_age, na.rm = TRUE)
+summary(lm(tt$Jday ~ tt$True_age))
+
+plot(tt$True_age, tt$Jday, pch = '.', col = rgb(0,0,0, 0.5))
+a1 <- dplyr::filter(tt, Age == 1)
+a2 <- dplyr::filter(tt, Age == 2)
+a3 <- dplyr::filter(tt, Age == 3)
+a4 <- dplyr::filter(tt, Age == 4)
+a5 <- dplyr::filter(tt, Age == 5)
+hist(a1$Jday)
+hist(a2$Jday, add = TRUE)
+hist(a3$Jday, add = TRUE)
+hist(a4$Jday, add = TRUE)
+hist(a5$Jday, add = TRUE)
+
+
+
+
+#Each cell/year/survey day will have:
+#Proportion of females caught with a brood patch (or males with a CP) -> look at how this changes over time
+#maybe each capture different row, 1 for brood patch/CP, 0 if not -> fit a logistic to this for each cell/year?
+
 
 
 #filter by species, get breeding date (breeding period in this case) for each year/cell
