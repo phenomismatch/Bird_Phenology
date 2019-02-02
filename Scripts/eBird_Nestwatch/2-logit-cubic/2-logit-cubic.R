@@ -29,7 +29,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'db_query_2018-10-15'
+db_dir <- 'eBird_query_2018-10-15'
 RUN_DATE <- '2019-01-16'
 
 
@@ -53,7 +53,8 @@ tt <- proc.time()
 
 library(rstanarm)
 library(dplyr)
-
+library(dggridR)
+library(sp)
 
 # Set wd ------------------------------------------------------------------
 
@@ -74,22 +75,105 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
 #import data for species
 spdata <- readRDS(paste0('ebird_NA_phen_proc_', args, '.rds'))
 
-cells <- sort(unique(spdata$cell))
+
+
+
+# create grid -------------------------------------------------------------
+
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+#get boundaries of all cells over earth
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+
+#dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
+#read in grid
+hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
+
+
+# filter cells by range  ---------------------------------------------------
+
+#reference key for species synonyms
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
+sp_key <- read.csv('species_filenames_key.csv')
+
+#change dir to shp files
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+
+#filter by breeding/migration cells
+#match species name to shp file name
+g_ind <- grep(args, sp_key$file_names_2016)
+
+#check for synonyms if there are no matches
+if (length(g_ind) == 0)
+{
+  g_ind2 <- grep(args, sp_key$BL_Checklist_name)
+} else {
+  g_ind2 <- g_ind
+}
+
+#get filename and read in
+fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
+sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+
+#filter by breeding (2) and migration (4) range - need to convert spdf to sp
+nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
+
+#filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
+nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
+
+#if there is a legitimate range at all
+if (NROW(nrng@data) > 0)
+{
+  #good cells
+  nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+  sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+  ptsreg <- sp::spsample(nrng, 50000, type = "regular")
+  br_mig_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
+  
+  #bad cells
+  nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
+  sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
+  ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
+  res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
+  
+  #remove cells that appear in resident and overwinter range that also appear in breeding range
+  cell_mrg <- c(br_mig_cells, res_ovr_cells)
+  to_rm <- cell_mrg[duplicated(cell_mrg)]
+  
+  if (length(to_rm) > 0)
+  {
+    overlap_cells <- br_mig_cells[-which(br_mig_cells %in% to_rm)]
+  } else {
+    overlap_cells <- br_mig_cells
+  }
+  
+  #get cell centers
+  cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
+  cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
+                      lat = cell_centers$lat_deg)
+  
+  #cells only within the range that ebird surveys were filtered to
+  n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
+  cells <- n_cc_df$cell
+  
+  #retain rows that match selected cells
+  spdata2 <- spdata[which(spdata$cell %in% cells),]
+  
+  #create rows for cells that were missing in ebird data
+  missing_cells <- cells[which(cells %ni% spdata2$cell)]
+} else {
+  stop('Range not suitable for modeling!')
+}
+
+
+
+
+# process data ------------------------------------------------------------
+
 ncell <- length(cells)
 
-years <- min(spdata$year):max(spdata$year)
+years <- min(spdata2$year):max(spdata2$year)
 nyr <- length(years)
-
-
-
-# Create newdata ---------------------------------------------------
-
-predictDays <- range(spdata$sjday)[1]:range(spdata$sjday)[2]
-predictDays2 <- predictDays^2
-predictDays3 <- predictDays^3
-
-
-newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
 
 
 # fit logit cubic ---------------------------------------------------------
@@ -99,8 +183,12 @@ colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
 halfmax_df <- data.frame(species = args, 
                          year = rep(years, each = ncell), 
                          cell = rep(cells, nyr), 
+                         shp_name = fname,
                          max_Rhat = NA,
                          min_neff = NA,
+                         num_diverge = NA,
+                         num_tree = NA,
+                         num_BFMI = NA,
                          n1 = NA,
                          n1W = NA,
                          n0 = NA,
@@ -123,12 +211,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 1
-  yspdata <- spdata[which(spdata$year == years[j]), ]
+  #j <- 16
+  yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
   {
-    #k <- 8
+    #k <- 9
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
@@ -148,15 +236,27 @@ for (j in 1:nyr)
     if (n1 > 0)
     {
       #number of unique days of non-detections before first detection
-      njd0i <- length(unique(cysdata$day[which(cysdata$detect == 0 & cysdata$day < 
-                                                 min(cysdata$day[which(cysdata$detect == 1)]))]))
+      njd0i <- length(unique(cyspdata$day[which(cyspdata$detect == 0 & cyspdata$day < 
+                                                 min(cyspdata$day[which(cyspdata$detect == 1)]))]))
       #number of non-detections before first detection
-      n0i <- length(which(cysdata$detect == 0 & 
-                            cysdata$day < min(cysdata$day[which(cysdata$detect == 1)])))
+      n0i <- length(which(cyspdata$detect == 0 & 
+                            cyspdata$day < min(cyspdata$day[which(cyspdata$detect == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
     }
+    
+    halfmax_df$n1[counter] <- n1
+    halfmax_df$n1W[counter] <- n1W
+    halfmax_df$n0[counter] <- n0
+    halfmax_df$n0i[counter] <- n0i
+    halfmax_df$njd1[counter] <- njd1
+    halfmax_df$njd0[counter] <- njd0
+    halfmax_df$njd0i[counter] <- njd0i
+    
+    #defaults for rstanarm are 0.95 and 15
+    DELTA <- 0.95
+    TREE_DEPTH <- 18
     
     if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     {
@@ -166,8 +266,47 @@ for (j in 1:nyr)
                        algorithm = 'sampling',
                        iter = ITER,
                        chains = CHAINS,
-                       cores = CHAINS)
-
+                       cores = CHAINS,
+                       adapt_delta = DELTA,
+                       control = list(max_treedepth = TREE_DEPTH))
+      
+      #calculate diagnostics
+      num_diverge <- get_num_divergent(fit2$stanfit)
+      num_tree <- sum(get_max_treedepth_iterations(fit2$stanfit))
+      num_BFMI <- length(get_low_bfmi_chains(fit2$stanfit))
+      
+      #rerun model if things didn't go well
+      while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.99)
+      {
+        DELTA <- DELTA + 0.1
+        TREE_DEPTH <- TREE_DEPTH + 1
+        
+        fit2 <- rstanarm::stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
+                                   data = cyspdata,
+                                   family = binomial(link = "logit"),
+                                   algorithm = 'sampling',
+                                   iter = ITER,
+                                   chains = CHAINS,
+                                   cores = CHAINS,
+                                   adapt_delta = DELTA,
+                                   control = list(max_treedepth = TREE_DEPTH))
+        
+        num_diverge <- get_num_divergent(fit2$stanfit)
+        num_tree <- sum(get_max_treedepth_iterations(fit2$stanfit))
+        num_BFMI <- length(get_low_bfmi_chains(fit2$stanfit))
+      }
+      
+      halfmax_df$num_diverge[counter] <- num_diverge
+      halfmax_df$num_tree[counter] <- num_tree
+      halfmax_df$num_BFMI[counter] <- num_BFMI
+      
+      #generate predict data
+      predictDays <- range(cyspdata$sjday)[1]:range(cyspdata$sjday)[2]
+      predictDays2 <- predictDays^2
+      predictDays3 <- predictDays^3
+      newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
+      
+      #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
       
@@ -207,14 +346,6 @@ for (j in 1:nyr)
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
       ########################
-      
-      halfmax_df$n1[counter] <- n1
-      halfmax_df$n1W[counter] <- n1W
-      halfmax_df$n0[counter] <- n0
-      halfmax_df$n0i[counter] <- n0i
-      halfmax_df$njd1[counter] <- njd1
-      halfmax_df$njd0[counter] <- njd0
-      halfmax_df$njd0i[counter] <- njd0i
       
       iter_ind <- grep('iter', colnames(halfmax_df))
       halfmax_df[counter,iter_ind] <- halfmax_fit

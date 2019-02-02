@@ -85,6 +85,9 @@ halfmax_df <- data.frame(species = args,
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
+                         num_diverge = NA,
+                         num_tree = NA,
+                         num_BFMI = NA,
                          n1 = NA,
                          n1W = NA,
                          n0 = NA,
@@ -93,13 +96,6 @@ halfmax_df <- data.frame(species = args,
                          njd0 = NA,
                          njd0i = NA,
                          t_mat)
-
-
-#new data for plotting model fit
-predictDays <- range(temp_bc_f$sjday)[1]:range(temp_bc_f$sjday)[2]
-predictDays2 <- predictDays^2
-predictDays3 <- predictDays^3
-newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
 
 
 #create dir for figs if doesn't exist
@@ -166,8 +162,20 @@ for (j in 1:nyr)
       n0i <- 0
     }
     
-
+    halfmax_df$n1[counter] <- n1
+    halfmax_df$n1W[counter] <- n1W
+    halfmax_df$n0[counter] <- n0
+    halfmax_df$n0i[counter] <- n0i
+    halfmax_df$njd1[counter] <- njd1
+    halfmax_df$njd0[counter] <- njd0
+    halfmax_df$njd0i[counter] <- njd0i
+    
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k, ', br obs: ', n1))
+    
+    #defaults for rstanarm are 0.95 and 15
+    DELTA <- 0.95
+    TREE_DEPTH <- 18
+    
     
     #different thresholds from arrival models
     if (n1 > 20 & n1W < (n1/50) & n0 > 29 & njd1 > 15 & njd0i > 29)
@@ -180,6 +188,43 @@ for (j in 1:nyr)
                                  chains = CHAINS,
                                  cores = CHAINS)
       
+      #calculate diagnostics
+      num_diverge <- get_num_divergent(fit2$stanfit)
+      num_tree <- sum(get_max_treedepth_iterations(fit2$stanfit))
+      num_BFMI <- length(get_low_bfmi_chains(fit2$stanfit))
+      
+      #rerun model if things didn't go well
+      while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.99)
+      {
+        DELTA <- DELTA + 0.1
+        TREE_DEPTH <- TREE_DEPTH + 1
+        
+        fit2 <- rstanarm::stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
+                                   data = cyspdata,
+                                   family = binomial(link = "logit"),
+                                   algorithm = 'sampling',
+                                   iter = ITER,
+                                   chains = CHAINS,
+                                   cores = CHAINS,
+                                   adapt_delta = DELTA,
+                                   control = list(max_treedepth = TREE_DEPTH))
+        
+        num_diverge <- get_num_divergent(fit2$stanfit)
+        num_tree <- sum(get_max_treedepth_iterations(fit2$stanfit))
+        num_BFMI <- length(get_low_bfmi_chains(fit2$stanfit))
+      }
+      
+      halfmax_df$num_diverge[counter] <- num_diverge
+      halfmax_df$num_tree[counter] <- num_tree
+      halfmax_df$num_BFMI[counter] <- num_BFMI
+      
+      #generate predict data
+      predictDays <- range(t_cell2$sjday)[1]:range(t_cell2$sjday)[2]
+      predictDays2 <- predictDays^2
+      predictDays3 <- predictDays^3
+      newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
+      
+      #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
       
@@ -219,14 +264,6 @@ for (j in 1:nyr)
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
       ########################
-      
-      halfmax_df$n1[counter] <- n1
-      halfmax_df$n1W[counter] <- n1W
-      halfmax_df$n0[counter] <- n0
-      halfmax_df$n0i[counter] <- n0i
-      halfmax_df$njd1[counter] <- njd1
-      halfmax_df$njd0[counter] <- njd0
-      halfmax_df$njd0i[counter] <- njd0i
       
       iter_ind <- grep('iter', colnames(halfmax_df))
       halfmax_df[counter,iter_ind] <- halfmax_fit
