@@ -293,7 +293,7 @@ for (j in 1:nyr)
     
     #defaults for rstanarm are 0.95 and 15
     DELTA <- 0.95
-    TREE_DEPTH <- 18
+    TREE_DEPTH <- 15
     
     if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     {

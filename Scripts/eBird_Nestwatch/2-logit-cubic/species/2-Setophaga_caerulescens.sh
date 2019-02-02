@@ -6,7 +6,7 @@
 #SBATCH -c 4 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=20G #memory requested
+#SBATCH --mem=25G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
 #SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-02-02/lc-arr-Setophaga_caerulescens.out #STDOUT
