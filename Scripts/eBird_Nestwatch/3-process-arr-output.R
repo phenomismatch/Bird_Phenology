@@ -20,7 +20,7 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-db_dir <- 'db_query_2018-10-15'
+db_dir <- 'eBird_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
 
 
