@@ -124,6 +124,9 @@ nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
 #filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
 nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
 
+#remove unneeded objects
+rm(sp_rng)
+
 
 #if there is a legitimate range
 if (NROW(nrng@data) > 0)
@@ -140,9 +143,20 @@ if (NROW(nrng@data) > 0)
   ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
   res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
   
+  #remove unneeded objects
+  rm(hge)
+  rm(nrng)
+  rm(nrng_sp)
+  rm(nrng_rm_sp)
+  rm(ptsreg)
+  rm(ptsreg_rm)
+  
   #remove cells that appear in resident and overwinter range that also appear in breeding range
   cell_mrg <- c(br_mig_cells, res_ovr_cells)
   to_rm <- cell_mrg[duplicated(cell_mrg)]
+  
+  #remove unneeded objects
+  rm(res_ovr_cells)
   
   if (length(to_rm) > 0)
   {
@@ -151,10 +165,17 @@ if (NROW(nrng@data) > 0)
     overlap_cells <- br_mig_cells
   }
   
+  #remove unneeded objects
+  rm(br_mig_cells)
+  
   #get cell centers
   cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
   cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
                       lat = cell_centers$lat_deg)
+  
+  #remove unneeded objects
+  rm(hexgrid6)
+  rm(cell_centers)
   
   #cells only within the range that ebird surveys were filtered to
   n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
@@ -162,6 +183,11 @@ if (NROW(nrng@data) > 0)
   
   #retain rows that match selected cells
   spdata2 <- spdata[which(spdata$cell %in% cells),]
+  
+  #remove unneeded objects
+  rm(cc_df)
+  rm(n_cc_df)
+  rm(spdata)
   
   #create rows for cells that were missing in ebird data
   missing_cells <- cells[which(cells %ni% spdata2$cell)]
