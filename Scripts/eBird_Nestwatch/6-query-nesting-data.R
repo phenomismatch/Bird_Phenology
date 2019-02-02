@@ -655,8 +655,9 @@ colnames(MAPS_mrg3) <- c('STA', 'Location_code', 'Cell', 'Date', 'Year', 'Month'
                          'Cloacal_prot', 'Brood_patch', 'Fat_content', 'Weight')
 
 #filter by species and capture code (only codes N,R,U are used for analyses)
-MAPS_mrg4 <- dplyr::filter(MAPS_mrg3, Sci_name %in% species_list_i2 &
-                              Capture_code %in% c('N', 'R', 'U'))
+MAPS_mrg4 <- dplyr::filter(MAPS_mrg3, Sci_name %in% species_list_i2 & 
+                             Capture_code %in% c('N', 'R', 'U') &
+                             Year > 2001)
 
 #Age split up into AFTER... codes - these may or may not have been advanced in database for recaptures
 #What characterizes breeding?
@@ -728,21 +729,32 @@ sum(!is.na(MAPS_mrg5$True_age))/NROW(MAPS_mrg5)
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 # saveRDS(MAPS_mrg5, 'MAPS_age_filled.rds')
+# MAPS_mrg5 <- readRDS('MAPS_age_filled.rds')
 
 
+#--------------------------------#
+#logistic model for presence of brood patch
 
+#just hatch year birds
+MAPS_f <- dplyr::filter(MAPS_mrg5, True_age == 0)
+plyr::count(MAPS_f, 'Sci_name')
 
-#just hatch year birds - treat every day without a fledgling a 0, all days with a 1
-#tt <- dplyr::filter(MAPS_mrg5, True_age == 0)
-MAPS_f <- dplyr::filter(MAPS_mrg5, Age_code == 4)
+oc_0 <- filter(MAPS_f, Sci_name == 'Oreothlypis celata')
+plyr::count(oc_0, c('Cell', 'Year'))
+tt <- dplyr::filter(oc_0, Cell == 444, Year == 2011)
 
 plot(density(tt$Jday))
+
+
+#--------------------------------#
 
 
 #--------------------------------#
 #logistic model for presence of brood patch
 
 MAPS_age <- dplyr::filter(MAPS_mrg5, True_age > 0)
+plyr::count(MAPS_age, 'Sci_name')
+
 C_ustulatus <- filter(MAPS_age, Sci_name == 'Catharus ustulatus')
 
 #breeding defined as:
@@ -774,8 +786,6 @@ lines(density(cu_f[which(cu_f$Brood_patch > 2 & cu_f$Brood_patch < 5),]$Jday),
 cu_f[which(cu_f$Brood_patch > 2 & cu_f$Brood_patch < 5),]$BR <- 1
 cu_f[which(cu_f$Brood_patch <= 2 | cu_f$Brood_patch == 5),]$BR <- 0
 
-DAY <- 300
-
 #DATA <- dplyr::filter(cu_f, Jday < DAY, Jday > 50)
 DATA <- cu_f
 
@@ -783,6 +793,7 @@ DATA$sjday <- DATA$Jday
 DATA$sjday2 <- DATA$Jday^2
 DATA$sjday3 <- DATA$Jday^3
 
+plyr::count(cu_f, c('Cell', 'Year'))
 
 
 library(rstanarm)
@@ -838,6 +849,8 @@ abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
 abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
 mean(halfmax_fit)
 sd(halfmax_fit)
+
+
 
 #--------------------------------#
 

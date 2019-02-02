@@ -23,7 +23,7 @@ halfmax_breeding_date <- '2019-01-16'
 bc_query_date <- '2019-01-30'
 NW_date <- '2019-01-28'
 MAPS_date <- '2019-01-31'
-db_query_dir <- 'db_query_2018-10-15'
+eBird_query_dir <- 'eBird_query_2018-10-15'
 
 
 # Load packages -----------------------------------------------------------
@@ -60,7 +60,7 @@ MAPS_data <- readRDS(paste0('breeding_MAPS_obs_', MAPS_date, '.rds'))
 # create and fill df ------------------------------------------------------
 
 #read in ebird surveys to get full list of cells
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_query_dir))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', eBird_query_dir))
 t_data <- readRDS(paste0('ebird_NA_phen_proc_', species_list[1], '.rds'))
 
 na_reps <- rep(NA, (nsp*nyr*length(unique(t_data$cell))))
