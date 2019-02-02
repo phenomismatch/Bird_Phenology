@@ -88,7 +88,7 @@ setwd(query_dir_path)
 # * lat (> 26) and lon (-100 to -50)
 # * year > 2001
 # * day of year (< julian day 200)
-# * time started before 16:00
+# * time started before 18:00
 # * radius < 100km
 
 
@@ -168,7 +168,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND (sci_name IN (", SL,"))
                                     AND (event_json ->> 'ALL_SPECIES_REPORTED')::int = 1
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
-                                    AND LEFT(started, 2)::int < 16
+                                    AND LEFT(started, 2)::int < 18
                                     AND RADIUS < 100000;
                                     "))
 
@@ -341,152 +341,6 @@ for (i in 1:length(m_sp2))
   sdata['species'] <- m_sp2[i]
   
   saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', m_sp[i], '.rds'))
-}
-
-
-
-# filter by cell ----------------------------------------------------------
-
-read
-
-#reference key for species synonyms
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
-sp_key <- read.csv('species_filenames_key.csv')
-
-#change dir to shp files
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
-
-df_out <- data.frame()
-#which species/years meet criteria for model
-for (i in 1:length(species_list))
-{
-  #i <- 16
-  
-  print(i)
-  #filter by species
-  t_sp <- dplyr::filter(diagnostics_frame, species == species_list[i])
-  
-  #filter by breeding/migration cells
-  #match species name to shp file name
-  g_ind <- grep(species_list[i], sp_key$file_names_2016)
-  
-  #check for synonyms if there are no matches
-  if (length(g_ind) == 0)
-  {
-    g_ind2 <- grep(species_list[i], sp_key$BL_Checklist_name)
-  } else {
-    g_ind2 <- g_ind
-  }
-  
-  #get filename and read in
-  fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
-  t_sp$shp_fname <- fname
-  sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
-  
-  #filter by breeding (2) and migration (4) range - need to convert spdf to sp
-  nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
-  
-  #filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
-  nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
-  
-  #only process if there is a seasonal range
-  if (NROW(nrng@data) > 0)
-  {
-    #good cells
-    nrng_sp <- sp::SpatialPolygons(nrng@polygons)
-    sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
-    ptsreg <- sp::spsample(nrng, 50000, type = "regular")
-    br_mig_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
-    
-    #bad cells
-    nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
-    sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-    ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
-    res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
-    
-    #remove cells that appear in resident and overwinter range that also appear in breeding range
-    cell_mrg <- c(br_mig_cells, res_ovr_cells)
-    to_rm <- cell_mrg[duplicated(cell_mrg)]
-    
-    if (length(to_rm) > 0)
-    {
-      overlap_cells <- br_mig_cells[-which(br_mig_cells %in% to_rm)]
-    } else {
-      overlap_cells <- br_mig_cells
-    }
-    
-    #get cell centers
-    cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
-    cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
-                        lat = cell_centers$lat_deg)
-    
-    #cells only within the range that ebird surveys were filtered to
-    n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
-    cells <- n_cc_df$cell
-    
-    #retain rows that match selected cells
-    t_sp2 <- t_sp[which(t_sp$cell %in% cells),]
-    
-    #create rows for cells that were missing in ebird data
-    missing_cells <- cells[which(cells %ni% t_sp2$cell)]
-    
-    temp_dff <- t_sp2[1,]
-    temp_dff[,2:20] <- NA
-    
-    nmc <- length(missing_cells)
-    nreps <- nmc * nyr
-    
-    temp_dff2 <- temp_dff[rep(row.names(temp_dff), nreps),]
-    rownames(temp_dff2) <- NULL
-    
-    temp_dff2$year <- rep(years, nmc)
-    temp_dff2$cell <- rep(missing_cells, each = nyr)
-    
-    #combine filtered data with missing cells
-    t_sp3 <- rbind(t_sp2, temp_dff2)
-    
-    
-    #number of cells with good data in each year from 2015-2017
-    nobs_yr <- c()
-    for (j in 2015:2017)
-    {
-      #j <- 2017
-      ty_sp3 <- dplyr::filter(t_sp3, year == j)
-      ind <- which(!is.na(ty_sp3$HM_mean))
-      nobs_yr <- c(nobs_yr, length(ind))
-      #ty_sp[ind,]
-    }
-    
-    
-    #if all three years have greater than or = to 'NC' cells of data, figure 
-    #...out which years have at least 'NC' cells
-    yrs_kp <- c()
-    if (sum(nobs_yr >= NC) == 3)
-    {
-      #see which years have more than 3 cells of data
-      nobs_yr2 <- c()
-      for (j in min(years):max(years))
-      {
-        #j <- 2012
-        ty2_sp3 <- dplyr::filter(t_sp3, year == j)
-        ind2 <- which(!is.na(ty2_sp3$HM_mean))
-        nobs_yr2 <- c(nobs_yr2, length(ind2))
-      }
-      
-      #years to keep (more than three cells of data)
-      yrs_kp <- years[which(nobs_yr2 >= NC)]
-    }
-    
-    if (length(yrs_kp) > 0)
-    {
-      t_sp3[which(t_sp3$year %in% yrs_kp),]$MODEL <- TRUE
-    }
-    
-    df_out <- rbind(df_out, t_sp3)
-  } else {
-    #merge unchanged data if there isn't a seasonal range
-    df_out <- rbind(df_out, t_sp)
-  }
 }
 
 
