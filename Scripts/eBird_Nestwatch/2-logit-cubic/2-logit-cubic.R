@@ -121,7 +121,8 @@ nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
 #filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
 nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
 
-#if there is a legitimate range at all
+
+#if there is a legitimate range
 if (NROW(nrng@data) > 0)
 {
   #good cells
@@ -189,6 +190,8 @@ halfmax_df <- data.frame(species = args,
                          num_diverge = NA,
                          num_tree = NA,
                          num_BFMI = NA,
+                         delta = NA,
+                         tree_depth = NA,
                          n1 = NA,
                          n1W = NA,
                          n0 = NA,
@@ -211,7 +214,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 16
+  #j <- 2
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
@@ -272,13 +275,13 @@ for (j in 1:nyr)
       
       #calculate diagnostics
       num_diverge <- get_num_divergent(fit2$stanfit)
-      num_tree <- sum(get_max_treedepth_iterations(fit2$stanfit))
+      num_tree <- get_num_max_treedepth(fit2$stanfit)
       num_BFMI <- length(get_low_bfmi_chains(fit2$stanfit))
       
       #rerun model if things didn't go well
-      while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.99)
+      while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
       {
-        DELTA <- DELTA + 0.1
+        DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
         
         fit2 <- rstanarm::stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
@@ -292,13 +295,15 @@ for (j in 1:nyr)
                                    control = list(max_treedepth = TREE_DEPTH))
         
         num_diverge <- get_num_divergent(fit2$stanfit)
-        num_tree <- sum(get_max_treedepth_iterations(fit2$stanfit))
+        num_tree <- get_num_max_treedepth(fit2$stanfit)
         num_BFMI <- length(get_low_bfmi_chains(fit2$stanfit))
       }
       
       halfmax_df$num_diverge[counter] <- num_diverge
       halfmax_df$num_tree[counter] <- num_tree
       halfmax_df$num_BFMI[counter] <- num_BFMI
+      halfmax_df$delta[counter] <- DELTA
+      halfmax_df$tree_depth[counter] <- TREE_DEPTH
       
       #generate predict data
       predictDays <- range(cyspdata$sjday)[1]:range(cyspdata$sjday)[2]
