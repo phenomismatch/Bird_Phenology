@@ -19,7 +19,7 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-halfmax_breeding_date <- '2019-01-16'
+halfmax_breeding_date <- '2019-01-30'
 bc_query_date <- '2019-01-30'
 NW_date <- '2019-01-28'
 MAPS_date <- '2019-01-31'
@@ -197,12 +197,15 @@ for (i in 1:nsp)
       {
         #julian day used if breeding was observed
         #values of 0 for midpoint indicate observed, but not observed breeding - NA indicated not observed
-        if (t_MAPS$midpoint > 0)
+        if (!is.na(t_MAPS$midpoint))
         {
-          m_breeding_df$MAPS_midpoint[counter] <- t_MAPS$midpoint
-          m_breeding_df$MAPS_l_bounds[counter] <- t_MAPS$l_bounds
-          m_breeding_df$MAPS_u_bounds[counter] <- t_MAPS$u_bounds
-          m_breeding_df$MAPS_n_stations[counter] <- t_MAPS$n_stations
+          if (t_MAPS$midpoint > 0)
+          {
+            m_breeding_df$MAPS_midpoint[counter] <- t_MAPS$midpoint
+            m_breeding_df$MAPS_l_bounds[counter] <- t_MAPS$l_bounds
+            m_breeding_df$MAPS_u_bounds[counter] <- t_MAPS$u_bounds
+            m_breeding_df$MAPS_n_stations[counter] <- t_MAPS$n_stations
+          }
         }
       }
       
@@ -247,6 +250,14 @@ sum(m_breeding_df2$d_avail == '100')
 #write to rds
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 saveRDS(m_breeding_df2, paste0('temp_breeding_master_', Sys.Date(), '.rds'))
+
+
+
+
+
+
+
+
 
 #m_breeding_df2 <- readRDS('temp_breeding_master_2019-01-30.rds')
 
