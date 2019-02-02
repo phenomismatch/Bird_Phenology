@@ -92,6 +92,8 @@ hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 
 # filter cells by range  ---------------------------------------------------
 
+'%ni%' <- Negate('%in%')
+
 #reference key for species synonyms
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
 sp_key <- read.csv('species_filenames_key.csv')
