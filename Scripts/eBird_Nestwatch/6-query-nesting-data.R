@@ -180,9 +180,9 @@ rm(data)
 
 #calculate polynomial then center data
 #scaled julian day, scaled julian day^2, and scaled julian day^3
-SJDAY  <- as.vector(scale(data2$day, scale = FALSE))
-SJDAY2 <- as.vector(scale(data2$day^2, scale = FALSE))
-SJDAY3 <- as.vector(scale(data2$day^3, scale = FALSE))
+SJDAY  <- as.vector(data2$day)
+SJDAY2 <- as.vector(data2$day^2)
+SJDAY3 <- as.vector(data2$day^3)
 
 data2$sjday <- SJDAY
 data2$sjday2 <- SJDAY2
@@ -745,43 +745,52 @@ plot(density(tt$Jday))
 MAPS_age <- dplyr::filter(MAPS_mrg5, True_age > 0)
 C_ustulatus <- filter(MAPS_age, Sci_name == 'Catharus ustulatus')
 
-#add breeder col
-C_ustulatus$BR <- NA
-hist(C_ustulatus$Jday)
 #breeding defined as:
 #BP 2-4
 #CP 1-3
 
+C_ustulatus <- dplyr::filter(MAPS_age, Sci_name == 'Catharus ustulatus')
+
+cu_f <- dplyr::filter(C_ustulatus, Sex == 'F')
+cu_m <- dplyr::filter(C_ustulatus, Sex == 'M')
+
+#add breeder col
+C_ustulatus$BR <- NA
+cu_f$BR <- NA
+
+#male female
+plot(density(C_ustulatus[which(C_ustulatus$Sex == 'M'),]$Jday))
+lines(density(C_ustulatus[which(C_ustulatus$Sex == 'F'),]$Jday), col = 'red')
+
 #cloacal protuberance probably not a good metric
-plot(density(C_ustulatus[which(C_ustulatus$Cloacal_prot <= 2),]$Jday))
-lines(density(C_ustulatus[which(C_ustulatus$Cloacal_prot > 2),]$Jday), col = 'red')
+plot(density(cu_m[which(cu_m$Cloacal_prot <= 2),]$Jday))
+lines(density(cu_m[which(cu_m$Cloacal_prot > 2),]$Jday), col = 'red')
 
 #brood patch maybe better
-plot(density(C_ustulatus[which(C_ustulatus$Brood_patch <= 2 | C_ustulatus$Brood_patch == 5),]$Jday))
-lines(density(C_ustulatus[which(C_ustulatus$Brood_patch > 2 & C_ustulatus$Brood_patch < 5),]$Jday), 
+plot(density(cu_f[which(cu_f$Brood_patch <= 2 | cu_f$Brood_patch == 5),]$Jday))
+lines(density(cu_f[which(cu_f$Brood_patch > 2 & cu_f$Brood_patch < 5),]$Jday), 
       col = 'red')
 
+cu_f[which(cu_f$Brood_patch > 2 & cu_f$Brood_patch < 5),]$BR <- 1
+cu_f[which(cu_f$Brood_patch <= 2 | cu_f$Brood_patch == 5),]$BR <- 0
 
-C_ustulatus[which(C_ustulatus$Cloacal_prot > 2 | 
-                    (C_ustulatus$Brood_patch > 2 & C_ustulatus$Brood_patch < 5)),]$BR <- 1
-C_ustulatus[which(C_ustulatus$Cloacal_prot <= 2 & 
-                    (C_ustulatus$Brood_patch <= 2 | C_ustulatus$Brood_patch == 5)),]$BR <- 0
+DAY <- 300
 
-DAY <- 200
+#DATA <- dplyr::filter(cu_f, Jday < DAY, Jday > 50)
+DATA <- cu_f
 
-DATA <- dplyr::filter(C_ustulatus, Jday < DAY, Jday > 50)
+DATA$sjday <- DATA$Jday
+DATA$sjday2 <- DATA$Jday^2
+DATA$sjday3 <- DATA$Jday^3
 
-DATA$sjday <- scale(DATA$Jday, scale = FALSE)
-DATA$sjday2 <- scale(DATA$Jday^2, scale = FALSE)
-DATA$sjday3 <- scale(DATA$Jday^3, scale = FALSE)
+
 
 library(rstanarm)
 ITER <- 1000
 #ITER <- 10
-CHAINS <- 4
+CHAINS <- 3
 
-
-fit2 <- rstanarm::stan_glm(BR ~ sjday,
+fit2 <- rstanarm::stan_glm(BR ~ sjday + sjday2 + sjday3,
                            data = DATA,
                            family = binomial(link = "logit"),
                            algorithm = 'sampling',
@@ -791,10 +800,11 @@ fit2 <- rstanarm::stan_glm(BR ~ sjday,
 
 summary(fit2)
 
-predictDays <- scale(c(50:DAY), scale = FALSE)
-predictDays2 <- scale(c(50:DAY)^2, scale = FALSE)
-predictDays3 <- scale(c(50:DAY)^3, scale = FALSE)
-newdata <- data.frame(sjday = predictDays)#, sjday2 = predictDays2, sjday3 = predictDays3)
+predictDays <- range(DATA$sjday)[1]:range(DATA$sjday)[2]
+predictDays2 <- predictDays^2
+predictDays3 <- predictDays^3
+
+newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3)
 
 dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
 halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
@@ -803,7 +813,7 @@ for (L in 1:((ITER/2)*CHAINS))
 {
   #L <- 1
   rowL <- as.vector(dfit[L,])
-  halfmax_fit[L] <- min(which(rowL > (max(rowL)/2)))
+  halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
 }
 
 
@@ -814,16 +824,20 @@ mn_hm <- mean(halfmax_fit)
 LCI_hm <- quantile(halfmax_fit, probs = 0.025)
 UCI_hm <- quantile(halfmax_fit, probs = 0.975)
 
-plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
+plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
      ylim = c(0, max(UCI_dfit)),
      xlab = 'Julian Day', ylab = 'Detection Probability')
-lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
-lines(mn_dfit, lwd = 2)
-DATA$BR[which(DATA$BR == 1)] <- max(UCI_dfit)
-points(DATA$Jday, DATA$BR, col = rgb(0,0,0,0.25))
+lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
+lines(predictDays, mn_dfit, lwd = 2)
+DATA$BR_pl <- NA
+DATA[which(DATA$BR == 1),]$BR_pl <- max(UCI_dfit)
+DATA[which(DATA$BR == 0),]$BR_pl <- 0
+points(DATA$Jday, DATA$BR_pl, col = rgb(0,0,0,0.25))
 abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
 abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
 abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
+mean(halfmax_fit)
+sd(halfmax_fit)
 
 #--------------------------------#
 
@@ -861,6 +875,7 @@ abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
 #y[i] ~ bern(p[i])
 #logit(p[i]) = alpha[id[i]] + beta[id[i]] * DAY[i]
 
+#*difference in arrival between males and females - how this maps onto phlogeny/traits
 
 
 #*fat content and age - Fat[i] ~ alpha[id[i]] + beta1[id[i]] * Age[i] + beta2[id[i]] * Day[i] + beta3[id[i]] * Day[i]^2
