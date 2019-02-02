@@ -93,7 +93,7 @@ setwd(query_dir_path)
 # * lat (> 26) and lon (-100 to -50)
 # * year > 2001
 # * day of year (< julian day 300)
-# * time started before 16:00
+# * time started before 18:00
 # * radius < 100km
 
 
@@ -166,7 +166,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND (sci_name IN (", SL,"))
                                     AND (event_json ->> 'ALL_SPECIES_REPORTED')::int = 1
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
-                                    AND LEFT(started, 2)::int < 16
+                                    AND LEFT(started, 2)::int < 18
                                     AND RADIUS < 100000;
                                     "))
 
