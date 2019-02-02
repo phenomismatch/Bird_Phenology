@@ -146,6 +146,7 @@ if (NROW(nrng@data) > 0)
   #remove unneeded objects
   rm(hge)
   rm(nrng)
+  rm(nrng_rm)
   rm(nrng_sp)
   rm(nrng_rm_sp)
   rm(ptsreg)
@@ -167,6 +168,8 @@ if (NROW(nrng@data) > 0)
   
   #remove unneeded objects
   rm(br_mig_cells)
+  rm(cell_mrg)
+  rm(to_rm)
   
   #get cell centers
   cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
@@ -176,6 +179,7 @@ if (NROW(nrng@data) > 0)
   #remove unneeded objects
   rm(hexgrid6)
   rm(cell_centers)
+  rm(overlap_cells)
   
   #cells only within the range that ebird surveys were filtered to
   n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
@@ -190,7 +194,7 @@ if (NROW(nrng@data) > 0)
   rm(spdata)
   
   #create rows for cells that were missing in ebird data
-  missing_cells <- cells[which(cells %ni% spdata2$cell)]
+  #missing_cells <- cells[which(cells %ni% spdata2$cell)]
 } else {
   stop('Range not suitable for modeling!')
 }
