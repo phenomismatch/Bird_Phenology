@@ -118,6 +118,7 @@ if (length(g_ind) == 0)
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
 sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
 
+
 #filter by breeding (2) and migration (4) range - need to convert spdf to sp
 nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
 
@@ -126,6 +127,7 @@ nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
 
 #remove unneeded objects
 rm(sp_rng)
+rm(fname)
 
 
 #if there is a legitimate range
@@ -217,7 +219,6 @@ colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
 halfmax_df <- data.frame(species = args, 
                          year = rep(years, each = ncell), 
                          cell = rep(cells, nyr), 
-                         shp_name = fname,
                          max_Rhat = NA,
                          min_neff = NA,
                          num_diverge = NA,
