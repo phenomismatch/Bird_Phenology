@@ -10,7 +10,7 @@
 
 library(rstanarm)
 library(dplyr)
-
+library(rstan)
 
 # directory ---------------------------------------------------------------
 
@@ -191,9 +191,9 @@ for (j in 1:nyr)
                                  cores = CHAINS)
       
       #calculate diagnostics
-      num_diverge <- get_num_divergent(fit2$stanfit)
-      num_tree <- get_num_max_treedepth(fit2$stanfit)
-      num_BFMI <- length(get_low_bfmi_chains(fit2$stanfit))
+      num_diverge <- rstan::get_num_divergent(fit2$stanfit)
+      num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
+      num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
       #rerun model if things didn't go well
       while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
@@ -211,9 +211,9 @@ for (j in 1:nyr)
                                    adapt_delta = DELTA,
                                    control = list(max_treedepth = TREE_DEPTH))
         
-        num_diverge <- get_num_divergent(fit2$stanfit)
-        num_tree <- get_num_max_treedepth(fit2$stanfit)
-        num_BFMI <- length(get_low_bfmi_chains(fit2$stanfit))
+        num_diverge <- rstan::get_num_divergent(fit2$stanfit)
+        num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
+        num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       }
       
       halfmax_df$num_diverge[counter] <- num_diverge

@@ -369,9 +369,9 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 # Calc diagnostics and rerun if needed ------------------------------------
 
-num_diverge <- get_num_divergent(fit)
-num_tree <- get_num_max_treedepth(fit)
-num_BFMI <- length(get_low_bfmi_chains(fit))
+num_diverge <- rstan::get_num_divergent(fit)
+num_tree <- rstan::get_num_max_treedepth(fit)
+num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 
 #rerun model if things didn't go well
@@ -392,9 +392,9 @@ while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
               control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
   run_time <- (proc.time()[3] - tt[3]) / 60
   
-  num_diverge <- get_num_divergent(fit)
-  num_tree <- get_num_max_treedepth(fit)
-  num_BFMI <- length(get_low_bfmi_chains(fit))
+  num_diverge <- rstan::get_num_divergent(fit)
+  num_tree <- rstan::get_num_max_treedepth(fit)
+  num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 }
 
 
@@ -446,8 +446,8 @@ sink()
 #estimated half-max in grey, sd in white (derived from logit cubic)
 
 #extract median and sd estimates for mu params
-med_fit <- MCMCpstr(fit, params = 'mu', func = median)[[1]]
-sd_fit <- MCMCpstr(fit, params = 'mu', func = sd)[[1]]
+med_fit <- MCMCvis::MCMCpstr(fit, params = 'mu', func = median)[[1]]
+sd_fit <- MCMCvis::MCMCpstr(fit, params = 'mu', func = sd)[[1]]
 
 
 #transform cells to grid
@@ -615,7 +615,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 #beta0
 PR <- rnorm(10000, 120, 10)
-MCMCtrace(fit, 
+MCMCvis::MCMCtrace(fit, 
           params = 'beta0',
           priors = PR,
           open_pdf = FALSE,
@@ -623,7 +623,7 @@ MCMCtrace(fit,
 
 #rho
 PR <- rbeta(10000, 0.5, 0.5)
-MCMCtrace(fit, 
+MCMCvis::MCMCtrace(fit, 
           params = 'rho',
           priors = PR,
           open_pdf = FALSE,
@@ -631,7 +631,7 @@ MCMCtrace(fit,
 
 #mu_sigma
 PR <- rnorm(10000, 0, 3)
-MCMCtrace(fit, 
+MCMCvis::MCMCtrace(fit, 
           params = 'mu_sigma',
           priors = PR,
           open_pdf = FALSE,
