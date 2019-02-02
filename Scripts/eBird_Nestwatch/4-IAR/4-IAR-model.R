@@ -350,9 +350,9 @@ mu_sigma_raw ~ normal(0, 1); // implies mu_sigma ~ halfnormal(0, 3)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-MAX_TREE = 20
-ADAPT_DELTA = 0.999
-STEP_SIZE = 0.0005
+DELTA <- 0.95
+TREE_DEPTH <- 18
+STEP_SIZE <- 0.001
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
@@ -362,25 +362,47 @@ fit <- stan(model_code = IAR_bym2,
             cores = 4,
             pars = c('sigma', 'mu_sigma', 
                      'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = MAX_TREE, adapt_delta = ADAPT_DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
+            control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time()[3] - tt[3]) / 60
 
-#save to RDS
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
+
+
+# Calc diagnostics and rerun if needed ------------------------------------
+
+num_diverge <- get_num_divergent(fit)
+num_tree <- sum(get_max_treedepth_iterations(fit))
+num_BFMI <- length(get_low_bfmi_chains(fit))
+
+
+#rerun model if things didn't go well
+while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.99)
+{
+  DELTA <- DELTA + 0.1
+  TREE_DEPTH <- TREE_DEPTH + 1
+  STEP_SIZE <- STEP_SIZE * 0.75
+
+  tt <- proc.time()
+  fit <- stan(model_code = IAR_bym2,
+              data = DATA,
+              chains = 4,
+              iter = 8000,
+              cores = 4,
+              pars = c('sigma', 'mu_sigma', 
+                       'rho', 'beta0', 'theta', 'phi', 'mu'),
+              control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
+  run_time <- (proc.time()[3] - tt[3]) / 60
+  
+  num_diverge <- get_num_divergent(fit)
+  num_tree <- sum(get_max_treedepth_iterations(fit))
+  num_BFMI <- length(get_low_bfmi_chains(fit))
+}
 
 
 
 
-# diagnostics -------------------------------------------------------------
 
 
-# pairs(fit, pars = c('sigma', 'rho'))
-
-# sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
-# mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
-# max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
-# get_elapsed_time(fit)
+# Checks -------------------------------------------------------------
 
 # MCMCtrace(fit)
 # MCMCsummary(fit, params = c('sigma', 'rho', 'beta0', 'mu_sigma'), n.eff = TRUE)
@@ -391,21 +413,28 @@ saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
 # #shiny stan
 # library(shinystan)
 # launch_shinystan(fit)
-#fit <- readRDS('IAR_stan_Bombycilla_cedrorum-2019-01-16.rds')
+# fit <- readRDS('IAR_stan_Bombycilla_cedrorum-2019-01-16.rds')
 
-num_diverge <- get_num_divergent(fit)
 
 # write model results to file ---------------------------------------------
+
+  
+#save to RDS
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
+
 
 options(max.print = 50000)
 sink(paste0('IAR_results_', args, '.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
-cat(paste0('Max tree depth: ', MAX_TREE, ' \n'))
-cat(paste0('Adapt delta: ', ADAPT_DELTA, ' \n'))
+cat(paste0('Adapt delta: ', DELTA, ' \n'))
+cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
 cat(paste0('Step size: ', STEP_SIZE, ' \n'))
-cat(paste0('Cell drop: ', DROP, ' \n'))
 cat(paste0('Number of divergences: ', num_diverge, ' \n'))
+cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
+cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
+cat(paste0('Cell drop: ', DROP, ' \n'))
 print(fit)
 sink()
 
