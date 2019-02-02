@@ -669,14 +669,14 @@ MAPS_mrg4 <- dplyr::filter(MAPS_mrg3, Sci_name %in% species_list_i2 &
 #...
 
 #add col for true age (actual age, not 'year' of bird)
-tt <- MAPS_mrg4
-tt$True_age <- NA
+MAPS_mrg5 <- MAPS_mrg4
+MAPS_mrg5$True_age <- NA
 
 #fill 0 for all birds banded in birth year
-tt$True_age[which(tt$Age_code %in% c(2,4))] <- 0 
+MAPS_mrg5$True_age[which(MAPS_mrg5$Age_code %in% c(2,4))] <- 0 
 
 #ids for birds banded in birth year
-ids <- unique(as.numeric(tt$Band_id))[1:10000]
+ids <- unique(as.numeric(MAPS_mrg5$Band_id))
 
 
 #enter in true age for all birds banded in birth year
@@ -686,7 +686,7 @@ for (i in 1:length(ids))
 {
   #i <- 61
   #filter for band_id (all years)
-  temp <- dplyr::filter(tt, Band_id == ids[i])
+  temp <- dplyr::filter(MAPS_mrg5, Band_id == ids[i])
   t_yrs <- sort(as.numeric(unique(temp$Year)))
   
   birth_year <- NA
@@ -714,7 +714,8 @@ for (i in 1:length(ids))
     {
       #j <- 2
       #insert age
-      tt[which(tt$Band_id == ids[i] & tt$Year == t_yrs[j]), 'True_age'] <- (t_yrs[j] - birth_year)
+      MAPS_mrg5[which(MAPS_mrg5$Band_id == ids[i] & MAPS_mrg5$Year == t_yrs[j]), 
+                'True_age'] <- (t_yrs[j] - birth_year)
     }
   }
   setTxtProgressBar(pb, i)
@@ -722,37 +723,155 @@ for (i in 1:length(ids))
 close(pb)
 
 #proportion of captures that have a True_age
-sum(!is.na(tt$True_age))/NROW(tt)
+sum(!is.na(MAPS_mrg5$True_age))/NROW(MAPS_mrg5)
 
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-# saveRDS(tt, 'MAPS_age_filled.rds')
-
-
-tt[which(tt$True_age > 15),]
-#possibly look at distributions of times caught (or appearance of brood patch) for older and younger birds
-hist(tt$True_age)
-range(tt$True_age, na.rm = TRUE)
-summary(lm(tt$Jday ~ tt$True_age))
-
-plot(tt$True_age, tt$Jday, pch = '.', col = rgb(0,0,0, 0.5))
-a1 <- dplyr::filter(tt, Age == 1)
-a2 <- dplyr::filter(tt, Age == 2)
-a3 <- dplyr::filter(tt, Age == 3)
-a4 <- dplyr::filter(tt, Age == 4)
-a5 <- dplyr::filter(tt, Age == 5)
-hist(a1$Jday)
-hist(a2$Jday, add = TRUE)
-hist(a3$Jday, add = TRUE)
-hist(a4$Jday, add = TRUE)
-hist(a5$Jday, add = TRUE)
+# saveRDS(MAPS_mrg5, 'MAPS_age_filled.rds')
 
 
 
 
-#Each cell/year/survey day will have:
-#Proportion of females caught with a brood patch (or males with a CP) -> look at how this changes over time
+#just hatch year birds - treat every day without a fledgling a 0, all days with a 1
+#tt <- dplyr::filter(MAPS_mrg5, True_age == 0)
+MAPS_f <- dplyr::filter(MAPS_mrg5, Age_code == 4)
+
+plot(density(tt$Jday))
+
+
+#--------------------------------#
+#logistic model for presence of brood patch
+
+MAPS_age <- dplyr::filter(MAPS_mrg5, True_age > 0)
+C_ustulatus <- filter(MAPS_age, Sci_name == 'Catharus ustulatus')
+
+#add breeder col
+C_ustulatus$BR <- NA
+hist(C_ustulatus$Jday)
+#breeding defined as:
+#BP 2-4
+#CP 1-3
+
+#cloacal protuberance probably not a good metric
+plot(density(C_ustulatus[which(C_ustulatus$Cloacal_prot <= 2),]$Jday))
+lines(density(C_ustulatus[which(C_ustulatus$Cloacal_prot > 2),]$Jday), col = 'red')
+
+#brood patch maybe better
+plot(density(C_ustulatus[which(C_ustulatus$Brood_patch <= 2 | C_ustulatus$Brood_patch == 5),]$Jday))
+lines(density(C_ustulatus[which(C_ustulatus$Brood_patch > 2 & C_ustulatus$Brood_patch < 5),]$Jday), 
+      col = 'red')
+
+
+C_ustulatus[which(C_ustulatus$Cloacal_prot > 2 | 
+                    (C_ustulatus$Brood_patch > 2 & C_ustulatus$Brood_patch < 5)),]$BR <- 1
+C_ustulatus[which(C_ustulatus$Cloacal_prot <= 2 & 
+                    (C_ustulatus$Brood_patch <= 2 | C_ustulatus$Brood_patch == 5)),]$BR <- 0
+
+DAY <- 200
+
+DATA <- dplyr::filter(C_ustulatus, Jday < DAY, Jday > 50)
+
+DATA$sjday <- scale(DATA$Jday, scale = FALSE)
+DATA$sjday2 <- scale(DATA$Jday^2, scale = FALSE)
+DATA$sjday3 <- scale(DATA$Jday^3, scale = FALSE)
+
+library(rstanarm)
+ITER <- 1000
+#ITER <- 10
+CHAINS <- 4
+
+
+fit2 <- rstanarm::stan_glm(BR ~ sjday,
+                           data = DATA,
+                           family = binomial(link = "logit"),
+                           algorithm = 'sampling',
+                           iter = ITER,
+                           chains = CHAINS,
+                           cores = CHAINS)
+
+summary(fit2)
+
+predictDays <- scale(c(50:DAY), scale = FALSE)
+predictDays2 <- scale(c(50:DAY)^2, scale = FALSE)
+predictDays3 <- scale(c(50:DAY)^3, scale = FALSE)
+newdata <- data.frame(sjday = predictDays)#, sjday2 = predictDays2, sjday3 = predictDays3)
+
+dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
+halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
+
+for (L in 1:((ITER/2)*CHAINS))
+{
+  #L <- 1
+  rowL <- as.vector(dfit[L,])
+  halfmax_fit[L] <- min(which(rowL > (max(rowL)/2)))
+}
+
+
+mn_dfit <- apply(dfit, 2, mean)
+LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
+UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+mn_hm <- mean(halfmax_fit)
+LCI_hm <- quantile(halfmax_fit, probs = 0.025)
+UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+
+plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
+     ylim = c(0, max(UCI_dfit)),
+     xlab = 'Julian Day', ylab = 'Detection Probability')
+lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
+lines(mn_dfit, lwd = 2)
+DATA$BR[which(DATA$BR == 1)] <- max(UCI_dfit)
+points(DATA$Jday, DATA$BR, col = rgb(0,0,0,0.25))
+abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
+abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
+abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
+
+#--------------------------------#
+
+
+# 
+# jfit <- lm(MAPS_age$Jday ~ MAPS_age$True_age)
+# summary(jfit)
+# 
+# plot(MAPS_age$True_age, MAPS_age$Jday, pch = '.', col = rgb(0,0,0, 0.5))
+# abline(jfit, col = 'red')
+# a1 <- dplyr::filter(MAPS_age, True_age == 1)
+# a2 <- dplyr::filter(MAPS_age, True_age == 2)
+# a3 <- dplyr::filter(MAPS_age, True_age == 3)
+# a4 <- dplyr::filter(MAPS_age, True_age == 4)
+# a5 <- dplyr::filter(MAPS_age, True_age == 5)
+# plot(density(a1$Jday))
+# lines(density(a2$Jday))
+# lines(density(a3$Jday))
+# lines(density(a4$Jday))
+# lines(density(a5$Jday))
+
+
+
+
+#*breeding timing
+#Each species/cell/year:
 #maybe each capture different row, 1 for brood patch/CP, 0 if not -> fit a logistic to this for each cell/year?
+#y[i] ~ bern(p[i])
+#logit(p[i]) = alpha + beta * DAY[i]
+
+#*phenology and age
+#could fit logistic regression with age as random effect -> each age class would have different beta param
+#for each cell/year: predict start of breeding for each age class (age 1, age 2, age 3+)
+#calculate derived qty - difference in halfmax estimates
+#y[i] ~ bern(p[i])
+#logit(p[i]) = alpha[id[i]] + beta[id[i]] * DAY[i]
+
+
+
+#*fat content and age - Fat[i] ~ alpha[id[i]] + beta1[id[i]] * Age[i] + beta2[id[i]] * Day[i] + beta3[id[i]] * Day[i]^2
+plot(MAPS_age$True_age, MAPS_age$Fat_content, col = rgb(0,0,0, 0.5))
+plot(MAPS_age$Jday, MAPS_age$Fat_content, col = rgb(0,0,0, 0.5))
+summary(lm(Fat_content ~ True_age + poly(Jday, 2, raw = TRUE), data = MAPS_age))
+
+#*Weight and age - Weight[i] ~ alpha[id[i]] + beta1[id[i]] * Age[i] + beta2[id[i]] * Day[i] + beta3[id[i]] * Day[i]^2
+plot(MAPS_age$True_age, MAPS_age$Weight, col = rgb(0,0,0, 0.5))
+plot(MAPS_age$Jday, MAPS_age$Weight, col = rgb(0,0,0, 0.5))
+summary(lm(Weight ~ True_age + poly(Jday, 2, raw = TRUE), data = MAPS_age))
 
 
 
