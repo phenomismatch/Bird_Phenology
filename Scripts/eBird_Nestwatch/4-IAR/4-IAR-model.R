@@ -370,14 +370,14 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 # Calc diagnostics and rerun if needed ------------------------------------
 
 num_diverge <- get_num_divergent(fit)
-num_tree <- sum(get_max_treedepth_iterations(fit))
+num_tree <- get_num_max_treedepth(fit)
 num_BFMI <- length(get_low_bfmi_chains(fit))
 
 
 #rerun model if things didn't go well
-while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.99)
+while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
 {
-  DELTA <- DELTA + 0.1
+  DELTA <- DELTA + 0.01
   TREE_DEPTH <- TREE_DEPTH + 1
   STEP_SIZE <- STEP_SIZE * 0.75
 
@@ -393,7 +393,7 @@ while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.99)
   run_time <- (proc.time()[3] - tt[3]) / 60
   
   num_diverge <- get_num_divergent(fit)
-  num_tree <- sum(get_max_treedepth_iterations(fit))
+  num_tree <- get_num_max_treedepth(fit)
   num_BFMI <- length(get_low_bfmi_chains(fit))
 }
 
