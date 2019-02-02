@@ -29,16 +29,16 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2018-10-15'
-RUN_DATE <- '2019-01-16'
+db_dir <- 'eBird_query_2019-02-02'
+RUN_DATE <- '2019-02-02'
 
 
 
 # model settings ----------------------------------------------------------
 
 #number of iterations each model should be run
-ITER <- 2500
-#ITER <- 10
+#ITER <- 2500
+ITER <- 10
 CHAINS <- 4
 
 
