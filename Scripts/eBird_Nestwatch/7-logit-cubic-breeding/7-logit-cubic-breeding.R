@@ -96,9 +96,9 @@ halfmax_df <- data.frame(species = args,
 
 
 #new data for plotting model fit
-predictDays <- scale(c(1:200), scale = FALSE)
-predictDays2 <- scale(c(1:200)^2, scale = FALSE)
-predictDays3 <- scale(c(1:200)^3, scale = FALSE)
+predictDays <- range(temp_bc_f$sjday)[1]:range(temp_bc_f$sjday)[2]
+predictDays2 <- predictDays^2
+predictDays3 <- predictDays^3
 newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
 
 
@@ -187,7 +187,7 @@ for (j in 1:nyr)
       {
         #L <- 3000
         rowL <- as.vector(dfit[L,])
-        halfmax_fit[L] <- min(which(rowL > (max(rowL)/2)))
+        halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
       }
       
       ########################
@@ -202,12 +202,12 @@ for (j in 1:nyr)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
       
       pdf(paste0(args, '_', years[j], '_', cells[k], '_breeding.pdf'))
-      plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
+      plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
            xlab = 'Julian Day', ylab = 'Detection Probability')
-      lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
-      lines(mn_dfit, lwd = 2)
+      lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
+      lines(predictDays, mn_dfit, lwd = 2)
       t_cell2$br[which(t_cell2$br == 1)] <- max(UCI_dfit)
       points(t_cell2$day, t_cell2$br, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
@@ -220,7 +220,6 @@ for (j in 1:nyr)
       dev.off()
       ########################
       
-      
       halfmax_df$n1[counter] <- n1
       halfmax_df$n1W[counter] <- n1W
       halfmax_df$n0[counter] <- n0
@@ -228,7 +227,6 @@ for (j in 1:nyr)
       halfmax_df$njd1[counter] <- njd1
       halfmax_df$njd0[counter] <- njd0
       halfmax_df$njd0i[counter] <- njd0i
-      
       
       iter_ind <- grep('iter', colnames(halfmax_df))
       halfmax_df[counter,iter_ind] <- halfmax_fit
@@ -240,6 +238,7 @@ for (j in 1:nyr)
 } #j
 
 
+#save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
 saveRDS(halfmax_df, file = paste0('halfmax_df_breeding_', args, '.rds'))
 

@@ -185,10 +185,10 @@ rm(data)
 # add sjday, sjday^2, sjday^3 and shr ---------------------------------------------------
 
 #calculate polynomial then center data
-#scaled julian day, scaled julian day^2, and scaled julian day^3
-SJDAY  <- as.vector(scale(data2$day, scale = FALSE))
-SJDAY2 <- as.vector(scale(data2$day^2, scale = FALSE))
-SJDAY3 <- as.vector(scale(data2$day^3, scale = FALSE))
+#julian day, julian day^2, and julian day^3
+SJDAY  <- as.vector(data2$day)
+SJDAY2 <- as.vector(data2$day^2)
+SJDAY3 <- as.vector(data2$day^3)
 
 data2$sjday <- SJDAY
 data2$sjday2 <- SJDAY2

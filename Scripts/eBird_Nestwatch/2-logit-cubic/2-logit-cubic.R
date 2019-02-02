@@ -84,10 +84,9 @@ nyr <- length(years)
 
 # Create newdata ---------------------------------------------------
 
-#calculate polynomial, then center data
-predictDays <- scale(c(1:200), scale = FALSE)
-predictDays2 <- scale(c(1:200)^2, scale = FALSE)
-predictDays3 <- scale(c(1:200)^3, scale = FALSE)
+predictDays <- range(spdata$sjday)[1]:range(spdata$sjday)[2]
+predictDays2 <- predictDays^2
+predictDays3 <- predictDays^3
 
 
 newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
@@ -176,7 +175,7 @@ for (j in 1:nyr)
       {
         #L <- 1
         rowL <- as.vector(dfit[L,])
-        halfmax_fit[L] <- min(which(rowL > (max(rowL)/2)))
+        halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
       }
       
       ########################
@@ -191,12 +190,12 @@ for (j in 1:nyr)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
 
       pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
-      plot(UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
+      plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
            xlab = 'Julian Day', ylab = 'Detection Probability')
-      lines(LCI_dfit, col = 'red', lty = 2, lwd = 2)
-      lines(mn_dfit, lwd = 2)
+      lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
+      lines(predictDays, mn_dfit, lwd = 2)
       cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
       points(cyspdata$day, cyspdata$detect, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
@@ -207,7 +206,6 @@ for (j in 1:nyr)
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
-
       ########################
       
       halfmax_df$n1[counter] <- n1
