@@ -37,8 +37,8 @@ RUN_DATE <- '2019-02-02'
 # model settings ----------------------------------------------------------
 
 #number of iterations each model should be run
-#ITER <- 2500
-ITER <- 10
+ITER <- 2500
+#ITER <- 10
 CHAINS <- 4
 
 
