@@ -201,6 +201,32 @@ if (NROW(nrng@data) > 0)
   #create rows for cells that were missing in ebird data
   #missing_cells <- cells[which(cells %ni% spdata2$cell)]
 } else {
+  #write blank .rds file
+  t_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
+  colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
+  halfmax_df <- data.frame(species = args, 
+                           year = NA, 
+                           cell = NA, 
+                           max_Rhat = NA,
+                           min_neff = NA,
+                           num_diverge = NA,
+                           num_tree = NA,
+                           num_BFMI = NA,
+                           delta = NA,
+                           tree_depth = NA,
+                           n1 = NA,
+                           n1W = NA,
+                           n0 = NA,
+                           n0i = NA,
+                           njd1 = NA,
+                           njd0 = NA,
+                           njd0i = NA,
+                           t_mat)
+
+  #save to rds object
+  setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('halfmax_df_arrival_', args, '.rds'))
+  
   stop('Range not suitable for modeling!')
 }
 
