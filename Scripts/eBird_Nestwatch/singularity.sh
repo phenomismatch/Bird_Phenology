@@ -1,6 +1,7 @@
 #!/bin/bash
 
-#argument is diretory of where to search for singularity error message
+#first argument is search term
+#second argument is diretory of where to search for singularity error message
 #script finds all STDERR that has the singularity error +
 #print which node they occurred on +
 #creates a text file with lines to resbumit jobs +
@@ -10,7 +11,7 @@
 #grep 'completed' *.out -lR | wc -l #jobs completed
 #squeue -u cyoungflesh | grep lc-br | wc -l #lc-br jobs running
 
-grep libseccomp.so.2 $1 -lR > tfile
+grep $1 $2 -lR > tfile
 
 while read name
 do
