@@ -176,7 +176,7 @@ for (j in 1:nyr)
     
     #defaults for rstanarm are 0.95 and 15
     DELTA <- 0.95
-    TREE_DEPTH <- 18
+    TREE_DEPTH <- 15
     
     
     #different thresholds from arrival models
