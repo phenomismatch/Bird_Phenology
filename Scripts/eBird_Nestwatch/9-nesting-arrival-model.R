@@ -70,7 +70,6 @@ dir <- '~/Google_Drive/R/'
 # Load packages -----------------------------------------------------------
 
 library(dplyr)
-library(dggridR)
 library(ggplot2)
 library(rstan)
 library(MCMCvis)
@@ -95,17 +94,6 @@ BR_out <- 'halfmax_breeding_2019-01-30'
 BR_out_date <- substr(BR_out, start = 18, stop = 27)
 
 BR_data <- readRDS(paste0('temp_breeding_master_', BR_out_date, '.rds'))
-
-
-
-# # import IAR species list -----------------------------------------------------
-# 
-# setwd(paste0(dir, 'Bird_Phenology/Data/'))
-# 
-# species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
-# 
-# #remove underscore and coerce to vector
-# species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
 
 
 
@@ -163,17 +151,22 @@ mdf <- dplyr::select(master_data, species, cell, year, cell_lat, cell_lon,
 to.rm <- which(is.na(mdf$EB_HM_mean))
 mdf2 <- mdf[-to.rm, ]
 
+#remove species where there are less than 3 obs
+obs_per_sp <- plyr::count(mdf2, 'species')
+sp.to.rm <- obs_per_sp[which(obs_per_sp[,2] < 3), 1]
+mdf3 <- mdf2[-which(mdf2$species %in% sp.to.rm),]
+
 #number codes for species
-sp_num <- as.numeric(factor(mdf2$species))
+sp_num <- as.numeric(factor(mdf3$species))
 
 #create data list for Stan
-DATA <- list(y_obs = mdf2$EB_HM_mean,
-             sigma_y = mdf2$EB_HM_sd,
-             x_obs = mdf2$mean_post_IAR,
-             sigma_x = mdf2$sd_post_IAR,
+DATA <- list(y_obs = mdf3$EB_HM_mean,
+             sigma_y = mdf3$EB_HM_sd,
+             x_obs = mdf3$mean_post_IAR,
+             sigma_x = mdf3$sd_post_IAR,
              sp_id = sp_num,
              US = length(unique(sp_num)),
-             N = NROW(mdf2))
+             N = NROW(mdf3))
 
 
 
@@ -215,8 +208,8 @@ real mu[N];
 
 // non-centered parameterization
 
-mu_alpha = mu_alpha_raw * 20 + 50;                       // implies mu_alpha ~ normal(50, 20)
-mu_beta = mu_beta_raw * 3 + 1;                           // implies mu_beta ~ normal(1, 3)
+mu_alpha = mu_alpha_raw * 20 + 70;                       // implies mu_alpha ~ normal(70, 20)
+mu_beta = mu_beta_raw * 2 + 1;                           // implies mu_beta ~ normal(1, 2)
 sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
 sigma_beta = sigma_beta_raw * 3;                         // implies sigma_beta ~ halfnormal(0, 3)
 sigma = sigma_raw * 10;                                  // implies sigma ~ halfnormal(0, 10)
@@ -273,22 +266,20 @@ STEP_SIZE <- 0.0005
 
 
 tt <- proc.time()
-fit <- stan(model_code = br_arr,
+fit <- rstan::stan(model_code = br_arr,
             data = DATA,
             chains = 4,
-            iter = 1000,
+            iter = 3000,
             cores = 4,
-            pars = c('alpha', 'beta', 'mu_alpha', 'mu_beta', 'sigma_alpha', 'sigma_beta', 'y_true', 'x_true', 'sigma'),
+            pars = c('alpha', 'beta', 'mu_alpha', 'mu_beta', 'sigma_alpha', 'sigma_beta', 'sigma', 'y_true', 'x_true'),
             control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
 
 
-
-
 #save to RDS
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-# saveRDS(fit, file = paste0('BR_ARR_stan_', MODEL_DATE, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(fit, file = paste0('temp_BR_ARR_stan_', MODEL_DATE, '.rds'))
 
 
 
@@ -297,8 +288,11 @@ run_time <- (proc.time() - tt[3]) / 60
 # diagnostics -------------------------------------------------------------
 
 
-MCMCsummary(fit, n.eff = TRUE, params = c('alpha', 'beta'), ISB = FALSE)
-MCMCtrace(fit)
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = c('alpha', 'beta'), ISB = FALSE)
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'sigma')
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'y_true')
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'x_true')
+#MCMCtrace(fit)
 
 (num_diverge <- rstan::get_num_divergent(fit))
 (num_tree <- rstan::get_num_max_treedepth(fit))
@@ -306,11 +300,11 @@ MCMCtrace(fit)
 
 
 #shiny stan
-library(shinystan)
-launch_shinystan(fit)
+# library(shinystan)
+# launch_shinystan(fit)
 
 
-
+#plot results - true states with sd error bars
 
 
 # write model results to file ---------------------------------------------
@@ -334,75 +328,110 @@ sink()
 
 # Plot results ------------------------------------------------------------
 
-DATA <- list(y_obs = mdf2$EB_HM_mean,
-             sigma_y = mdf2$EB_HM_sd,
-             x_obs = mdf2$mean_post_IAR,
-             sigma_x = mdf2$sd_post_IAR,
-             sp_id = sp_num,
-             US = length(unique(sp_num)),
-             N = NROW(mdf2))
+
+data_vis_fun <- function(SPECIES = 'all')
+{
+  #SPECIES <- 'Vireo_olivaceus'
+  
+  #extract posterior estimates for true states for y and x
+  y_true_mean <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', func = mean)[[1]]
+  y_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', func = function(x) quantile(x, probs = c(0.025)))[[1]]
+  y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', func = function(x) quantile(x, probs = c(0.975)))[[1]]
+  
+  x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'x_true', type = 'summary', func = mean)[[1]]
+  x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'x_true', type = 'summary', func = function(x) quantile(x, probs = c(0.025)))[[1]]
+  x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'x_true', type = 'summary', func = function(x) quantile(x, probs = c(0.975)))[[1]]
+  
+  #need true latent states
+  DATA_PLOT <- data.frame(mean_y = y_true_mean,
+                           mean_y_l = y_true_LCI,
+                           mean_y_u = y_true_UCI,
+                           mean_x = x_true_mean, 
+                           mean_x_l = x_true_LCI,
+                           mean_x_u = x_true_UCI,
+                           sp_id = sp_num)
+  
+  if (SPECIES == 'all')
+  {
+    #model fit for mu_beta and mu_alpha
+    alpha_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
+    beta_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
+    
+    DATA_PLOT2 <- DATA_PLOT
+  } else {
+    idx <- which(unique(mdf3$species) == SPECIES)
+    if (length(idx) > 0)
+    {
+      alpha_ch <- MCMCchains(fit, params = paste0('alpha\\[', idx, '\\]'), ISB = FALSE)[,1]
+      beta_ch <- MCMCchains(fit, params = paste0('beta\\[', idx, '\\]'), ISB = FALSE)[,1]
+    
+      DATA_PLOT2 <- dplyr::filter(DATA_PLOT, sp_id == idx)
+    } else {
+      stop(paste0('Species: ', SPECIES, ' not found!'))
+    }
+  }
+  
+  sim_x <- seq(min(DATA_PLOT2$mean_x_l) - 1, max(DATA_PLOT2$mean_x_u) + 1, length = 100)
+  
+  mf <- matrix(nrow = length(beta_ch), ncol = 100)
+  for (i in 1:length(sim_x))
+  {
+    mf[,i] <- alpha_ch + beta_ch * sim_x[i]
+  }
+  
+  med_mf <- apply(mf, 2, median)
+  LCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.025))
+  UCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.975))
+  
+  FIT_PLOT <- data.frame(MN = med_mf,
+                         MN_X = sim_x,
+                         LCI = LCI_mf,
+                         UCI = UCI_mf)
+  
+  ggplot(data = DATA_PLOT2, aes(mean_x, mean_y)) +
+    geom_ribbon(data = FIT_PLOT,
+                aes(x = MN_X, ymin = LCI, ymax = UCI),
+                fill = 'grey', alpha = 0.7,
+                inherit.aes = FALSE) +
+    geom_line(data = FIT_PLOT, aes(MN_X, MN), color = 'red',
+              alpha = 0.9,
+              inherit.aes = FALSE,
+              size = 1.4) +
+    geom_errorbar(data = DATA_PLOT2, 
+                  aes(ymin = mean_y_l, ymax = mean_y_u), width = 0.3,
+                  color = 'black', alpha = 0.2) +
+    geom_errorbarh(data = DATA_PLOT2, 
+                   aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
+                   color = 'black', alpha = 0.2) +
+    geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
+               inherit.aes = FALSE, size = 1, alpha = 0.3) +
+    theme_bw() +
+    #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
+    xlab('True ARR halfmax') +
+    ylab('True BR halfmax') +
+    ggtitle(paste0('Species: ', SPECIES)) +
+    theme(
+      plot.title = element_text(size = 28),
+      axis.text = element_text(size = 16),
+      axis.title = element_text(size = 18),
+      axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+      axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
+      axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
+}
 
 
-DATA_PLOT2 <- data.frame(mean_y = DATA$y_obs,
-                         mean_y_l = (DATA$y_obs - DATA$simga_y),
-                         mean_y_u = (DATA$y_obs + DATA$simga_y),
-                         mean_x = DATA$x_obs, 
-                         mean_x_l = (DATA$x_obs - DATA$simga_x),
-                         mean_x_u = (DATA$x_obs - DATA$simga_x))
 
-#model fit to plot - for one alpha/beta only (could plot top level beta parameter)
-# alpha_ch <- MCMCchains(fit, params = 'alpha')[,1]
-# beta_ch <- MCMCchains(fit, params = 'beta')[,1]
-# 
-# sim_med_c <- seq(min(med_c)-1, max(med_c)+1, length = 100)
-# 
-# mf <- matrix(nrow = length(beta_ch), ncol = 100)
-# for (i in 1:length(sim_med_c))
-# {
-#   mf[,i] <- alpha_ch + beta_ch * sim_med_c[i]
-# }
-# 
-# med_mf <- apply(mf, 2, median)
-# LCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.025))
-# UCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.975))
-# 
-# FIT_PLOT <- data.frame(MN = med_mf, 
-#                        MN_X = sim_med_c,
-#                        LCI = LCI_mf,
-#                        UCI = UCI_mf)
+#all species together
+data_vis_fun(SPECIES = 'all')
 
-
-ggplot(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black', alpha = 0.6) +
-  # geom_ribbon(data = FIT_PLOT, 
-  #             aes(x = MN_X, ymin = LCI, ymax = UCI),
-  #             fill = 'grey', alpha = 0.7,
-  #             inherit.aes = FALSE) +
-  # geom_line(data = FIT_PLOT, aes(MN_X, MN), color = 'red',
-  #           alpha = 0.9,
-  #           inherit.aes = FALSE,
-  #           size = 1.4) +
-  geom_errorbar(data = DATA_PLOT2, 
-                aes(ymin = mean_y_l, ymax = mean_y_u), width = 0.3,
-                color = 'black', alpha = 0.2) +
-  geom_errorbarh(data = DATA_PLOT2, 
-                 aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
-                 color = 'black', alpha = 0.2) +
-  geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
-             inherit.aes = FALSE, size = 3, alpha = 0.7) +
-  theme_bw() +
-  #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
-  xlab('True BR halfmax') +
-  ylab('True ARR halfmax') +
-  theme(
-    axis.text = element_text(size = 16),
-    axis.title = element_text(size = 18),
-    axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
-    axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
-    axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
-
-
-
-
+#each species individually
+sps <- unique(mdf3$species)
+#for (i in 1:length(sps))
+for (i in 1:3)
+{
+  #i <- 2
+  data_vis_fun(SPECIES = sps[i])
+}
 
 
 
