@@ -8,6 +8,8 @@
 # data fusion model for arrival ~ breeding --------------------------------
 
 
+#each species different model? Each species own intercept/slope? How to accomodate missing data from entire species (MAPS data might not be available for everyone)?
+
 #need to determine how to assign uncertainty for NW data (maybe have one sigma for NW, where that is informed by sigma values for each cell obs - sd tend to be large for this dataset, though some cells only have one obs so no sd [e.g., perfect detection])
 
 #obs_EB_breeding_date is halfmax estimate for EB breeding date for that species/cell/year
@@ -74,121 +76,147 @@ library(rstan)
 library(MCMCvis)
 
 
-# import IAR data ---------------------------------------------------------
+# import ARR/BR data ---------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 
-IAR_out_dir <- 'IAR_output_2018-11-12'
-IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
+#arrival data
+IAR_out <- 'IAR_output_2019-01-16'
+IAR_out_date <- substr(IAR_out, start = 12, stop = 21)
 
-IAR_data <- readRDS(paste0('master_arrival_', IAR_out_date, '.rds'))
-
-
-
-# import IAR species list -----------------------------------------------------
-
-setwd(paste0(dir, 'Bird_Phenology/Data/'))
-
-species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
-
-#remove underscore and coerce to vector
-species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
+IAR_data <- readRDS(paste0('arrival_master_', IAR_out_date, '.rds'))
 
 
-# create hex grid ---------------------------------------------------------
+#breeding data
+BR_out <- 'halfmax_breeding_2019-01-30'
+BR_out_date <- substr(BR_out, start = 18, stop = 27)
 
-hexgrid6 <- dggridR::dgconstruct(res = 6) 
-
-
-
-#hierarchical model to relate arrival date (from IAR model) to nesting date (from Nest Watch)
-
-#one model per species
+BR_data <- readRDS(paste0('temp_breeding_master_', BR_out_date, '.rds'))
 
 
 
 
+# # import IAR species list -----------------------------------------------------
+# 
+# setwd(paste0(dir, 'Bird_Phenology/Data/'))
+# 
+# species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
+# 
+# #remove underscore and coerce to vector
+# species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
 
 
-#############################
-#Process data for model input
-#############################
+
+# merge datasets ----------------------------------------------------------
+
+#left_join for now - could use full_join to include all BR codes where ARR is missing
+
+#same naems for cols
+colnames(BR_data)[1:3] <- c('species', 'cell', 'year')
+
+#merge data sets - keeping all rows from IAR, matching BR rows
+master_data <- dplyr::left_join(IAR_data, BR_data, by = c('species', 'cell', 'year'))
 
 
 
+mdf <- dplyr::select(master_data, species, cell, year, cell_lat, cell_lon, 
+              mean_post_IAR, sd_post_IAR, EB_HM_mean, EB_HM_sd, 
+              NW_mean_cid, NW_sd_cid, MAPS_l_bounds, MAPS_u_bounds, d_avail)
 
 
+
+# ARR - BR ----------------------------------------------------------------
+
+# #should calculate this in Stan as a derived qty
+# mdf$diff_arr_br <- mdf$mean_post_IAR - mdf$EB_HM_mean
+# 
+# #this could then be used in a separate model to look at how this differences has changed over time, and what enviromental factors lead to years with larger differences between arrival and breeding
+# 
+# plot(mdf$year, mdf$diff_arr_br, pch = 19, col = rgb(0,0,0,0.5))
+# summary(lm(mdf$diff_arr_br ~ mdf$year))
+
+
+# plot data ---------------------------------------------------------------
+
+# head(mdf)
+# plot(mdf$mean_post_IAR, mdf$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5),
+#      xlim = c(50, 220), ylim = c(50, 220))
+# abline(a = 0, b = 1, lty = 2, col = 'red')
+# summary(lm(mdf$EB_HM_mean ~ mdf$mean_post_IAR))
+# 
+# 
+# temp <- dplyr::filter(mdf, species == 'Vireo_olivaceus')
+# plot(temp$mean_post_IAR, temp$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5),
+#      xlim = c(50, 220), ylim = c(50, 220))
+# abline(a = 0, b = 1, lty = 2, col = 'red')
+# summary(lm(temp$EB_HM_mean ~ temp$mean_post_IAR))
+
+
+
+# nesting date ~ arrival date ---------------------------------------------
+
+#arrival date (from IAR model) to nesting date (from BR codes and possible NW and MAPS)
+
+#remove na vals for BR cods
+to.rm <- which(is.na(mdf$EB_HM_mean))
+mdf2 <- mdf[-to.rm, ]
+
+#number codes for species
+sp_num <- as.numeric(factor(mdf2$species))
 
 #create data list for Stan
-DATA <- list(J = nyr,
-             N = ncel, 
-             N_obs = len_y_obs_in,
-             N_mis = len_y_mis_in,
-             N_edges = nrow(ninds), 
-             node1 = ninds[,1],
-             node2 = ninds[,2],
-             y_obs = y_obs_in,
-             sigma_y = sigma_y_in,
-             scaling_factor = scaling_factor,
-             ii_obs = ii_obs_in,
-             ii_mis = ii_mis_in)
+DATA <- list(y_obs = mdf2$EB_HM_mean,
+             sigma_y = mdf2$EB_HM_sd,
+             x_obs = mdf2$mean_post_IAR,
+             sigma_x = mdf2$sd_post_IAR,
+             sp_id = sp_num,
+             US = length(unique(sp_num)),
+             N = NROW(mdf2))
 
 
 
 # Stan model --------------------------------------------------------------
 
-#Might be alright - data needs to be formatted properly though
-#vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-
-nest_arrival <- '
+br_arr <- '
 data {
-int<lower = 0> N;                                     // number of cell/years
-int<lower = 0> J;                                     // max number of obs in a cell/year for Nestwatch
-real<lower = 0, upper = 200> obs_IAR[N];              // mean output IAR model
-real sigma_IAR[N];                                    // sd output IAR model
-real p_obs_NW[J,N];                                   // nestwatch data
-int<lower = 0> ii_obs[J, N];                          // indices of observed data
-int<lower = 0> ii_mis[J, N];                          // indices of missing data
-int<lower = 0> N_obs[N];                              // number of non-missing for each cell/year
-int<lower = 0> N_mis[N];                              // number missing for each cell/year
+int<lower = 0> N;                                     // number of obs
+int<lower = 0> US;                                    // number of species
+real<lower = 0, upper = 200> y_obs[N];                // mean halfmax BR codes
+real<lower = 0> sigma_y[N];                           // sd halfmax BR codes
+real<lower = 0, upper = 200> x_obs[N];                // mean halfmax IAR
+real<lower = 0> sigma_x[N];                           // sd halfmax IAR
+int<lower = 1, upper = US> sp_id[N];                  // species ids
 }
 
-
 parameters {
-real<lower = 0, upper = 200> p_obs_NW_mis[J, N];      // missing nestwatch data
-real<lower = 0> true_IAR[N];                          //true arrival date
-real<lower = 0> true_NW[N];                           //true nesting date
-real<lower = 0> sigma_NW;                             //sd for cell/year averaging
-real mu[N];
+real<lower = 0> y_true[N];                           //true arrival date
+real<lower = 0> x_true[N];                           //true nesting date
 real<lower = 0> sigma;
-real alpha;
-real beta;
+real alpha[US];
+real beta[US];
 }
 
 transformed parameters {
-real<lower = 0, upper = 200> obs_NW[J, N];            // nestwatch data to be modeled
 
-// indexing to avoid NAs
-for (n in 1:N)
+//one alpha, one beta for each species
+real mu[N];
+
+for (i in 1:N)
 {
-  obs_NW[ii_obs[1:N_obs[n], n], n] = p_obs_NW[1:N_obs[n], n];
-  obs_NW[ii_mis[1:N_mis[n], n], n] = p_obs_NW_mis[1:N_mis[n], n];
+  mu[i] = alpha[sp_id[i]] + beta[sp_id[i]] * x_true[i];
 }
+
 }
 
 model {
 
 // observation model - modeling true state as a function of some observed state
 
-obs_IAR ~ normal(true_IAR, sigma_IAR); //sigma_IAR is given (one for each observation)
+y_obs ~ normal(y_true, sigma_y);
+x_obs ~ normal(x_true, sigma_x);
 
-for (n in 1:N) //n is cell/year number
-{
-  obs_NW[,n] ~ normal(true_NW[n], sigma_NW); //sigma_NW is estimated (one per species)
-}
+y_true ~ normal(mu, sigma);
 
-  true_NW ~ normal(mu, sigma); //one sigma, one mu for each cell/year
-  mu = alpha + beta * true_IAR; //one alpha, one beta
 }'
 
 
@@ -200,13 +228,13 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 tt <- proc.time()
-fit <- stan(model_code = nest_arrival,
+fit <- stan(model_code = br_arr,
             data = DATA,
-            chains = 4,
-            iter = 2,
-            cores = 4,
-            pars = c('true_IAR', 'true_NW', 'sigma_NW', 'alpha', 'beta', 'mu', 'sigma'),
-            control = list(max_treedepth = 25, adapt_delta = 0.95, stepsize = 0.005)) # modified control parameters based on warnings
+            chains = 2,
+            iter = 500,
+            cores = 2,
+            pars = c('y_true', 'x_true', 'sigma', 'alpha', 'beta'),
+            control = list(max_treedepth = 18, adapt_delta = 0.95))#, stepsize = 0.005)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
 
