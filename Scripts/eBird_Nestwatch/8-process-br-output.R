@@ -251,80 +251,15 @@ sum(m_breeding_df2$d_avail == '100')
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 saveRDS(m_breeding_df2, paste0('temp_breeding_master_', Sys.Date(), '.rds'))
 
-
-
-
-
-
-
-
-
 #m_breeding_df2 <- readRDS('temp_breeding_master_2019-01-30.rds')
 
-#data where ebird is present
-tt <- m_breeding_df2[which(m_breeding_df2$d_avail == '100' |
-                       m_breeding_df2$d_avail == '110' |
-                       m_breeding_df2$d_avail == '111' |
-                       m_breeding_df2$d_avail == '101'),]
 
-tt2 <- dplyr::select(tt, SPECIES, CELL, YEAR, EB_HM_mean, EB_HM_sd, 
-                     NW_mean_cid, NW_sd_cid, NW_num_obs,
-                     MAPS_midpoint, MAPS_n_stations, d_avail)
-
-tt2$MAPS_midpoint[which(tt2$MAPS_midpoint == 0)] <- NA
-tt2[which(tt2$NW_num_obs > 5),]
-tt2[which(tt2$MAPS_midpoint > 180),]
-tt2[which(abs(tt2$MAPS_midpoint - tt2$EB_HM_mean) > 20),]
-
-#quick plots - so much uncertainty, hard to say anything from this
-plot(tt2$NW_mean_cid, tt2$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5))
-plot(tt2$MAPS_midpoint, tt2$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5))
-
-tt2[which(tt2$MAPS_midpoint == 0),]
-
-aa <- readRDS('Processed/arrival_master_2019-01-16.rds')
-head(tt2)
-colnames(tt2)[1:3] <- c('species', 'cell', 'year')
-m2 <- dplyr::left_join(aa, tt2, by = c('species', 'cell', 'year'))
-
-head(m2)
-plot(m2$mean_post_IAR, m2$EB_HM_mean, pch = 19, col = rgb(0,0,0,0.5),
-     xlim = c(50, 220), ylim = c(50, 220))
-abline(a = 0, b = 1, lty = 2)
-summary(lm(m2$EB_HM_mean ~ m2$mean_post_IAR))
 
 #vvv OLD OLD vvv
-
-
 
 #add 'meets criteria' column
 diagnostics_frame$MODEL <- NA
 diagnostics_frame$shp_fname <- NA
 
-
-# order -------------------------------------------------------------------
-
-#order diagnostics frame by species, year, and cell #
-df_master <- df_out[with(df_out, order(species, year, cell)),]
-
-#create scaling factor column
-df_master$scaling_factor <- NA
-
-
-
-# write to RDS --------------------------------------------------
-
-IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_', Sys.Date())
-
-dir.create(IAR_dir_path)
-setwd(IAR_dir_path)
-
-saveRDS(df_master, paste0('IAR_input-', Sys.Date(), '.rds'))
-
-
-# explore data ------------------------------------------------------------
-
-aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
-aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
 
 
