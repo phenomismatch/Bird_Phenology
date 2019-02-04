@@ -80,6 +80,9 @@ library(MCMCvis)
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 
+
+MODEL_DATE <- '2019-02-04'
+
 #arrival data
 IAR_out <- 'IAR_output_2019-01-16'
 IAR_out_date <- substr(IAR_out, start = 12, stop = 21)
@@ -92,7 +95,6 @@ BR_out <- 'halfmax_breeding_2019-01-30'
 BR_out_date <- substr(BR_out, start = 18, stop = 27)
 
 BR_data <- readRDS(paste0('temp_breeding_master_', BR_out_date, '.rds'))
-
 
 
 
@@ -183,27 +185,47 @@ int<lower = 0> N;                                     // number of obs
 int<lower = 0> US;                                    // number of species
 real<lower = 0, upper = 200> y_obs[N];                // mean halfmax BR codes
 real<lower = 0> sigma_y[N];                           // sd halfmax BR codes
-real<lower = 0, upper = 200> x_obs[N];                // mean halfmax IAR
+real<lower = 0, upper = 300> x_obs[N];                // mean halfmax IAR
 real<lower = 0> sigma_x[N];                           // sd halfmax IAR
 int<lower = 1, upper = US> sp_id[N];                  // species ids
 }
 
 parameters {
-real<lower = 0> y_true[N];                           //true arrival date
-real<lower = 0> x_true[N];                           //true nesting date
-real<lower = 0> sigma;
-real alpha[US];
-real beta[US];
-real mu_alpha;
-real mu_beta;
-real<lower = 0> sigma_alpha;
-real<lower = 0> sigma_beta;
+real<lower = 0, upper = 200> y_true[N];                           //true arrival date
+real<lower = 0, upper = 300> x_true[N];                           //true nesting date
+real mu_alpha_raw;
+real mu_beta_raw;
+real<lower = 0> sigma_alpha_raw;
+real<lower = 0> sigma_beta_raw;
+real<lower = 0> sigma_raw;
+real alpha_raw[US];
+real beta_raw[US];
 }
 
 transformed parameters {
 
-//one alpha, one beta for each species
+real mu_alpha;
+real mu_beta;
+real sigma_alpha;
+real sigma_beta;
+real sigma;
+real alpha[US];
+real beta[US];
 real mu[N];
+
+// non-centered parameterization
+
+mu_alpha <- mu_alpha_raw * 20 + 50;                       // implies mu_alpha ~ normal(50, 20)
+mu_beta <- mu_beta_raw * 3 + 1;                           // implies mu_beta ~ normal(1, 3)
+sigma_alpha <- sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
+sigma_beta <- sigma_beta_raw * 3;                         // implies sigma_beta ~ halfnormal(0, 3)
+sigma <- sigma_raw * 10;                                  // implies sigma ~ halfnormal(0, 10)
+
+for (j in 1:US)
+{
+  alpha[j] <- alpha_raw[j] * sigma_alpha + mu_alpha;      // implies alpha[j] ~ normal(mu_alpha, sigma_alpha)
+  beta[j] <- beta_raw[j] * sigma_beta + mu_beta;          // implies beta[j] ~ normal(mu_beta, sigma_beta)
+}
 
 for (i in 1:N)
 {
@@ -219,10 +241,18 @@ model {
 y_obs ~ normal(y_true, sigma_y);
 x_obs ~ normal(x_true, sigma_x);
 
+// non-centered parameterization
+
+mu_alpha_raw ~ normal(0, 1);
+mu_beta_raw ~ normal(0, 1);
+sigma_alpha_raw ~ normal(0, 1);
+sigma_beta_raw ~ normal(0, 1);
+sigma_raw ~ normal(0, 1);
+
 for (j in 1:US)
 {
-  alpha[j] ~ normal(mu_alpha, sigma_alpha);
-  beta[j] ~ normal(mu_beta, sigma_beta);
+  alpha_raw[j] ~ normal(0, 1);
+  beta_raw[j] ~ normal(0, 1);
 }
 
 y_true ~ normal(mu, sigma);
@@ -236,27 +266,30 @@ y_true ~ normal(mu, sigma);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
+
+DELTA <- 0.90
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.005
+
+
 tt <- proc.time()
 fit <- stan(model_code = br_arr,
             data = DATA,
             chains = 4,
             iter = 1000,
             cores = 4,
-            pars = c('y_true', 'x_true', 'sigma', 'alpha', 'beta', 'mu_alpha',
-                     'mu_beta', 'sigma_alpha', 'sigma_beta'),
-            control = list(max_treedepth = 18, adapt_delta = 0.95))#, stepsize = 0.005)) # modified control parameters based on warnings
+            pars = c('alpha', 'beta', 'mu_alpha', 'mu_beta', 'sigma_alpha', 'sigma_beta', 'y_true', 'x_true', 'sigma'),
+            control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA))#, stepsize = 0.005)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
-
-MCMCsummary(fit)
 
 
 
 
 #save to RDS
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-# saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
-# fit <- readRDS('IAR_stan_Catharus_minimus-2018-11-12.rds')
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+# saveRDS(fit, file = paste0('BR_ARR_stan_', MODEL_DATE, '.rds'))
+
 
 
 
@@ -264,34 +297,38 @@ MCMCsummary(fit)
 # diagnostics -------------------------------------------------------------
 
 
-# pairs(fit, pars = c('sigma', 'rho'))
+MCMCsummary(fit, n.eff = TRUE, params = c('alpha', 'beta'), ISB = FALSE)
+MCMCtrace(fit)
 
-# sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
-# mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
-# max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
-# get_elapsed_time(fit)
+(num_diverge <- rstan::get_num_divergent(fit))
+(num_tree <- rstan::get_num_max_treedepth(fit))
+(num_BFMI <- rstan::get_low_bfmi_chains(fit))
 
-# MCMCtrace(fit)
-# MCMCsummary(fit, params = c('sigma', 'rho', 'beta0'), n.eff = TRUE)
-# MCMCsummary(fit, params = c('theta', 'phi'), n.eff = TRUE)
 
-# print(fit, pars = c('sigma', 'rho'))
+#shiny stan
+library(shinystan)
+launch_shinystan(fit)
 
-# #shiny stan
-# library(shinystan)
-# launch_shinystan(fit)
 
 
 
 
 # write model results to file ---------------------------------------------
 
-# options(max.print = 50000)
-# sink(paste0('IAR_results_', args, '.txt'))
-# cat(paste0('IAR results ', args, ' \n'))
-# cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
-# print(fit)
-# sink()
+options(max.print = 50000)
+sink(paste0('BR_ARR_results_', MODEL_DATE, '.txt'))
+cat(paste0('BR_ARR results ', MODEL_DATE, ' \n'))
+cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Adapt delta: ', DELTA, ' \n'))
+cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
+#cat(paste0('Step size: ', STEP_SIZE, ' \n'))
+cat(paste0('Number of divergences: ', num_diverge, ' \n'))
+cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
+cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
+print(fit)
+sink()
+
+
 
 
 
