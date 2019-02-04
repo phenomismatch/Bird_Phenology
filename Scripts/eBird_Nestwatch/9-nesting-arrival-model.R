@@ -194,6 +194,10 @@ real<lower = 0> x_true[N];                           //true nesting date
 real<lower = 0> sigma;
 real alpha[US];
 real beta[US];
+real mu_alpha;
+real mu_beta;
+real<lower = 0> sigma_alpha;
+real<lower = 0> sigma_beta;
 }
 
 transformed parameters {
@@ -215,10 +219,15 @@ model {
 y_obs ~ normal(y_true, sigma_y);
 x_obs ~ normal(x_true, sigma_x);
 
+for (j in 1:US)
+{
+  alpha[j] ~ normal(mu_alpha, sigma_alpha);
+  beta[j] ~ normal(mu_beta, sigma_beta);
+}
+
 y_true ~ normal(mu, sigma);
 
 }'
-
 
 
 
@@ -230,15 +239,16 @@ options(mc.cores = parallel::detectCores())
 tt <- proc.time()
 fit <- stan(model_code = br_arr,
             data = DATA,
-            chains = 2,
-            iter = 500,
-            cores = 2,
-            pars = c('y_true', 'x_true', 'sigma', 'alpha', 'beta'),
+            chains = 4,
+            iter = 1000,
+            cores = 4,
+            pars = c('y_true', 'x_true', 'sigma', 'alpha', 'beta', 'mu_alpha',
+                     'mu_beta', 'sigma_alpha', 'sigma_beta'),
             control = list(max_treedepth = 18, adapt_delta = 0.95))#, stepsize = 0.005)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
 
-
+MCMCsummary(fit)
 
 
 
@@ -283,6 +293,75 @@ run_time <- (proc.time() - tt[3]) / 60
 # print(fit)
 # sink()
 
+
+
+# Plot results ------------------------------------------------------------
+
+DATA <- list(y_obs = mdf2$EB_HM_mean,
+             sigma_y = mdf2$EB_HM_sd,
+             x_obs = mdf2$mean_post_IAR,
+             sigma_x = mdf2$sd_post_IAR,
+             sp_id = sp_num,
+             US = length(unique(sp_num)),
+             N = NROW(mdf2))
+
+
+DATA_PLOT2 <- data.frame(mean_y = DATA$y_obs,
+                         mean_y_l = (DATA$y_obs - DATA$simga_y),
+                         mean_y_u = (DATA$y_obs + DATA$simga_y),
+                         mean_x = DATA$x_obs, 
+                         mean_x_l = (DATA$x_obs - DATA$simga_x),
+                         mean_x_u = (DATA$x_obs - DATA$simga_x))
+
+#model fit to plot - for one alpha/beta only (could plot top level beta parameter)
+# alpha_ch <- MCMCchains(fit, params = 'alpha')[,1]
+# beta_ch <- MCMCchains(fit, params = 'beta')[,1]
+# 
+# sim_med_c <- seq(min(med_c)-1, max(med_c)+1, length = 100)
+# 
+# mf <- matrix(nrow = length(beta_ch), ncol = 100)
+# for (i in 1:length(sim_med_c))
+# {
+#   mf[,i] <- alpha_ch + beta_ch * sim_med_c[i]
+# }
+# 
+# med_mf <- apply(mf, 2, median)
+# LCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.025))
+# UCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.975))
+# 
+# FIT_PLOT <- data.frame(MN = med_mf, 
+#                        MN_X = sim_med_c,
+#                        LCI = LCI_mf,
+#                        UCI = UCI_mf)
+
+
+ggplot(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black', alpha = 0.6) +
+  # geom_ribbon(data = FIT_PLOT, 
+  #             aes(x = MN_X, ymin = LCI, ymax = UCI),
+  #             fill = 'grey', alpha = 0.7,
+  #             inherit.aes = FALSE) +
+  # geom_line(data = FIT_PLOT, aes(MN_X, MN), color = 'red',
+  #           alpha = 0.9,
+  #           inherit.aes = FALSE,
+  #           size = 1.4) +
+  geom_errorbar(data = DATA_PLOT2, 
+                aes(ymin = mean_y_l, ymax = mean_y_u), width = 0.3,
+                color = 'black', alpha = 0.2) +
+  geom_errorbarh(data = DATA_PLOT2, 
+                 aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
+                 color = 'black', alpha = 0.2) +
+  geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
+             inherit.aes = FALSE, size = 3, alpha = 0.7) +
+  theme_bw() +
+  #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
+  xlab('True BR halfmax') +
+  ylab('True ARR halfmax') +
+  theme(
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 18),
+    axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+    axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
+    axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
 
 
 
