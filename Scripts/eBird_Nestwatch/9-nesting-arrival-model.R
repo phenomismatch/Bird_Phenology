@@ -388,7 +388,7 @@ data_vis_fun <- function(SPECIES = 'all')
                          LCI = LCI_mf,
                          UCI = UCI_mf)
   
-  ggplot(data = DATA_PLOT2, aes(mean_x, mean_y)) +
+  p <- ggplot(data = DATA_PLOT2, aes(mean_x, mean_y)) +
     geom_ribbon(data = FIT_PLOT,
                 aes(x = MN_X, ymin = LCI, ymax = UCI),
                 fill = 'grey', alpha = 0.7,
@@ -411,12 +411,14 @@ data_vis_fun <- function(SPECIES = 'all')
     ylab('True BR halfmax') +
     ggtitle(paste0('Species: ', SPECIES)) +
     theme(
-      plot.title = element_text(size = 28),
+      plot.title = element_text(size = 22),
       axis.text = element_text(size = 16),
       axis.title = element_text(size = 18),
       axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
       axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
       axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
+  
+  print(p)
 }
 
 
@@ -426,10 +428,9 @@ data_vis_fun(SPECIES = 'all')
 
 #each species individually
 sps <- unique(mdf3$species)
-#for (i in 1:length(sps))
-for (i in 1:3)
+for (i in 1:length(sps))
 {
-  #i <- 2
+  #i <- 3
   data_vis_fun(SPECIES = sps[i])
 }
 
