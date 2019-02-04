@@ -215,16 +215,16 @@ real mu[N];
 
 // non-centered parameterization
 
-mu_alpha <- mu_alpha_raw * 20 + 50;                       // implies mu_alpha ~ normal(50, 20)
-mu_beta <- mu_beta_raw * 3 + 1;                           // implies mu_beta ~ normal(1, 3)
-sigma_alpha <- sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
-sigma_beta <- sigma_beta_raw * 3;                         // implies sigma_beta ~ halfnormal(0, 3)
-sigma <- sigma_raw * 10;                                  // implies sigma ~ halfnormal(0, 10)
+mu_alpha = mu_alpha_raw * 20 + 50;                       // implies mu_alpha ~ normal(50, 20)
+mu_beta = mu_beta_raw * 3 + 1;                           // implies mu_beta ~ normal(1, 3)
+sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
+sigma_beta = sigma_beta_raw * 3;                         // implies sigma_beta ~ halfnormal(0, 3)
+sigma = sigma_raw * 10;                                  // implies sigma ~ halfnormal(0, 10)
 
 for (j in 1:US)
 {
-  alpha[j] <- alpha_raw[j] * sigma_alpha + mu_alpha;      // implies alpha[j] ~ normal(mu_alpha, sigma_alpha)
-  beta[j] <- beta_raw[j] * sigma_beta + mu_beta;          // implies beta[j] ~ normal(mu_beta, sigma_beta)
+  alpha[j] = alpha_raw[j] * sigma_alpha + mu_alpha;      // implies alpha[j] ~ normal(mu_alpha, sigma_alpha)
+  beta[j] = beta_raw[j] * sigma_beta + mu_beta;          // implies beta[j] ~ normal(mu_beta, sigma_beta)
 }
 
 for (i in 1:N)
@@ -267,9 +267,9 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.90
-TREE_DEPTH <- 15
-STEP_SIZE <- 0.005
+DELTA <- 0.97
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.0005
 
 
 tt <- proc.time()
@@ -279,7 +279,7 @@ fit <- stan(model_code = br_arr,
             iter = 1000,
             cores = 4,
             pars = c('alpha', 'beta', 'mu_alpha', 'mu_beta', 'sigma_alpha', 'sigma_beta', 'y_true', 'x_true', 'sigma'),
-            control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA))#, stepsize = 0.005)) # modified control parameters based on warnings
+            control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
 
