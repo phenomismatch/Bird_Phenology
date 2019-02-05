@@ -176,16 +176,16 @@ br_arr <- '
 data {
 int<lower = 0> N;                                     // number of obs
 int<lower = 0> US;                                    // number of species
-real<lower = 0, upper = 200> y_obs[N];                // mean halfmax BR codes
+real<lower = 0, upper = 300> y_obs[N];                // mean halfmax BR codes
 real<lower = 0> sigma_y[N];                           // sd halfmax BR codes
-real<lower = 0, upper = 300> x_obs[N];                // mean halfmax IAR
+real<lower = 0, upper = 200> x_obs[N];                // mean halfmax IAR
 real<lower = 0> sigma_x[N];                           // sd halfmax IAR
 int<lower = 1, upper = US> sp_id[N];                  // species ids
 }
 
 parameters {
-real<lower = 0, upper = 200> y_true[N];                           //true arrival date
-real<lower = 0, upper = 300> x_true[N];                           //true nesting date
+real<lower = 0, upper = 300> y_true[N];                           //true arrival date
+real<lower = 0, upper = 200> x_true[N];                           //true nesting date
 real mu_alpha_raw;
 real mu_beta_raw;
 real<lower = 0> sigma_alpha_raw;
@@ -250,7 +250,33 @@ for (j in 1:US)
 
 y_true ~ normal(mu, sigma);
 
-}'
+}
+
+generated quantities {
+
+real y_rep[N];
+real errors[N];
+real PPC_mean;
+real BR2;
+real arr_br[N];
+
+// #traditional R^2
+// RSS = dot_self(y - mu);
+// TSS = dot_self(y - mean(y));
+// R2 = 1 - RSS/TSS;
+
+#new Bayes R^2 - http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2.pdf
+errors = y - mu;
+BR2 = var(mu)/(var(mu) + var(errors));
+
+#PPC
+y_rep = normal_rng(mu, sigma);
+PPC_mean = mean(y_rep)
+
+#arrival date - breeding date
+arr_br = x_true - y_true
+}
+'
 
 
 
@@ -271,7 +297,8 @@ fit <- rstan::stan(model_code = br_arr,
             chains = 4,
             iter = 3000,
             cores = 4,
-            pars = c('alpha', 'beta', 'mu_alpha', 'mu_beta', 'sigma_alpha', 'sigma_beta', 'sigma', 'y_true', 'x_true'),
+            pars = c('alpha', 'beta', 'mu_alpha', 'mu_beta', 'sigma_alpha', 'sigma_beta', 
+                     'sigma', 'y_true', 'x_true', 'arr_br', 'BR2', 'PPC_mean'),
             control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
@@ -280,7 +307,7 @@ run_time <- (proc.time() - tt[3]) / 60
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 saveRDS(fit, file = paste0('temp_BR_ARR_stan_', MODEL_DATE, '.rds'))
-
+#fit <- readRDS(paste0('temp_BR_ARR_stan_', MODEL_DATE, '.rds'))
 
 
 
@@ -290,8 +317,8 @@ saveRDS(fit, file = paste0('temp_BR_ARR_stan_', MODEL_DATE, '.rds'))
 
 MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = c('alpha', 'beta'), ISB = FALSE)
 MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'sigma')
-MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'y_true')
-MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'x_true')
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'y_true')
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'x_true')
 #MCMCtrace(fit)
 
 (num_diverge <- rstan::get_num_divergent(fit))
@@ -309,18 +336,18 @@ MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'x_true')
 
 # write model results to file ---------------------------------------------
 
-options(max.print = 50000)
-sink(paste0('BR_ARR_results_', MODEL_DATE, '.txt'))
-cat(paste0('BR_ARR results ', MODEL_DATE, ' \n'))
-cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
-cat(paste0('Adapt delta: ', DELTA, ' \n'))
-cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
-#cat(paste0('Step size: ', STEP_SIZE, ' \n'))
-cat(paste0('Number of divergences: ', num_diverge, ' \n'))
-cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
-cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
-print(fit)
-sink()
+# options(max.print = 50000)
+# sink(paste0('BR_ARR_results_', MODEL_DATE, '.txt'))
+# cat(paste0('BR_ARR results ', MODEL_DATE, ' \n'))
+# cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+# cat(paste0('Adapt delta: ', DELTA, ' \n'))
+# cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
+# #cat(paste0('Step size: ', STEP_SIZE, ' \n'))
+# cat(paste0('Number of divergences: ', num_diverge, ' \n'))
+# cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
+# cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
+# print(fit)
+# sink()
 
 
 
@@ -334,9 +361,12 @@ data_vis_fun <- function(SPECIES = 'all')
   #SPECIES <- 'Vireo_olivaceus'
   
   #extract posterior estimates for true states for y and x
-  y_true_mean <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', func = mean)[[1]]
-  y_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', func = function(x) quantile(x, probs = c(0.025)))[[1]]
-  y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', func = function(x) quantile(x, probs = c(0.975)))[[1]]
+  y_true_mean <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', 
+                                   func = mean)[[1]]
+  y_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', 
+                                  func = function(x) quantile(x, probs = c(0.025)))[[1]]
+  y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'y_true', type = 'summary', 
+                                  func = function(x) quantile(x, probs = c(0.975)))[[1]]
   
   x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'x_true', type = 'summary', func = mean)[[1]]
   x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'x_true', type = 'summary', func = function(x) quantile(x, probs = c(0.025)))[[1]]
@@ -434,5 +464,21 @@ for (i in 1:length(sps))
   data_vis_fun(SPECIES = sps[i])
 }
 
+
+
+
+
+# change is arr_br over time ----------------------------------------------
+
+
+#read in RDS
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+#fit <- readRDS(paste0('temp_BR_ARR_stan_', MODEL_DATE, '.rds'))
+
+
+MCMCpstr(fit, params = c('arr_br', 'x_true'))
+
+
+Diff_arr_br ~ alpha_j + beta1_j * year + beta2_j * arr #where j is species
 
 
