@@ -86,10 +86,15 @@ mdf3 <- mdf2[-which(mdf2$species %in% sp.to.rm),]
 #number codes for species
 sp_num <- as.numeric(factor(mdf3$species))
 
+#number codes for years
+yr_num <- as.numeric(factor(mdf3$year))
+
 #create data list for Stan
 DATA <- list(y_obs = mdf3$EB_HM_mean,
              sigma_y = mdf3$EB_HM_sd,
              sp_id = sp_num,
+             year = yr_num,
+             lat = mdf3$cell_lat,
              US = length(unique(sp_num)),
              N = NROW(mdf3))
 
@@ -101,15 +106,15 @@ br_time_lat <- '
 data {
 int<lower = 0> N;                                     // number of obs
 int<lower = 0> US;                                    // number of species
-real<lower = 0, upper = 200> y_obs[N];                // mean halfmax IAR
-real<lower = 0> sigma_y[N];                           // sd halfmax IAR
+vector<lower = 0, upper = 200>[N] y_obs;                // mean halfmax IAR
+vector<lower = 0>[N] sigma_y;                           // sd halfmax IAR
 int<lower = 1, upper = US> sp_id[N];                  // species ids
-int<lower = 1, upper = 17> year[N]
-lat
+vector<lower = 1, upper = 17>[N] year;
+vector<lower = 26, upper = 90>[N] lat;
 }
 
 parameters {
-real<lower = 0, upper = 300> y_true[N];                           //true arrival
+vector<lower = 0, upper = 300>[N] y_true;                           //true arrival
 real mu_alpha_raw;
 real mu_beta1_raw;
 real mu_beta2_raw;
@@ -212,7 +217,7 @@ options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.97
 TREE_DEPTH <- 16
-STEP_SIZE <- 0.0005
+STEP_SIZE <- 0.005
 CHAINS <- 4
 ITER <- 3000
 
@@ -225,7 +230,7 @@ fit <- rstan::stan(model_code = br_time_lat,
                    pars = c('alpha', 'beta1', 'beta2', 
                             'mu_alpha', 'mu_beta1', 'mu_beta2',
                             'sigma_alpha', 'sigma_beta1', 'sigma_beta2', 
-                            'sigma', 'x_true'),
+                            'sigma', 'y_true'),
                    control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 

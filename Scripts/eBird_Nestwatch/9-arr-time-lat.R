@@ -88,10 +88,15 @@ mdf3 <- mdf2[-which(mdf2$species %in% sp.to.rm),]
 #number codes for species
 sp_num <- as.numeric(factor(mdf3$species))
 
+#number codes for years
+yr_num <- as.numeric(factor(mdf3$year))
+
 #create data list for Stan
 DATA <- list(x_obs = mdf3$mean_post_IAR,
              sigma_x = mdf3$sd_post_IAR,
              sp_id = sp_num,
+             year = yr_num,
+             lat = mdf3$cell_lat,
              US = length(unique(sp_num)),
              N = NROW(mdf3))
 
@@ -214,7 +219,7 @@ options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.97
 TREE_DEPTH <- 16
-STEP_SIZE <- 0.0005
+STEP_SIZE <- 0.005
 CHAINS <- 4
 ITER <- 3000
 
