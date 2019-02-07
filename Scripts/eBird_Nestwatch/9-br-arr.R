@@ -6,8 +6,10 @@
 
 # top-level dir --------------------------------------------------------------
 
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
+#Xanadu
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # Load packages -----------------------------------------------------------
 
