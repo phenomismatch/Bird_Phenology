@@ -113,11 +113,6 @@ DATA <- list(y_obs = mdf3$EB_HM_mean,
 
 
 
-# Stan model --------------------------------------------------------------
-
-
-
-
 
 # Stan model --------------------------------------------------------------
 
@@ -125,39 +120,55 @@ br_arr_corr <- "
 data {
 int<lower = 0> N;                                     // number of obs
 int<lower = 0> US;                                    // number of species
-real<lower = 0, upper = 300> y_obs[N];                // mean halfmax BR codes
-real<lower = 0> sigma_y[N];                           // sd halfmax BR codes
-real<lower = 0, upper = 200> x_obs[N];                // mean halfmax IAR
-real<lower = 0> sigma_x[N];                           // sd halfmax IAR
+vector<lower = 0, upper = 300>[N] y_obs;                // mean halfmax BR codes
+vector<lower = 0>[N] sigma_y;                           // sd halfmax BR codes
+vector<lower = 0, upper = 200>[N] x_obs;                // mean halfmax IAR
+vector<lower = 0>[N] sigma_x;                           // sd halfmax IAR
 int<lower = 1, upper = US> sp_id[N];                  // species ids
 }
 
 parameters {
-real<lower = 0, upper = 300> y_true[N];                           //true arrival date
-real<lower = 0, upper = 200> x_true[N];                           //true nesting date
+vector<lower = 0, upper = 300>[N] y_true;                           //true arrival date
+vector<lower = 0, upper = 200>[N] x_true;                           //true nesting date
 real mu_alpha_raw;
 real mu_beta_raw;
 real<lower = 0> sigma_alpha_raw;
 real<lower = 0> sigma_beta_raw;
 real<lower = 0> sigma_raw;
 real<lower = -1, upper = 1> rho;
-real B_temp[2];
+vector[2] B_temp;
 }
 
-transformed parameters {
 
-real mu[N];
-real alpha[US];
-real beta[US];
-real B_hat[2, US];
-real Sigma_b[2, 2];
-real B_hat_temp[2];
-real B[2, US];
+model {
+
+vector[N] mu;
+matrix[2, 2] Sigma_b;
 real mu_alpha;
 real mu_beta;
 real sigma_alpha;
 real sigma_beta;
 real sigma;
+matrix[2, US] B_hat;
+vector[2] B_hat_temp;
+matrix[2, US] B;
+vector[US] alpha;
+vector[US] beta;
+
+
+// observation model - modeling true state as a function of some observed state
+
+y_obs ~ normal(y_true, sigma_y);
+x_obs ~ normal(x_true, sigma_x);
+
+// priors - non-centered parameterization
+
+mu_alpha_raw ~ normal(0, 1);
+mu_beta_raw ~ normal(0, 1);
+sigma_alpha_raw ~ normal(0, 1);
+sigma_beta_raw ~ normal(0, 1);
+sigma_raw ~ normal(0, 1);
+rho ~ uniform(-1, 1);
 
 
 // non-centered parameterization
@@ -168,13 +179,13 @@ sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha 
 sigma_beta = sigma_beta_raw * 3;                         // implies sigma_beta ~ halfnormal(0, 3)
 sigma = sigma_raw * 10;                                  // implies sigma ~ halfnormal(0, 10)
 
-
 // fill Sigma_b
 
 Sigma_b[1, 1] = pow(sigma_alpha, 2);
 Sigma_b[2, 2] = pow(sigma_beta, 2);
 Sigma_b[1, 2] = rho * sigma_alpha * sigma_beta;
 Sigma_b[2, 1] = Sigma_b[1, 2];
+
 
 // draw alpha and beta from multivariate N
 
@@ -189,10 +200,10 @@ for (j in 1:US)
   B[2, j] = B_temp[2];
 }
 
-for (j in 1:J)
+for (j in 1:US)
 {
-  alpha[j] = B[1, j]
-  beta[j] = B[2, j]
+  alpha[j] = B[1, j];
+  beta[j] = B[2, j];
 }
 
 for (i in 1:N)
@@ -200,51 +211,41 @@ for (i in 1:N)
   mu[i] = alpha[sp_id[i]] + beta[sp_id[i]] * x_true[i];
 }
 
-}
-
-model {
-
-// observation model - modeling true state as a function of some observed state
-
-y_obs ~ normal(y_true, sigma_y);
-x_obs ~ normal(x_true, sigma_x);
-
-// non-centered parameterization
-
-mu_alpha_raw ~ normal(0, 1);
-mu_beta_raw ~ normal(0, 1);
-sigma_alpha_raw ~ normal(0, 1);
-sigma_beta_raw ~ normal(0, 1);
-sigma_raw ~ normal(0, 1);
-rho ~ uniform(-1, 1);
-
 y_true ~ normal(mu, sigma);
 
 }
 
 generated quantities {
 
-real errors[N];
-real BR2;
-real y_rep[N];
-real PPC_mean;
-real arr_br[N];
+// vector[N] resids;
+// real BR2;
+// vector[N] y_rep;
+// real PPC_mean;
+// vector[N] arr_br;
+// real var_mu;
+// real var_resids;
 
 // #traditional R^2
 // RSS = dot_self(y - mu);
 // TSS = dot_self(y - mean(y));
 // R2 = 1 - RSS/TSS;
 
-#new Bayes R^2 - http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2.pdf
-errors = y - mu;
-BR2 = var(mu)/(var(mu) + var(errors));
+// new Bayes R^2 - http://www.stat.columbia.edu/~gelman/research/unpublished/bayes_R2.pdf
+// calculate residuals variance for mu and errors to use in R^2
+// resids = y_true - mu;
+// var_mu = (dot_self(mu - mean(mu))) / (N - 1);
+// var_resids = (dot_self(resids - mean(resids))) / (N - 1);
+// BR2 = var_mu/(var_mu + var_resids);
 
-#PPC
-y_rep = normal_rng(mu, sigma);
-PPC_mean = mean(y_rep)
+// PPC
+//for (i in 1:N)
+//{
+//  y_rep[N] = normal_rng(mu[N], sigma);
+//}
+//PPC_mean = mean(y_rep);
 
-#arrival date - breeding date
-arr_br = x_true - y_true
+// arrival date - breeding date
+// arr_br = x_true - y_true;
 }
 "
 
@@ -256,19 +257,20 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.97
-TREE_DEPTH <- 16
-STEP_SIZE <- 0.0005
-
+DELTA <- 0.95
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.005
+CHAINS <- 1
+ITER <- 30
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = br_arr_corr,
                    data = DATA,
-                   chains = 4,
-                   iter = 3000,
-                   cores = 4,
+                   chains = CHAINS,
+                   iter = ITER,
+                   cores = CHAINS,
                    pars = c('alpha', 'beta', 'mu_alpha', 'mu_beta', 'sigma_alpha', 'sigma_beta', 
-                            'sigma', 'y_true', 'x_true', 'BR2'),
+                            'rho', 'sigma', 'y_true', 'x_true'),
                    control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
 
