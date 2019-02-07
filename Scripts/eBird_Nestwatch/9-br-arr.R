@@ -239,7 +239,8 @@ saveRDS(fit, file = paste0('temp_BR_ARR_stan_', MODEL_DATE, '.rds'))
 # 
 # 
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = c('alpha', 'beta'), ISB = FALSE)
-# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'sigma')
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'sigma', ISB = FALSE)
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'mu', ISB = FALSE)
 # # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'y_true')
 # # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'x_true')
 # #MCMCtrace(fit)

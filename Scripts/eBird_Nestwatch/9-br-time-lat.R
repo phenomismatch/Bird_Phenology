@@ -121,47 +121,56 @@ vector<lower = 0, upper = 300>[N] y_true;                           //true arriv
 real mu_alpha_raw;
 real mu_beta1_raw;
 real mu_beta2_raw;
+real mu_beta3_raw;
 real<lower = 0> sigma_alpha_raw;
 real<lower = 0> sigma_beta1_raw;
 real<lower = 0> sigma_beta2_raw;
+real<lower = 0> sigma_beta3_raw;
 real<lower = 0> sigma_raw;
 real alpha_raw[US];
 real beta1_raw[US];
 real beta2_raw[US];
+real beta3_raw[US];
 }
 
 transformed parameters {
 real mu_alpha;
 real mu_beta1;
 real mu_beta2;
+real mu_beta3;
 real sigma_alpha;
 real sigma_beta1;
 real sigma_beta2;
+real sigma_beta3;
 real sigma;
 real alpha[US];
 real beta1[US];
 real beta2[US];
+real beta3[US];
 real mu[N];
 
 // non-centered parameterization
 mu_alpha = mu_alpha_raw * 20 + 70;                       // implies mu_alpha ~ normal(70, 20)
 mu_beta1 = mu_beta1_raw * 2 + 1;                           // implies mu_beta ~ normal(1, 2)
 mu_beta2 = mu_beta2_raw * 2 + 1;                           // implies mu_beta ~ normal(1, 2)
+mu_beta3 = mu_beta3_raw * 2 + 1;
 sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
 sigma_beta1 = sigma_beta1_raw * 3;                         // implies sigma_beta ~ halfnormal(0, 3)
-sigma_beta2 = sigma_beta2_raw * 3;                         // implies sigma_beta ~ halfnormal(0, 3)
+sigma_beta2 = sigma_beta2_raw * 3;
+sigma_beta3 = sigma_beta3_raw * 3;
 sigma = sigma_raw * 10;                                  // implies sigma ~ halfnormal(0, 10)
 
 for (j in 1:US)
 {
   alpha[j] = alpha_raw[j] * sigma_alpha + mu_alpha;      // implies alpha[j] ~ normal(mu_alpha, sigma_alpha)
   beta1[j] = beta1_raw[j] * sigma_beta1 + mu_beta1;          // implies beta[j] ~ normal(mu_beta, sigma_beta)
-  beta2[j] = beta2_raw[j] * sigma_beta2 + mu_beta2;          // implies beta[j] ~ normal(mu_beta, sigma_beta)
+  beta2[j] = beta2_raw[j] * sigma_beta2 + mu_beta2;
+  beta3[j] = beta3_raw[j] * sigma_beta3 + mu_beta3;
 }
 
 for (i in 1:N)
 {
-  mu[i] = alpha[sp_id[i]] + beta1[sp_id[i]] * year[i] + beta2[sp_id[i]] * lat[i];
+  mu[i] = alpha[sp_id[i]] + beta1[sp_id[i]] * year[i] + beta2[sp_id[i]] * lat[i] + beta3[sp_id[i]] * year[i] * lat[i];
 }
 }
 
@@ -174,9 +183,11 @@ y_obs ~ normal(y_true, sigma_y);
 mu_alpha_raw ~ normal(0, 1);
 mu_beta1_raw ~ normal(0, 1);
 mu_beta2_raw ~ normal(0, 1);
+mu_beta3_raw ~ normal(0, 1);
 sigma_alpha_raw ~ normal(0, 1);
 sigma_beta1_raw ~ normal(0, 1);
 sigma_beta2_raw ~ normal(0, 1);
+sigma_beta3_raw ~ normal(0, 1);
 sigma_raw ~ normal(0, 1);
 
 for (j in 1:US)
@@ -184,6 +195,7 @@ for (j in 1:US)
   alpha_raw[j] ~ normal(0, 1);
   beta1_raw[j] ~ normal(0, 1);
   beta2_raw[j] ~ normal(0, 1);
+  beta3_raw[j] ~ normal(0, 1);
 }
 
 y_true ~ normal(mu, sigma);
@@ -230,9 +242,9 @@ fit <- rstan::stan(model_code = br_time_lat,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 'beta1', 'beta2', 
-                            'mu_alpha', 'mu_beta1', 'mu_beta2',
-                            'sigma_alpha', 'sigma_beta1', 'sigma_beta2', 
+                   pars = c('alpha', 'beta1', 'beta2', 'beta3',
+                            'mu_alpha', 'mu_beta1', 'mu_beta2', 'mu_beta3',
+                            'sigma_alpha', 'sigma_beta1', 'sigma_beta2', 'sigma_beta3', 
                             'sigma', 'y_true'),
                    control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
 run_time <- (proc.time() - tt[3]) / 60
@@ -242,7 +254,7 @@ run_time <- (proc.time() - tt[3]) / 60
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 saveRDS(fit, file = paste0('temp_BR_YEAR_LAT_stan_', MODEL_DATE, '.rds'))
-#fit <- readRDS(paste0('temp_BR_ARR_stan_', MODEL_DATE, '.rds'))
+#fit <- readRDS(paste0('temp_BR_YEAR_LAT_stan_', MODEL_DATE, '.rds'))
 
 
 
@@ -251,7 +263,8 @@ saveRDS(fit, file = paste0('temp_BR_YEAR_LAT_stan_', MODEL_DATE, '.rds'))
 
 
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = c('alpha', 'beta'), ISB = FALSE)
-# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'sigma')
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'sigma', ISB = FALSE)
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'mu', ISB = FALSE)
 # # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'y_true')
 # # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'x_true')
 # #MCMCtrace(fit)
