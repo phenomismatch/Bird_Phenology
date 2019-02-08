@@ -13,6 +13,9 @@
 #Xanadu
 dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
+MODEL_DATE <- '2019-02-08'
+ARR_TIME_LAT_IND_DIR <- paste0('trend_models_', MODEL_DATE)
+  
 
 # species arg -----------------------------------------------------
 
@@ -31,9 +34,6 @@ library(MCMCvis)
 # import ARR/BR data ---------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-
-
-MODEL_DATE <- '2019-02-08'
 
 #arrival data
 IAR_out <- 'IAR_output_2019-01-16'
@@ -219,8 +219,8 @@ run_time <- (proc.time() - tt[3]) / 60
 
 
 #save to RDS
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit, file = paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', ARR_TIME_LAT_IND_DIR))
+saveRDS(fit, file = paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args, '.rds'))
 #fit <- readRDS(paste0('temp_ARR_YEAR_LAT_stan_', MODEL_DATE, '.rds'))
 
 
@@ -255,8 +255,8 @@ saveRDS(fit, file = paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '.rds'))
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('ARR_YEAR_LAT_IND_results_', MODEL_DATE, '.txt'))
-cat(paste0('ARR_YEAR_LAT_IND_results_', MODEL_DATE, ' \n'))
+sink(paste0('ARR_YEAR_LAT_IND_results_', MODEL_DATE, '_', args, '.txt'))
+cat(paste0('ARR_YEAR_LAT_IND_results_', MODEL_DATE, '_', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
