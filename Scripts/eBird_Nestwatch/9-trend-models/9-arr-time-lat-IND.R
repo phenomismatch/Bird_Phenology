@@ -8,16 +8,16 @@
 
 # top-level dir --------------------------------------------------------------
 
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 # species arg -----------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
-args <- as.character('Vireo_olivaceus')
+args <- commandArgs(trailingOnly = TRUE)
+#args <- as.character('Vireo_olivaceus')
 
 
 # Load packages -----------------------------------------------------------
@@ -254,18 +254,18 @@ saveRDS(fit, file = paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '.rds'))
 
 # write model results to file ---------------------------------------------
 
-# options(max.print = 50000)
-# sink(paste0('BR_ARR_results_', MODEL_DATE, '.txt'))
-# cat(paste0('BR_ARR results ', MODEL_DATE, ' \n'))
-# cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
-# cat(paste0('Adapt delta: ', DELTA, ' \n'))
-# cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
-# #cat(paste0('Step size: ', STEP_SIZE, ' \n'))
-# cat(paste0('Number of divergences: ', num_diverge, ' \n'))
-# cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
-# cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
-# print(fit)
-# sink()
+options(max.print = 50000)
+sink(paste0('ARR_YEAR_LAT_IND_results_', MODEL_DATE, '.txt'))
+cat(paste0('ARR_YEAR_LAT_IND_results_', MODEL_DATE, ' \n'))
+cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Adapt delta: ', DELTA, ' \n'))
+cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
+cat(paste0('Step size: ', STEP_SIZE, ' \n'))
+cat(paste0('Number of divergences: ', num_diverge, ' \n'))
+cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
+cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
+print(fit)
+sink()
 
 
 
