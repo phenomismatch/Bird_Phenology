@@ -370,11 +370,11 @@ mu_sigma_raw ~ normal(0, 1); // implies mu_sigma ~ halfnormal(0, 3)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-#DELTA <- 0.95
+DELTA <- 0.95
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 8000
+ITER <- 1000
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
@@ -384,10 +384,10 @@ fit <- stan(model_code = IAR_bym2,
             cores = CHAINS,
             pars = c('sigma', 'mu_sigma', 'rho', 
                      'beta0', 'beta1', 'mu_beta1', 'sigma_beta1',
-                     'theta', 'phi', 'mu'),
-            control = list(#adapt_delta = DELTA,
-                           max_treedepth = TREE_DEPTH,
-                           stepsize = STEP_SIZE))
+                     'theta', 'phi', 'mu'))#,
+            # control = list(adapt_delta = DELTA,
+            #                max_treedepth = TREE_DEPTH,
+            #                stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
@@ -446,11 +446,11 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
   
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '.rds'))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '_default.rds'))
 
 
 options(max.print = 50000)
-sink(paste0('IAR_results_', args, '.txt'))
+sink(paste0('IAR_results_', args, '_default.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -465,228 +465,228 @@ sink()
 
 
 
-
-# Plot pre-IAR/post_IAR halfmax estimates ------------------------------------------
-
-#estimated half-max in grey, sd in white (derived from logit cubic)
-
-#extract median and sd estimates for mu params
-med_fit <- MCMCvis::MCMCpstr(fit, params = 'mu', func = median)[[1]]
-sd_fit <- MCMCvis::MCMCpstr(fit, params = 'mu', func = sd)[[1]]
-
-
-#transform cells to grid
-cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells)
-cell_grid$cell <- as.numeric(cell_grid$cell)
-cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
-ll_df <- data.frame(cell = cells, 
-                    lon_deg = cell_centers$lon_deg, 
-                    lat_deg = cell_centers$lat_deg)
-
-#load maps
-usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
-canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
-mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
-
-#determine min/max for plotting
-f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
-MIN <- round(min(f_rng))
-MAX <- round(max(f_rng))
-
-
-#read in breeding/migration range shp file
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
-sp_rng <- rgdal::readOGR(f_out$shp_fname[1], verbose = FALSE)
-
-#filter by breeding (2) and migration (4) range - need to convert spdf to sp
-nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
-nrng_sp <- sp::SpatialPolygons(nrng@polygons)
-
-#filter by resident (1) and over winter (3) range - need to convert spdf to sp
-nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
-nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
-
-
-#plotting species range
-nrng@data$id <- rownames(nrng@data)
-nrng.points <- ggplot2::fortify(nrng, region = "id")
-nrng.df <- plyr::join(nrng.points, nrng@data, by = "id")
-
-nrng_rm@data$id <- rownames(nrng_rm@data)
-nrng_rm.points <- ggplot2::fortify(nrng_rm, region = "id")
-nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
-
-
-
-
-
-
-#create output image dir if it doesn't exist
-
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)), 
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)), 
-       FALSE)
-
-
-setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
-
-#loop plots for each year
-for (i in 1:length(years))
-{
-  #i <- 4
-  
-  #filter data for year[i]
-  f_out_filt <- filter(f_out, year == years[i])
-  
-  #merge hex spatial data with HM data
-  to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
-  to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
-  
-  #pre-IAR
-  p <- ggplot() +
-    geom_path(data = usamap, 
-              aes(x = x, y = y), color = 'black') + 
-    geom_path(data = canadamap, 
-              aes(x = x, y = y), color = 'black') + 
-    geom_path(data = mexicomap, 
-              aes(x = x, y = y), color = 'black') + 
-    # geom_polygon(data = nrng.df, 
-    #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) + 
-    # geom_polygon(data = nrng_rm.df, 
-    #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) + 
-    coord_map("ortho", orientation = c(35, -80, 0), 
-              xlim = c(-100, -55), ylim = c(25, 66)) + 
-    geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = HM_mean), 
-                 alpha = 0.4) +
-    geom_path(data = to_plt2, aes(x = long, y = lat, group = group), 
-              alpha = 0.4, color = 'black') + 
-    scale_fill_gradientn(colors = c('red', 'blue'),
-                         limits = c(MIN, MAX)) +
-    labs(fill = 'Estimated Arrival') +
-    annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5, 
-             label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.2,
-             size = 4) +
-    annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5, 
-             label = round(to_plt2$HM_sd, digits = 0), col = 'white', alpha = 0.3,
-             size = 3) +
-    ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Pre-IAR')) +
-    theme_bw() +
-    xlab('Longitude') +
-    ylab('Latitude')
-  
-  ggsave(plot = p, 
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR.pdf'))
-  
-  
-  #post-IAR
-  t_med_fit <- med_fit[,i]
-  t_sd_fit <- sd_fit[,i]
-  
-  #median of mu and sd of mu
-  m_fit <- data.frame(med_mu = t_med_fit, sd_mu = t_sd_fit, cell = cells)
-  
-  #merge hex spatial data with HM data
-  to_plt_post <- dplyr::inner_join(m_fit, cell_grid, by = 'cell')
-  to_plt2_post <- dplyr::inner_join(to_plt_post, ll_df, by = 'cell')
-  
-  
-  #plot
-  p_post <- ggplot() +
-    geom_path(data = usamap, 
-              aes(x = x, y = y), color = 'black') + 
-    geom_path(data = canadamap, 
-              aes(x = x, y = y), color = 'black') + 
-    geom_path(data = mexicomap, 
-              aes(x = x, y = y), color = 'black') + 
-    # geom_polygon(data = nrng.df, 
-    #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) + 
-    # geom_polygon(data = nrng_rm.df, 
-    #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) + 
-    coord_map("ortho", orientation = c(35, -80, 0), 
-              xlim = c(-100, -55), ylim = c(25, 66)) + 
-    geom_polygon(data = to_plt2_post, aes(x = long, y = lat, group = group, fill = med_mu), 
-                 alpha = 0.4) +
-    geom_path(data = to_plt2_post, aes(x = long, y = lat, group = group), 
-              alpha = 0.4, color = 'black') + 
-    scale_fill_gradientn(colors = c('red', 'blue'),
-                         limits = c(MIN, MAX)) +
-    labs(fill = 'Estimated Arrival') +
-    annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg + 0.5, 
-             label = round(to_plt2_post$med_mu, digits = 0), col = 'black', alpha = 0.2,
-             size = 4) +
-    annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg - 0.5, 
-             label = round(to_plt2_post$sd_mu, digits = 0), col = 'white', alpha = 0.3,
-             size = 3) +
-    ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Post-IAR')) +
-    theme_bw() +
-    xlab('Longitude') +
-    ylab('Latitude')
-  
-  ggsave(plot = p_post, 
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR.pdf'))
-}
-
-
-
-# Trace plots with PPO ----------------------------------------------------
-
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-
-
-#beta0[j] ~ normal(120, 10)
-#mu_beta1 ~ normal(1, 2)
-#sigma_beta1 ~ halfnormal(0, 3)
-#rho ~ beta(0.5, 0.5);
-#mu_sigma ~ normal(0, 3);
-#sigma_sigma ~ uniform(0, 5);
-
-#beta0
-PR <- rnorm(10000, 120, 10)
-MCMCvis::MCMCtrace(fit, 
-          params = 'beta0',
-          priors = PR,
-          open_pdf = FALSE,
-          filename = paste0('trace_beta0_', args, '-', IAR_out_date, '.pdf'))
-
-
-#mu_beta1 ~ normal(1, 2)
-PR <- rnorm(10000, 1, 2)
-MCMCvis::MCMCtrace(fit, 
-                   params = 'mu_beta1',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0('trace_mu_beta1_', args, '-', IAR_out_date, '.pdf'))
-
-#sigma_beta1 ~ halfnormal(0, 3)
-PR_p <- rnorm(10000, 0, 3) 
-PR <- PR_p[which(PR_p > 0)]
-MCMCvis::MCMCtrace(fit, 
-                   params = 'sigma_beta1',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0('trace_sigma_beta1_', args, '-', IAR_out_date, '.pdf'))
-
-#rho
-PR <- rbeta(10000, 0.5, 0.5)
-MCMCvis::MCMCtrace(fit, 
-          params = 'rho',
-          priors = PR,
-          open_pdf = FALSE,
-          filename = paste0('trace_rho_', args, '-', IAR_out_date, '.pdf'))
-
-#mu_sigma
-PR <- rnorm(10000, 0, 3)
-MCMCvis::MCMCtrace(fit, 
-          params = 'mu_sigma',
-          priors = PR,
-          open_pdf = FALSE,
-          filename = paste0('trace_mu_sigma_', args, '-', IAR_out_date, '.pdf'))
-
-
-if ('Rplots.pdf' %in% list.files())
-{
-  file.remove('Rplots.pdf')
-}
+# 
+# # Plot pre-IAR/post_IAR halfmax estimates ------------------------------------------
+# 
+# #estimated half-max in grey, sd in white (derived from logit cubic)
+# 
+# #extract median and sd estimates for mu params
+# med_fit <- MCMCvis::MCMCpstr(fit, params = 'mu', func = median)[[1]]
+# sd_fit <- MCMCvis::MCMCpstr(fit, params = 'mu', func = sd)[[1]]
+# 
+# 
+# #transform cells to grid
+# cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells)
+# cell_grid$cell <- as.numeric(cell_grid$cell)
+# cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
+# ll_df <- data.frame(cell = cells, 
+#                     lon_deg = cell_centers$lon_deg, 
+#                     lat_deg = cell_centers$lat_deg)
+# 
+# #load maps
+# usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
+# canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
+# mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
+# 
+# #determine min/max for plotting
+# f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
+# MIN <- round(min(f_rng))
+# MAX <- round(max(f_rng))
+# 
+# 
+# #read in breeding/migration range shp file
+# setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+# sp_rng <- rgdal::readOGR(f_out$shp_fname[1], verbose = FALSE)
+# 
+# #filter by breeding (2) and migration (4) range - need to convert spdf to sp
+# nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
+# nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+# 
+# #filter by resident (1) and over winter (3) range - need to convert spdf to sp
+# nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
+# nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
+# 
+# 
+# #plotting species range
+# nrng@data$id <- rownames(nrng@data)
+# nrng.points <- ggplot2::fortify(nrng, region = "id")
+# nrng.df <- plyr::join(nrng.points, nrng@data, by = "id")
+# 
+# nrng_rm@data$id <- rownames(nrng_rm@data)
+# nrng_rm.points <- ggplot2::fortify(nrng_rm, region = "id")
+# nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
+# 
+# 
+# 
+# 
+# 
+# 
+# #create output image dir if it doesn't exist
+# 
+# ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)), 
+#        dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)), 
+#        FALSE)
+# 
+# 
+# setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
+# 
+# #loop plots for each year
+# for (i in 1:length(years))
+# {
+#   #i <- 4
+#   
+#   #filter data for year[i]
+#   f_out_filt <- filter(f_out, year == years[i])
+#   
+#   #merge hex spatial data with HM data
+#   to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
+#   to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
+#   
+#   #pre-IAR
+#   p <- ggplot() +
+#     geom_path(data = usamap, 
+#               aes(x = x, y = y), color = 'black') + 
+#     geom_path(data = canadamap, 
+#               aes(x = x, y = y), color = 'black') + 
+#     geom_path(data = mexicomap, 
+#               aes(x = x, y = y), color = 'black') + 
+#     # geom_polygon(data = nrng.df, 
+#     #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) + 
+#     # geom_polygon(data = nrng_rm.df, 
+#     #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) + 
+#     coord_map("ortho", orientation = c(35, -80, 0), 
+#               xlim = c(-100, -55), ylim = c(25, 66)) + 
+#     geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = HM_mean), 
+#                  alpha = 0.4) +
+#     geom_path(data = to_plt2, aes(x = long, y = lat, group = group), 
+#               alpha = 0.4, color = 'black') + 
+#     scale_fill_gradientn(colors = c('red', 'blue'),
+#                          limits = c(MIN, MAX)) +
+#     labs(fill = 'Estimated Arrival') +
+#     annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5, 
+#              label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.2,
+#              size = 4) +
+#     annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5, 
+#              label = round(to_plt2$HM_sd, digits = 0), col = 'white', alpha = 0.3,
+#              size = 3) +
+#     ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Pre-IAR')) +
+#     theme_bw() +
+#     xlab('Longitude') +
+#     ylab('Latitude')
+#   
+#   ggsave(plot = p, 
+#          filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR.pdf'))
+#   
+#   
+#   #post-IAR
+#   t_med_fit <- med_fit[,i]
+#   t_sd_fit <- sd_fit[,i]
+#   
+#   #median of mu and sd of mu
+#   m_fit <- data.frame(med_mu = t_med_fit, sd_mu = t_sd_fit, cell = cells)
+#   
+#   #merge hex spatial data with HM data
+#   to_plt_post <- dplyr::inner_join(m_fit, cell_grid, by = 'cell')
+#   to_plt2_post <- dplyr::inner_join(to_plt_post, ll_df, by = 'cell')
+#   
+#   
+#   #plot
+#   p_post <- ggplot() +
+#     geom_path(data = usamap, 
+#               aes(x = x, y = y), color = 'black') + 
+#     geom_path(data = canadamap, 
+#               aes(x = x, y = y), color = 'black') + 
+#     geom_path(data = mexicomap, 
+#               aes(x = x, y = y), color = 'black') + 
+#     # geom_polygon(data = nrng.df, 
+#     #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) + 
+#     # geom_polygon(data = nrng_rm.df, 
+#     #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) + 
+#     coord_map("ortho", orientation = c(35, -80, 0), 
+#               xlim = c(-100, -55), ylim = c(25, 66)) + 
+#     geom_polygon(data = to_plt2_post, aes(x = long, y = lat, group = group, fill = med_mu), 
+#                  alpha = 0.4) +
+#     geom_path(data = to_plt2_post, aes(x = long, y = lat, group = group), 
+#               alpha = 0.4, color = 'black') + 
+#     scale_fill_gradientn(colors = c('red', 'blue'),
+#                          limits = c(MIN, MAX)) +
+#     labs(fill = 'Estimated Arrival') +
+#     annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg + 0.5, 
+#              label = round(to_plt2_post$med_mu, digits = 0), col = 'black', alpha = 0.2,
+#              size = 4) +
+#     annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg - 0.5, 
+#              label = round(to_plt2_post$sd_mu, digits = 0), col = 'white', alpha = 0.3,
+#              size = 3) +
+#     ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Post-IAR')) +
+#     theme_bw() +
+#     xlab('Longitude') +
+#     ylab('Latitude')
+#   
+#   ggsave(plot = p_post, 
+#          filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR.pdf'))
+# }
+# 
+# 
+# 
+# # Trace plots with PPO ----------------------------------------------------
+# 
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+# 
+# 
+# #beta0[j] ~ normal(120, 10)
+# #mu_beta1 ~ normal(1, 2)
+# #sigma_beta1 ~ halfnormal(0, 3)
+# #rho ~ beta(0.5, 0.5);
+# #mu_sigma ~ normal(0, 3);
+# #sigma_sigma ~ uniform(0, 5);
+# 
+# #beta0
+# PR <- rnorm(10000, 120, 10)
+# MCMCvis::MCMCtrace(fit, 
+#           params = 'beta0',
+#           priors = PR,
+#           open_pdf = FALSE,
+#           filename = paste0('trace_beta0_', args, '-', IAR_out_date, '.pdf'))
+# 
+# 
+# #mu_beta1 ~ normal(1, 2)
+# PR <- rnorm(10000, 1, 2)
+# MCMCvis::MCMCtrace(fit, 
+#                    params = 'mu_beta1',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    filename = paste0('trace_mu_beta1_', args, '-', IAR_out_date, '.pdf'))
+# 
+# #sigma_beta1 ~ halfnormal(0, 3)
+# PR_p <- rnorm(10000, 0, 3) 
+# PR <- PR_p[which(PR_p > 0)]
+# MCMCvis::MCMCtrace(fit, 
+#                    params = 'sigma_beta1',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    filename = paste0('trace_sigma_beta1_', args, '-', IAR_out_date, '.pdf'))
+# 
+# #rho
+# PR <- rbeta(10000, 0.5, 0.5)
+# MCMCvis::MCMCtrace(fit, 
+#           params = 'rho',
+#           priors = PR,
+#           open_pdf = FALSE,
+#           filename = paste0('trace_rho_', args, '-', IAR_out_date, '.pdf'))
+# 
+# #mu_sigma
+# PR <- rnorm(10000, 0, 3)
+# MCMCvis::MCMCtrace(fit, 
+#           params = 'mu_sigma',
+#           priors = PR,
+#           open_pdf = FALSE,
+#           filename = paste0('trace_mu_sigma_', args, '-', IAR_out_date, '.pdf'))
+# 
+# 
+# if ('Rplots.pdf' %in% list.files())
+# {
+#   file.remove('Rplots.pdf')
+# }
 
 
 
