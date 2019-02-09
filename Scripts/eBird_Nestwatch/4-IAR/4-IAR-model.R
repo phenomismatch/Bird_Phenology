@@ -379,8 +379,8 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.90
-TREE_DEPTH <- 15
+DELTA <- 0.95
+TREE_DEPTH <- 16
 STEP_SIZE <- 0.0005
 CHAINS <- 4
 ITER <- 3000
@@ -459,11 +459,11 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '-test.rds'))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '-test95.rds'))
 
 
 options(max.print = 50000)
-sink(paste0('IAR_results_', args, '-test.txt'))
+sink(paste0('IAR_results_', args, '-test95.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
