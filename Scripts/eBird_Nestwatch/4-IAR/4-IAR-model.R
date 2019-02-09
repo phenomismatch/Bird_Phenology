@@ -370,8 +370,8 @@ mu_sigma_raw ~ normal(0, 1); // implies mu_sigma ~ halfnormal(0, 3)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
-TREE_DEPTH <- 18
+#DELTA <- 0.95
+TREE_DEPTH <- 16
 STEP_SIZE <- 0.001
 CHAINS <- 4
 ITER <- 8000
@@ -385,8 +385,8 @@ fit <- stan(model_code = IAR_bym2,
             pars = c('sigma', 'mu_sigma', 'rho', 
                      'beta0', 'beta1', 'mu_beta1', 'sigma_beta1',
                      'theta', 'phi', 'mu'),
-            control = list(adapt_delta = DELTA, 
-                           max_treedepth = TREE_DEPTH, 
+            control = list(#adapt_delta = DELTA,
+                           max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
@@ -399,28 +399,28 @@ num_tree <- rstan::get_num_max_treedepth(fit)
 num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 
-#rerun model if things didn't go well
-while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
-{
-  DELTA <- DELTA + 0.01
-  TREE_DEPTH <- TREE_DEPTH + 1
-  STEP_SIZE <- STEP_SIZE * 0.75
-
-  tt <- proc.time()
-  fit <- stan(model_code = IAR_bym2,
-              data = DATA,
-              chains = 4,
-              iter = 8000,
-              cores = 4,
-              pars = c('sigma', 'mu_sigma', 
-                       'rho', 'beta0', 'theta', 'phi', 'mu'),
-              control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
-  run_time <- (proc.time()[3] - tt[3]) / 60
-  
-  num_diverge <- rstan::get_num_divergent(fit)
-  num_tree <- rstan::get_num_max_treedepth(fit)
-  num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
-}
+# #rerun model if things didn't go well
+# while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
+# {
+#   DELTA <- DELTA + 0.01
+#   TREE_DEPTH <- TREE_DEPTH + 1
+#   STEP_SIZE <- STEP_SIZE * 0.75
+# 
+#   tt <- proc.time()
+#   fit <- stan(model_code = IAR_bym2,
+#               data = DATA,
+#               chains = 4,
+#               iter = 8000,
+#               cores = 4,
+#               pars = c('sigma', 'mu_sigma', 
+#                        'rho', 'beta0', 'theta', 'phi', 'mu'),
+#               control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
+#   run_time <- (proc.time()[3] - tt[3]) / 60
+#   
+#   num_diverge <- rstan::get_num_divergent(fit)
+#   num_tree <- rstan::get_num_max_treedepth(fit)
+#   num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
+# }
 
 
 
