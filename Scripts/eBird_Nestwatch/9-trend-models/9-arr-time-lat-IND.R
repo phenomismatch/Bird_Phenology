@@ -15,7 +15,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 MODEL_DATE <- '2019-02-08'
 ARR_TIME_LAT_IND_DIR <- paste0('trend_models_', MODEL_DATE)
-  
+
 
 # species arg -----------------------------------------------------
 
@@ -29,6 +29,7 @@ library(dplyr)
 library(ggplot2)
 library(rstan)
 library(MCMCvis)
+library(dggrid)
 
 
 # import ARR/BR data ---------------------------------------------------------
@@ -196,10 +197,10 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.97
-TREE_DEPTH <- 16
-STEP_SIZE <- 0.005
-CHAINS <- 4
+DELTA <- 0.85
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.05
+CHAINS <- 3
 ITER <- 3000
 
 tt <- proc.time()
@@ -211,8 +212,8 @@ fit <- rstan::stan(model_code = arr_time_lat_ind,
                    pars = c('alpha', 'beta', 'mu_alpha', 
                             'alpha2', 'beta2',
                             'sigma_alpha', 'sigma', 'x_true'),
-                   control = list(adapt_delta = DELTA, 
-                                  max_treedepth = TREE_DEPTH, 
+                   control = list(adapt_delta = DELTA,
+                                  max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time() - tt[3]) / 60
 
@@ -229,7 +230,8 @@ saveRDS(fit, file = paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args,
 # diagnostics -------------------------------------------------------------
 
 
-# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = c('alpha', 'beta'), ISB = FALSE)
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'alpha', ISB = FALSE)
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'beta', ISB = FALSE)
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'sigma', ISB = FALSE)
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'mu', ISB = FALSE)
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'x_true')
@@ -266,6 +268,266 @@ cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
 print(fit)
 sink()
+
+
+# Extract posterior estimates ---------------------------------------------
+
+#extract median and sd estimates for mu params
+med_fit <- MCMCvis::MCMCpstr(fit, params = 'mu', func = median)[[1]]
+sd_fit <- MCMCvis::MCMCpstr(fit, params = 'mu', func = sd)[[1]]
+
+#extract median and sd estimates for x_true
+x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'x_true', func = mean)[[1]]
+x_true_sd <- MCMCvis::MCMCpstr(fit, params = 'x_true', func = sd)[[1]]
+
+#extract slope estimates and CI
+beta_med <- MCMCvis::MCMCpstr(fit, params = 'beta', func = median)[[1]]
+beta_LCI <- MCMCvis::MCMCpstr(fit, params = 'beta', func = function(x) quantile(x, probs = c(0.025)))[[1]]
+beta_UCI <- MCMCvis::MCMCpstr(fit, params = 'beta', func = function(x) quantile(x, probs = c(0.975)))[[1]]
+
+
+
+# plots arr over time -----------------------------------------------------
+
+#for each cell:
+#X-AXIS = year
+#Y-AXIS = julian day
+#x_true with error bars
+#regression line
+
+#need true latent states
+DATA_PLOT <- data.frame(mean_x = x_true_mean,
+                        mean_x_l = x_true_LCI,
+                        mean_x_u = x_true_UCI,
+                        year = mdf3$year,
+                        cell = cell_mrg$cell)
+
+#plot for each cell
+for (i in 1:NROW(u_cell_mrg))
+{
+  #i <- 1
+  #model fit to plot
+  alpha_ch <- MCMCchains(fit, params = paste0('alpha\\[', u_cell_mrg$cell_num[i], '\\]'), ISB = FALSE)[,1]
+  beta_ch <- MCMCchains(fit, params = paste0('beta\\[', u_cell_mrg$cell_num[i], '\\]'), ISB = FALSE)[,1]
+
+  sim_year <- seq(1, length(unique(mdf3$year)), length = 100)
+  
+  mf <- matrix(nrow = length(beta_ch), ncol = 100)
+  for (i in 1:length(sim_year))
+  {
+    mf[,i] <- alpha_ch + beta_ch * sim_year[i]
+  }
+  
+  med_mf <- apply(mf, 2, median)
+  LCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.025))
+  UCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.975))
+  
+  FIT_PLOT <- data.frame(MN = med_mf, 
+                         MN_YR = sim_year,
+                         LCI = LCI_mf,
+                         UCI = UCI_mf)
+
+  DATA_PLOT2 <- dplyr::filter(DATA_PLOT, cell == u_cell_mrg$cell_num[i])
+
+  p <- ggplot(data = DATA_PLOT2, aes(year, mean_x)) +
+    geom_ribbon(data = FIT_PLOT,
+                aes(x = MN_YR, ymin = LCI, ymax = UCI),
+                fill = 'grey', alpha = 0.7,
+                inherit.aes = FALSE) +
+    geom_line(data = FIT_PLOT, aes(MN_YR, MN), color = 'red',
+              alpha = 0.9,
+              inherit.aes = FALSE,
+              size = 1.4) +
+    geom_errorbar(data = DATA_PLOT2,
+                  aes(ymin = mean_x_l, ymax = mean_x_u), width = 0.3,
+                  color = 'black', alpha = 0.2) +
+    geom_point(data = DATA_PLOT2, aes(year, mean_x), color = 'black',
+               inherit.aes = FALSE, size = 1, alpha = 0.3) +
+    theme_bw() +
+    #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
+    xlab('Year') +
+    ylab('True ARR') +
+    ggtitle(paste0('Species: ', args, '; Cell: ', u_cell_mrg$cell_num[i])) +
+    theme(
+      plot.title = element_text(size = 22),
+      axis.text = element_text(size = 16),
+      axis.title = element_text(size = 18),
+      axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+      axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
+      axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
+  print(p)
+}
+
+
+
+# plot slope estimates for each cell --------------------------------------
+
+# beta_med
+# beta_LCI
+# beta_UCI
+
+#slope in grey
+
+#make hexgrid
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+#transform cells to grid
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, u_cell_mrg$cell)
+cell_grid$cell <- as.numeric(cell_grid$cell)
+cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
+ll_df <- data.frame(cell = u_cell_mrg$cell, 
+                    lon_deg = cell_centers$lon_deg, 
+                    lat_deg = cell_centers$lat_deg)
+
+#load maps
+usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
+canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
+mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
+
+
+
+#determine min/max for plotting
+f_rng <- range(beta_med)
+MIN <- round(min(f_rng))
+MAX <- round(max(f_rng))
+
+
+
+
+#vvvvv  DO THIS  vvvvv
+
+#read in breeding/migration range shp file
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+sp_rng <- rgdal::readOGR(f_out$shp_fname[1], verbose = FALSE)
+
+#filter by breeding (2) and migration (4) range - need to convert spdf to sp
+nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
+nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+
+#filter by resident (1) and over winter (3) range - need to convert spdf to sp
+nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
+nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
+
+
+#plotting species range
+nrng@data$id <- rownames(nrng@data)
+nrng.points <- ggplot2::fortify(nrng, region = "id")
+nrng.df <- plyr::join(nrng.points, nrng@data, by = "id")
+
+nrng_rm@data$id <- rownames(nrng_rm@data)
+nrng_rm.points <- ggplot2::fortify(nrng_rm, region = "id")
+nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
+
+
+
+
+
+
+#create output image dir if it doesn't exist
+
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)), 
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)), 
+       FALSE)
+
+
+setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
+
+#loop plots for each year
+for (i in 1:length(years))
+{
+  #i <- 4
+  
+  #filter data for year[i]
+  f_out_filt <- filter(f_out, year == years[i])
+  
+  #merge hex spatial data with HM data
+  to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
+  to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
+  
+  #pre-IAR
+  p <- ggplot() +
+    geom_path(data = usamap, 
+              aes(x = x, y = y), color = 'black') + 
+    geom_path(data = canadamap, 
+              aes(x = x, y = y), color = 'black') + 
+    geom_path(data = mexicomap, 
+              aes(x = x, y = y), color = 'black') + 
+    # geom_polygon(data = nrng.df, 
+    #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) + 
+    # geom_polygon(data = nrng_rm.df, 
+    #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) + 
+    coord_map("ortho", orientation = c(35, -80, 0), 
+              xlim = c(-100, -55), ylim = c(25, 66)) + 
+    geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = HM_mean), 
+                 alpha = 0.4) +
+    geom_path(data = to_plt2, aes(x = long, y = lat, group = group), 
+              alpha = 0.4, color = 'black') + 
+    scale_fill_gradientn(colors = c('red', 'blue'),
+                         limits = c(MIN, MAX)) +
+    labs(fill = 'Estimated Arrival') +
+    annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5, 
+             label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.2,
+             size = 4) +
+    annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5, 
+             label = round(to_plt2$HM_sd, digits = 0), col = 'white', alpha = 0.3,
+             size = 3) +
+    ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Pre-IAR')) +
+    theme_bw() +
+    xlab('Longitude') +
+    ylab('Latitude')
+  
+  ggsave(plot = p, 
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR.pdf'))
+  
+  
+  #post-IAR
+  t_med_fit <- med_fit[,i]
+  t_sd_fit <- sd_fit[,i]
+  
+  #median of mu and sd of mu
+  m_fit <- data.frame(med_mu = t_med_fit, sd_mu = t_sd_fit, cell = cells)
+  
+  #merge hex spatial data with HM data
+  to_plt_post <- dplyr::inner_join(m_fit, cell_grid, by = 'cell')
+  to_plt2_post <- dplyr::inner_join(to_plt_post, ll_df, by = 'cell')
+  
+  
+  #plot
+  p_post <- ggplot() +
+    geom_path(data = usamap, 
+              aes(x = x, y = y), color = 'black') + 
+    geom_path(data = canadamap, 
+              aes(x = x, y = y), color = 'black') + 
+    geom_path(data = mexicomap, 
+              aes(x = x, y = y), color = 'black') + 
+    # geom_polygon(data = nrng.df, 
+    #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) + 
+    # geom_polygon(data = nrng_rm.df, 
+    #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) + 
+    coord_map("ortho", orientation = c(35, -80, 0), 
+              xlim = c(-100, -55), ylim = c(25, 66)) + 
+    geom_polygon(data = to_plt2_post, aes(x = long, y = lat, group = group, fill = med_mu), 
+                 alpha = 0.4) +
+    geom_path(data = to_plt2_post, aes(x = long, y = lat, group = group), 
+              alpha = 0.4, color = 'black') + 
+    scale_fill_gradientn(colors = c('red', 'blue'),
+                         limits = c(MIN, MAX)) +
+    labs(fill = 'Estimated Arrival') +
+    annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg + 0.5, 
+             label = round(to_plt2_post$med_mu, digits = 0), col = 'black', alpha = 0.2,
+             size = 4) +
+    annotate('text', x = to_plt2_post$lon_deg, y = to_plt2_post$lat_deg - 0.5, 
+             label = round(to_plt2_post$sd_mu, digits = 0), col = 'white', alpha = 0.3,
+             size = 3) +
+    ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Post-IAR')) +
+    theme_bw() +
+    xlab('Longitude') +
+    ylab('Latitude')
+  
+  ggsave(plot = p_post, 
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR.pdf'))
+}
+
 
 
 
