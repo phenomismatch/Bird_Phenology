@@ -321,7 +321,7 @@ matrix[N, J] convolved_re;                            // spatial and non-spatial
 matrix[N, J] mu;                                      // latent true halfmax values
 
 // mu_sigma = 3 * mu_sigma_raw;                       // change sigma
-sigma = sigma_raw * 3;                                // change sigma
+sigma = sigma_raw * 2 + 3;                            // change sigma
 mu_beta1 = mu_beta1_raw * 2 + 1;
 sigma_beta1 = sigma_beta1_raw * 2;
 
@@ -349,23 +349,27 @@ for (j in 1:J)
 }
 
 model {
-// Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
-for (j in 1:J)
-{
-  y[,j] ~ normal(mu[,j], sigma_y[,j]);
-  target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
-  sum(phi[,j]) ~ normal(0, 0.001 * N);
-  theta[,j] ~ normal(0, 1);
-  beta0_raw[j] ~ normal(0, 1);
-  beta1_raw[j] ~ normal(0, 1);
-  // sigma_raw[j] ~ normal(0, 1);     // change sigma
-}
 
 rho ~ beta(0.5, 0.5);
 mu_beta1_raw ~ normal(0, 1);
 sigma_beta1_raw ~ normal(0, 1);
 sigma_raw ~ normal(0, 1);
 // mu_sigma_raw ~ normal(0, 1);          // change sigma
+
+// Separate sets of phis/thetas (no pool) - same rho, sigma (diff betas, phis, thetas)
+for (j in 1:J)
+{
+  theta[,j] ~ normal(0, 1);
+  beta0_raw[j] ~ normal(0, 1);
+  beta1_raw[j] ~ normal(0, 1);
+  // sigma_raw[j] ~ normal(0, 1);     // change sigma
+  target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
+  sum(phi[,j]) ~ normal(0, 0.001 * N);
+  
+  y[,j] ~ normal(mu[,j], sigma_y[,j]);
+
+}
+
 }'
 
 
@@ -379,7 +383,7 @@ DELTA <- 0.90
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.0005
 CHAINS <- 4
-ITER <- 1000
+ITER <- 3000
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
@@ -389,10 +393,10 @@ fit <- stan(model_code = IAR_bym2,
             cores = CHAINS,
             pars = c('sigma', 'rho', #'mu_sigma',
                      'beta0', 'beta1', 'mu_beta1', 'sigma_beta1',
-                     'theta', 'phi', 'mu'))#,
-# control = list(adapt_delta = DELTA,
-#                max_treedepth = TREE_DEPTH,
-#                stepsize = STEP_SIZE))
+                     'theta', 'phi', 'mu'),
+            control = list(adapt_delta = DELTA,
+               max_treedepth = TREE_DEPTH,
+               stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
@@ -455,11 +459,11 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '_default.rds'))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '-test.rds'))
 
 
 options(max.print = 50000)
-sink(paste0('IAR_results_', args, '_default.txt'))
+sink(paste0('IAR_results_', args, '-test.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
