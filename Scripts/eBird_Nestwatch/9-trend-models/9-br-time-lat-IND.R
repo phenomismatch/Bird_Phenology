@@ -29,6 +29,7 @@ library(dplyr)
 library(ggplot2)
 library(rstan)
 library(MCMCvis)
+library(dggrid)
 
 
 # import ARR/BR data ---------------------------------------------------------
@@ -250,11 +251,11 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.97
-TREE_DEPTH <- 16
+DELTA <- 0.90
+TREE_DEPTH <- 15
 STEP_SIZE <- 0.005
-CHAINS <- 1
-ITER <- 30
+CHAINS <- 3
+ITER <- 3000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = br_time_lat_ind,
@@ -265,8 +266,8 @@ fit <- rstan::stan(model_code = br_time_lat_ind,
                    pars = c('alpha', 'beta', 'mu_alpha', 
                             'alpha2', 'beta2',
                             'sigma_alpha', 'sigma', 'y_true'),
-                   control = list(adapt_delta = DELTA, 
-                                  max_treedepth = TREE_DEPTH, 
+                   control = list(adapt_delta = DELTA,
+                                  max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time() - tt[3]) / 60
 

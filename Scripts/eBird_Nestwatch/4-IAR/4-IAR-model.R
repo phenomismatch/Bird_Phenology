@@ -29,7 +29,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 db_dir <- 'eBird_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
 IAR_in_dir <- 'IAR_input_2018-11-12'
-IAR_out_dir <- 'IAR_output_2019-01-16-supp'
+IAR_out_dir <- 'IAR_output_2019-02-09'
 
 #create output dir if it doesn't exist - need to create before running script bc STD out and STD error are written there
 # ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir)), 
@@ -112,6 +112,9 @@ hexgrid6 <- dggridR::dgconstruct(res = 6)
 #get hexgrid cell centers
 cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
 
+#add lat col to df
+f_out$lat <- cellcenters$lat_deg
+
 #create adjacency matrix - 1 if adjacent to cell, 0 if not
 adjacency_matrix <- matrix(data = NA, nrow = ncell, ncol = ncell)
 
@@ -193,6 +196,7 @@ scaling_factor <- exp(mean(log(diag(Q_inv))))
 #create and fill sds and obs
 sigma_y_in <- matrix(nrow = ncell, ncol = nyr)
 y_obs_in <- matrix(nrow = ncell, ncol = nyr)
+lat <- matrix(nrow = ncell, ncol = nyr)
 
 #number of observation and NAs for each year
 len_y_obs_in <- rep(NA, nyr)
@@ -206,9 +210,10 @@ for (j in 1:nyr)
 {
   #j <- 16
   temp_yr_p <- dplyr::filter(f_out, year == years[j])
-  temp_yr <- temp_yr_p[order(temp_yr_p$cell),]
+  temp_yr <- temp_yr_p
   
   sigma_y_in[,j] <- temp_yr$HM_sd
+  lat[,j] <- temp_yr$lat
   
   #which are not NA
   no_na <- temp_yr$HM_mean[which(!is.na(temp_yr$HM_mean))]
@@ -247,7 +252,6 @@ ii_obs_in[which(is.na(ii_obs_in), arr.ind = TRUE)] <- 0
 ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
 
 
-
 #create data list for Stan
 DATA <- list(J = nyr,
              N = ncell, 
@@ -260,8 +264,8 @@ DATA <- list(J = nyr,
              sigma_y = sigma_y_in,
              scaling_factor = scaling_factor,
              ii_obs = ii_obs_in,
-             ii_mis = ii_mis_in)
-
+             ii_mis = ii_mis_in,
+             lat = lat)
 
 
 # Stan model --------------------------------------------------------------
@@ -285,16 +289,20 @@ real<lower = 0> sigma_y[N, J];                        // observed sd of data (ob
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
+matrix<lower = 26, upper = 90>[N, J] lat;
 }
 
 parameters {
 real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
-real beta0[J];                                        // intercept
+real beta0_raw[J];                                        // intercept
+real beta1_raw[J];                                        // effect of latitude
 matrix[N, J] theta;                                   // non-spatial error component (centered on 0)
 matrix[N, J] phi;                                     // spatial error component (centered on 0)
 real<lower = 0> sigma_raw[J];                                // scaling factor for spatial and non-spatial components
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 real<lower = 0> mu_sigma_raw;
+real sigma_beta1_raw;
+real mu_beta1_raw;
 }
 
 transformed parameters {
@@ -302,21 +310,30 @@ real<lower = 0, upper = 200> y[N, J];                 // response data to be mod
 
 real<lower = 0> mu_sigma;
 real<lower = 0> sigma[J];
+real beta0[J];
+real beta1[J];
+real mu_beta1;
+real sigma_beta1;
 
 matrix[N, J] convolved_re;                            // spatial and non-spatial component
 matrix[N, J] mu;                                      // latent true halfmax values
 
 mu_sigma = 3 * mu_sigma_raw;                          // non-centered parameterization
+mu_beta1 = mu_beta1_raw * 2 + 1;
+sigma_beta1 = sigma_beta1_raw * 3;
+
 
 for (j in 1:J)
 {
-  sigma[j] = mu_sigma + sigma_raw[j] * 3;   // non-centered parameterization
+  sigma[j] = sigma_raw[j] * 3 + mu_sigma;   // non-centered parameterization
+  beta0[j] = beta0_raw[j] * 10 + 120;
+  beta1[j] = beta1_raw[j] * sigma_beta1 + mu_beta1;
 }
 
 for (j in 1:J)
 {
   convolved_re[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j];
-  mu[,j] = beta0[j] + convolved_re[,j] * sigma[j];
+  mu[,j] = beta0[j] + beta1[j] * lat[,j] + convolved_re[,j] * sigma[j];
 }
 
 // indexing to avoid NAs
@@ -335,11 +352,14 @@ for (j in 1:J)
   target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   theta[,j] ~ normal(0, 1);
-  beta0[j] ~ normal(120, 10);
+  beta0_raw[j] ~ normal(0, 1);
+  beta1_raw[j] ~ normal(0, 1);
   sigma_raw[j] ~ normal(0, 1); // implies sigma[j] ~ normal(mu_sigma, 3)
 }
 
 rho ~ beta(0.5, 0.5);
+mu_beta1_raw ~ normal(0, 1);
+sigma_beta1_raw ~ normal(0, 1);
 mu_sigma_raw ~ normal(0, 1); // implies mu_sigma ~ halfnormal(0, 3)
 }'
 
@@ -353,16 +373,21 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.95
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.001
+CHAINS <- 4
+ITER <- 8000
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
             data = DATA,
-            chains = 4,
-            iter = 8000,
-            cores = 4,
-            pars = c('sigma', 'mu_sigma', 
-                     'rho', 'beta0', 'theta', 'phi', 'mu'),
-            control = list(max_treedepth = TREE_DEPTH, adapt_delta = DELTA, stepsize = STEP_SIZE)) # modified control parameters based on warnings
+            chains = CHAINS,
+            iter = ITER,
+            cores = CHAINS,
+            pars = c('sigma', 'mu_sigma', 'rho', 
+                     'beta0', 'beta1', 'mu_beta1', 'sigma_beta1',
+                     'theta', 'phi', 'mu'),
+            control = list(adapt_delta = DELTA, 
+                           max_treedepth = TREE_DEPTH, 
+                           stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
@@ -609,6 +634,8 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 
 #beta0[j] ~ normal(120, 10)
+#mu_beta1 ~ normal(1, 2)
+#sigma_beta1 ~ halfnormal(0, 3)
 #rho ~ beta(0.5, 0.5);
 #mu_sigma ~ normal(0, 3);
 #sigma_sigma ~ uniform(0, 5);
@@ -620,6 +647,24 @@ MCMCvis::MCMCtrace(fit,
           priors = PR,
           open_pdf = FALSE,
           filename = paste0('trace_beta0_', args, '-', IAR_out_date, '.pdf'))
+
+
+#mu_beta1 ~ normal(1, 2)
+PR <- rnorm(10000, 1, 2)
+MCMCvis::MCMCtrace(fit, 
+                   params = 'mu_beta1',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_mu_beta1_', args, '-', IAR_out_date, '.pdf'))
+
+#sigma_beta1 ~ halfnormal(0, 3)
+PR_p <- rnorm(10000, 0, 3) 
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit, 
+                   params = 'sigma_beta1',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_sigma_beta1_', args, '-', IAR_out_date, '.pdf'))
 
 #rho
 PR <- rbeta(10000, 0.5, 0.5)
