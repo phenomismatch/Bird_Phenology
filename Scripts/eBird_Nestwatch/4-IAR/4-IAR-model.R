@@ -373,8 +373,8 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.95
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.001
-CHAINS <- 1
-ITER <- 30
+CHAINS <- 4
+ITER <- 3000
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_bym2,
