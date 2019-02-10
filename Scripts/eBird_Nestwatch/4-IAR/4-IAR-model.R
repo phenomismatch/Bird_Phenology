@@ -363,7 +363,7 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.90
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.001
 CHAINS <- 4
@@ -443,12 +443,12 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '-test95.rds'))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '-test90.rds'))
 
 
 
 options(max.print = 50000)
-sink(paste0('IAR_results_', args, '-test95.txt'))
+sink(paste0('IAR_results_', args, '-test90.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -573,7 +573,7 @@ for (i in 1:length(years))
     ylab('Latitude')
 
   ggsave(plot = p,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR.pdf'))
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR90.pdf'))
 
 
   #post-IAR
@@ -621,7 +621,7 @@ for (i in 1:length(years))
     ylab('Latitude')
 
   ggsave(plot = p_post,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR.pdf'))
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR90.pdf'))
 }
 
 
@@ -644,7 +644,7 @@ MCMCvis::MCMCtrace(fit,
           params = 'beta0',
           priors = PR,
           open_pdf = FALSE,
-          filename = paste0('trace_beta0_', args, '-', IAR_out_date, '.pdf'))
+          filename = paste0('trace_beta0_', args, '-', IAR_out_date, '90.pdf'))
 
 #mu_beta1 ~ normal(1, 1)
 PR <- rnorm(10000, 1, 1)
@@ -652,7 +652,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta1',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_mu_beta1_', args, '-', IAR_out_date, '.pdf'))
+                   filename = paste0('trace_mu_beta1_', args, '-', IAR_out_date, '90.pdf'))
 
 #sigma_beta1 ~ halfnormal(0, 1)
 PR_p <- rnorm(10000, 0, 2)
@@ -661,7 +661,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta1',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_sigma_beta1_', args, '-', IAR_out_date, '.pdf'))
+                   filename = paste0('trace_sigma_beta1_', args, '-', IAR_out_date, '90.pdf'))
 
 #rho
 PR <- rbeta(10000, 0.5, 0.5)
@@ -669,7 +669,7 @@ MCMCvis::MCMCtrace(fit,
           params = 'rho',
           priors = PR,
           open_pdf = FALSE,
-          filename = paste0('trace_rho_', args, '-', IAR_out_date, '.pdf'))
+          filename = paste0('trace_rho_', args, '-', IAR_out_date, '90.pdf'))
 
 # #sigma
 # PR_p <- rnorm(10000, 2, 3)
@@ -686,7 +686,7 @@ MCMCvis::MCMCtrace(fit,
           params = 'mu_sigma',
           priors = PR,
           open_pdf = FALSE,
-          filename = paste0('trace_mu_sigma_', args, '-', IAR_out_date, '.pdf'))
+          filename = paste0('trace_mu_sigma_', args, '-', IAR_out_date, '90.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
