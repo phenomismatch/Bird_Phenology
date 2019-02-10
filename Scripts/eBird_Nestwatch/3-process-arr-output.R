@@ -20,8 +20,8 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2018-10-15'
-hm_dir <- 'halfmax_species_2018-10-16'
+hm_dir <- 'halfmax_species_2019-02-02'
+hm_date <- substr(hm_dir, start = 17, stop = 26)
 
 
 # runtime -----------------------------------------------------------------
@@ -55,28 +55,58 @@ years <- 2002:2017
 nyr <- length(years)
 
 
-# create grid -------------------------------------------------------------
+# get all potentially relevant cells --------------------------------------
 
-#construct grid
+#generate points over relevant coordinates
+set.seed(1)
+
+N <- 100000
+u     <- runif(N)
+v     <- runif(N)
+theta <- 2*pi*u      * 180/pi
+phi   <- acos(2*v-1) * 180/pi
+lon   <- theta-180
+lat   <- phi-90
+sdf    <- data.frame(lat = lat, lon = lon)
+
+sdf2 <- dplyr::filter(df , lat > 26 & lon > -100 & lon < -50)
+
+
+#construct hex cells using points in US
 hexgrid6 <- dggridR::dgconstruct(res = 6)
-
-#get boundaries of all cells over earth
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
-dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
-#read in grid
-hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
+cells <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+                                  in_lon_deg = sdf2$lon, in_lat_deg = sdf2$lat)[[1]]
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells)
 
 
-# combine logit cubic results and diagnostic info -----------------------------------------------------------------
+#plot of cells in relevant region
+# ggplot() +
+#   geom_path(data = usamap,
+#             aes(x = x, y = y), color = 'black') +
+#   geom_path(data = canadamap,
+#             aes(x = x, y = y), color = 'black') +
+#   geom_path(data = mexicomap,
+#             aes(x = x, y = y), color = 'black') +
+#   coord_map("ortho", orientation = c(35, -80, 0),
+#             xlim = c(-100, -50), ylim = c(25, 90)) +
+#   geom_path(data = cell_grid, aes(x = long, y = lat, group = group),
+#             alpha = 0.5, color = 'red') +
+#   xlab('Longitude') +
+#   ylab('Latitude') +
+#   theme_bw()
+
+
+#get number of unique cells
+cells <- sort(unique(spdata$cell))
+ncell <- length(cells)
+
+
+# Proces logit cubic results -----------------------------------------------------------------
 
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 114
-  
-  #import presence absence ebird data for each specices
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
-  spdata <- readRDS(paste0('ebird_NA_phen_proc_', species_list[i], '.rds'))
+  #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
@@ -84,88 +114,83 @@ for (i in 1:nsp)
   
   if (i == 1)
   {
-    #get number of unique cells
-    cells <- sort(unique(spdata$cell))
-    ncell <- length(cells)
+    na_reps <- rep(NA, nsp * ncell * nyr)
     
-    na_reps <- rep(NA, nsp*ncell*nyr)
-      
     diagnostics_frame <- data.frame(species = na_reps,
-                                cell = na_reps,
-                                year = na_reps,
-                                HM_mean = na_reps,
-                                HM_sd = na_reps,
-                                n1 = na_reps,
-                                n1W = na_reps,
-                                n0 = na_reps,
-                                n0i = na_reps,
-                                njd1 = na_reps,
-                                njd0 = na_reps,
-                                njd0i = na_reps,
-                                max_Rhat = na_reps,
-                                min_neff = na_reps,
-                                nphen_bad = na_reps)
+                                    year = na_reps,
+                                    cell = na_reps,
+                                    HM_mean = na_reps,
+                                    HM_sd = na_reps,
+                                    n1 = na_reps,
+                                    n1W = na_reps,
+                                    n0 = na_reps,
+                                    n0i = na_reps,
+                                    njd1 = na_reps,
+                                    njd0 = na_reps,
+                                    njd0i = na_reps,
+                                    max_Rhat = na_reps,
+                                    min_neff = na_reps,
+                                    nphen_bad = na_reps,
+                                    delta = na_reps,
+                                    tree_depth = na_reps)
   }
   
   #loop through years
   for (j in 1:nyr)
   {
-    #j <- 7
+    #j <- 16
 
     for (k in 1:ncell)
     {
-      #k <- 1
-      
-      print(paste0('species: ', species_list[i], ', ',
-                   'year: ', years[j], ', ',
-                   'cell: ', cells[k]))
-      
+      #k <- 6
       
       diagnostics_frame$species[counter] <- species_list[i]
       diagnostics_frame$year[counter] <- years[j]
       diagnostics_frame$cell[counter] <- cells[k]
-      
-      #filter presence/absence
-      cysdata <- dplyr::filter(ysdata, 
-                               year == years[j],
-                               cell == cells[k])
       
       #get model fits
       tt_halfmax <- filter(temp_halfmax, 
                            year == years[j], 
                            cell == cells[k])
       
+      print(paste0('species: ', species_list[i], ', ',
+                   'year: ', years[j], ', ', 
+                   'cell: ', cells[k]))
       
-      #number of surveys where species was detected
-      diagnostics_frame$n1[counter] <- n1
-      #number of surveys where species was not detected
-      diagnostics_frame$n0[counter] <- n0
-      #number of detections that came before jday 60
-      diagnostics_frame$n1W[counter] <- n1W
-      #number of non-detections before first detection
-      diagnostics_frame$n0i[counter] <- n0i
-      #number of unique days with detections
-      diagnostics_frame$njd1[counter] <- njd1
-      #number of unique days with non-detection
-      diagnostics_frame$njd0[counter] <- njd0
-      #number of unique days of non-detections before first detection
-      diagnostics_frame$njd0i[counter] <- njd0i
-        
-      diagnostics_frame$min_neff[counter] <- tt_halfmax$min_neff
-      diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
-        
-      iter_ind <- grep('iter', colnames(tt_halfmax))
-      halfmax_posterior <- as.numeric(tt_halfmax[,iter_ind])
-      
-      #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
-      diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
-      #halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
-      
-      #calculate posterior mean and sd
-      if (sum(!is.na(halfmax_posterior)) > 0)
+      #if halfmax was estimated for that year
+      if (NROW(tt_halfmax) > 0)
       {
-        diagnostics_frame$HM_mean[counter] <- mean(halfmax_posterior)
-        diagnostics_frame$HM_sd[counter] <- sd(halfmax_posterior)
+        #number of surveys where species was detected
+        diagnostics_frame$n1[counter] <- tt_halfmax$n1
+        #number of surveys where species was not detected
+        diagnostics_frame$n0[counter] <- tt_halfmax$n0
+        #number of detections that came before jday 60
+        diagnostics_frame$n1W[counter] <- tt_halfmax$n1W
+        #number of non-detections before first detection
+        diagnostics_frame$n0i[counter] <- tt_halfmax$n0i
+        #number of unique days with detections
+        diagnostics_frame$njd1[counter] <- tt_halfmax$njd1
+        #number of unique days with non-detection
+        diagnostics_frame$njd0[counter] <- tt_halfmax$njd0
+        #number of unique days of non-detections before first detection
+        diagnostics_frame$njd0i[counter] <- tt_halfmax$njd0i
+          
+        diagnostics_frame$min_neff[counter] <- tt_halfmax$min_neff
+        diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
+        
+        iter_ind <- grep('iter', colnames(tt_halfmax))
+        halfmax_posterior <- as.numeric(tt_halfmax[,iter_ind])
+        
+        #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
+        diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
+        #halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
+        
+        #calculate posterior mean and sd
+        if (sum(!is.na(halfmax_posterior)) > 0)
+        {
+          diagnostics_frame$HM_mean[counter] <- mean(halfmax_posterior)
+          diagnostics_frame$HM_sd[counter] <- sd(halfmax_posterior)
+        }
       }
       
       counter <- counter + 1
@@ -177,6 +202,11 @@ for (i in 1:nsp)
 #add 'meets criteria' column
 diagnostics_frame$MODEL <- NA
 diagnostics_frame$shp_fname <- NA
+
+#remove rows that were unfilled
+to.rm <- which(is.na(diagnostics_frame$n1))
+diagnostics_frame2 <- diagnostics_frame[-to.rm,]
+
 
 
 # Filter data based on criteria -----------------------------------------------------------
@@ -200,13 +230,12 @@ df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
 {
-    #i <- 16
+    #i <- 1
     
     print(i)
     #filter by species
-    t_sp <- dplyr::filter(diagnostics_frame, species == species_list[i])
+    t_sp <- dplyr::filter(diagnostics_frame2, species == species_list[i])
     
-    #filter by breeding/migration cells
     #match species name to shp file name
     g_ind <- grep(species_list[i], sp_key$file_names_2016)
     
@@ -218,116 +247,49 @@ for (i in 1:length(species_list))
       g_ind2 <- g_ind
     }
     
-    #get filename and read in
+    #get filename to put in df
     fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
     t_sp$shp_fname <- fname
-    sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
     
-    #filter by breeding (2) and migration (4) range - need to convert spdf to sp
-    nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
-    
-    #filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
-    nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
-    
-    #only process if there is a seasonal range
-    if (NROW(nrng@data) > 0)
+    #number of cells with good data in each year from 2015-2017
+    nobs_yr <- c()
+    for (j in 2015:2017)
     {
-      #good cells
-      nrng_sp <- sp::SpatialPolygons(nrng@polygons)
-      sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
-      ptsreg <- sp::spsample(nrng, 50000, type = "regular")
-      br_mig_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
-      
-      #bad cells
-      nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
-      sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-      ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
-      res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
-
-      #remove cells that appear in resident and overwinter range that also appear in breeding range
-      cell_mrg <- c(br_mig_cells, res_ovr_cells)
-      to_rm <- cell_mrg[duplicated(cell_mrg)]
-      
-      if (length(to_rm) > 0)
-      {
-        overlap_cells <- br_mig_cells[-which(br_mig_cells %in% to_rm)]
-      } else {
-        overlap_cells <- br_mig_cells
-      }
-      
-      #get cell centers
-      cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
-      cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
-                          lat = cell_centers$lat_deg)
-      
-      #cells only within the range that ebird surveys were filtered to
-      n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
-      cells <- n_cc_df$cell
-      
-      #retain rows that match selected cells
-      t_sp2 <- t_sp[which(t_sp$cell %in% cells),]
-      
-      #create rows for cells that were missing in ebird data
-      missing_cells <- cells[which(cells %ni% t_sp2$cell)]
-      
-      temp_dff <- t_sp2[1,]
-      temp_dff[,2:20] <- NA
-      
-      nmc <- length(missing_cells)
-      nreps <- nmc * nyr
-      
-      temp_dff2 <- temp_dff[rep(row.names(temp_dff), nreps),]
-      rownames(temp_dff2) <- NULL
-      
-      temp_dff2$year <- rep(years, nmc)
-      temp_dff2$cell <- rep(missing_cells, each = nyr)
-      
-      #combine filtered data with missing cells
-      t_sp3 <- rbind(t_sp2, temp_dff2)
-      
-      
-      #number of cells with good data in each year from 2015-2017
-      nobs_yr <- c()
-      for (j in 2015:2017)
-      {
-        #j <- 2017
-        ty_sp3 <- dplyr::filter(t_sp3, year == j)
-        ind <- which(!is.na(ty_sp3$HM_mean))
-        nobs_yr <- c(nobs_yr, length(ind))
-        #ty_sp[ind,]
-      }
-      
-      
-      #if all three years have greater than or = to 'NC' cells of data, figure 
-      #...out which years have at least 'NC' cells
-      yrs_kp <- c()
-      if (sum(nobs_yr >= NC) == 3)
-      {
-        #see which years have more than 3 cells of data
-        nobs_yr2 <- c()
-        for (j in min(years):max(years))
-        {
-          #j <- 2012
-          ty2_sp3 <- dplyr::filter(t_sp3, year == j)
-          ind2 <- which(!is.na(ty2_sp3$HM_mean))
-          nobs_yr2 <- c(nobs_yr2, length(ind2))
-        }
-        
-        #years to keep (more than three cells of data)
-        yrs_kp <- years[which(nobs_yr2 >= NC)]
-      }
-      
-      if (length(yrs_kp) > 0)
-      {
-        t_sp3[which(t_sp3$year %in% yrs_kp),]$MODEL <- TRUE
-      }
-      
-      df_out <- rbind(df_out, t_sp3)
-    } else {
-      #merge unchanged data if there isn't a seasonal range
-      df_out <- rbind(df_out, t_sp)
+      #j <- 2017
+      ty_sp3 <- dplyr::filter(t_sp, year == j)
+      ind <- which(!is.na(ty_sp3$HM_mean))
+      nobs_yr <- c(nobs_yr, length(ind))
+      #ty_sp[ind,]
     }
+
+    #if all three years have greater than or = to 'NC' cells of data, figure 
+    #...out which years have at least 'NC' cells
+    yrs_kp <- c()
+    if (sum(nobs_yr >= NC) == 3)
+    {
+      #see which years have more than 3 cells of data
+      nobs_yr2 <- c()
+      for (j in min(years):max(years))
+      {
+        #j <- 2012
+        ty2_sp3 <- dplyr::filter(t_sp, year == j)
+        ind2 <- which(!is.na(ty2_sp3$HM_mean))
+        nobs_yr2 <- c(nobs_yr2, length(ind2))
+      }
+      
+      #years to keep (more than three cells of data)
+      yrs_kp <- years[which(nobs_yr2 >= NC)]
+    }
+    
+    if (length(yrs_kp) > 0)
+    {
+      t_sp[which(t_sp$year %in% yrs_kp),]$MODEL <- TRUE
+    }
+    
+    df_out <- rbind(df_out, t_sp)
 }
+run_time <- (proc.time()[3] - tt[3]) / 60
+
 
 
 # order -------------------------------------------------------------------
@@ -338,12 +300,20 @@ df_master <- df_out[with(df_out, order(species, year, cell)),]
 
 # write to RDS --------------------------------------------------
 
-IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_', Sys.Date())
+IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', hm_date)
 
 dir.create(IAR_dir_path)
 setwd(IAR_dir_path)
 
-saveRDS(df_master, paste0('IAR_input-', Sys.Date(), '.rds'))
+saveRDS(df_master, paste0('IAR_input-', hm_date, '.rds'))
+
+
+
+
+
+# vvv HERE DOWN vvv
+
+
 
 
 
