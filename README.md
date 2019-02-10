@@ -37,7 +37,7 @@ Repository structure:
   * `Climate_Veg/` - comparing vegetation phenology products
   * `eBird_Nestwatch/` - eBird and nestwatch phenology scripts
     * `1-query-ebird.R` - query eBird data from database
-    * `2-logit-cubic/` - scripts to fit logit-cubic to estimate bird arrival for each species-cell-year - each species run as separate job on HPC cluster
+    * `2-logit-cubic/` - scripts to fit logit-cubic to estimate bird arrival for each species-cell-year - each species run as separate job on HPC cluster [run time: up to 7 days]
       * `2-create-batch-scripts.sh` - script to create scripts (`2-<Genus_species>.sh`) for HPC job submission
       * `2-logit-cubic.R` - R script that takes species argument (run from `2-<Genus_species>.sh` scripts)
       * `2-master-submit.sh` - script to be run (`./2-master-submit.sh`) on HPC cluster to submit all logit cubic jobs
