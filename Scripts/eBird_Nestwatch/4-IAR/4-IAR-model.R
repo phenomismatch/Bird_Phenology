@@ -12,7 +12,8 @@
 #http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html
 #https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
 #https://chi-feng.github.io/mcmc-demo/app.html#HamiltonianMC,standard
-#https://groups.google.com/forum/#!msg/stan-users/zOjAeJC4x_E/OyCOfJo8AwAJ (non-centered parameterization on sd should be fine)
+#https://groups.google.com/forum/#!msg/stan-users/zOjAeJC4x_E/OyCOfJo8AwAJ (regarding non-centered parameterization on sd)
+
 
 # Top-level dir -----------------------------------------------------------
 
@@ -292,35 +293,28 @@ matrix[N, J] theta;                                   // non-spatial error compo
 matrix[N, J] phi;                                     // spatial error component (centered on 0)
 real sigma_raw[J];
 real mu_sigma_raw;
-// real sigma_raw;                                    // scaling factor for spatial and non-spatial components
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 real mu_beta1_raw;
-real sigma_beta1_raw;
+real<lower = 0> sigma_beta1;
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
-
-real<lower = 0> sigma[J];
-real<lower = 0> mu_sigma;
-// real<lower = 0> sigma;
+real<lower = 0> sigma[J];                             // scale for spatial and non-spatial component
+real mu_sigma;
 real<lower = 0, upper = 200> beta0[J];
-real<lower = 0> beta1[J];
-real<lower = 0> mu_beta1;
-real<lower = 0> sigma_beta1;
+real beta1[J];
+real mu_beta1;
 
 matrix[N, J] convolved_re;                            // spatial and non-spatial component
 matrix[N, J] mu;                                      // latent true halfmax values
 
-mu_sigma = mu_sigma_raw * 3 + 2;
-// sigma = sigma_raw * 3 + 2;
-mu_beta1 = mu_beta1_raw * 1 + 1.5;
-sigma_beta1 = sigma_beta1_raw * 2;
-
+mu_sigma = mu_sigma_raw * 1;
+mu_beta1 = mu_beta1_raw * 1 + 1;
 
 for (j in 1:J)
 {
-  sigma[j] = sigma_raw[j] * 3 + mu_sigma;
+  sigma[j] = exp(sigma_raw[j] * 0.7 + mu_sigma);           //implies sigma[j] ~ lognormal(mu_sigma, 0.7)
   beta0[j] = beta0_raw[j] * 5 + 120;
   beta1[j] = beta1_raw[j] * sigma_beta1 + mu_beta1;
 }
@@ -329,7 +323,6 @@ for (j in 1:J)
 {
   convolved_re[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j];
   mu[,j] = beta0[j] + beta1[j] * lat[,j] + convolved_re[,j] * sigma[j];
-  // mu[,j] = beta0[j] + beta1[j] * lat[,j] + convolved_re[,j] * sigma;
 }
 
 // indexing to avoid NAs
@@ -344,9 +337,9 @@ model {
 
 rho ~ beta(0.5, 0.5);
 mu_beta1_raw ~ normal(0, 1);
-sigma_beta1_raw ~ normal(0, 1);
+sigma_beta1 ~ normal(0, 1);
 mu_sigma_raw ~ normal(0, 1);
-// sigma_raw ~ normal(0, 1);
+
 
 // Separate sets of phis/thetas for each year (no pool) - same rho (diff betas, phis, thetas, sigma)
 for (j in 1:J)
@@ -653,16 +646,15 @@ MCMCvis::MCMCtrace(fit,
           open_pdf = FALSE,
           filename = paste0('trace_beta0_', args, '-', IAR_out_date, '.pdf'))
 
-#mu_beta1 ~ halfnormal(1.5, 1)
-PR_p <- rnorm(10000, 1.5, 1)
-PR <- PR_p[which(PR_p > 0)]
+#mu_beta1 ~ normal(1, 1)
+PR <- rnorm(10000, 1, 1)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta1',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0('trace_mu_beta1_', args, '-', IAR_out_date, '.pdf'))
 
-#sigma_beta1 ~ halfnormal(0, 2)
+#sigma_beta1 ~ halfnormal(0, 1)
 PR_p <- rnorm(10000, 0, 2)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
@@ -688,9 +680,8 @@ MCMCvis::MCMCtrace(fit,
 #           open_pdf = FALSE,
 #           filename = paste0('trace_sigma_', args, '-', IAR_out_date, '.pdf'))
 
-#mu_sigma
-PR_p <- rnorm(10000, 2, 3)
-PR <- PR_p[which(PR_p > 0)]
+#mu_sigma (sigma on lognormal)
+PR <- rnorm(10000, 0, 1)
 MCMCvis::MCMCtrace(fit,
           params = 'mu_sigma',
           priors = PR,
