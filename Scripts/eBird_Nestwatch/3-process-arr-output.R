@@ -69,14 +69,14 @@ lon   <- theta-180
 lat   <- phi-90
 sdf    <- data.frame(lat = lat, lon = lon)
 
-sdf2 <- dplyr::filter(df , lat > 26 & lon > -100 & lon < -50)
+sdf2 <- dplyr::filter(sdf , lat > 26 & lon > -100 & lon < -50)
 
 
 #construct hex cells using points in US
 hexgrid6 <- dggridR::dgconstruct(res = 6)
-cells <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+tcells <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
                                   in_lon_deg = sdf2$lon, in_lat_deg = sdf2$lat)[[1]]
-cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells)
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, tcells)
 
 
 #plot of cells in relevant region
@@ -96,17 +96,28 @@ cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells)
 #   theme_bw()
 
 
-#get number of unique cells
-cells <- sort(unique(spdata$cell))
-ncell <- length(cells)
-
-
 # Proces logit cubic results -----------------------------------------------------------------
+
+#get number of cell/years
+cell_years <- 0
+for (i in 1:nsp)
+{
+  #i <- 113
+  
+  #import halfmax estimates and diagnostics from logit cubic model
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
+  temp_halfmax <- readRDS(paste0('halfmax_df_arrival_', species_list[i], '.rds'))
+
+  if (!is.na(temp_halfmax$year[1]))
+  {
+    cell_years <- cell_years + NROW(temp_halfmax)
+  }
+}
 
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 1
+  #i <- 113
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
@@ -114,7 +125,7 @@ for (i in 1:nsp)
   
   if (i == 1)
   {
-    na_reps <- rep(NA, nsp * ncell * nyr)
+    na_reps <- rep(NA, cell_years)
     
     diagnostics_frame <- data.frame(species = na_reps,
                                     year = na_reps,
@@ -138,48 +149,51 @@ for (i in 1:nsp)
   #loop through years
   for (j in 1:nyr)
   {
-    #j <- 16
-
-    for (k in 1:ncell)
+    #j <- 1
+    tt_halfmax1 <- dplyr::filter(temp_halfmax, 
+                          year == years[j])
+    
+    cells <- unique(tt_halfmax1$cell)
+    ncell <- length(cells)
+    
+    if (ncell > 0)
     {
-      #k <- 6
-      
-      diagnostics_frame$species[counter] <- species_list[i]
-      diagnostics_frame$year[counter] <- years[j]
-      diagnostics_frame$cell[counter] <- cells[k]
-      
-      #get model fits
-      tt_halfmax <- filter(temp_halfmax, 
-                           year == years[j], 
-                           cell == cells[k])
-      
-      print(paste0('species: ', species_list[i], ', ',
-                   'year: ', years[j], ', ', 
-                   'cell: ', cells[k]))
-      
-      #if halfmax was estimated for that year
-      if (NROW(tt_halfmax) > 0)
+      for (k in 1:ncell)
       {
-        #number of surveys where species was detected
-        diagnostics_frame$n1[counter] <- tt_halfmax$n1
-        #number of surveys where species was not detected
-        diagnostics_frame$n0[counter] <- tt_halfmax$n0
-        #number of detections that came before jday 60
-        diagnostics_frame$n1W[counter] <- tt_halfmax$n1W
-        #number of non-detections before first detection
-        diagnostics_frame$n0i[counter] <- tt_halfmax$n0i
-        #number of unique days with detections
-        diagnostics_frame$njd1[counter] <- tt_halfmax$njd1
-        #number of unique days with non-detection
-        diagnostics_frame$njd0[counter] <- tt_halfmax$njd0
-        #number of unique days of non-detections before first detection
-        diagnostics_frame$njd0i[counter] <- tt_halfmax$njd0i
-          
-        diagnostics_frame$min_neff[counter] <- tt_halfmax$min_neff
-        diagnostics_frame$max_Rhat[counter] <- tt_halfmax$max_Rhat
+        #k <- 1
         
-        iter_ind <- grep('iter', colnames(tt_halfmax))
-        halfmax_posterior <- as.numeric(tt_halfmax[,iter_ind])
+        diagnostics_frame$species[counter] <- species_list[i]
+        diagnostics_frame$year[counter] <- years[j]
+        diagnostics_frame$cell[counter] <- cells[k]
+        
+        #get model fits
+        tt_halfmax2 <- dplyr::filter(tt_halfmax1, 
+                             cell == cells[k])
+        
+        print(paste0('species: ', species_list[i], ', ',
+                     'year: ', years[j], ', ', 
+                     'cell: ', cells[k]))
+
+        #number of surveys where species was detected
+        diagnostics_frame$n1[counter] <- tt_halfmax2$n1
+        #number of surveys where species was not detected
+        diagnostics_frame$n0[counter] <- tt_halfmax2$n0
+        #number of detections that came before jday 60
+        diagnostics_frame$n1W[counter] <- tt_halfmax2$n1W
+        #number of non-detections before first detection
+        diagnostics_frame$n0i[counter] <- tt_halfmax2$n0i
+        #number of unique days with detections
+        diagnostics_frame$njd1[counter] <- tt_halfmax2$njd1
+        #number of unique days with non-detection
+        diagnostics_frame$njd0[counter] <- tt_halfmax2$njd0
+        #number of unique days of non-detections before first detection
+        diagnostics_frame$njd0i[counter] <- tt_halfmax2$njd0i
+          
+        diagnostics_frame$min_neff[counter] <- tt_halfmax2$min_neff
+        diagnostics_frame$max_Rhat[counter] <- tt_halfmax2$max_Rhat
+        
+        iter_ind <- grep('iter', colnames(tt_halfmax2))
+        halfmax_posterior <- as.numeric(tt_halfmax2[,iter_ind])
         
         #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
         diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
@@ -191,9 +205,9 @@ for (i in 1:nsp)
           diagnostics_frame$HM_mean[counter] <- mean(halfmax_posterior)
           diagnostics_frame$HM_sd[counter] <- sd(halfmax_posterior)
         }
-      }
-      
-      counter <- counter + 1
+        
+        counter <- counter + 1
+      } # if loop for at least one cell - species without sufficient ranges have 0 cells
     } # k -cell
   } # j - year
 } # i - species
