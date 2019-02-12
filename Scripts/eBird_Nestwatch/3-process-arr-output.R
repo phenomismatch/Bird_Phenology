@@ -232,33 +232,46 @@ diagnostics_frame2 <- diagnostics_frame[-to.rm,]
 
 
 
-
-### vvv add NA for both HM_mean and HM_sd if the following conditions are met
+### add NA for both HM_mean and HM_sd if any of the following conditions are met
 #num_diverge > 0
 #max_Rhat >= 1.1
 #min_neff < 250
 #num_BFMI > 0
+
+to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
+                 diagnostics_frame2$max_Rhat >= 1.1 |
+                 diagnostics_frame2$min_neff < 200 |
+                 diagnostics_frame2$num_BFMI > 0)
+
+if (length(to.NA) > 0)
+{
+  diagnostics_frame2[to.NA,'HM_mean'] <- NA
+  diagnostics_frame2[to.NA,'HM_sd'] <- NA
+}
 
 
 # setwd('~/Desktop/')
 # saveRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
 # readRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
 
-#Look at plots that have a number of nphen_bad...why is this hapenning
-range(df_out$nphen_bad, na.rm = TRUE)
-hist(df_out$nphen_bad)
-df_out[which(df_out$nphen_bad > 10),]
-
-
-#remove if sd is greater than 15? That should filter out higih nphen_bad values
-NROW(df_out[which(df_out$nphen_bad > 10),])
-NROW(df_out[which(df_out$nphen_bad > 0),])
-hist(df_out$nphen_bad[-(which(df_out$nphen_bad > 5))])
-
-NROW(dplyr::filter(df_out, HM_sd > 15))
-hist(df_out$HM_sd, breaks = 20)
+# #Look at plots that have a number of nphen_bad...why is this hapenning
+# range(df_out$nphen_bad, na.rm = TRUE)
+# hist(df_out$nphen_bad)
+# df_out[which(df_out$nphen_bad > 10),]
+# 
+# 
+# #remove if sd is greater than 15? That should filter out higih nphen_bad values
+# NROW(df_out[which(df_out$nphen_bad > 10),])
+# NROW(df_out[which(df_out$nphen_bad > 0),])
+# hist(df_out$nphen_bad[-(which(df_out$nphen_bad > 5))])
+# 
+# NROW(dplyr::filter(df_out, HM_sd > 15))
+# hist(df_out$HM_sd, breaks = 20)
 
 #dplyr::filter(df_out, species == 'Agelaius_phoeniceus', year == 2014)
+
+
+
 
 # Filter data based on criteria -----------------------------------------------------------
 
@@ -281,7 +294,7 @@ df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
 {
-    #i <- 101
+    #i <- 1
     
     print(i)
     #filter by species
@@ -346,9 +359,6 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 
 
-
-
-
 # order -------------------------------------------------------------------
 
 #order diagnostics frame by species, year, and cell #
@@ -366,101 +376,83 @@ saveRDS(df_master, paste0('IAR_input-', hm_date, '.rds'))
 
 
 
-
-
-# vvv HERE DOWN vvv
-
-
-
-
-
 # create list of species to run through IAR model -------------------------
 
 species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))$species
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
-write.table(species_tm, file = 'IAR_species_list.txt', row.names = FALSE, col.names = FALSE)
+write.table(species_tm, file = paste0('IAR_species_list-', hm_date, '.txt'), row.names = FALSE, col.names = FALSE)
 
 
 
 
 # create dfs that show # cells with data in each year/species, and # years with data in each cell/species -----------------
 
-#create vector of year names
-yrs_vec <- c()
-for (i in min(years):max(years))
-{
-  yrs_vec <- c(yrs_vec, paste0('yr_', i))
-}
-
-#create vector of cell names
-cell_vec <- c()
-for (i in 1:ncell)
-{
-  cell_vec <- c(cell_vec, paste0('cell_', cells[i]))
-}
-
-
 #create df with species/cells/n_yrs per sp_cell
-cells_frame <- data.frame(species = rep(species_list, each = length(cells)), 
-                          cell = rep(cells, length(species_list)), 
-                          n_yrs = NA)
+cells_frame <- data.frame(species = rep(NA, cell_years), 
+                          cell = rep(NA, cell_years), 
+                          n_yrs = rep(NA, cell_years))
 
-yrs_frame <- data.frame(species = rep(species_list, each = length(years)), 
-                        year = rep(years, length(species_list)), 
-                        n_cells = NA)
+yrs_frame <- data.frame(species = rep(NA, cell_years), 
+                        year = rep(NA, cell_years), 
+                        n_cells = rep(NA, cell_years))
 
-
-#add years and cell cols
-cells_frame[yrs_vec] <- NA
-yrs_frame[cell_vec] <- NA
-
+counter_cell <- 1
+counter_year <- 1
 #fill cells_frame and yrs_frame
 for (i in 1:nsp)
 {
-  #i <- 80
+  #i <- 101
+  print(i)
   
-  for (k in 1:ncell)
-  {
-    #k <- 30
-    t_cell <- dplyr::filter(diagnostics_frame, species == species_list[i], cell == cells[k])
-    
-    #get index for species/cell row
-    idx <- which(cells_frame$species == species_list[i] & 
-                   cells_frame$cell == cells[k])
-    
-    #insert number of yrs with data
-    yrs_d <- t_cell$year[which(!is.na(t_cell$HM_mean))]
-    cells_frame[idx,'n_yrs'] <- length(yrs_d)
-    
-    #find out which years have data and insert TRUE into df - leave NA otherwise
-    temp_yrs <- paste0('yr_', yrs_d)
-    cells_frame[idx, which(colnames(cells_frame) %in% temp_yrs)] <- TRUE
-  }
+  tspf <- dplyr::filter(df_master, species == species_list[i])
+  tcells <- unique(tspf$cell)
+  tyears <- unique(tspf$year)
   
-  for (j in min(years):max(years))
+  if (NROW(tspf) > 0)
   {
-    #j <- 2015
-    t_yr <- dplyr::filter(diagnostics_frame, species == species_list[i], year == j)
+    for (k in 1:length(tcells))
+    {
+      #k <- 1
+      t_cell <- dplyr::filter(tspf, cell == tcells[k])
     
-    #get index for species/year row
-    idx_yr <- which(yrs_frame$species == species_list[i] & 
-                      yrs_frame$year == j)
+      cells_frame[counter_cell, 'species'] <- species_list[i]
+      cells_frame[counter_cell, 'cell'] <- tcells[k]
+
+      #insert number of yrs with data
+      yrs_d <- t_cell$year[which(!is.na(t_cell$HM_mean))]
+      cells_frame[counter_cell,'n_yrs'] <- length(yrs_d)
+      counter_cell <- counter_cell + 1
+    }
+  
+    for (j in 1:length(tyears))
+    {
+      #j <- 1
+      t_year <- dplyr::filter(tspf, year == tyears[j])
     
-    #insert number of cells with data
-    cells_d <- t_yr$cell[which(!is.na(t_yr$HM_mean))]
-    yrs_frame[idx_yr,'n_cells'] <- length(cells_d)
+      yrs_frame[counter_year, 'species'] <- species_list[i]
+      yrs_frame[counter_year, 'year'] <- tyears[j]
     
-    #find out which years have data and insert TRUE into df - leave NA otherwise
-    temp_cells <- paste0('cell_', cells_d)
-    yrs_frame[idx_yr, which(colnames(yrs_frame) %in% temp_cells)] <- TRUE
+      #insert number of yrs with data
+      yrs_d <- t_cell$year[which(!is.na(t_year$HM_mean))]
+      yrs_frame[counter_year,'n_cells'] <- length(yrs_d)
+      counter_year <- counter_year + 1
+    }
   }
 }
 
+
+#remove NA from end of df
+to.rm.cell <- min(which(is.na(cells_frame$species))):NROW(cells_frame)
+to.rm.year <- min(which(is.na(yrs_frame$species))):NROW(yrs_frame)
+
+cells_frame2 <- cells_frame[-to.rm.cell,]
+yrs_frame2 <- yrs_frame[-to.rm.year,]
+
 #write to RDS
 setwd(IAR_dir_path)
-saveRDS(cells_frame, paste0('cells_frame-', Sys.Date(), '.rds'))
-saveRDS(yrs_frame, paste0('yrs_frame-', Sys.Date(), '.rds'))
+saveRDS(cells_frame2, paste0('cells_frame-', hm_date, '.rds'))
+saveRDS(yrs_frame2, paste0('yrs_frame-', hm_date, '.rds'))
 
 
 
