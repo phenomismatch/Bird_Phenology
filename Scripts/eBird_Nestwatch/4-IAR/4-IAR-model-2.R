@@ -27,7 +27,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 db_dir <- 'eBird_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
 IAR_in_dir <- 'IAR_input_2018-11-12'
-IAR_out_dir <- 'IAR_output_2019-02-11'
+IAR_out_dir <- 'IAR_output_2019-02-12'
 
 
 
@@ -258,10 +258,12 @@ real<lower = 26, upper = 90> lat[N];
 parameters {
 real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
 real beta0_raw[J];                                    // intercept
-real alpha_raw;
-real beta1_raw;                                       // effect of latitude
+real alpha_gamma_raw;
+real beta_gamma_raw;                                       // effect of latitude
 real mu_beta0_raw;
+real<lower = 0> sigma_gamma_raw;
 matrix[N, J] phi;                                     // spatial error component (centered on 0)
+vector[N] gamma_raw;
 real<lower = 1, upper = 200> y_true[N, J];
 real<lower = 0> sigma_y_true_raw;
 }
@@ -270,21 +272,24 @@ transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
 real beta0[J];
 vector[N] gamma;
-real beta1;
-real alpha;
+real alpha_gamma;
+real beta_gamma;
+real<lower = 0> sigma_gamma;
+real mu_gamma[N];
 real mu_beta0;
 real<lower = 0> sigma_y_true;
-
 matrix[N, J] mu;                                      // latent true halfmax values
 
-alpha = alpha_raw * 30 + 10;
-beta1 = beta1_raw * 5 + 2;
-mu_beta0 = mu_beta0_raw * 10 + 20;
+alpha_gamma = alpha_gamma_raw * 30;
+beta_gamma = beta_gamma_raw * 5 + 2;
+mu_beta0 = mu_beta0_raw * 30;
 sigma_y_true = sigma_y_true_raw * 5;
+sigma_gamma = sigma_gamma_raw * 5;
 
 for (i in 1:N)
 {
-  gamma[i] = alpha + beta1 * lat[i];
+  mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
+  gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
 }
 
 for (j in 1:J)
@@ -303,10 +308,16 @@ for (j in 1:J)
 
 model {
 
-beta1_raw ~ normal(0, 1);
-alpha_raw ~ normal(0, 1);
+alpha_gamma_raw ~ normal(0, 1);
+beta_gamma_raw ~ normal(0, 1);
 mu_beta0_raw ~ normal(0, 1);
 sigma_y_true_raw ~ normal(0, 1);
+sigma_gamma_raw ~ normal(0, 1);
+
+for (i in 1:N)
+{
+ gamma_raw[i] ~ normal(0, 1);
+}
 
 for (j in 1:J)
 {
@@ -339,9 +350,8 @@ fit <- stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('sigma_y_true', 'y_true', 
-                     'beta0', 'beta1', 'alpha', 'gamma',
-                     'mu_beta0', 'phi'),
+            pars = c('beta0', 'alpha_gamma', 'beta_gamma', 'sigma_gamma',
+                     'gamma', 'mu_beta0', 'sigma_y_true', 'phi', 'y_true'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
@@ -387,9 +397,9 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 # Checks -------------------------------------------------------------
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-# fit <- readRDS('IAR_stan_Catharus_minimus-2019-02-09-test95.rds')
-# fit <- readRDS('IAR_stan_Empidonax_virescens-2019-02-09-test95.rds')
-# fit <- readRDS('IAR_stan_Vireo_olivaceus-2019-02-09-test95.rds')
+# fit <- readRDS('IAR_stan_Catharus_minimus-2019-02-11-test-2.rds')
+# fit <- readRDS('IAR_stan_Empidonax_virescens-2019-02-11-test-2.rds')
+# fit <- readRDS('IAR_stan_Vireo_olivaceus-test-2.rds')
 
 # MCMCtrace(fit)
 # MCMCsummary(fit, params = c('sigma', 'rho', 'beta0', 'mu_sigma'), n.eff = TRUE)
@@ -407,12 +417,12 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '-test-2.rds'))
+saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '-test-3.rds'))
 
 
 
 options(max.print = 50000)
-sink(paste0('IAR_results_', args, '-test-2.txt'))
+sink(paste0('IAR_results_', args, '-test-3.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -537,7 +547,7 @@ for (i in 1:length(years))
     ylab('Latitude')
   
   ggsave(plot = p,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR-2.pdf'))
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR-3.pdf'))
   
   
   #post-IAR
@@ -585,7 +595,7 @@ for (i in 1:length(years))
     ylab('Latitude')
   
   ggsave(plot = p_post,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR-2.pdf'))
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR-3.pdf'))
 }
 
 
@@ -595,44 +605,54 @@ for (i in 1:length(years))
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 
-# alpha = alpha_raw * 30 + 10;
-# beta1 = beta1_raw * 5 + 2;
-# mu_beta0 = mu_beta0_raw * 10 + 20;
+# alpha_gamma = alpha_gamma_raw * 30;
+# beta_gamma = beta_gamma_raw * 5 + 2;
+# mu_beta0 = mu_beta0_raw * 30;
 # sigma_y_true = sigma_y_true_raw * 5;
+# sigma_gamma = sigma_gamma_raw * 5;
 
 
-#beta1 ~ normal(1, 1)
-PR <- rnorm(10000, 2, 5)
+#alpha_gamma ~ normal(0, 30)
+PR <- rnorm(10000, 0, 30)
 MCMCvis::MCMCtrace(fit,
-                   params = 'beta1',
+                   params = 'alpha_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_beta1_', args, '-', IAR_out_date, '-2.pdf'))
+                   filename = paste0('trace_alpha_gamma_', args, '-', IAR_out_date, '-3.pdf'))
 
-#mu_beta0 ~ normal(20, 10)
-PR <- rnorm(10000, 20, 10)
+#beta_gamma ~ normal(2, 5)
+PR <- rnorm(10000, 2, 5)
+MCMCvis::MCMCtrace(fit,
+                   params = 'beta_gamma',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_beta_gamma_', args, '-', IAR_out_date, '-3.pdf'))
+
+#mu_beta0 ~ normal(0, 30)
+PR <- rnorm(10000, 0, 30)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta0',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_mu_beta0_', args, '-', IAR_out_date, '-2.pdf'))
+                   filename = paste0('trace_mu_beta0_', args, '-', IAR_out_date, '-3.pdf'))
 
-#alpha
-PR <- rnormal(10000, 10, 30)
-MCMCvis::MCMCtrace(fit,
-                   params = 'alpha',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0('trace_alpha_', args, '-', IAR_out_date, '-2.pdf'))
-
-#sigma_y_true
+#sigma_y_true ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
           params = 'sigma_y_true',
           priors = PR,
           open_pdf = FALSE,
-          filename = paste0('trace_sigma_y_true_', args, '-', IAR_out_date, '-2.pdf'))
+          filename = paste0('trace_sigma_y_true_', args, '-', IAR_out_date, '-3.pdf'))
+
+#sigma_gamma ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_gamma',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_sigma_gamma_', args, '-', IAR_out_date, '-3.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())

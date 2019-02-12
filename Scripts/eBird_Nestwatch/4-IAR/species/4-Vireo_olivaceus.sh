@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=iar-Vireo_olivaceus-test-2
+#SBATCH --job-name=iar-Vireo_olivaceus-test-3
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
@@ -9,8 +9,8 @@
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-02-11/iar-Vireo_olivaceus-test-2.out #STDOUT
-#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-02-11/iar-Vireo_olivaceus-test-2.err #STDERR
+#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-02-12/iar-Vireo_olivaceus-test-3.out #STDOUT
+#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-02-12/iar-Vireo_olivaceus-test-3.err #STDERR
 
 #echos name of node
 echo `hostname`
