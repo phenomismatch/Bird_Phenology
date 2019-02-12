@@ -114,7 +114,8 @@ parameters {
 vector<lower = 0, upper = 200>[N] x_true;                           //true arrival
 real mu_alpha_raw;
 real<lower = 0> sigma_alpha_raw;
-real<lower = 0> sigma_raw;
+real<lower = 0> sigma_x_true_raw;
+real<lower = 0> sigma_beta_raw;
 real alpha_raw[US];
 real alpha2_raw;
 real beta2_raw;
@@ -123,7 +124,8 @@ real beta2_raw;
 transformed parameters {
 real mu_alpha;
 real sigma_alpha;
-real sigma;
+real sigma_beta;
+real sigma_x_true;
 real alpha[US];
 real beta[US];
 real alpha2;
@@ -133,14 +135,16 @@ real mu[N];
 // non-centered parameterization
 mu_alpha = mu_alpha_raw * 20 + 70;                       // implies mu_alpha ~ normal(70, 20)
 sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
-sigma = sigma_raw * 10;                                  // implies sigma ~ halfnormal(0, 10)
-alpha2 = alpha2_raw * 10;                                 // implies alpha2 ~ normal(0, 10)
+sigma_x_true = sigma_x_true_raw * 10;                    // implies sigma_x_true ~ halfnormal(0, 10)
+alpha2 = alpha2_raw * 10;                                // implies alpha2 ~ normal(0, 10)
 beta2 = beta2_raw * 2 + 1;                               // implies beta2 ~ normal(1, 2)
+sigma_beta = sigma_beta_raw * 3;
 
 for (j in 1:US)
 {
   alpha[j] = alpha_raw[j] * sigma_alpha + mu_alpha;      // implies alpha[j] ~ normal(mu_alpha, sigma_alpha)
-  beta[j] = alpha2 + beta2 * lat[j];
+  mu_beta[j] = alpha2 + beta2 * lat[j];  
+  beta[j] = beta_raw[j] * sigma_beta + mu_beta[j];
 }
 
 for (i in 1:N)
@@ -153,10 +157,12 @@ model {
 
 // observation model - modeling true state as a function of some observed state
 x_obs ~ normal(x_true, sigma_x);
+x_true ~ normal(mu, sigma_x_true);
 
 // non-centered parameterization
 mu_alpha_raw ~ normal(0, 1);
 sigma_alpha_raw ~ normal(0, 1);
+sigma_beta_raw ~ normal(0, 1);
 sigma_raw ~ normal(0, 1);
 alpha2_raw ~ normal(0, 1);
 beta2_raw ~ normal(0, 1);
@@ -164,9 +170,8 @@ beta2_raw ~ normal(0, 1);
 for (j in 1:US)
 {
   alpha_raw[j] ~ normal(0, 1);
+  beta_raw[j] ~ normal(0, 1);
 }
-
-x_true ~ normal(mu, sigma);
 }
 
 generated quantities {
@@ -210,9 +215,9 @@ fit <- rstan::stan(model_code = arr_time_lat_ind,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 'beta', 'mu_alpha', 
-                            'alpha2', 'beta2',
-                            'sigma_alpha', 'sigma', 'x_true'),
+                   pars = c('alpha', 'mu_alpha', 'sigma_alpha',
+                            'sigma_beta', 'alpha2', 'beta2',
+                             'sigma', 'x_true'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
@@ -480,3 +485,68 @@ fp <- ggplot() +
 setwd(paste0(dir, 'Bird_Phenology/Figures/arrival_trends'))
 ggsave(plot = fp, filename = paste0(args, '-slope-map-ARR-time.pdf'))
 
+
+
+
+# Trace plots with PPO ----------------------------------------------------
+
+# mu_alpha = mu_alpha_raw * 20 + 70;
+# sigma_alpha = sigma_alpha_raw * 10;
+# sigma_x_true = sigma_x_true_raw * 10;
+# alpha2 = alpha2_raw * 10;
+# beta2 = beta2_raw * 2 + 1;
+# sigma_beta = sigma_beta_raw * 3;
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', ARR_TIME_LAT_IND_DIR))
+
+
+#mu_alpha ~ normal(70, 20)
+PR <- rnorm(10000, 70, 20)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_alpha',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_mu_alpha', args, '-', MODEL_DATE, '.pdf'))
+
+#sigma_alpha ~ halfnormal(0, 10)
+PR_p <- rnorm(10000, 0, 10)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_alpha',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_sigma_alpha', args, '-', MODEL_DATE, '.pdf'))
+
+#sigma_x_true ~ halfnormal(0, 10)
+PR_p <- rnorm(10000, 0, 10)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_x_true',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_sigma_x_true', args, '-', MODEL_DATE, '.pdf'))
+
+#alpha2 ~ normal(0, 10)
+PR <- rnorm(10000, 0, 10)
+MCMCvis::MCMCtrace(fit,
+                   params = 'alpha2',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_alpha2', args, '-', MODEL_DATE, '.pdf'))
+
+#beta2 ~ normal(1, 2)
+PR <- rnorm(10000, 1, 2)
+MCMCvis::MCMCtrace(fit,
+                   params = 'beta2',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_beta2', args, '-', MODEL_DATE, '.pdf'))
+
+#sigma_beta ~ halfnormal(0, 3)
+PR_p <- rnorm(10000, 0, 3)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_beta',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_sigma_beta', args, '-', MODEL_DATE, '.pdf'))
