@@ -315,7 +315,7 @@ mu_beta1 = mu_beta1_raw * 1 + 1;
 for (j in 1:J)
 {
   sigma[j] = exp(sigma_raw[j] * 0.7 + mu_sigma);           //implies sigma[j] ~ lognormal(mu_sigma, 0.7)
-  beta0[j] = beta0_raw[j] * 5 + 120;
+  beta0[j] = beta0_raw[j] * 20 + 130;
   beta1[j] = beta1_raw[j] * sigma_beta1 + mu_beta1;
 }
 
