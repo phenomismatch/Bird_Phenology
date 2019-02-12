@@ -63,8 +63,11 @@ mdf <- dplyr::select(IAR_data, species, cell, year, cell_lat, cell_lon,
 # #arrival as a function of year and latitude
 # x_true[i] ~ normal(mu_arr[i], sigma_arr)
 # mu_arr[i] = alpha[cn[i]] + beta[cn[i]] * year[i]
+# 
+# #slope as a function of latitude
 # for (j in J)
-#   beta1[j] = alpha2 + beta2 * lat[j]
+#   beta1[j] ~ N(mu_beta[j], sigma_beta)
+#   mu_beta[j] = alpha2 + beta2 * lat[j]
 
 
 #do not merge with breeding data
@@ -117,6 +120,7 @@ real<lower = 0> sigma_alpha_raw;
 real<lower = 0> sigma_x_true_raw;
 real<lower = 0> sigma_beta_raw;
 real alpha_raw[US];
+real beta_raw[US];
 real alpha2_raw;
 real beta2_raw;
 }
@@ -128,6 +132,7 @@ real sigma_beta;
 real sigma_x_true;
 real alpha[US];
 real beta[US];
+real mu_beta[US];
 real alpha2;
 real beta2;
 real mu[N];
@@ -163,7 +168,7 @@ x_true ~ normal(mu, sigma_x_true);
 mu_alpha_raw ~ normal(0, 1);
 sigma_alpha_raw ~ normal(0, 1);
 sigma_beta_raw ~ normal(0, 1);
-sigma_raw ~ normal(0, 1);
+sigma_x_true_raw ~ normal(0, 1);
 alpha2_raw ~ normal(0, 1);
 beta2_raw ~ normal(0, 1);
 
@@ -203,10 +208,10 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.85
-TREE_DEPTH <- 15
+DELTA <- 0.90
+TREE_DEPTH <- 16
 STEP_SIZE <- 0.05
-CHAINS <- 3
+CHAINS <- 4
 ITER <- 3000
 
 tt <- proc.time()
@@ -215,9 +220,9 @@ fit <- rstan::stan(model_code = arr_time_lat_ind,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 'mu_alpha', 'sigma_alpha',
+                   pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
                             'sigma_beta', 'alpha2', 'beta2',
-                             'sigma', 'x_true'),
+                             'sigma_x_true', 'x_true'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
@@ -382,7 +387,7 @@ for (i in 1:NROW(u_cell_mrg))
 
 #save figs to pdfs
 setwd(paste0(dir, 'Bird_Phenology/Figures/arrival_trends'))
-pdf(paste0(args, '-plots-ARR-time.pdf'), height = 6, width = 9, useDingbats = FALSE)
+pdf(paste0(args, '-plots-ARR-time-', MODEL_DATE, '.pdf'), height = 6, width = 9, useDingbats = FALSE)
 
 counter <- 1
 for (i in 1:ceiling(NROW(u_cell_mrg)/4))
@@ -414,6 +419,7 @@ for (i in 1:ceiling(NROW(u_cell_mrg)/4))
 }
 dev.off()
 
+#RED is IAR output, black is estimate from this model
 
 
 
@@ -483,7 +489,7 @@ fp <- ggplot() +
   ylab('Latitude')
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/arrival_trends'))
-ggsave(plot = fp, filename = paste0(args, '-slope-map-ARR-time.pdf'))
+ggsave(plot = fp, filename = paste0(args, '-slope-map-ARR-time-', MODEL_DATE, '.pdf'))
 
 
 
@@ -506,7 +512,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_mu_alpha', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0('trace_mu_alpha_', args, '-', MODEL_DATE, '.pdf'))
 
 #sigma_alpha ~ halfnormal(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -515,7 +521,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_alpha',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_sigma_alpha', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0('trace_sigma_alpha_', args, '-', MODEL_DATE, '.pdf'))
 
 #sigma_x_true ~ halfnormal(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -524,7 +530,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_x_true',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_sigma_x_true', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0('trace_sigma_x_true_', args, '-', MODEL_DATE, '.pdf'))
 
 #alpha2 ~ normal(0, 10)
 PR <- rnorm(10000, 0, 10)
@@ -532,7 +538,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'alpha2',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_alpha2', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0('trace_alpha2_', args, '-', MODEL_DATE, '.pdf'))
 
 #beta2 ~ normal(1, 2)
 PR <- rnorm(10000, 1, 2)
@@ -540,7 +546,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'beta2',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_beta2', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0('trace_beta2_', args, '-', MODEL_DATE, '.pdf'))
 
 #sigma_beta ~ halfnormal(0, 3)
 PR_p <- rnorm(10000, 0, 3)
@@ -549,4 +555,14 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_sigma_beta', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0('trace_sigma_beta_', args, '-', MODEL_DATE, '.pdf'))
+
+if ('Rplots.pdf' %in% list.files())
+{
+  file.remove('Rplots.pdf')
+}
+
+
+print('I completed!')
+
+
