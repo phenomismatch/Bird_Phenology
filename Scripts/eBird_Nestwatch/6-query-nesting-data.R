@@ -15,6 +15,7 @@
 
 dir <- '~/Google_Drive/R/'
 
+hm_date <- '2019-02-02'
 
 # Load packages -----------------------------------------------------------
 
@@ -41,7 +42,7 @@ library(foreach)
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
-species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
+species_list_i <- read.table(paste0('IAR_species_list-', hm_date, '.txt'), stringsAsFactors = FALSE)
 
 #remove underscore and coerce to vector
 species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
