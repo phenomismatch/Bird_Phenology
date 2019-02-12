@@ -458,7 +458,7 @@ cat(paste0('Number of divergences: ', num_diverge, ' \n'))
 cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
-print(MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE))
+print(MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2))
 sink()
 
 
