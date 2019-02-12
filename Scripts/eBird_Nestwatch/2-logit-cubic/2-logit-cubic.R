@@ -68,6 +68,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Empidonax_virescens'
 #args <- 'Mimus_polyglottos'
+#args <- 'Agelaius_phoeniceus'
 
 # import processed data ---------------------------------------------------
 
@@ -121,10 +122,10 @@ sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
 sp_rng2 <- raster::crop(sp_rng, extent(-100, -50, 26, 90))
 
 #filter by breeding (2) and migration (4) range - need to convert spdf to sp
-nrng <- sp_rng[which(sp_rng2$SEASONAL == 2 | sp_rng2$SEASONAL == 4),]
+nrng <- sp_rng2[which(sp_rng2$SEASONAL == 2 | sp_rng2$SEASONAL == 4),]
 
 #filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
-nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
+nrng_rm <- sp_rng2[which(sp_rng2$SEASONAL == 1 | sp_rng2$SEASONAL == 3),]
 
 #remove unneeded objects
 rm(sp_rng)
