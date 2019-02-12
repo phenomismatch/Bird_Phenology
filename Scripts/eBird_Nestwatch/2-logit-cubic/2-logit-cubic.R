@@ -277,12 +277,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 2
+  #j <- 13
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
   {
-    #k <- 9
+    #k <- 33
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
