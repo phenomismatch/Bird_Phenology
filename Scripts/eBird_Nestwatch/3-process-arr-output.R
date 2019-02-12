@@ -2,7 +2,7 @@
 # 3 - proces arrival cubic output
 #
 # Aggeregate posterior info and diagnostic info from 2-logit-cubic.R to be used in IAR model
-# Determine which cells should be used in IAR model (cells that overlap breeding and migratory ranges, but do not overlap resident or non-breeding ranges) 
+# Determine which cells should be used in IAR model (cells that overlap breeding and migratory ranges, but do not overlap resident or non-breeding ranges) - 18 hour run time?
 #
 # Parts formerly in ICAR_parallel.R
 ######################
@@ -143,7 +143,10 @@ for (i in 1:nsp)
                                     min_neff = na_reps,
                                     nphen_bad = na_reps,
                                     delta = na_reps,
-                                    tree_depth = na_reps)
+                                    tree_depth = na_reps,
+                                    num_diverge = na_reps,
+                                    num_tree = na_reps,
+                                    num_BFMI = na_reps)
   }
   
   #loop through years
@@ -192,6 +195,12 @@ for (i in 1:nsp)
         diagnostics_frame$min_neff[counter] <- tt_halfmax2$min_neff
         diagnostics_frame$max_Rhat[counter] <- tt_halfmax2$max_Rhat
         
+        diagnostics_frame$delta[counter] <- tt_halfmax2$delta
+        diagnostics_frame$tree_depth[counter] <- tt_halfmax2$tree_depth
+        diagnostics_frame$num_diverge[counter] <- tt_halfmax2$num_diverge
+        diagnostics_frame$num_tree[counter] <- tt_halfmax2$num_tree
+        diagnostics_frame$num_BFMI[counter] <- tt_halfmax2$num_BFMI
+        
         iter_ind <- grep('iter', colnames(tt_halfmax2))
         halfmax_posterior <- as.numeric(tt_halfmax2[,iter_ind])
         
@@ -217,11 +226,38 @@ for (i in 1:nsp)
 diagnostics_frame$MODEL <- NA
 diagnostics_frame$shp_fname <- NA
 
-#remove rows that were unfilled
+#remove rows that were unfilled - happens due to species not having sufficient range
 to.rm <- which(is.na(diagnostics_frame$n1))
 diagnostics_frame2 <- diagnostics_frame[-to.rm,]
 
 
+
+
+### vvv add NA for both HM_mean and HM_sd if the following conditions are met
+#num_diverge > 0
+#max_Rhat >= 1.1
+#min_neff < 250
+#num_BFMI > 0
+
+
+# setwd('~/Desktop/')
+# saveRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
+
+#Look at plots that have a number of nphen_bad...why is this hapenning
+range(df_out$nphen_bad, na.rm = TRUE)
+hist(df_out$nphen_bad)
+df_out[which(df_out$nphen_bad > 10),]
+
+
+#remove if sd is greater than 15? That should filter out higih nphen_bad values
+NROW(df_out[which(df_out$nphen_bad > 10),])
+NROW(df_out[which(df_out$nphen_bad > 0),])
+hist(df_out$nphen_bad[-(which(df_out$nphen_bad > 5))])
+
+NROW(dplyr::filter(df_out, HM_sd > 15))
+hist(df_out$HM_sd, breaks = 20)
+
+#dplyr::filter(df_out, species == 'Agelaius_phoeniceus', year == 2014)
 
 # Filter data based on criteria -----------------------------------------------------------
 
@@ -244,65 +280,71 @@ df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
 {
-    #i <- 1
+    #i <- 101
     
     print(i)
     #filter by species
     t_sp <- dplyr::filter(diagnostics_frame2, species == species_list[i])
     
-    #match species name to shp file name
-    g_ind <- grep(species_list[i], sp_key$file_names_2016)
-    
-    #check for synonyms if there are no matches
-    if (length(g_ind) == 0)
+    if (NROW(t_sp) > 0)
     {
-      g_ind2 <- grep(species_list[i], sp_key$BL_Checklist_name)
-    } else {
-      g_ind2 <- g_ind
-    }
+      #match species name to shp file name
+      g_ind <- grep(species_list[i], sp_key$file_names_2016)
     
-    #get filename to put in df
-    fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
-    t_sp$shp_fname <- fname
-    
-    #number of cells with good data in each year from 2015-2017
-    nobs_yr <- c()
-    for (j in 2015:2017)
-    {
-      #j <- 2017
-      ty_sp3 <- dplyr::filter(t_sp, year == j)
-      ind <- which(!is.na(ty_sp3$HM_mean))
-      nobs_yr <- c(nobs_yr, length(ind))
-      #ty_sp[ind,]
-    }
-
-    #if all three years have greater than or = to 'NC' cells of data, figure 
-    #...out which years have at least 'NC' cells
-    yrs_kp <- c()
-    if (sum(nobs_yr >= NC) == 3)
-    {
-      #see which years have more than 3 cells of data
-      nobs_yr2 <- c()
-      for (j in min(years):max(years))
+      #check for synonyms if there are no matches
+      if (length(g_ind) == 0)
       {
-        #j <- 2012
-        ty2_sp3 <- dplyr::filter(t_sp, year == j)
-        ind2 <- which(!is.na(ty2_sp3$HM_mean))
-        nobs_yr2 <- c(nobs_yr2, length(ind2))
+        g_ind2 <- grep(species_list[i], sp_key$BL_Checklist_name)
+      } else {
+        g_ind2 <- g_ind
       }
+    
+      #get filename to put in df
+      fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
+      t_sp$shp_fname <- fname
+    
+      #number of cells with good data in each year from 2015-2017
+      nobs_yr <- c()
+      for (j in 2015:2017)
+      {
+        #j <- 2017
+        ty_sp3 <- dplyr::filter(t_sp, year == j)
+        ind <- which(!is.na(ty_sp3$HM_mean))
+        nobs_yr <- c(nobs_yr, length(ind))
+        #ty_sp[ind,]
+      }
+
+      #if all three years have greater than or = to 'NC' cells of data, figure 
+      #...out which years have at least 'NC' cells
+      yrs_kp <- c()
+      if (sum(nobs_yr >= NC) == 3)
+      {
+        #see which years have more than 3 cells of data
+        nobs_yr2 <- c()
+        for (j in min(years):max(years))
+        {
+          #j <- 2012
+          ty2_sp3 <- dplyr::filter(t_sp, year == j)
+          ind2 <- which(!is.na(ty2_sp3$HM_mean))
+          nobs_yr2 <- c(nobs_yr2, length(ind2))
+        }
       
-      #years to keep (more than three cells of data)
-      yrs_kp <- years[which(nobs_yr2 >= NC)]
-    }
+        #years to keep (more than three cells of data)
+        yrs_kp <- years[which(nobs_yr2 >= NC)]
+      }
     
-    if (length(yrs_kp) > 0)
-    {
-      t_sp[which(t_sp$year %in% yrs_kp),]$MODEL <- TRUE
-    }
+      if (length(yrs_kp) > 0)
+      {
+        t_sp[which(t_sp$year %in% yrs_kp),]$MODEL <- TRUE
+      }
     
-    df_out <- rbind(df_out, t_sp)
+      df_out <- rbind(df_out, t_sp)
+    }
 }
 run_time <- (proc.time()[3] - tt[3]) / 60
+
+
+
 
 
 
