@@ -13,8 +13,8 @@
 #Xanadu
 dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
-MODEL_DATE <- '2019-02-08'
-BR_TIME_LAT_IND_DIR <- paste0('trend_models_', MODEL_DATE)
+MODEL_DATE <- '2019-02-13'
+BR_TIME_LAT_IND_DIR <- paste0('breeding_trends_', MODEL_DATE)
 
 
 # species arg -----------------------------------------------------
@@ -30,6 +30,7 @@ library(ggplot2)
 library(rstan)
 library(MCMCvis)
 library(dggridR)
+library(gridExtra)
 
 
 # import ARR/BR data ---------------------------------------------------------
@@ -136,7 +137,7 @@ DATA <- list(y_obs = y_obs_in,
              cn_id = cell_num,
              year = yr_num,
              lat = u_cell_mrg$cell_lat,
-             US = ncell,
+             US = NROW(u_cell_mrg),
              N = NROW(mdf3),
              N_obs = len_y_obs_in,
              N_mis = len_y_mis_in,
@@ -167,8 +168,10 @@ real<lower = 0, upper = 300> y_mis[N_mis];
 real<lower = 0, upper = 300> y_true[N];                           //true arrival
 real mu_alpha_raw;
 real<lower = 0> sigma_alpha_raw;
-real<lower = 0> sigma_raw;
+real<lower = 0> sigma_y_true_raw;
+real<lower = 0> sigma_beta_raw;
 real alpha_raw[US];
+real beta_raw[US];
 real alpha2_raw;
 real beta2_raw;
 }
@@ -177,9 +180,11 @@ transformed parameters {
 real<lower = 0, upper = 300> y[N];
 real mu_alpha;
 real sigma_alpha;
-real sigma;
+real sigma_beta;
+real sigma_y_true;
 real alpha[US];
 real beta[US];
+real mu_beta[US];
 real alpha2;
 real beta2;
 real mu[N];
@@ -187,14 +192,16 @@ real mu[N];
 // non-centered parameterization
 mu_alpha = mu_alpha_raw * 20 + 70;                       // implies mu_alpha ~ normal(70, 20)
 sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
-sigma = sigma_raw * 10;                                  // implies sigma ~ halfnormal(0, 10)
+sigma_y_true = sigma_y_true_raw * 10;                    // implies sigma_y_true ~ halfnormal(0, 10)
 alpha2 = alpha2_raw * 10;                                 // implies alpha2 ~ normal(0, 10)
 beta2 = beta2_raw * 2 + 1;                               // implies beta2 ~ normal(1, 2)
+sigma_beta = sigma_beta_raw * 3;
 
 for (j in 1:US)
 {
   alpha[j] = alpha_raw[j] * sigma_alpha + mu_alpha;      // implies alpha[j] ~ normal(mu_alpha, sigma_alpha)
-  beta[j] = alpha2 + beta2 * lat[j];
+  mu_beta[j] = alpha2 + beta2 * lat[j];  
+  beta[j] = beta_raw[j] * sigma_beta + mu_beta[j];
 }
 
 for (i in 1:N)
@@ -212,20 +219,21 @@ model {
 
 // observation model - modeling true state as a function of some observed state
 y ~ normal(y_true, sigma_y);
+y_true ~ normal(mu, sigma_y_true);
 
 // non-centered parameterization
 mu_alpha_raw ~ normal(0, 1);
 sigma_alpha_raw ~ normal(0, 1);
-sigma_raw ~ normal(0, 1);
+sigma_beta_raw ~ normal(0, 1);
+sigma_y_true_raw ~ normal(0, 1);
 alpha2_raw ~ normal(0, 1);
 beta2_raw ~ normal(0, 1);
 
 for (j in 1:US)
 {
   alpha_raw[j] ~ normal(0, 1);
+  beta_raw[j] ~ normal(0, 1);
 }
-
-y_true ~ normal(mu, sigma);
 }
 
 generated quantities {
@@ -260,7 +268,7 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.90
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.005
-CHAINS <- 3
+CHAINS <- 4
 ITER <- 3000
 
 tt <- proc.time()
@@ -269,12 +277,12 @@ fit <- rstan::stan(model_code = br_time_lat_ind,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 'beta', 'mu_alpha', 
-                            'alpha2', 'beta2',
-                            'sigma_alpha', 'sigma', 'y_true'))#,
-                   # control = list(adapt_delta = DELTA,
-                   #                max_treedepth = TREE_DEPTH,
-                   #                stepsize = STEP_SIZE))
+                   pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
+                            'sigma_beta', 'alpha2', 'beta2',
+                            'sigma_y_true', 'y_true'),
+                   control = list(adapt_delta = DELTA,
+                                  max_treedepth = TREE_DEPTH,
+                                  stepsize = STEP_SIZE))
 run_time <- (proc.time() - tt[3]) / 60
 
 
@@ -289,6 +297,9 @@ saveRDS(fit, file = paste0('temp_BR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args, 
 
 # diagnostics -------------------------------------------------------------
 
+num_diverge <- rstan::get_num_divergent(fit)
+num_tree <- rstan::get_num_max_treedepth(fit)
+num_BFMI <- rstan::get_low_bfmi_chains(fit)
 
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = c('alpha', 'beta'), ISB = FALSE)
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'sigma', ISB = FALSE)
@@ -299,11 +310,6 @@ saveRDS(fit, file = paste0('temp_BR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args, 
 # MCMCvis::MCMCplot(fit, params = 'beta3', rank = TRUE)
 # MCMCvis::MCMCplot(fit, params = 'mu', ISB = FALSE, rank = TRUE)
 # #MCMCtrace(fit)
-# 
-# (num_diverge <- rstan::get_num_divergent(fit))
-# (num_tree <- rstan::get_num_max_treedepth(fit))
-# (num_BFMI <- rstan::get_low_bfmi_chains(fit))
-
 
 #shiny stan
 # library(shinystan)
@@ -325,7 +331,7 @@ cat(paste0('Step size: ', STEP_SIZE, ' \n'))
 cat(paste0('Number of divergences: ', num_diverge, ' \n'))
 cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
-print(fit)
+print(MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2))
 sink()
 
 
@@ -436,7 +442,7 @@ for (i in 1:NROW(u_cell_mrg))
 
 #save figs to pdfs
 setwd(paste0(dir, 'Bird_Phenology/Figures/breeding_trends'))
-pdf(paste0(args, '-plots-BR-time.pdf'), height = 6, width = 9, useDingbats = FALSE)
+pdf(paste0(args, '-plots-BR-time-', MODEL_DATE, '.pdf'), height = 6, width = 9, useDingbats = FALSE)
 
 counter <- 1
 for (i in 1:ceiling(NROW(u_cell_mrg)/4))
@@ -467,7 +473,7 @@ for (i in 1:ceiling(NROW(u_cell_mrg)/4))
   counter <- counter + 4
 }
 dev.off()
-
+#RED is IAR output, black is estimate from this model
 
 
 
@@ -537,7 +543,81 @@ fp <- ggplot() +
   ylab('Latitude')
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/breeding_trends'))
-ggsave(plot = fp, filename = paste0(args, '-slope-map-BR-time.pdf'))
+ggsave(plot = fp, filename = paste0(args, '-slope-map-BR-time-', MODEL_DATE, '.pdf'))
+
+
+
+# Trace plots with PPO ----------------------------------------------------
+
+# mu_alpha = mu_alpha_raw * 20 + 70;
+# sigma_alpha = sigma_alpha_raw * 10;
+# sigma_x_true = sigma_x_true_raw * 10;
+# alpha2 = alpha2_raw * 10;
+# beta2 = beta2_raw * 2 + 1;
+# sigma_beta = sigma_beta_raw * 3;
+
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', BR_TIME_LAT_IND_DIR))
+
+
+#mu_alpha ~ normal(70, 20)
+PR <- rnorm(10000, 70, 20)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_alpha',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_mu_alpha_', args, '-', MODEL_DATE, '.pdf'))
+
+#sigma_alpha ~ halfnormal(0, 10)
+PR_p <- rnorm(10000, 0, 10)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_alpha',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_sigma_alpha_', args, '-', MODEL_DATE, '.pdf'))
+
+#sigma_x_true ~ halfnormal(0, 10)
+PR_p <- rnorm(10000, 0, 10)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_y_true',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_sigma_y_true_', args, '-', MODEL_DATE, '.pdf'))
+
+#alpha2 ~ normal(0, 10)
+PR <- rnorm(10000, 0, 10)
+MCMCvis::MCMCtrace(fit,
+                   params = 'alpha2',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_alpha2_', args, '-', MODEL_DATE, '.pdf'))
+
+#beta2 ~ normal(1, 2)
+PR <- rnorm(10000, 1, 2)
+MCMCvis::MCMCtrace(fit,
+                   params = 'beta2',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_beta2_', args, '-', MODEL_DATE, '.pdf'))
+
+#sigma_beta ~ halfnormal(0, 3)
+PR_p <- rnorm(10000, 0, 3)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_beta',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0('trace_sigma_beta_', args, '-', MODEL_DATE, '.pdf'))
+
+if ('Rplots.pdf' %in% list.files())
+{
+  file.remove('Rplots.pdf')
+}
+
+
+print('I completed!')
 
 
 

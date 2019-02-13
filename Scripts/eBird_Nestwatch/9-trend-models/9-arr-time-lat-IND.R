@@ -13,8 +13,8 @@
 #Xanadu
 dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
-MODEL_DATE <- '2019-02-08'
-ARR_TIME_LAT_IND_DIR <- paste0('trend_models_', MODEL_DATE)
+MODEL_DATE <- '2019-02-13'
+ARR_TIME_LAT_IND_DIR <- paste0('breeding_trends_', MODEL_DATE)
 
 
 # species arg -----------------------------------------------------
@@ -240,6 +240,9 @@ saveRDS(fit, file = paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args,
 
 # diagnostics -------------------------------------------------------------
 
+num_diverge <- rstan::get_num_divergent(fit)
+num_tree <- rstan::get_num_max_treedepth(fit)
+num_BFMI <- rstan::get_low_bfmi_chains(fit)
 
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'alpha', ISB = FALSE)
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, params = 'beta', ISB = FALSE)
@@ -251,11 +254,6 @@ saveRDS(fit, file = paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args,
 # MCMCvis::MCMCplot(fit, params = 'beta3', rank = TRUE)
 # MCMCvis::MCMCplot(fit, params = 'mu', ISB = FALSE, rank = TRUE)
 # #MCMCtrace(fit)
-# 
-# (num_diverge <- rstan::get_num_divergent(fit))
-# (num_tree <- rstan::get_num_max_treedepth(fit))
-# (num_BFMI <- rstan::get_low_bfmi_chains(fit))
-
 
 #shiny stan
 # library(shinystan)
@@ -277,7 +275,7 @@ cat(paste0('Step size: ', STEP_SIZE, ' \n'))
 cat(paste0('Number of divergences: ', num_diverge, ' \n'))
 cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
-print(fit)
+print(MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2))
 sink()
 
 
