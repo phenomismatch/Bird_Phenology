@@ -14,7 +14,7 @@
 dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 MODEL_DATE <- '2019-02-13'
-BR_TIME_LAT_IND_DIR <- paste0('breeding_trends_', MODEL_DATE)
+BR_TIME_LAT_IND_DIR <- paste0('breeding_trends-', MODEL_DATE)
 
 
 # species arg -----------------------------------------------------
@@ -289,7 +289,7 @@ run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', BR_TIME_LAT_IND_DIR))
-saveRDS(fit, file = paste0('temp_BR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args, '.rds'))
+saveRDS(fit, file = paste0(args, '-', MODEL_DATE, '-temp_BR_YEAR_LAT_IND_stan.rds'))
 #fit <- readRDS(paste0('temp_ARR_YEAR_LAT_stan_', MODEL_DATE, '.rds'))
 
 
@@ -322,7 +322,7 @@ num_BFMI <- rstan::get_low_bfmi_chains(fit)
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('BR_YEAR_LAT_IND_results_', MODEL_DATE, '_', args, '.txt'))
+sink(paste0(args, '-', MODEL_DATE, '-BR_YEAR_LAT_IND_results.txt'))
 cat(paste0('BR_YEAR_LAT_IND_results_', MODEL_DATE, '_', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -442,7 +442,7 @@ for (i in 1:NROW(u_cell_mrg))
 
 #save figs to pdfs
 setwd(paste0(dir, 'Bird_Phenology/Figures/breeding_trends'))
-pdf(paste0(args, '-plots-BR-time-', MODEL_DATE, '.pdf'), height = 6, width = 9, useDingbats = FALSE)
+pdf(paste0(args, '-', MODEL_DATE, '-plots-BR-time.pdf'), height = 6, width = 9, useDingbats = FALSE)
 
 counter <- 1
 for (i in 1:ceiling(NROW(u_cell_mrg)/4))
@@ -543,7 +543,7 @@ fp <- ggplot() +
   ylab('Latitude')
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/breeding_trends'))
-ggsave(plot = fp, filename = paste0(args, '-slope-map-BR-time-', MODEL_DATE, '.pdf'))
+ggsave(plot = fp, filename = paste0(args, '-', MODEL_DATE, '-slope-map-BR-time.pdf'))
 
 
 
@@ -566,7 +566,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_mu_alpha_', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0(args, '-', MODEL_DATE, '-trace_mu_alpha.pdf'))
 
 #sigma_alpha ~ halfnormal(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -575,7 +575,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_alpha',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_sigma_alpha_', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0(args, '-', MODEL_DATE, '-trace_sigma_alpha.pdf'))
 
 #sigma_x_true ~ halfnormal(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -584,7 +584,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_y_true',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_sigma_y_true_', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0(args, '-', MODEL_DATE, '-trace_sigma_y_true.pdf'))
 
 #alpha2 ~ normal(0, 10)
 PR <- rnorm(10000, 0, 10)
@@ -592,7 +592,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'alpha2',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_alpha2_', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0(args, '-', MODEL_DATE, '-trace_alpha2.pdf'))
 
 #beta2 ~ normal(1, 2)
 PR <- rnorm(10000, 1, 2)
@@ -600,7 +600,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'beta2',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_beta2_', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0(args, '-', MODEL_DATE, '-trace_beta2.pdf'))
 
 #sigma_beta ~ halfnormal(0, 3)
 PR_p <- rnorm(10000, 0, 3)
@@ -609,7 +609,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_sigma_beta_', args, '-', MODEL_DATE, '.pdf'))
+                   filename = paste0(args, '-', MODEL_DATE, '-trace_sigma_beta.pdf'))
 
 if ('Rplots.pdf' %in% list.files())
 {
