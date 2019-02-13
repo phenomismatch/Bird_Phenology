@@ -441,7 +441,13 @@ for (i in 1:NROW(u_cell_mrg))
 
 
 #save figs to pdfs
-setwd(paste0(dir, 'Bird_Phenology/Figures/breeding_trends'))
+
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/breeding_trends/', MODEL_DATE)),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/breeding_trends/', MODEL_DATE)),
+       FALSE)
+
+setwd(paste0(dir, 'Bird_Phenology/Figures/breeding_trends/', MODEL_DATE))
+
 pdf(paste0(args, '-', MODEL_DATE, '-plots-BR-time.pdf'), height = 6, width = 9, useDingbats = FALSE)
 
 counter <- 1
@@ -542,7 +548,7 @@ fp <- ggplot() +
   xlab('Longitude') +
   ylab('Latitude')
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/breeding_trends'))
+setwd(paste0(dir, 'Bird_Phenology/Figures/breeding_trends/', MODEL_DATE))
 ggsave(plot = fp, filename = paste0(args, '-', MODEL_DATE, '-slope-map-BR-time.pdf'))
 
 
