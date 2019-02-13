@@ -492,7 +492,7 @@ saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
 
 
 options(max.print = 50000)
-sink(paste0(args, '-', IAR_out_date, '-iar_results.txt'))
+sink(paste0(args, '-', IAR_out_date, '-iar-stan_results.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
