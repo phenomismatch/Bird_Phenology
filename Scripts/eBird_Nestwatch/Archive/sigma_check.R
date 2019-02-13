@@ -1,4 +1,5 @@
-#checks and compares IAR models using different parameteriations for sigma (scaling parameter for combined spatial and non-spatial random effects)
+#checks and compares IAR models using different parameteriations for sigma (scaling parameter for combined spatial and non-spatial random effects) - DEPRECATED AS THIS IAR MODEL NO LONGER BEING USED
+
 
 
 # packages -----------------------------------------------------------------
