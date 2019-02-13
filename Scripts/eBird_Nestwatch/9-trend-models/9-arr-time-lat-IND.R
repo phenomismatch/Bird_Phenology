@@ -38,7 +38,7 @@ library(gridExtra)
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 
 #arrival data
-IAR_out <- 'IAR_output_2019-01-16'
+IAR_out <- 'IAR_output_2019-02-13'
 IAR_out_date <- substr(IAR_out, start = 12, stop = 21)
 
 IAR_data <- readRDS(paste0('arrival_master_', IAR_out_date, '.rds'))
@@ -232,7 +232,7 @@ run_time <- (proc.time() - tt[3]) / 60
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', ARR_TIME_LAT_IND_DIR))
-saveRDS(fit, file = paste0(args, '-', MODEL_DATE, '-temp_ARR_YEAR_LAT_IND_stan.rds'))
+saveRDS(fit, file = paste0(args, '-', MODEL_DATE, '-arr_year-stan_output.rds'))
 #fit <- readRDS(paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args, '.rds'))
 
 
@@ -266,8 +266,8 @@ num_BFMI <- rstan::get_low_bfmi_chains(fit)
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0(args, '-', MODEL_DATE, '-ARR_YEAR_LAT_IND_results.txt'))
-cat(paste0('ARR_YEAR_LAT_IND_results_', MODEL_DATE, '_', args, ' \n'))
+sink(paste0(args, '-', MODEL_DATE, '-arr_year-stan_results.txt'))
+cat(paste0('Arr ~ year results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
@@ -390,7 +390,7 @@ ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/arrival_trends/', MODEL_D
        FALSE)
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/arrival_trends/', MODEL_DATE))
-pdf(paste0(args, '-', MODEL_DATE, '-plots-ARR-time.pdf'), height = 6, width = 9, useDingbats = FALSE)
+pdf(paste0(args, '-', MODEL_DATE, '-plots-arr_year.pdf'), height = 6, width = 9, useDingbats = FALSE)
 
 counter <- 1
 for (i in 1:ceiling(NROW(u_cell_mrg)/4))
@@ -492,7 +492,7 @@ fp <- ggplot() +
   ylab('Latitude')
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/arrival_trends/', MODEL_DATE))
-ggsave(plot = fp, filename = paste0(args, '-', MODEL_DATE, '-slope-map-ARR-time.pdf'))
+ggsave(plot = fp, filename = paste0(args, '-', MODEL_DATE, '-slope_map-arr_year.pdf'))
 
 
 
