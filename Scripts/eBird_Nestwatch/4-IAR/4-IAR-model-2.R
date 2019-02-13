@@ -25,14 +25,13 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-02-02'
-IAR_out_dir <- 'IAR_output_2019-02-13'
+IAR_out_dir <- 'IAR_output_2019-02-13-2'
 
 
 
 # Load packages -----------------------------------------------------------
 
 library(rstan)
-library(INLA)
 library(geosphere)
 library(ggplot2)
 library(maps)
@@ -293,7 +292,7 @@ real<lower = 0> sigma_y_true;
 matrix[N, J] mu;                                      // latent true halfmax values
 
 alpha_gamma = alpha_gamma_raw * 30;
-beta_gamma = beta_gamma_raw * 5 + 2;
+beta_gamma = beta_gamma_raw * 3 + 2;
 // mu_beta0 = mu_beta0_raw * 30;
 sigma_y_true = sigma_y_true_raw * 5;
 sigma_gamma = sigma_gamma_raw * 5;
@@ -369,11 +368,11 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
-TREE_DEPTH <- 16
+DELTA <- 0.97
+TREE_DEPTH <- 18
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 3000
+ITER <- 5000
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_2,
@@ -430,7 +429,7 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 # fit <- readRDS('IAR_stan_Catharus_minimus-2019-02-11-test-2.rds')
 # fit <- readRDS('IAR_stan_Empidonax_virescens-2019-02-11-test-2.rds')
-# fit <- readRDS('IAR_stan_Vireo_olivaceus-test-2.rds')
+# fit <- readRDS('Vireo_olivaceus-2019-02-13-IAR_stan-test-3.rds')
 
 # MCMCtrace(fit)
 # MCMCsummary(fit, params = c('sigma', 'rho', 'beta0', 'mu_sigma'), n.eff = TRUE)
@@ -478,12 +477,12 @@ PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-IAR_stan-test-3.rds'))
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
 
 
 
 options(max.print = 50000)
-sink(paste0(args, '-', IAR_out_date, '-iar_results-test-3.txt'))
+sink(paste0(args, '-', IAR_out_date, '-iar_results.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -609,7 +608,7 @@ for (i in 1:length(years))
     ylab('Latitude')
   
   ggsave(plot = p,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '-pre_IAR-3.pdf'))
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '-pre_IAR.pdf'))
   
   
   #post-IAR
@@ -657,7 +656,7 @@ for (i in 1:length(years))
     ylab('Latitude')
   
   ggsave(plot = p_post,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '-post_IAR-3.pdf'))
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '-post_IAR.pdf'))
 }
 
 
@@ -680,7 +679,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_alpha_gamma-3.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_alpha_gamma.pdf'))
 
 #beta_gamma ~ normal(2, 5)
 PR <- rnorm(10000, 2, 5)
@@ -688,7 +687,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'beta_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_beta_gamma-3.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_beta_gamma.pdf'))
 
 # #mu_beta0 ~ normal(0, 30)
 # PR <- rnorm(10000, 0, 30)
@@ -705,7 +704,7 @@ MCMCvis::MCMCtrace(fit,
           params = 'sigma_y_true',
           priors = PR,
           open_pdf = FALSE,
-          filename = paste0(args, '-', IAR_out_date, '-trace_sigma_y_true-3.pdf'))
+          filename = paste0(args, '-', IAR_out_date, '-trace_sigma_y_true.pdf'))
 
 #sigma_gamma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -714,7 +713,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma-3.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
