@@ -372,7 +372,8 @@ for (j in 1:nyr)
       predictDays <- range(cyspdata$sjday)[1]:range(cyspdata$sjday)[2]
       predictDays2 <- predictDays^2
       predictDays3 <- predictDays^3
-      newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
+      newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, 
+                            sjday3 = predictDays3, shr = 0)
       
       #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)

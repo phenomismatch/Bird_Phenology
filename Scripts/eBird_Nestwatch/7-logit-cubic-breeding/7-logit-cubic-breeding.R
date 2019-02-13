@@ -25,8 +25,10 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 #model settings
 ITER <- 2500
-#ITER <- 10
 CHAINS <- 4
+
+#ITER <- 10
+#CHAINS <- 1
 
 
 # get args ----------------------------------------------------------------
@@ -35,23 +37,24 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
 #args <- 'Agelaius_phoeniceus'
 
-RUN_DATE <- '2019-01-30'
+RUN_DATE <- '2019-02-13'
+
+
+# query dir ---------------------------------------------------------------
+
+
+#IAR input data (to get relevant cells)
+DATE_MA <- '2019-02-02'
+
+#read in ebird breeding code data
+DATE_BC <- '2019-02-12'
 
 
 
 # read in data ------------------------------------------------------------
 
-
-#IAR input data (to get relevant cells)
-DATE_MA <- '2018-11-12'
-
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', DATE_MA))
 df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
-
-
-
-#read in ebird breeding code data
-DATE_BC <- '2019-01-30'
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', DATE_BC))
 temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', args, '.rds'))
@@ -188,7 +191,10 @@ for (j in 1:nyr)
                                  algorithm = 'sampling',
                                  iter = ITER,
                                  chains = CHAINS,
-                                 cores = CHAINS)
+                                 cores = CHAINS,
+                                 adapt_delta = DELTA,
+                                 control = list(max_treedepth = TREE_DEPTH))
+      
       
       #calculate diagnostics
       num_diverge <- rstan::get_num_divergent(fit2$stanfit)
@@ -201,8 +207,8 @@ for (j in 1:nyr)
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
         
-        fit2 <- rstanarm::stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
-                                   data = cyspdata,
+        fit2 <- rstanarm::stan_glm(br ~ sjday + sjday2 + sjday3 + shr,
+                                   data = t_cell2,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
                                    iter = ITER,
@@ -226,7 +232,8 @@ for (j in 1:nyr)
       predictDays <- range(t_cell2$sjday)[1]:range(t_cell2$sjday)[2]
       predictDays2 <- predictDays^2
       predictDays3 <- predictDays^3
-      newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3, shr = 0)
+      newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, 
+                            sjday3 = predictDays3, shr = 0)
       
       #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
@@ -249,7 +256,7 @@ for (j in 1:nyr)
       mn_hm <- mean(halfmax_fit)
       LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
-      
+
       pdf(paste0(args, '_', years[j], '_', cells[k], '_breeding.pdf'))
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
