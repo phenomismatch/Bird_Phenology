@@ -417,12 +417,12 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0('IAR_stan_', args, '-', IAR_out_date, '-test-3.rds'))
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-IAR_stan-test-3.rds'))
 
 
 
 options(max.print = 50000)
-sink(paste0('IAR_results_', args, '-test-3.txt'))
+sink(paste0(args, '-', IAR_out_date, '-iar_results-test-3.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -618,7 +618,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_alpha_gamma_', args, '-', IAR_out_date, '-3.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_alpha_gamma-3.pdf'))
 
 #beta_gamma ~ normal(2, 5)
 PR <- rnorm(10000, 2, 5)
@@ -626,7 +626,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'beta_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_beta_gamma_', args, '-', IAR_out_date, '-3.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_beta_gamma-3.pdf'))
 
 #mu_beta0 ~ normal(0, 30)
 PR <- rnorm(10000, 0, 30)
@@ -634,7 +634,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta0',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_mu_beta0_', args, '-', IAR_out_date, '-3.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta0-3.pdf'))
 
 #sigma_y_true ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -643,7 +643,7 @@ MCMCvis::MCMCtrace(fit,
           params = 'sigma_y_true',
           priors = PR,
           open_pdf = FALSE,
-          filename = paste0('trace_sigma_y_true_', args, '-', IAR_out_date, '-3.pdf'))
+          filename = paste0(args, '-', IAR_out_date, '-trace_sigma_y_true-3.pdf'))
 
 #sigma_gamma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -652,7 +652,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0('trace_sigma_gamma_', args, '-', IAR_out_date, '-3.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma-3.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
