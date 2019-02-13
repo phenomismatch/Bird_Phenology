@@ -547,7 +547,7 @@ for (i in 1:length(years))
     ylab('Latitude')
   
   ggsave(plot = p,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_pre_IAR-3.pdf'))
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '-pre_IAR-3.pdf'))
   
   
   #post-IAR
@@ -595,7 +595,7 @@ for (i in 1:length(years))
     ylab('Latitude')
   
   ggsave(plot = p_post,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '_post_IAR-3.pdf'))
+         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '-post_IAR-3.pdf'))
 }
 
 
