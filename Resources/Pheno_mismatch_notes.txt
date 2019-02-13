@@ -1,0 +1,170 @@
+===================
+Pheno Mismatch notes
+===================
+
+
+Notes from Oct 2018 meeting
+===========================
+Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) and bird reproduction curve (abundance/biomass on y, time on x) -> overlay curves to calculate weighted index.
+    Would expect positive relationship between productivity and curve area
+
+
+*[DONE] Run single set of phi/theta
+*[DONE] Run different phi/theta for each year
+*[DONE] Run hierarchical phi/theta -> run time too long, params not estimated well
+*[DONE] Run single year (2017) with just test set of cells - LARGE RHO
+*[DONE] Fit all years with different phi/thetas and one phi/thetas
+*[DONE] Filter cells by species ranges
+*[DONE] Generalize creation of Stan script indices
+*[DONE] Run V_olivaceus for all years/cells
+*[DONE] Check maps
+*[DONE] Setup script to run one species at a time
+*[DONE] Determine which species to run (separate script?)
+*[DONE] Test 4 on singularity - WORKS
+*[DONE] Test 2 on singularity - WORKS
+*[DONE] Test 7 on singularity - WORKS
+*[DONE] Compare models with different sigma parameterizations
+*[DONE] Check normality for 2
+*[DONE] Query BR codes - extend to jday 300
+*[DONE] Create provisional master IAR object
+*[DONE] Full run 7 after query
+*[DONE] Run 2 on cluster
+*[DONE] Fit 4 with slope for lat
+*[DONE] Run 3
+*[DONE] Run 6 - query ebrid br codes (local)
+
+*[IN PROGRESS] Run 7
+
+
+*Run 4 new tests - check results (divergences etc.)
+*Run arr over time model with all cells - from tests
+*??? Run arr over time model with cells that had halfmax data - from tests
+*Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
+
+
+*Run 4 - BATCH
+*Build IAR intergrating other datasets for BR
+
+
+
+#4 - NOTES
+*Rerun these models with higher adapt delta (0.98) due to divergences (# should after -)
+iar-Antrostomus_vociferus.err - 51 - DIV (20, 0.98, 0.005) - DONE SUPP
+iar-Bombycilla_cedrorum.err - 440 - 94 DIV (20, 0.98, 0.005) - DIV (20, 0.99, 0.005) - 7 DIV (20, 0.999, 0.005) - DONE SUPP
+iar-Cardellina_pusilla.err - 1 ** (super slow for one chain) - CANCELED
+iar-Euphagus_carolinus.err - DONE SUPP
+iar-Passerculus_sandwichensis.err - 4
+iar-Setophaga_castanea.err - 2 ** (super slow for one chain) - CANCELED
+*Rerun these models with lower adapt alpha (too slow) - MAXTREE = 20, delta = 0.9
+Contopus_cooperi
+Coccyzus_erythropthalmus
+Setophaga_palmarum
+Spiza_americana
+Vireo_philadelphicus
+
+
+
+###
+9
+###
+*Model change in br over lat/time and interaction
+  -each species y ~ N(alpha_j + beta_j * year); beta_j = alpha2 + beta2 * lat
+*Model change in arr over lat/time and interaction
+  -run arrival model with all years of data, not just matching BS
+  -each species y ~ N(alpha_j + beta_j * year); beta_j = alpha2 + beta2 * lat
+  -could be fit jointly (i = cell, j = year, k = species:
+    y[i,j,k] ~ N(alpha[j,k] + beta[j,k] * year[i,j,k])
+    beta[j,k] = alpha2[k] + beta2[k] * lat[i,j,k]
+    for each k:
+      for each j:
+        alpha[j,k] ~ N(mu_alpha[k], sigma_alpha[k])
+      alpha2[k] ~ N(0, 10)
+      beta2[k] ~ N(0, 10)
+      mu_alpha[k] ~ N(mu_mu_alpha, sigma_mu_alpha)
+      sigma_alpha ~ HN(mu_sigma_alpha, sigma_sigma_alpha)
+    mu_mu_alpha ~ N(0, 10)
+    sigma_mu_alpha ~ HN(0, 10)
+    mu_sigma_alpha ~ N(0, 10)
+    sigma_sigma_alpha ~ HN(0, 10)
+
+*Check differences between y_true from br_arr and y_true from br_time
+*Could get derived qty for y_true and x_true from above models - then model change in diff (controlling for arrival)
+*Try to code using McElreath method - to account for correlations
+
+
+
+*Generate qty: difference between ARR and BR -> birds compress the wait period later in the season (evidenced by the slope - breeding advances at a slower rate than arrival within a given season); has this interval changed over time (can model this is a few data-rich species - year effect on slope parameter)?
+Diff_arr_br ~ alpha_j + beta1_j * year + beta2_j * arr #where j is species
+
+
+
+*Aggregate MAPS cells and test logit models for MAPS breeding
+
+####
+*lat differences in territory - leapfrogging migratory strategies
+*Pete Mara - Kriten Ruegg
+  -wood/sqainsons thrush
+####
+
+*For 7 - maybe run additional models with term that includes number of breeding obs recorded, just to make sure that number of people recording breeders has risen consistently with the number of eBird surveys - restrict 7 run by years? Missing IAR ARR could be informed by existing covariates at those positions
+
+
+
+
+*eBird Status and Trends report for info?
+
+*Look at MAPS BAND data for model - can look at age and phenology with these data as well
+
+*Compare ebird breeding codes to nestwatch
+  *model/plot
+*Compare nestwatch to arrival/breeding codes to arrival
+  *model/plot
+
+
+To check which files (if any) contain a particular word
+grep lookup_word * -lR
+
+
+Cancel jobs
+sq | awk '{print $1}' | tail -n +2 > tt.txt
+while read p
+do
+  scancel "$p"
+done <tt.txt
+
+#####################
+*Rafe update database
+#####################
+*Change query for arrival to 215?
+*Change initial ebird query filtering??? (so that surveys started earlier than 7pm, not 4 pm)
+*Run 1
+*In 3 and 8, don't calc n1, n0 etc. These values nwo calculated in 2 and 7 - only calculate posterior mean/sd/etc in processing scripts
+*Run 2 on cluster
+*Run 3 locally
+*Run 4 - INLA locally
+*Run 5 locally
+*Change query for ebird breeding codes to match initial ebird query
+*Run 7 on cluster
+*Run 8 locally
+
+*Rerun breeding ~ arrival models -> further analyses
+
+
+
+
+#AFTER
+*Run model nesting (Nestwatch) ~ arrival (IAR)
+  -period between arrival and breeding may be plastic (as suggested for Black throated blues by Lany et al. 2016 - interval was shorter when greenup was earlier)
+  -does the interval between arrival and nesting vary depending on 1) arrival/nesting time, 2) greenup time, or 3) the interval between arrival and greenup timing?
+*Look at impact of green up on bird arrival (IAR)
+  -are there other covariates that explain arrival well?
+*Look at impact of green up on nesting date (Nestwatch, etc.)
+  -are there other covariates that explain nesting well?
+
+
+
+-Phenology may not be important for breeding success (predation may be important for breeding success)?
+-Is breeding success important for population dynamics of these birds (for black-throated blues it is according to citation in Lany et al. 2016)?
+-Does the interval between arrival and nesting impact population growth rates (e.g., are shorter intervals associated with lower pop growth rates [as we don't have breeding success info])?
+-Integrate weight measurements from MAPS data when investigating mismatch and demographics (calculate deviation from each individual mean weight in a given year and see if there is a year effect across all individuals - that might indicate whether this is a 'good' or 'bad' year) - year effect should be done on a per site basis - should be restricted to a specific time window
+

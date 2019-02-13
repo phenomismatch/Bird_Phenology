@@ -1,0 +1,76 @@
+
+#R code
+DATA <- list(K = 3,
+             N = length(surveys$D),
+             y = surveys$y,
+             D = surveys$D,
+             D2 = surveys$D2,
+             D3 = surveys$D3,
+             Nsim = length(surveys$Dsim),
+             Dsim = surveys$Dsim,
+             Dsim2 = surveys$Dsim2,
+             Dsim3 = surveys$Dsim3)
+
+
+#Stan Code
+multinom <- 'data {
+  int K; // number of possible outcomes (3)
+  int N; // number of surveys for a given cell/year
+  int y[N]; // observed state (absent, present, breeding)
+  int D[N]; // julian day survey was conducted on
+  int D2[N]; // julian day survey was conducted on ^2
+  int D3[N]; // julian day survey was conducted on ^3
+}
+
+parameters {
+  real alpha_raw[K-1];
+  real beta1_raw[K-1];
+  real beta2_raw[K-1];
+  real beta3_raw[K-1];
+}
+
+transformed parameters {
+  real alpha[K];
+  alpha = append(alpha_raw, 0) // make sure append works in this way
+  real beta1[K];
+  beta1 = append(beta1_raw, 0);
+  real beta2[K];
+  beta2 = append(beta2_raw, 0);
+  real beta3[K];
+  beta3 = append(beta3_raw, 0);
+}
+
+model {
+  #single cell/year - may be tricky indexing needed to do across cells as there are different #s of surveys
+  for (i in 1:N)
+  {
+    y[i] ~ categorical_logit(alpha + beta1 * D[i] + beta2 * D2[i] + beta3 * D3[i]);
+  }
+}
+
+generated quantites {
+  matrix[Nsim,K] p;
+  for (i in 1:Nsim)
+  {
+    for (k in 1:K)
+    {
+      p[i,k] = alpha[k] + beta1[k] * D_sim[i] + beta2[k] * D_sim2[i] + beta3[k] * D_sim3[i];
+    }
+  }
+}'
+
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+fit <- stan(model_code = multinom,
+data = DATA,
+chains = 4,
+cores = 4,
+iter = 1000,
+pars = c(alpha, beta1, beta2, beta3, p))
+
+#R code
+ #calc halfmax for p
+ #calc mean for p at each i (both presence and breeding)
+ #calc 95%CI for p at each i (both presence and breeding)
+
