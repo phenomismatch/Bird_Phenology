@@ -27,7 +27,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 db_dir <- 'eBird_query_2018-10-15'
 hm_dir <- 'halfmax_species_2018-10-16'
 IAR_in_dir <- 'IAR_input_2018-11-12'
-IAR_out_dir <- 'IAR_output_2019-02-12'
+IAR_out_dir <- 'IAR_output_2019-02-13'
 
 
 
