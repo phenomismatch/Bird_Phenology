@@ -1,0 +1,232 @@
+Taken from here:
+
+https://github.com/stan-dev/example-models/tree/master/ARM/Ch.17
+
+Examples for Statistical Rethinking here:
+
+https://github.com/ssp3nc3r/rethinking/blob/master/chapter13.Rmd
+
+
+#########################################################
+
+17.1 - varying intercept, varying slope (no correlation)
+
+data {
+  int<lower=0> N;
+  int<lower=0> J;
+  vector[N] y;
+  int<lower=0,upper=1> x[N];
+  int county[N];
+}
+parameters {
+  real<lower=0> sigma;
+  real<lower=0> sigma_a;
+  real<lower=0> sigma_b;
+  vector[J] a;
+  vector[J] b;
+  real mu_a;
+  real mu_b;
+}
+transformed parameters {
+  vector[N] y_hat;
+
+  for (i in 1:N)
+    y_hat[i] = a[county[i]] + b[county[i]] * x[i];
+}
+model {
+  mu_a ~ normal(0, 100);
+  mu_b ~ normal(0, 100);
+
+  a ~ normal(mu_a, sigma_a);
+  b ~ normal(mu_b, sigma_b);
+  y ~ normal(y_hat, sigma);
+}
+
+
+#########################################################
+
+17.1 - varying intercept, varying slope (correlation)
+
+data {
+  int<lower=0> N;
+  int<lower=0> J;
+  vector[N] y;
+  int<lower=0,upper=1> x[N];
+  int county[N];
+}
+parameters {
+  real<lower=0> sigma;
+  real<lower=0> sigma_a;
+  real<lower=0> sigma_b;
+  real mu_a;
+  real mu_b;
+  real<lower=-1,upper=1> rho;
+  vector[2] B_temp;
+}
+model {
+  vector[N] y_hat;
+  vector[J] a;
+  vector[J] b;
+  matrix[2,J] B_hat;
+  matrix[2,2] Sigma_b;
+  vector[2] B_hat_temp;
+  matrix[2,J] B;
+
+  mu_a ~ normal(0, 100);
+  mu_b ~ normal(0, 100);
+  rho ~ uniform(-1, 1);
+
+  Sigma_b[1,1] = pow(sigma_a, 2);
+  Sigma_b[2,2] = pow(sigma_b, 2);
+  Sigma_b[1,2] = rho * sigma_a * sigma_b;
+  Sigma_b[2,1] = Sigma_b[1,2];
+
+  for (j in 1:J) {
+    B_hat[1,j] = mu_a;
+    B_hat[2,j] = mu_b;
+    B_hat_temp[1] = mu_a;
+    B_hat_temp[2] = mu_b;
+    B_temp ~ multi_normal(B_hat_temp, Sigma_b);
+    B[1,j] = B_temp[1];
+    B[2,j] = B_temp[2];
+  }
+
+  for (j in 1:J) {
+    a[j] = B[1,j];
+    b[j] = B[2,j];
+  }
+
+  for (i in 1:N)
+    y_hat[i] = a[county[i]] + b[county[i]] * x[i];
+
+  y ~ normal(y_hat, sigma);
+}
+
+
+#########################################################
+
+17.1 - Scaled inverse-Wishart model
+
+
+data {
+  int<lower=0> N;
+  int<lower=0> J;
+  vector[N] y;
+  int<lower=0,upper=1> x[N];
+  int county[N];
+  matrix[2,2] W;
+}
+parameters {
+  real<lower=0> sigma;
+  real mu_a_raw;
+  real mu_b_raw;
+  real<lower=0> xi_a;
+  real<lower=0> xi_b;
+  vector[2] B_raw_temp;
+  corr_matrix[2] Tau_b_raw;
+  real b_0;
+}
+model {
+  vector[N] y_hat;
+  vector[J] a;
+  vector[J] b;
+  matrix[J,2] B_raw_hat;
+  matrix[J,2] B_raw;
+  matrix[2,2] Sigma_b_raw;
+  real mu_a;
+  real mu_b;
+  real sigma_a;
+  real sigma_b;
+  real rho;
+
+  mu_a_raw ~ normal(0, 100);
+  mu_b_raw ~ normal(0, 100);
+  xi_a ~ uniform(0, 100);
+  xi_b ~ uniform(0, 100);
+  b_0 ~ normal(0, 100);
+
+  mu_a = xi_a * mu_a_raw;
+  mu_b = xi_b * mu_b_raw;
+
+  Tau_b_raw ~ wishart(3, W);
+  Sigma_b_raw = inverse(Tau_b_raw);
+
+  sigma_a = xi_a * sqrt(Sigma_b_raw[1,1]);
+  sigma_b = xi_b * sqrt(Sigma_b_raw[2,2]);
+  rho = Sigma_b_raw[1,2] / sqrt(Sigma_b_raw[1,1] * Sigma_b_raw[2,2]);
+
+  for (j in 1:J) {
+    B_raw_hat[j,1] = mu_a_raw;
+    B_raw_hat[j,2] = mu_b_raw;
+    B_raw_temp ~ multi_normal(transpose(row(B_raw_hat,j)), Sigma_b_raw);
+    B_raw[j,1] = B_raw_temp[1];
+    B_raw[j,2] = B_raw_temp[2];
+    a[j] = xi_a * B_raw[j,1];
+    b[j] = xi_b * B_raw[j,2];
+  }
+
+  for (i in 1:N)
+    y_hat[i] = b_0 + a[county[i]] + b[county[i]] * x[i];
+
+  y ~ normal(y_hat, sigma);
+}
+
+
+#########################################################
+
+17.1 - Modeling multiple varying coefficients
+
+
+data {
+  int<lower=0> N;
+  int<lower=0> J;
+  int<lower=0> K;
+  vector[N] y;
+  matrix[N,K] X;
+  int county[N];
+  matrix[K,K] W;
+}
+parameters {
+  real<lower=0> sigma;
+  vector[K] mu_raw;
+  vector[K] xi;
+  corr_matrix[K] Tau_b_raw;
+  vector[K] B_raw_temp;
+}
+model {
+  vector[N] y_hat;
+  matrix[J,K] B;
+  matrix[K,K] rho_b;
+  matrix[K,K] Sigma_b_raw;
+  vector[K] mu;
+  matrix[J,K] B_raw;
+  vector[K] sigma_b;
+
+  mu_raw ~ normal(0, 100);
+  xi ~ uniform(0, 100);
+
+  mu = xi .* mu_raw;
+
+  Tau_b_raw ~ wishart(K+1, W);
+  Sigma_b_raw = inverse(Tau_b_raw);
+
+  for (j in 1:J) {
+    B_raw_temp ~ multi_normal(mu_raw, Sigma_b_raw);    
+    for (k in 1:K) {
+      B_raw[j,k] = B_raw_temp[k];
+      B[j,k] = xi[k] * B_raw[j,k];
+    }
+  }
+
+  for (k in 1:K) {
+    for (k_prime in 1:K)
+      rho_b[k,k_prime] = Sigma_b_raw[k,k_prime] 
+        / sqrt(Sigma_b_raw[k,k] * Sigma_b_raw[k_prime,k_prime]);
+    sigma_b[k] = fabs(xi[k]) * sqrt(Sigma_b_raw[k,k]);
+  }
+  
+  for (i in 1:N)
+    y_hat[i] = dot_product(row(B,county[i]),row(X,i));
+
+  y ~ normal(y_hat, sigma);
+}
