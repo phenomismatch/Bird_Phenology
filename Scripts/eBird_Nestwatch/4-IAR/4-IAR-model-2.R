@@ -166,6 +166,7 @@ if (max(ninds) < ncell)
 #create and fill sds and obs
 sigma_y_in <- matrix(nrow = ncell, ncol = nyr)
 y_obs_in <- matrix(nrow = ncell, ncol = nyr)
+y_PPC <- rep(NA, ncell * nyr)
 
 #number of observation and NAs for each year
 len_y_obs_in <- rep(NA, nyr)
@@ -175,13 +176,24 @@ len_y_mis_in <- rep(NA, nyr)
 ii_obs_in <- matrix(NA, nrow = ncell, ncol = nyr)
 ii_mis_in <- matrix(NA, nrow = ncell, ncol = nyr)
 
+#counter to fill y_PPC
+counter <- 1
 for (j in 1:nyr)
 {
   #j <- 16
   temp_yr_p <- dplyr::filter(f_out, year == years[j])
   temp_yr <- temp_yr_p
   
+  #don't need to manipulate position of sigmas
   sigma_y_in[,j] <- temp_yr$HM_sd
+  
+  for (n in 1:ncell)
+  {
+    #n <- 1
+    #matrix with observed values with NAs
+    y_PPC[counter] <- temp_yr$HM_mean[n]
+    counter <- counter + 1
+  }
   
   #which are not NA
   no_na <- temp_yr$HM_mean[which(!is.na(temp_yr$HM_mean))]
@@ -223,6 +235,7 @@ ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
 #create data list for Stan
 DATA <- list(J = nyr,
              N = ncell, 
+             NJ = nyr * ncell,
              N_obs = len_y_obs_in,
              N_mis = len_y_mis_in,
              N_edges = nrow(ninds), 
@@ -243,6 +256,7 @@ IAR_2 <- '
 data {
 int<lower = 0> J;                                     // number of years      
 int<lower = 0> N;                                     // number of cells
+int<lower = 0> NJ;                                     // number of cell/years
 int<lower = 0> N_obs[J];                              // number of non-missing for each year
 int<lower = 0> N_mis[J];                              // number missing for each year
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
@@ -257,10 +271,10 @@ real<lower = 26, upper = 90> lat[N];
 
 parameters {
 real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
-real beta0_raw[J];                                    // intercept
+// real beta0_raw[J];                                    // intercept
 real alpha_gamma_raw;
 real beta_gamma_raw;                                       // effect of latitude
-real mu_beta0_raw;
+// real mu_beta0_raw;
 real<lower = 0> sigma_gamma_raw;
 matrix[N, J] phi;                                     // spatial error component (centered on 0)
 vector[N] gamma_raw;
@@ -270,19 +284,19 @@ real<lower = 0> sigma_y_true_raw;
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
-real beta0[J];
+// real beta0[J];
 vector[N] gamma;
 real alpha_gamma;
 real beta_gamma;
 real<lower = 0> sigma_gamma;
 real mu_gamma[N];
-real mu_beta0;
+// real mu_beta0;
 real<lower = 0> sigma_y_true;
 matrix[N, J] mu;                                      // latent true halfmax values
 
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 5 + 2;
-mu_beta0 = mu_beta0_raw * 30;
+// mu_beta0 = mu_beta0_raw * 30;
 sigma_y_true = sigma_y_true_raw * 5;
 sigma_gamma = sigma_gamma_raw * 5;
 
@@ -294,8 +308,9 @@ for (i in 1:N)
 
 for (j in 1:J)
 {
-  beta0[j] = beta0_raw[j] * 15 + mu_beta0;
-  mu[,j] = beta0[j] + gamma + phi[,j];
+  // beta0[j] = beta0_raw[j] * 15 + mu_beta0;
+  // mu[,j] = beta0[j] + gamma + phi[,j];
+  mu[,j] = gamma + phi[,j];
 }
 
 // indexing to avoid NAs
@@ -310,7 +325,7 @@ model {
 
 alpha_gamma_raw ~ normal(0, 1);
 beta_gamma_raw ~ normal(0, 1);
-mu_beta0_raw ~ normal(0, 1);
+// mu_beta0_raw ~ normal(0, 1);
 sigma_y_true_raw ~ normal(0, 1);
 sigma_gamma_raw ~ normal(0, 1);
 
@@ -321,7 +336,7 @@ for (i in 1:N)
 
 for (j in 1:J)
 {
-  beta0_raw[j] ~ normal(0, 1);
+  // beta0_raw[j] ~ normal(0, 1);
   target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   
@@ -329,6 +344,24 @@ for (j in 1:J)
   y_true[,j] ~ normal(mu[,j], sigma_y_true);
 }
 
+}
+
+generated quantities {
+
+// real y_rep[N, J];
+vector[NJ] y_rep;
+int<lower = 0> counter;
+
+counter = 1;
+for (j in 1:J)
+{
+  for (n in 1:N)
+  {
+    // y_rep[n,j] = normal_rng(y_true[,j], sigma_y[,j]);
+    y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
+    counter = counter + 1;
+  }
+}
 }'
 
 
@@ -350,8 +383,8 @@ fit <- stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('beta0', 'alpha_gamma', 'beta_gamma', 'sigma_gamma',
-                     'gamma', 'mu_beta0', 'sigma_y_true', 'phi', 'y_true'),
+            pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', #'beta0', 'mu_beta0',
+                     'gamma', 'sigma_y_true', 'phi', 'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
@@ -407,9 +440,39 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 # print(fit, pars = c('sigma', 'rho'))
 
+
+# for PPC extract y_rep and transpose (so iter are rows as required by shiny stan)
+y_rep_ch <- MCMCvis::MCMCpstr(fit, params = 'y_rep', type = 'chains')[[1]]
+t_y_rep <- t(y_rep_ch)
+
+#for each iter see if y_rep value is greater or less than true value
+tsum <- 0
+for (i in 1:NROW(t_y_rep))
+{
+  #i <- 1
+  temp <- sum(t_y_rep[i,] > y_PPC, na.rm = TRUE)
+  tsum <- tsum + temp
+}
+
+#number of true y values that are not NA
+l_PPC <- sum(!is.na(y_PPC))
+PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
+
+
 # #shiny stan
+#for shiny stan PPC
+# na.y.rm <- which(is.na(y_PPC))
+# n_y_PPC <- y_PPC[-na.y.rm]
+# n_t_y_rep <- t_y_rep[,-na.y.rm]
+
 # library(shinystan)
 # launch_shinystan(fit)
+
+#PPC
+# bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'mean')
+# bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'max')
+# bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'min')
+
 
 
 # write model results to file ---------------------------------------------
@@ -431,6 +494,7 @@ cat(paste0('Step size: ', STEP_SIZE, ' \n'))
 cat(paste0('Number of divergences: ', num_diverge, ' \n'))
 cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
+cat(paste0('PPC p-val: ', round(PPC_p, 3), ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
 print(MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2))
 sink()
@@ -628,13 +692,13 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_beta_gamma-3.pdf'))
 
-#mu_beta0 ~ normal(0, 30)
-PR <- rnorm(10000, 0, 30)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_beta0',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta0-3.pdf'))
+# #mu_beta0 ~ normal(0, 30)
+# PR <- rnorm(10000, 0, 30)
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'mu_beta0',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta0-3.pdf'))
 
 #sigma_y_true ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
