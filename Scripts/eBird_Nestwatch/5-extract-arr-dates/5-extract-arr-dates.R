@@ -18,7 +18,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # other dir ---------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2018-11-12'
-IAR_out_dir <- 'IAR_output_2019-01-16'
+IAR_out_dir <- 'IAR_output_2019-02-13'
 
 
 
@@ -76,12 +76,12 @@ for (i in 1:length(species))
     cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
   
     #read in IAR model output
-    t_fit <- readRDS(paste0('IAR_stan_', sp, '-', IAR_out_date, '.rds'))
+    t_fit <- readRDS(paste0(sp, '-', IAR_out_date, '-IAR_stan-test-3.rds'))
   
     #extract median and sd for IAR arrival dates
-    mean_fit <- round(MCMCpstr(t_fit, params = 'mu', func = mean)[[1]], digits = 2)
-    med_fit <- round(MCMCpstr(t_fit, params = 'mu', func = median)[[1]], digits = 2)
-    sd_fit <- round(MCMCpstr(t_fit, params = 'mu', func = sd)[[1]], digits = 2)
+    mean_fit <- round(MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]], digits = 2)
+    med_fit <- round(MCMCpstr(t_fit, params = 'y_true', func = median)[[1]], digits = 2)
+    sd_fit <- round(MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]], digits = 2)
     
     #loop through years
     for (j in 1:length(t_years))
