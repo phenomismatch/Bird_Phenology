@@ -36,6 +36,8 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[IN PROGRESS] Run 7
 *Rerun singularity issues
 
+*[IN PROGRESS] New 4
+
 *[IN PROGRESS] Run arr over time model with all cells - from tests
 *??? Run arr over time model with cells that had halfmax data - from tests
 
