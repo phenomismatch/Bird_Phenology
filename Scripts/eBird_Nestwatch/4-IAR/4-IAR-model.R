@@ -35,7 +35,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-02-02'
-IAR_out_dir <- 'IAR_output_2019-02-13-2'
+IAR_out_dir <- 'IAR_output_2019-02-13'
 
 
 
@@ -287,6 +287,7 @@ matrix[N, J] phi;                                     // spatial error component
 vector[N] gamma_raw;
 real<lower = 1, upper = 200> y_true[N, J];
 real<lower = 0> sigma_y_true_raw;
+real<lower = 0> sigma_phi_raw;
 }
 
 transformed parameters {
@@ -300,12 +301,14 @@ real mu_gamma[N];
 // real mu_beta0;
 real<lower = 0> sigma_y_true;
 matrix[N, J] mu;                                      // latent true halfmax values
+real<lower = 0> sigma_phi;
 
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 3 + 2;
 // mu_beta0 = mu_beta0_raw * 30;
 sigma_y_true = sigma_y_true_raw * 5;
 sigma_gamma = sigma_gamma_raw * 5;
+sigma_phi = sigma_phi_raw * 5;
 
 for (i in 1:N)
 {
@@ -317,7 +320,7 @@ for (j in 1:J)
 {
   // beta0[j] = beta0_raw[j] * 15 + mu_beta0;
   // mu[,j] = beta0[j] + gamma + phi[,j];
-  mu[,j] = gamma + phi[,j];
+  mu[,j] = gamma + phi[,j] * sigma_phi;
 }
 
 // indexing to avoid NAs
@@ -335,6 +338,7 @@ beta_gamma_raw ~ normal(0, 1);
 // mu_beta0_raw ~ normal(0, 1);
 sigma_y_true_raw ~ normal(0, 1);
 sigma_gamma_raw ~ normal(0, 1);
+sigma_phi_raw ~ normal(0, 1);
 
 for (i in 1:N)
 {
@@ -390,7 +394,7 @@ fit <- stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', #'beta0', 'mu_beta0',
+            pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', 'sigma_phi', #'beta0', 'mu_beta0',
                      'gamma', 'sigma_y_true', 'phi', 'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
@@ -487,12 +491,12 @@ PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output2.rds'))
 
 
 
 options(max.print = 50000)
-sink(paste0(args, '-', IAR_out_date, '-iar-stan_results.txt'))
+sink(paste0(args, '-', IAR_out_date, '-iar-stan_results2.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -566,12 +570,12 @@ nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 #create output image dir if it doesn't exist
 
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '2')),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '2')),
        FALSE)
 
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
+setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '2'))
 
 #loop plots for each year
 for (i in 1:length(years))
@@ -724,6 +728,15 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma.pdf'))
+
+#sigma_phi ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_phi',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_phi.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
