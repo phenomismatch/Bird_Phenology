@@ -17,7 +17,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # other dir ---------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2018-11-12'
+IAR_in_dir <- 'IAR_input_2019-02-02'
 IAR_out_dir <- 'IAR_output_2019-02-13'
 
 
@@ -55,13 +55,13 @@ out <- data.frame()
 for (i in 1:length(species))
 {
   #i <- 96 #Vireo olivaceus
-  #i <- 5
+  #i <- 24
   
   #filter by species
   sp <- species[i]
   
   #if that species RDS object exists in dir
-  if (length(grep(paste0('IAR_stan_', sp, '-', IAR_out_date, '.rds'), list.files())) > 0)
+  if (length(grep(paste0(sp, '-', IAR_out_date, '-iar-stan_output.rds'), list.files())) > 0)
   {
     f_in <- dplyr::filter(df_master, species == sp & MODEL == TRUE)
     
@@ -76,7 +76,7 @@ for (i in 1:length(species))
     cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
   
     #read in IAR model output
-    t_fit <- readRDS(paste0(sp, '-', IAR_out_date, '-IAR_stan-test-3.rds'))
+    t_fit <- readRDS(paste0(sp, '-', IAR_out_date, '-iar-stan_output.rds'))
   
     #extract median and sd for IAR arrival dates
     mean_fit <- round(MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]], digits = 2)
@@ -86,7 +86,7 @@ for (i in 1:length(species))
     #loop through years
     for (j in 1:length(t_years))
     {
-      #j <- 5
+      #j <- 1
       print(paste0('species: ', sp, ', ', 
                    'year: ', t_years[j]))
       
