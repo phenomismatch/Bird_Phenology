@@ -208,8 +208,8 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.95
-TREE_DEPTH <- 17
+DELTA <- 0.93
+TREE_DEPTH <- 15
 STEP_SIZE <- 0.005
 CHAINS <- 4
 ITER <- 3000
