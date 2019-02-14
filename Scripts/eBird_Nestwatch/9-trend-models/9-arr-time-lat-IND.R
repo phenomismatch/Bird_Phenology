@@ -21,7 +21,7 @@ ARR_TIME_LAT_IND_DIR <- paste0('arrival_trends-', MODEL_DATE)
 
 args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Vireo_olivaceus')
-
+#args <- as.character('Empidonax_virescens')
 
 # Load packages -----------------------------------------------------------
 
@@ -141,9 +141,9 @@ real mu[N];
 mu_alpha = mu_alpha_raw * 10 + 130;                       // implies mu_alpha ~ normal(130, 10)
 sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
 sigma_x_true = sigma_x_true_raw * 5;                    // implies sigma_x_true ~ halfnormal(0, 5)
-alpha2 = alpha2_raw * 5;                                // implies alpha2 ~ normal(0, 5)
-beta2 = beta2_raw * 2 + 1;                               // implies beta2 ~ normal(1, 2)
-sigma_beta = sigma_beta_raw * 3;
+alpha2 = alpha2_raw * 1;                                // implies alpha2 ~ normal(0, 1)
+beta2 = beta2_raw * 0.5;                               // implies beta2 ~ normal(0, 0.5)
+sigma_beta = sigma_beta_raw * 1;
 
 for (j in 1:US)
 {
@@ -208,11 +208,11 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.97
-TREE_DEPTH <- 16
-STEP_SIZE <- 0.005
+DELTA <- 0.98
+TREE_DEPTH <- 17
+STEP_SIZE <- 0.0005
 CHAINS <- 4
-ITER <- 5000
+ITER <- 8000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = arr_time_lat_ind,
@@ -233,7 +233,7 @@ run_time <- (proc.time() - tt[3]) / 60
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', ARR_TIME_LAT_IND_DIR))
 saveRDS(fit, file = paste0(args, '-', MODEL_DATE, '-arr_year-stan_output.rds'))
-#fit <- readRDS(paste0('temp_ARR_YEAR_LAT_IND_stan_', MODEL_DATE, '_', args, '.rds'))
+#fit <- readRDS(paste0(args, '-', MODEL_DATE, '-arr_year-stan_output.rds'))
 
 
 
@@ -502,9 +502,10 @@ ggsave(plot = fp, filename = paste0(args, '-', MODEL_DATE, '-slope_map-arr_year.
 # mu_alpha = mu_alpha_raw * 10 + 130;                       // implies mu_alpha ~ normal(130, 10)
 # sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
 # sigma_x_true = sigma_x_true_raw * 5;                    // implies sigma_x_true ~ halfnormal(0, 5)
-# alpha2 = alpha2_raw * 5;                                // implies alpha2 ~ normal(0, 5)
-# beta2 = beta2_raw * 2 + 1;                               // implies beta2 ~ normal(1, 2)
-# sigma_beta = sigma_beta_raw * 3;
+# alpha2 = alpha2_raw * 1;                                // implies alpha2 ~ normal(0, 1)
+# beta2 = beta2_raw * 0.5;                               // implies beta2 ~ normal(0, 0.5)
+# sigma_beta = sigma_beta_raw * 1;
+
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', ARR_TIME_LAT_IND_DIR))
 
@@ -535,24 +536,24 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', MODEL_DATE, '-trace_sigma_x_true.pdf'))
 
-#alpha2 ~ normal(0, 5)
-PR <- rnorm(10000, 0, 5)
+#alpha2 ~ normal(0, 1)
+PR <- rnorm(10000, 0, 1)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha2',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', MODEL_DATE, '-trace_alpha2.pdf'))
 
-#beta2 ~ normal(1, 2)
-PR <- rnorm(10000, 1, 2)
+#beta2 ~ normal(0, 0.5)
+PR <- rnorm(10000, 0, 0.5)
 MCMCvis::MCMCtrace(fit,
                    params = 'beta2',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', MODEL_DATE, '-trace_beta2.pdf'))
 
-#sigma_beta ~ halfnormal(0, 3)
-PR_p <- rnorm(10000, 0, 3)
+#sigma_beta ~ halfnormal(0, 1)
+PR_p <- rnorm(10000, 0, 1)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta',
