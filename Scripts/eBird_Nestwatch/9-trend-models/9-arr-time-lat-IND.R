@@ -138,10 +138,10 @@ real beta2;
 real mu[N];
 
 // non-centered parameterization
-mu_alpha = mu_alpha_raw * 20 + 70;                       // implies mu_alpha ~ normal(70, 20)
+mu_alpha = mu_alpha_raw * 10 + 130;                       // implies mu_alpha ~ normal(130, 10)
 sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
-sigma_x_true = sigma_x_true_raw * 10;                    // implies sigma_x_true ~ halfnormal(0, 10)
-alpha2 = alpha2_raw * 10;                                // implies alpha2 ~ normal(0, 10)
+sigma_x_true = sigma_x_true_raw * 5;                    // implies sigma_x_true ~ halfnormal(0, 5)
+alpha2 = alpha2_raw * 5;                                // implies alpha2 ~ normal(0, 5)
 beta2 = beta2_raw * 2 + 1;                               // implies beta2 ~ normal(1, 2)
 sigma_beta = sigma_beta_raw * 3;
 
@@ -208,11 +208,11 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.90
+DELTA <- 0.95
 TREE_DEPTH <- 16
-STEP_SIZE <- 0.05
-CHAINS <- 4
-ITER <- 3000
+STEP_SIZE <- 0.005
+CHAINS <- 3
+ITER <- 100
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = arr_time_lat_ind,
@@ -499,18 +499,18 @@ ggsave(plot = fp, filename = paste0(args, '-', MODEL_DATE, '-slope_map-arr_year.
 
 # Trace plots with PPO ----------------------------------------------------
 
-# mu_alpha = mu_alpha_raw * 20 + 70;
-# sigma_alpha = sigma_alpha_raw * 10;
-# sigma_x_true = sigma_x_true_raw * 10;
-# alpha2 = alpha2_raw * 10;
-# beta2 = beta2_raw * 2 + 1;
+# mu_alpha = mu_alpha_raw * 10 + 130;                       // implies mu_alpha ~ normal(130, 10)
+# sigma_alpha = sigma_alpha_raw * 10;                      // implies sigma_alpha ~ halfnormal(0, 10)
+# sigma_x_true = sigma_x_true_raw * 5;                    // implies sigma_x_true ~ halfnormal(0, 5)
+# alpha2 = alpha2_raw * 5;                                // implies alpha2 ~ normal(0, 5)
+# beta2 = beta2_raw * 2 + 1;                               // implies beta2 ~ normal(1, 2)
 # sigma_beta = sigma_beta_raw * 3;
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', ARR_TIME_LAT_IND_DIR))
 
 
-#mu_alpha ~ normal(70, 20)
-PR <- rnorm(10000, 70, 20)
+#mu_alpha ~ normal(130, 10)
+PR <- rnorm(10000, 130, 10)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
@@ -526,8 +526,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', MODEL_DATE, '-trace_sigma_alpha.pdf'))
 
-#sigma_x_true ~ halfnormal(0, 10)
-PR_p <- rnorm(10000, 0, 10)
+#sigma_x_true ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_x_true',
@@ -535,8 +535,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', MODEL_DATE, '-trace_sigma_x_true.pdf'))
 
-#alpha2 ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#alpha2 ~ normal(0, 5)
+PR <- rnorm(10000, 0, 5)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha2',
                    priors = PR,
