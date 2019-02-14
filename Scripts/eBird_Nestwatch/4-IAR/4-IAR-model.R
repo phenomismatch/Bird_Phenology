@@ -382,11 +382,11 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
+DELTA <- 0.95
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 5000
+ITER <- 3000
 
 tt <- proc.time()
 fit <- stan(model_code = IAR_2,
@@ -491,12 +491,12 @@ PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output2.rds'))
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output3.rds'))
 
 
 
 options(max.print = 50000)
-sink(paste0(args, '-', IAR_out_date, '-iar-stan_results2.txt'))
+sink(paste0(args, '-', IAR_out_date, '-iar-stan_results3.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -570,12 +570,12 @@ nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 #create output image dir if it doesn't exist
 
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '2')),
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '2')),
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3')),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3')),
        FALSE)
 
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '2'))
+setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3'))
 
 #loop plots for each year
 for (i in 1:length(years))
