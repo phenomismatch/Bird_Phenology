@@ -208,11 +208,11 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 
-DELTA <- 0.93
-TREE_DEPTH <- 15
+DELTA <- 0.97
+TREE_DEPTH <- 16
 STEP_SIZE <- 0.005
 CHAINS <- 4
-ITER <- 3000
+ITER <- 5000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = arr_time_lat_ind,
