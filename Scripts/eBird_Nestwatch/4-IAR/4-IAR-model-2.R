@@ -409,7 +409,7 @@ fit <- rstan::stan(model_code = IAR_2,
             iter = ITER,
             cores = CHAINS,
             pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', 'sigma_nu',
-                     'gamma', 'rho', 'theta', 'phi', 'nu', 'sigma_nu'),
+                     'gamma', 'rho', 'theta', 'phi', 'nu', 'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
@@ -534,6 +534,48 @@ sink()
 #extract median and sd estimates for mu params
 med_fit <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = median)[[1]]
 sd_fit <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = sd)[[1]]
+
+
+#create y_true and y_rep manually
+# gamma_ch <- MCMCvis::MCMCpstr(fit, params = 'gamma', type = 'chains')[[1]]
+# nu_ch <- MCMCvis::MCMCpstr(fit, params = 'nu', type = 'chains')[[1]]
+# sigma_nu_ch <- MCMCvis::MCMCpstr(fit, params = 'sigma_nu', type = 'chains')[[1]]
+# 
+# y_t <- array(NA, c(ncell, nyr, dim(gamma_ch)[2]))
+# for (j in 1:nyr)
+# {
+#   #j <- 1
+#   for (i in 1:ncell)
+#   {
+#     #i <- 1
+#     y_t[i,j,] <- gamma_ch[i,] + nu_ch[i,j,] * sigma_nu_ch
+#   }
+# }
+# 
+# med_fit <- apply(y_t, c(1,2), median)
+# sd_fit <- apply(y_t, c(1,2), sd)
+
+
+# # y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
+# y_rep <- array(NA, c(ncell*nyr, dim(gamma_ch)[2]))
+# counter <- 1
+# for (j in 1:nyr)
+# {
+#   #j <- 1
+#   for (i in 1:ncell)
+#   {
+#     #i <- 1
+#     for (k in 1:dim(y_rep)[2])
+#     {
+#       #k <- 2
+#       y_rep[counter, k] <- rnorm(1, y_t[i,j,k], sigma_y_in[i,j])
+#     }
+#     counter <- counter + 1
+#   }
+# }
+
+
+
 
 
 #transform cells to grid
@@ -734,6 +776,13 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_nu.pdf'))
 
+#rho ~ beta(0.5, 0.5)
+PR <- rbeta(10000, 0.5, 0.5)
+MCMCvis::MCMCtrace(fit,
+                   params = 'rho',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_rho.pdf'))
 
 if ('Rplots.pdf' %in% list.files())
 {
