@@ -336,7 +336,7 @@ for (i in 1:N)
 for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
-  y_true[,j] = gammma + nu[,j] * sigma_nu;
+  y_true[,j] = gamma + nu[,j] * sigma_nu;
 }
 
 // indexing to avoid NAs
@@ -349,15 +349,16 @@ for (j in 1:J)
 
 model {
 
-for (i in 1:N)
-{
-  gamma_raw[i] ~ normal(0, 1);
-}
-  
 alpha_gamma_raw ~ normal(0, 1);
 beta_gamma_raw ~ normal(0, 1);
 sigma_gamma_raw ~ normal(0, 1);
 sigma_nu_raw ~ normal(0, 1);
+rho ~ beta(0.5, 0.5);
+
+for (i in 1:N)
+{
+  gamma_raw[i] ~ normal(0, 1);
+}
 
 for (j in 1:J)
 {
@@ -398,11 +399,11 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.95
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.001
-CHAINS <- 1
-ITER <- 30
+CHAINS <- 4
+ITER <- 3000
 
 tt <- proc.time()
-fit <- stan(model_code = IAR_2,
+fit <- rstan::stan(model_code = IAR_2,
             data = DATA,
             chains = CHAINS,
             iter = ITER,
@@ -504,12 +505,12 @@ PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output3.rds'))
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
 
 
 
 options(max.print = 50000)
-sink(paste0(args, '-', IAR_out_date, '-iar-stan_results3.txt'))
+sink(paste0(args, '-', IAR_out_date, '-iar-stan_results.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -583,12 +584,12 @@ nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 #create output image dir if it doesn't exist
 
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3')),
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3')),
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
        FALSE)
 
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3'))
+setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
 
 #loop plots for each year
 for (i in 1:length(years))
@@ -694,10 +695,9 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 
 # alpha_gamma = alpha_gamma_raw * 30;
-# beta_gamma = beta_gamma_raw * 5 + 2;
-# mu_beta0 = mu_beta0_raw * 30;
-# sigma_y_true = sigma_y_true_raw * 5;
+# beta_gamma = beta_gamma_raw * 3 + 2;
 # sigma_gamma = sigma_gamma_raw * 5;
+# sigma_nu = sigma_nu_raw * 5;
 
 
 #alpha_gamma ~ normal(0, 30)
@@ -708,30 +708,13 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_alpha_gamma.pdf'))
 
-#beta_gamma ~ normal(2, 5)
-PR <- rnorm(10000, 2, 5)
+#beta_gamma ~ normal(2, 3)
+PR <- rnorm(10000, 2, 3)
 MCMCvis::MCMCtrace(fit,
                    params = 'beta_gamma',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_beta_gamma.pdf'))
-
-# #mu_beta0 ~ normal(0, 30)
-# PR <- rnorm(10000, 0, 30)
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'mu_beta0',
-#                    priors = PR,
-#                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta0-3.pdf'))
-
-#sigma_y_true ~ halfnormal(0, 5)
-PR_p <- rnorm(10000, 0, 5)
-PR <- PR_p[which(PR_p > 0)]
-MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_y_true',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_y_true.pdf'))
 
 #sigma_gamma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -742,14 +725,14 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma.pdf'))
 
-#sigma_phi ~ halfnormal(0, 5)
+#sigma_nu ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_phi',
+                   params = 'sigma_nu',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_phi.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_nu.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
