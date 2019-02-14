@@ -285,9 +285,9 @@ real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
 matrix[N, J] phi;                                     // spatial error component (centered on 0)
 vector[N] gamma_raw;
-real<lower = 1, upper = 200> y_true[N, J];
 real<lower = 0> sigma_y_true_raw;
 real<lower = 0> sigma_phi_raw;
+matrix[N, J] y_true_raw;
 }
 
 transformed parameters {
@@ -302,13 +302,14 @@ real mu_gamma[N];
 real<lower = 0> sigma_y_true;
 matrix[N, J] mu;                                      // latent true halfmax values
 real<lower = 0> sigma_phi;
+matrix[N, J] y_true;
 
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 3 + 2;
 // mu_beta0 = mu_beta0_raw * 30;
-sigma_y_true = sigma_y_true_raw * 5;
-sigma_gamma = sigma_gamma_raw * 5;
-sigma_phi = sigma_phi_raw * 5;
+sigma_y_true = sigma_y_true_raw * 3;
+sigma_gamma = sigma_gamma_raw * 3;
+sigma_phi = sigma_phi_raw * 3;
 
 for (i in 1:N)
 {
@@ -321,6 +322,7 @@ for (j in 1:J)
   // beta0[j] = beta0_raw[j] * 15 + mu_beta0;
   // mu[,j] = beta0[j] + gamma + phi[,j];
   mu[,j] = gamma + phi[,j] * sigma_phi;
+  y_true[,j] = y_true_raw[,j] * sigma_y_true + mu[,j];
 }
 
 // indexing to avoid NAs
@@ -347,12 +349,12 @@ for (i in 1:N)
 
 for (j in 1:J)
 {
+  y_true_raw[,j] ~ normal(0, 1);  
   // beta0_raw[j] ~ normal(0, 1);
   target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   
   y[,j] ~ normal(y_true[,j], sigma_y[,j]);
-  y_true[,j] ~ normal(mu[,j], sigma_y_true);
 }
 
 }
@@ -385,7 +387,7 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.95
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.001
-CHAINS <- 4
+CHAINS <- 3
 ITER <- 3000
 
 tt <- proc.time()
@@ -395,7 +397,7 @@ fit <- stan(model_code = IAR_2,
             iter = ITER,
             cores = CHAINS,
             pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', 'sigma_phi', #'beta0', 'mu_beta0',
-                     'gamma', 'sigma_y_true', 'phi', 'y_true', 'y_rep'),
+                     'gamma', 'sigma_y_true', 'sigma_phi', 'phi', 'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
@@ -442,7 +444,7 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 # fit <- readRDS('IAR_stan_Catharus_minimus-2019-02-11-test-2.rds')
-# fit <- readRDS('IAR_stan_Empidonax_virescens-2019-02-11-test-2.rds')
+# fit <- readRDS('Empidonax_virescens-2019-02-13-iar-stan_output3.rds')
 # fit <- readRDS('Vireo_olivaceus-2019-02-13-IAR_stan-test-3.rds')
 
 # MCMCtrace(fit)
