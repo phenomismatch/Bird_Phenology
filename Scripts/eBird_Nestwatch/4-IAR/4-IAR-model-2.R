@@ -274,7 +274,8 @@ DATA <- list(J = nyr,
              scaling_factor = scaling_factor,
              ii_obs = ii_obs_in,
              ii_mis = ii_mis_in,
-             lat = cellcenters$lat_deg)
+             lat = cellcenters$lat_deg,
+             yrs = 1:nyr)
 
 
 # Stan model --------------------------------------------------------------
@@ -297,6 +298,7 @@ int<lower = 0> ii_obs[N, J];                          // indices of observed dat
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
 real<lower = 26, upper = 90> lat[N];
+real<lower = 1> yrs[J];
 }
 
 parameters {
@@ -309,6 +311,9 @@ matrix[N, J] theta;                                   // non-spatial error compo
 vector[N] gamma_raw;
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 real<lower = 0> sigma_nu_raw;
+vector[N] beta_raw;
+real<lower = 0> sigma_beta_raw;
+real mu_beta_raw;
 }
 
 transformed parameters {
@@ -321,22 +326,28 @@ real mu_gamma[N];
 real<lower = 0> sigma_nu;
 matrix[N, J] y_true;
 matrix[N, J] nu;                            // spatial and non-spatial component
+vector[N] beta;
+real<lower = 0> sigma_beta;
+real mu_beta;
 
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_gamma = sigma_gamma_raw * 5;
 sigma_nu = sigma_nu_raw * 5;
+mu_beta = mu_beta_raw * 2;
+sigma_beta = sigma_beta_raw * 2;
 
 for (i in 1:N)
 {
   mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
   gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
+  beta[i] = beta_raw[i] * sigma_beta + mu_beta;
 }
 
 for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
-  y_true[,j] = gamma + nu[,j] * sigma_nu;
+  y_true[,j] = gamma + beta * yrs[j] + nu[,j] * sigma_nu;
 }
 
 // indexing to avoid NAs
@@ -354,6 +365,9 @@ beta_gamma_raw ~ normal(0, 1);
 sigma_gamma_raw ~ normal(0, 1);
 sigma_nu_raw ~ normal(0, 1);
 rho ~ beta(0.5, 0.5);
+sigma_beta_raw ~ normal(0, 1);
+mu_beta_raw ~ normal(0, 1);
+beta_raw ~ normal(0, 1);
 
 for (i in 1:N)
 {
@@ -396,7 +410,7 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.96
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.001
 CHAINS <- 4
@@ -408,7 +422,7 @@ fit <- rstan::stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', 'sigma_nu',
+            pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', 'sigma_nu', 'beta', 'mu_beta', 'sigma_beta',
                      'gamma', 'rho', 'theta', 'phi', 'nu', 'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
@@ -554,6 +568,7 @@ sd_fit <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = sd)[[1]]
 # 
 # med_fit <- apply(y_t, c(1,2), median)
 # sd_fit <- apply(y_t, c(1,2), sd)
+# mean_fit <- apply(y_t, c(1,2), mean)
 
 
 # # y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
