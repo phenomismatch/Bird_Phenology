@@ -255,6 +255,7 @@ for (j in 1:nyr)
 
 #fill 0 where NA in y_obs - Stan does not like NA and zeros are not being used to estimate any param (y_obs is used to fill y)
 y_obs_in[which(is.na(y_obs_in), arr.ind = TRUE)] <- 0
+#see script here showing this value fo sigma_y_in has no impact on y_true: Archive/test_sigma_insert.R
 sigma_y_in[which(is.na(sigma_y_in), arr.ind = TRUE)] <- 0.1
 ii_obs_in[which(is.na(ii_obs_in), arr.ind = TRUE)] <- 0
 ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
@@ -379,6 +380,8 @@ rho ~ beta(0.5, 0.5);
 // sigma_beta_raw ~ normal(0, 1);
 // mu_beta_raw ~ normal(0, 1);
 beta_raw ~ normal(0, 1);
+mu_sn_raw ~ normal(0, 1);
+sigma_sn_raw ~ normal(0, 1);
 
 for (i in 1:N)
 {
@@ -433,8 +436,8 @@ fit <- rstan::stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', 'sigma_nu', 'beta', #'mu_beta', 'sigma_beta',
-                     'gamma', 'rho', 'theta', 'phi', 'nu', 'y_true', 'y_rep'),
+            pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', 'beta', #'mu_beta', 'sigma_beta',
+                     'sigma_nu', 'mu_sn', 'sigma_sn', 'gamma', 'rho', 'nu', 'theta', 'phi', 'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
