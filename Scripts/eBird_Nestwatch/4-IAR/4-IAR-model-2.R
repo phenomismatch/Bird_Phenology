@@ -317,7 +317,7 @@ real<lower = 0> sigma_beta_raw;
 real mu_beta_raw;
 real beta0_raw;
 real mu_sn_raw;
-real sigma_sn_raw;
+// real sigma_sn_raw;
 }
 
 transformed parameters {
@@ -333,9 +333,10 @@ matrix[N, J] nu;                            // spatial and non-spatial component
 vector[N] beta;
 real<lower = 0> sigma_beta;
 real mu_beta;
+real beta0;
 // real beta;
 real mu_sn;
-real sigma_sn;
+// real sigma_sn;
 
 
 // alpha_gamma = alpha_gamma_raw * 30;
@@ -344,8 +345,8 @@ real sigma_sn;
 mu_beta = mu_beta_raw * 1;
 sigma_beta = sigma_beta_raw * 3;
 // beta = beta_raw * 2;
-mu_sn = mu_sn_raw * 1;
-sigma_sn = sigma_sn_raw * 0.5;
+mu_sn = mu_sn_raw * 1.5;
+// sigma_sn = sigma_sn_raw * 1;
 beta0 = beta0_raw * 10 + 130;
 
 for (i in 1:N)
@@ -359,7 +360,7 @@ for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
 
-  sigma_nu[j] = exp(sigma_nu_raw[j] * sigma_sn + mu_sn);  //implies sigma_nu[j] ~ lognormal(mu_sn, sigma_sn) 
+  sigma_nu[j] = exp(sigma_nu_raw[j] * 0.7 + mu_sn);  //implies sigma_nu[j] ~ lognormal(mu_sn, 0.7) 
   y_true[,j] = beta0 + beta * yrs[j] + nu[,j] * sigma_nu[j];
 }
 
@@ -383,7 +384,7 @@ sigma_beta_raw ~ normal(0, 1);
 beta_raw ~ normal(0, 1);
 beta0_raw ~ normal(0, 1);
 mu_sn_raw ~ normal(0, 1);
-sigma_sn_raw ~ normal(0, 1);
+// sigma_sn_raw ~ normal(0, 1);
 // gamma_raw ~ normal(0, 1);
 
 for (j in 1:J)
@@ -426,7 +427,7 @@ DELTA <- 0.97
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 5000
+ITER <- 6000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -435,8 +436,8 @@ fit <- rstan::stan(model_code = IAR_2,
             iter = ITER,
             cores = CHAINS,
             pars = c('beta', 'mu_beta', 'sigma_beta', 'beta0',
-                     #'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-                     'sigma_nu', 'mu_sn', 'sigma_sn', 'rho', 'nu', 'theta', 'phi', 
+                     #'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma', 'sigma_nu', 
+                     'mu_sn', 'sigma_sn', 'rho', 'nu', 'theta', 'phi', 
                      'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
