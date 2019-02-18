@@ -79,9 +79,9 @@ f_LL_daymet$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 cells <- sort(unique(f_LL_daymet$cell))
 
 #get julian days - Feb 1 - April 30 (following Hurlbert and Liang PLOS One)
-start_jday <- as.numeric(format(as.Date(paste0('01-02-', YEAR), 
+start_jday <- as.numeric(format(as.Date(paste0('01-02-', as.numeric(args)), 
                                         format = '%d-%m-%Y'), format = '%j'))
-end_jday <- as.numeric(format(as.Date(paste0('30-04-', YEAR), 
+end_jday <- as.numeric(format(as.Date(paste0('30-04-', as.numeric(args)),
                                       format = '%d-%m-%Y'), format = '%j'))
 
 #spring mean for dm cell
