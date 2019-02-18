@@ -18,132 +18,111 @@
 library(ncdf4)
 library(dplyr)
 library(dggridR)
-library(doParallel)
-library(foreach)
+library(abind)
 
 
 
 # top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
-
-
-# args --------------------------------------------------------------------
-
-#args is year - 2002 to 2017
-args <- commandArgs(trailingOnly = TRUE)
-#args <- '2002'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
 # read in data -----------------------------------------------------------
 
-#only through 2017 at the moment
-
-daymet_url <- paste0('https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1328/', 
-                     args, '/daymet_v3_tmax_', args, '_na.nc4')
-daymet_data <- ncdf4::nc_open(daymet_url)
-
-#get lat/lons
-daymet_lats <- ncdf4::ncvar_get(daymet_data, "lat")
-daymet_lons <- ncdf4::ncvar_get(daymet_data, "lon")
-
-#pair up lat/lons - filled by columns
-LL_daymet <- data.frame(LATS = as.vector(daymet_lats), 
-                        LONS = as.vector(daymet_lons),
-                        ROW_IND = rep(1:NROW(daymet_lats), times = NCOL(daymet_lats)),
-                        COL_IND = rep(1:NCOL(daymet_lats), each = NROW(daymet_lats)))
-
-#filter by relevant location
-f_LL_daymet <- dplyr::filter(LL_daymet, 
-                             LONS > -100 & LONS < -50 & LATS > 26)
-
-#create grid
-hexgrid6 <- dggridR::dgconstruct(res = 6)
-
-#see which cells the lat/lons are associated with
-f_LL_daymet$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                             in_lon_deg = f_LL_daymet$LONS, 
-                                             in_lat_deg = f_LL_daymet$LATS)[[1]]
-
-#check to make sure things are sorted properly
-# mylat <- f_LL_daymet$LATS[500000]
-# mylon <- f_LL_daymet$LONS[500000]
-# f_LL_daymet[500000,] == which(daymet_lats == mylat & daymet_lons == mylon, arr.ind = TRUE)
-
-#get unique cells in area of interest
-cells <- sort(unique(f_LL_daymet$cell))
-
-#get julian days - Feb 1 - April 30 (following Hurlbert and Liang PLOS One)
-start_jday <- as.numeric(format(as.Date(paste0('01-02-', as.numeric(args)), 
-                                        format = '%d-%m-%Y'), format = '%j'))
-end_jday <- as.numeric(format(as.Date(paste0('30-04-', as.numeric(args)),
-                                      format = '%d-%m-%Y'), format = '%j'))
-
-#spring mean for dm cell
-f_LL_daymet$mean_dmcell_val <- NA
-#average of all dm cells within that hex cell
-f_LL_daymet$mean_hex_val <- NA
-
-
-# process cells in parallel -----------------------------------------------
-
 tt <- proc.time()
 
-doParallel::registerDoParallel(cores = 5)
-OUT <- foreach::foreach(i = 1:length(cells), .combine = 'rbind') %dopar% 
-{
-  #i <- 1
-  dm_temp <- dplyr::filter(f_LL_daymet, cell == cells[i])
-  
-  #extract values over temporal period of interest for each daymet cell that falls within hex grid cell
-  dm_cell_tmax <- rep(NA, NROW(dm_temp))
-  for (j in 1:NROW(dm_temp))
-  {
-    #j <- 569
-    print(paste0('year: ', args, '; hex_cell: ', i, '; dm_cell: ', j))
-    #cells over water will have NA
-    t_tmax <- ncdf4::ncvar_get(daymet_data, "tmax", 
-                               start = c(dm_temp$ROW_IND[j], dm_temp$COL_IND[j], start_jday), 
-                               count = c(1, 1, (end_jday - start_jday)))
-    print(paste0('success - ', args, '; ', i, '; ', j))
-    #take mean of values for that period
-    mt_tmax <- mean(t_tmax, na.rm = TRUE)
-    dm_cell_tmax[j] <- mt_tmax
-  }
-  
-  dm_temp$mean_dmcell_val <- dm_cell_tmax
-  dm_temp$mean_hex_val <- mean(dm_cell_tmax, na.rm = TRUE)
-  #ind <- which(f_LL_daymet$cell == cells[i])
-  #f_LL_daymet[ind,'mean_dmcell_val'] <- dm_cell_tmax
-  #f_LL_daymet[ind,'mean_hex_val'] <- mean(dm_cell_tmax, na.rm = TRUE)
-  
-  return(dm_temp)
-}
+#only through 2017 at the moment
+YEARS <- 2002:2017
 
+COUNTER <- 1
+for (k in 1:length(YEARS))
+{
+  #k <- 1
+  daymet_url <- paste0('https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1345/daymet_v3_tmax_monavg_', YEARS[k], '_na.nc4')
+
+  daymet_data <- ncdf4::nc_open(daymet_url)
+
+  #get lat/lons
+  daymet_lats <- ncdf4::ncvar_get(daymet_data, "lat")
+  daymet_lons <- ncdf4::ncvar_get(daymet_data, "lon")
+
+  #get temp data
+  daymet_tmax <- ncdf4::ncvar_get(daymet_data, 'tmax')
+
+  #Feb, Mar, Apr, and FMA
+  Feb_tmax <- daymet_tmax[,,2]
+  Mar_tmax <- daymet_tmax[,,3]
+  Apr_tmax <- daymet_tmax[,,4]
+  FMA_array <- abind::abind(Feb_tmax, Mar_tmax, Apr_tmax, along = 3)
+  FMA_tmax <- apply(FMA_array, c(1,2), mean)
+
+
+  #lat/lons, temps in data.frame
+  LL_daymet <- data.frame(LATS = as.vector(daymet_lats), 
+                          LONS = as.vector(daymet_lons),
+                          ROW_IND = rep(1:NROW(daymet_lats), times = NCOL(daymet_lats)),
+                          COL_IND = rep(1:NCOL(daymet_lats), each = NROW(daymet_lats)),
+                          F_tmax = as.vector(Feb_tmax), 
+                          M_tmax = as.vector(Mar_tmax), 
+                          A_tmax = as.vector(Apr_tmax), 
+                          FMA_tmax = as.vector(FMA_tmax))
+
+  #filter by relevant location
+  f_LL_daymet <- dplyr::filter(LL_daymet, 
+                               LONS > -100 & LONS < -50 & LATS > 26)
+
+  #create grid
+  hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+  #see which cells the lat/lons are associated with
+  f_LL_daymet$hex_cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+                                               in_lon_deg = f_LL_daymet$LONS, 
+                                               in_lat_deg = f_LL_daymet$LATS)[[1]]
+
+  #check to make sure things are sorted properly
+  # mylat <- f_LL_daymet$LATS[500000]
+  # mylon <- f_LL_daymet$LONS[500000]
+  # f_LL_daymet[500000,] == which(daymet_lats == mylat & daymet_lons == mylon, arr.ind = TRUE)
+
+  hex_cells <- sort(unique(f_LL_daymet$hex_cell))
+
+  #create df if first year
+  if (k == 1)
+  {
+    #average over daymet cells for each hexcell - 
+    HEX_daymet <- data.frame(cell = rep(hex_cells, times = length(YEARS)),
+                             year = rep(YEARS, each = length(hex_cells)),
+                             HC_F_tmax = NA,
+                             HC_M_tmax = NA,
+                             HC_A_tmax = NA,
+                             HC_FMA_tmax = NA)
+  }
+
+  #fill df
+  for (i in 1:length(hex_cells))
+  {
+    #i <- 1
+    t_daymet <- dplyr::filter(f_LL_daymet, hex_cell == hex_cells[i])
+    HEX_daymet$HC_F_tmax[COUNTER] <- mean(t_daymet$F_tmax, na.rm = TRUE)
+    HEX_daymet$HC_M_tmax[COUNTER] <- mean(t_daymet$M_tmax, na.rm = TRUE)
+    HEX_daymet$HC_A_tmax[COUNTER] <- mean(t_daymet$A_tmax, na.rm = TRUE)
+    HEX_daymet$HC_FMA_tmax[COUNTER] <- mean(t_daymet$FMA_tmax, na.rm = TRUE)
+    COUNTER <- COUNTER + 1
+  }
+}
 proc.time() - tt
+  
+  
+  
+  
+# write to rds file -------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 
-saveRDS(OUT, 'daymet_hex_', args, '.rds')
-
-
-#3-4 hours?
-#submit each year as its own job - 16 jobs
-
-
-#test - works as expected
-# t_df <- data.frame(group = rep(1:5, each = 2), num1 = rnorm(10), num2 = NA)
-# 
-# ttt_out <- foreach::foreach(i = 1:5, .combine = 'rbind') %dopar% 
-# {
-#   #i <- 1
-#   test_temp <- dplyr::filter(t_df, group == i)
-#   test_temp$num2 <- mean(test_temp$num1)
-#   return(test_temp)
-# }
+saveRDS(HEX_daymet, 'daymet_hex_tmax.rds')
 
