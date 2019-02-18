@@ -1,7 +1,7 @@
 ################################
 #Extract temperature data for NA
 #
-#Could be sped up using foreach - may be memory pressure, though
+#ask 7 cores, 30GB
 ################################
 
 #mean min temp for Feb-April, following Hurlbert and Liang 2012
@@ -19,16 +19,17 @@ library(ncdf4)
 library(dplyr)
 library(dggridR)
 library(abind)
-
+library(foreach)
+library(doParallel)
 
 
 # top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
@@ -39,11 +40,13 @@ tt <- proc.time()
 #only through 2017 at the moment
 YEARS <- 2002:2017
 
-COUNTER <- 1
-pb <- txtProgressBar(min = 0, max = length(YEARS), style = 3)
-for (k in 1:length(YEARS))
+#for (k in 1:length(YEARS))
+
+doParallel::registerDoParallel(cores = 6)
+OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
 {
   #k <- 1
+
   daymet_url <- paste0('https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1345/daymet_v3_tmax_monavg_', YEARS[k], '_na.nc4')
 
   daymet_data <- ncdf4::nc_open(daymet_url)
@@ -92,39 +95,40 @@ for (k in 1:length(YEARS))
 
   hex_cells <- sort(unique(f_LL_daymet$hex_cell))
 
-  #create df if first year
-  if (k == 1)
-  {
-    #average over daymet cells for each hexcell - 
-    HEX_daymet <- data.frame(cell = rep(hex_cells, times = length(YEARS)),
-                             year = rep(YEARS, each = length(hex_cells)),
-                             HC_F_tmax = NA,
-                             HC_M_tmax = NA,
-                             HC_A_tmax = NA,
-                             HC_FMA_tmax = NA)
-  }
+  #average over daymet cells for each hexcell - 
+  HEX_daymet <- data.frame(cell = hex_cells,
+                           year = YEARS,
+                           HC_F_tmax = NA,
+                           HC_M_tmax = NA,
+                           HC_A_tmax = NA,
+                           HC_FMA_tmax = NA)
 
+  
+  pb <- txtProgressBar(min = 0, max = length(hex_cells), style = 3)
   #fill df
   for (i in 1:length(hex_cells))
   {
     #i <- 1
     t_daymet <- dplyr::filter(f_LL_daymet, hex_cell == hex_cells[i])
-    HEX_daymet$HC_F_tmax[COUNTER] <- mean(t_daymet$F_tmax, na.rm = TRUE)
-    HEX_daymet$HC_M_tmax[COUNTER] <- mean(t_daymet$M_tmax, na.rm = TRUE)
-    HEX_daymet$HC_A_tmax[COUNTER] <- mean(t_daymet$A_tmax, na.rm = TRUE)
-    HEX_daymet$HC_FMA_tmax[COUNTER] <- mean(t_daymet$FMA_tmax, na.rm = TRUE)
-    COUNTER <- COUNTER + 1
+    HEX_daymet$HC_F_tmax[i] <- mean(t_daymet$F_tmax, na.rm = TRUE)
+    HEX_daymet$HC_M_tmax[i] <- mean(t_daymet$M_tmax, na.rm = TRUE)
+    HEX_daymet$HC_A_tmax[i] <- mean(t_daymet$A_tmax, na.rm = TRUE)
+    HEX_daymet$HC_FMA_tmax[i] <- mean(t_daymet$FMA_tmax, na.rm = TRUE)
+
+    print(paste0(YEAR))
+    setTxtProgressBar(pb, i)
   }
-  setTxtProgressBar(pb, k)
+  
+  return(HEX_daymet)
 }
 proc.time() - tt
 
   
   
-  
+
 # write to rds file -------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 
-saveRDS(HEX_daymet, 'daymet_hex_tmax.rds')
+saveRDS(OUT, 'daymet_hex_tmax.rds')
 
