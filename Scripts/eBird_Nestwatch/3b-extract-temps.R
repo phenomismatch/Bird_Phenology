@@ -1,10 +1,10 @@
 ################################
 #Extract temperature data for NA
 #
-#Set for 5 cores, 30GB
+#Could be sped up using foreach - may be memory pressure, though
 ################################
 
-#mean min temp for Feb-April
+#mean min temp for Feb-April, following Hurlbert and Liang 2012
 
 #resources:
 #http://rpubs.com/boyerag/297592
@@ -40,6 +40,7 @@ tt <- proc.time()
 YEARS <- 2002:2017
 
 COUNTER <- 1
+pb <- txtProgressBar(min = 0, max = length(YEARS), style = 3)
 for (k in 1:length(YEARS))
 {
   #k <- 1
@@ -114,9 +115,10 @@ for (k in 1:length(YEARS))
     HEX_daymet$HC_FMA_tmax[COUNTER] <- mean(t_daymet$FMA_tmax, na.rm = TRUE)
     COUNTER <- COUNTER + 1
   }
+  setTxtProgressBar(pb, k)
 }
 proc.time() - tt
-  
+
   
   
   
