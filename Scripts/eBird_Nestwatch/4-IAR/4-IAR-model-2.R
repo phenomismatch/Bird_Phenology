@@ -7,10 +7,12 @@
 # i = cell
 # j = year
 # y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
-# y_{true[i,j]} = \gamma_{[i]} + \nu_{[i,j]} * \sigma_{\nu}
-# \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
+# y_{true[i,j]} = \gamma_{[i]} + \beta_{[j]} * temp_{[i,j]} + \nu_{[i,j]} * \sigma_{\nu[j]}
 # \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
 # \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
+# \beta_{[j]} \sim N(\mu_{\beta}, \sigma_{\beta})
+# \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
+# \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
 #
 ######################
 
@@ -189,12 +191,25 @@ scaling_factor <- exp(mean(log(diag(Q_inv))))
 
 
 
+# process daymet data -----------------------------------------------------
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
+
+daymet_tmax <- readRDS('daymet_hex_tmax.rds')
+
+#filter by relevant cells
+f_daym_tmax <- dplyr::filter(daymet_temp, cell %in% cells)
+
+
+
 # create Stan data object -------------------------------------------------
 
-#create and fill sds and obs
+#create and fill sds, obs, data for PPC, and temp
 sigma_y_in <- matrix(nrow = ncell, ncol = nyr)
 y_obs_in <- matrix(nrow = ncell, ncol = nyr)
 y_PPC <- rep(NA, ncell * nyr)
+tmax <- matrix(nrow = ncell, ncol = nyr)
+
 
 #number of observation and NAs for each year
 len_y_obs_in <- rep(NA, nyr)
@@ -209,8 +224,8 @@ counter <- 1
 for (j in 1:nyr)
 {
   #j <- 16
-  temp_yr_p <- dplyr::filter(f_out, year == years[j])
-  temp_yr <- temp_yr_p
+  temp_yr <- dplyr::filter(f_out, year == years[j])
+  temp_tmax <- dplyr::filter(f_daym_tmax, year == years[j])
   
   #don't need to manipulate position of sigmas
   sigma_y_in[,j] <- temp_yr$HM_sd
@@ -221,6 +236,10 @@ for (j in 1:nyr)
     #matrix with observed values with NAs
     y_PPC[counter] <- temp_yr$HM_mean[n]
     counter <- counter + 1
+    
+    #fiter daymet temp data by cell and fill matrix
+    temp_tmax2 <- dplyr::filter(temp_tmax, cell == cells[n])
+    tmax[n, j] <- temp_tmax2
   }
   
   #which are not NA
@@ -276,7 +295,8 @@ DATA <- list(J = nyr,
              ii_obs = ii_obs_in,
              ii_mis = ii_mis_in,
              lat = cellcenters$lat_deg,
-             yrs = 1:nyr)
+             yrs = 1:nyr,
+             temp = tmax)
 
 
 # Stan model --------------------------------------------------------------
@@ -304,65 +324,65 @@ real<lower = 1> yrs[J];
 
 parameters {
 real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
-// real alpha_gamma_raw;
-// real beta_gamma_raw;                                       // effect of latitude
-// real<lower = 0> sigma_gamma_raw;
-// vector[N] gamma_raw;
+real alpha_gamma_raw;
+real beta_gamma_raw;                                       // effect of latitude
+real<lower = 0> sigma_gamma_raw;
+vector[N] gamma_raw;
 matrix[N, J] phi;                                     // spatial error component (scaled to N(0,1))
 matrix[N, J] theta;                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 real<lower = 0> sigma_nu_raw[J];
-// vector[N] beta_raw;
-// real<lower = 0> sigma_beta_raw;
-// real mu_beta_raw;
-real beta_raw;
-real beta0_raw;
+vector[N] beta_raw;
+real<lower = 0> sigma_beta_raw;
+real mu_beta_raw;
+// real beta_raw;
+// real beta0_raw;
 real mu_sn_raw;
 // real sigma_sn_raw;
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
-// vector[N] gamma;
-// real alpha_gamma;
-// real beta_gamma;
-// real<lower = 0> sigma_gamma;
-// real mu_gamma[N];
+vector[N] gamma;
+real alpha_gamma;
+real beta_gamma;
+real<lower = 0> sigma_gamma;
+real mu_gamma[N];
 real<lower = 0> sigma_nu[J];
 matrix[N, J] y_true;
 matrix[N, J] nu;                            // spatial and non-spatial component
-real beta0;
-// vector[N] beta;
-// real<lower = 0> sigma_beta;
-// real mu_beta;
-real beta;
+// real beta0;
+vector[N] beta;
+real<lower = 0> sigma_beta;
+real mu_beta;
+// real beta;
 real mu_sn;
 // real sigma_sn;
 
 
-// alpha_gamma = alpha_gamma_raw * 30;
-// beta_gamma = beta_gamma_raw * 3 + 2;
-// sigma_gamma = sigma_gamma_raw * 5;
-// mu_beta = mu_beta_raw * 1;
-// sigma_beta = sigma_beta_raw * 3;
-beta = beta_raw * 2;
+alpha_gamma = alpha_gamma_raw * 30;
+beta_gamma = beta_gamma_raw * 3 + 2;
+sigma_gamma = sigma_gamma_raw * 5;
+mu_beta = mu_beta_raw * 1;
+sigma_beta = sigma_beta_raw * 3;
+// beta = beta_raw * 2;
 mu_sn = mu_sn_raw * 1.5;
 // sigma_sn = sigma_sn_raw * 1;
-beta0 = beta0_raw * 10 + 130;
+// beta0 = beta0_raw * 10 + 130;
 
-// for (i in 1:N)
-// {
-  // mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
-  // gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
-  // beta[i] = beta_raw[i] * sigma_beta + mu_beta;
-// }
+for (i in 1:N)
+{
+  mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
+  gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
+  beta[i] = beta_raw[i] * sigma_beta + mu_beta;
+}
 
 for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
 
-  sigma_nu[j] = exp(sigma_nu_raw[j] * 0.7 + mu_sn);  //implies sigma_nu[j] ~ lognormal(mu_sn, 0.7) 
-  y_true[,j] = beta0 + beta * yrs[j] + nu[,j] * sigma_nu[j];
+  sigma_nu[j] = exp(sigma_nu_raw[j] * 0.7 + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, 0.7) 
+  y_true[,j] = gamma + beta * tmax[,j] + nu[,j] * sigma_nu[j];
 }
 
 // indexing to avoid NAs
@@ -375,18 +395,41 @@ for (j in 1:J)
 
 model {
 
-// alpha_gamma_raw ~ normal(0, 1);
-// beta_gamma_raw ~ normal(0, 1);
-// sigma_gamma_raw ~ normal(0, 1);
+\\    Model in latex
+\\    ==============
+\\ y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
+\\ y_{true[i,j]} = \gamma_{[i]} + \beta_{[j]} * temp_{[i,j]} + \nu_{[i,j]} * \sigma_{\nu[j]}
+\\ \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
+\\ \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
+\\ \beta_{[j]} \sim N(\mu_{\beta}, \sigma_{\beta})
+\\ \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
+\\ \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
+\\ \rho \sim Beta(0.5, 0.5)
+\\ \theta \sim N(0, 1)
+\\ \alpha_{\gamma} \sim N(0, 30)
+\\ \beta_{\gamma} \sim N(2, 3)
+\\ \sigma_{\gamma} \sim HN(0, 5)
+\\ \mu_{\beta} \sim N(0, 1)
+\\ \sigma_{\beta} \sim HN(0, 3)
+\\ \mu_{\sigma_{\nu}} \sim N(0, 1.5)
+\\ \phi_{[i,j]} \sim N(0, [D - W]^{-1})
+\\ for each j: \sum_{i}{} \phi_{[i]} = 0
+
+
+\\ priors
+alpha_gamma_raw ~ normal(0, 1);
+beta_gamma_raw ~ normal(0, 1);
+sigma_gamma_raw ~ normal(0, 1);
 sigma_nu_raw ~ normal(0, 1);
 rho ~ beta(0.5, 0.5);
-// mu_beta_raw ~ normal(0, 1);
-// sigma_beta_raw ~ normal(0, 1);
+mu_beta_raw ~ normal(0, 1);
+sigma_beta_raw ~ normal(0, 1);
 beta_raw ~ normal(0, 1);
-beta0_raw ~ normal(0, 1);
+gamma_raw ~ normal(0, 1);
+// beta0_raw ~ normal(0, 1);
 mu_sn_raw ~ normal(0, 1);
 // sigma_sn_raw ~ normal(0, 1);
-// gamma_raw ~ normal(0, 1);
+
 
 for (j in 1:J)
 {
@@ -436,8 +479,8 @@ fit <- rstan::stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('beta', 'beta0', #'mu_beta', 'sigma_beta', 
-                     #'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma', 'sigma_sn',
+            pars = c('beta', 'mu_beta', 'sigma_beta', 
+                     'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma', #'sigma_sn', 'beta0',
                      'sigma_nu', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
                      'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
