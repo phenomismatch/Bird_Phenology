@@ -36,7 +36,7 @@ dir <- '~/Google_Drive/R/'
 
 #args is year - 2002 to 2017
 args <- commandArgs(trailingOnly = TRUE)
-#args <- 2002
+#args <- '2002'
 
 
 
@@ -90,23 +90,24 @@ f_LL_daymet$mean_dmcell_val <- NA
 f_LL_daymet$mean_hex_val <- NA
 
 
+#Var: tmax  Ndims: 3   Start: 31,4,4703 Count: 88,1,1
 
 # process cells in parallel -----------------------------------------------
 
 tt <- proc.time()
 
-doParallel::registerDoParallel(cores = 3)
-OUT <- foreach::foreach(i = 1:10, .combine = 'rbind') %dopar% 
+doParallel::registerDoParallel(cores = 2)
+OUT <- foreach::foreach(i = 1:4, .combine = 'rbind') %dopar% 
 #OUT <- foreach::foreach(i = 1:length(cells), .combine = 'rbind') %dopar% 
 {
-  #i <- 1
+  #i <- 2
   dm_temp <- dplyr::filter(f_LL_daymet, cell == cells[i])
   
   #extract values over temporal period of interest for each daymet cell that falls within hex grid cell
   dm_cell_tmax <- rep(NA, NROW(dm_temp))
   for (j in 1:NROW(dm_temp))
   {
-    #j <- 1
+    #j <- 568
     #cells over water will have NA
     t_tmax <- ncdf4::ncvar_get(daymet_data, "tmax", 
                                start = c(dm_temp$ROW_IND[j], dm_temp$COL_IND[j], start_jday), 
