@@ -312,9 +312,10 @@ matrix[N, J] phi;                                     // spatial error component
 matrix[N, J] theta;                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 real<lower = 0> sigma_nu_raw[J];
-vector[N] beta_raw;
-real<lower = 0> sigma_beta_raw;
-real mu_beta_raw;
+// vector[N] beta_raw;
+// real<lower = 0> sigma_beta_raw;
+// real mu_beta_raw;
+real beta_raw;
 real beta0_raw;
 real mu_sn_raw;
 // real sigma_sn_raw;
@@ -427,7 +428,7 @@ DELTA <- 0.97
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 6000
+ITER <- 5000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -435,7 +436,7 @@ fit <- rstan::stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('beta', 'mu_beta', 'sigma_beta', 'beta0',
+            pars = c('beta', 'beta0', #'mu_beta', 'sigma_beta', 
                      #'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma', 'sigma_sn',
                      'sigma_nu', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
                      'y_true', 'y_rep'),
