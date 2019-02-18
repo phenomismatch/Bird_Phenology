@@ -330,11 +330,11 @@ real<lower = 0, upper = 200> y[N, J];                 // response data to be mod
 real<lower = 0> sigma_nu[J];
 matrix[N, J] y_true;
 matrix[N, J] nu;                            // spatial and non-spatial component
-vector[N] beta;
-real<lower = 0> sigma_beta;
-real mu_beta;
 real beta0;
-// real beta;
+// vector[N] beta;
+// real<lower = 0> sigma_beta;
+// real mu_beta;
+real beta;
 real mu_sn;
 // real sigma_sn;
 
@@ -342,19 +342,19 @@ real mu_sn;
 // alpha_gamma = alpha_gamma_raw * 30;
 // beta_gamma = beta_gamma_raw * 3 + 2;
 // sigma_gamma = sigma_gamma_raw * 5;
-mu_beta = mu_beta_raw * 1;
-sigma_beta = sigma_beta_raw * 3;
-// beta = beta_raw * 2;
+// mu_beta = mu_beta_raw * 1;
+// sigma_beta = sigma_beta_raw * 3;
+beta = beta_raw * 2;
 mu_sn = mu_sn_raw * 1.5;
 // sigma_sn = sigma_sn_raw * 1;
 beta0 = beta0_raw * 10 + 130;
 
-for (i in 1:N)
-{
+// for (i in 1:N)
+// {
   // mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
   // gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
-  beta[i] = beta_raw[i] * sigma_beta + mu_beta;
-}
+  // beta[i] = beta_raw[i] * sigma_beta + mu_beta;
+// }
 
 for (j in 1:J)
 {
@@ -379,8 +379,8 @@ model {
 // sigma_gamma_raw ~ normal(0, 1);
 sigma_nu_raw ~ normal(0, 1);
 rho ~ beta(0.5, 0.5);
-mu_beta_raw ~ normal(0, 1);
-sigma_beta_raw ~ normal(0, 1);
+// mu_beta_raw ~ normal(0, 1);
+// sigma_beta_raw ~ normal(0, 1);
 beta_raw ~ normal(0, 1);
 beta0_raw ~ normal(0, 1);
 mu_sn_raw ~ normal(0, 1);
@@ -436,8 +436,8 @@ fit <- rstan::stan(model_code = IAR_2,
             iter = ITER,
             cores = CHAINS,
             pars = c('beta', 'mu_beta', 'sigma_beta', 'beta0',
-                     #'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma', 'sigma_nu', 
-                     'mu_sn', 'sigma_sn', 'rho', 'nu', 'theta', 'phi', 
+                     #'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma', 'sigma_sn',
+                     'sigma_nu', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
                      'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
