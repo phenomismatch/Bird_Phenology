@@ -1,7 +1,7 @@
 ################################
 #Extract temperature data for NA
 #
-#Set for 9 cores
+#Set for 5 cores, 30GB
 ################################
 
 #mean min temp for Feb-April
@@ -26,10 +26,10 @@ library(foreach)
 # top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 # args --------------------------------------------------------------------
@@ -90,29 +90,27 @@ f_LL_daymet$mean_dmcell_val <- NA
 f_LL_daymet$mean_hex_val <- NA
 
 
-#Var: tmax  Ndims: 3   Start: 31,4,4703 Count: 88,1,1
-
 # process cells in parallel -----------------------------------------------
 
 tt <- proc.time()
 
-doParallel::registerDoParallel(cores = 2)
-OUT <- foreach::foreach(i = 1:4, .combine = 'rbind') %dopar% 
-#OUT <- foreach::foreach(i = 1:length(cells), .combine = 'rbind') %dopar% 
+doParallel::registerDoParallel(cores = 5)
+OUT <- foreach::foreach(i = 1:length(cells), .combine = 'rbind') %dopar% 
 {
-  #i <- 2
+  #i <- 1
   dm_temp <- dplyr::filter(f_LL_daymet, cell == cells[i])
   
   #extract values over temporal period of interest for each daymet cell that falls within hex grid cell
   dm_cell_tmax <- rep(NA, NROW(dm_temp))
   for (j in 1:NROW(dm_temp))
   {
-    #j <- 568
+    #j <- 569
+    print(paste0('year: ', args, '; hex_cell: ', i, '; dm_cell: ', j))
     #cells over water will have NA
     t_tmax <- ncdf4::ncvar_get(daymet_data, "tmax", 
                                start = c(dm_temp$ROW_IND[j], dm_temp$COL_IND[j], start_jday), 
                                count = c(1, 1, (end_jday - start_jday)))
-    
+    print(paste0('success - ', args, '; ', i, '; ', j))
     #take mean of values for that period
     mt_tmax <- mean(t_tmax, na.rm = TRUE)
     dm_cell_tmax[j] <- mt_tmax
@@ -127,8 +125,9 @@ OUT <- foreach::foreach(i = 1:4, .combine = 'rbind') %dopar%
   return(dm_temp)
 }
 
+proc.time() - tt
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 
 saveRDS(OUT, 'daymet_hex_', args, '.rds')
 
