@@ -413,7 +413,7 @@ model {
 \\ \sigma_{\beta} \sim HN(0, 3)
 \\ \mu_{\sigma_{\nu}} \sim N(0, 1.5)
 \\ \phi_{[i,j]} \sim N(0, [D - W]^{-1})
-\\ for each j: \sum_{i}{} \phi_{[i]} = 0
+\\ \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
 
 
 \\ priors
@@ -467,11 +467,11 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
+DELTA <- 0.98
 TREE_DEPTH <- 18
-STEP_SIZE <- 0.001
+STEP_SIZE <- 0.0005
 CHAINS <- 4
-ITER <- 5000
+ITER <- 4000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
