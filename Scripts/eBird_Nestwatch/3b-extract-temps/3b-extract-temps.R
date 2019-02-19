@@ -115,7 +115,7 @@ OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
     HEX_daymet$HC_A_tmax[i] <- mean(t_daymet$A_tmax, na.rm = TRUE)
     HEX_daymet$HC_FMA_tmax[i] <- mean(t_daymet$FMA_tmax, na.rm = TRUE)
 
-    print(paste0(YEARS))
+    print(paste0(YEARS[k]))
     setTxtProgressBar(pb, i)
   }
   
