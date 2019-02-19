@@ -1,7 +1,7 @@
 ################################
 #Extract temperature data for NA
 #
-#Requires ~ 185GB RAM and 7 cores; ~ 2 hours runtime
+#Requires ~ 185GB RAM and 7 cores on cluster; ~ 2 hours runtime; eventually run on desktop
 ################################
 
 #mean min temp for Feb-April, following Hurlbert and Liang 2012
@@ -26,10 +26,10 @@ library(doParallel)
 # top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
@@ -42,7 +42,7 @@ YEARS <- 2002:2017
 
 #for (k in 1:length(YEARS))
 
-doParallel::registerDoParallel(cores = 6)
+doParallel::registerDoParallel(cores = 4)
 OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
 {
   #k <- 1
