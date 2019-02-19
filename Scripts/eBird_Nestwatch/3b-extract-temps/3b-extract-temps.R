@@ -1,7 +1,7 @@
 ################################
 #Extract temperature data for NA
 #
-#ask 7 cores, 30GB
+#Requires ~ 185GB RAM and 7 cores; ~ 2 hours runtime
 ################################
 
 #mean min temp for Feb-April, following Hurlbert and Liang 2012
@@ -97,7 +97,7 @@ OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
 
   #average over daymet cells for each hexcell - 
   HEX_daymet <- data.frame(cell = hex_cells,
-                           year = YEARS,
+                           year = YEARS[k],
                            HC_F_tmax = NA,
                            HC_M_tmax = NA,
                            HC_A_tmax = NA,
