@@ -29,4 +29,4 @@ singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Ting
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/7-$temp.sh"
-done < ../../../Data/IAR_species_list.txt
+done < ../../../Data/IAR_species_list-2019-02-02.txt
