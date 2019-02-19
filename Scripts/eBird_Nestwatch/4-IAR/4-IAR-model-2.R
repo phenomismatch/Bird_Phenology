@@ -27,10 +27,10 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
@@ -66,9 +66,9 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 # species arg -----------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
-#args <- as.character('Empidonax_virescens')
+args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
 
 
@@ -198,8 +198,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 daymet_tmax <- readRDS('daymet_hex_tmax.rds')
 
 #filter by relevant cells
-f_daym_tmax <- dplyr::filter(daymet_temp, cell %in% cells)
-
+f_daymet_tmax <- dplyr::filter(daymet_tmax, cell %in% cells)
 
 
 # create Stan data object -------------------------------------------------
@@ -225,7 +224,7 @@ for (j in 1:nyr)
 {
   #j <- 16
   temp_yr <- dplyr::filter(f_out, year == years[j])
-  temp_tmax <- dplyr::filter(f_daym_tmax, year == years[j])
+  temp_tmax <- dplyr::filter(f_daymet_tmax, year == years[j])
   
   #don't need to manipulate position of sigmas
   sigma_y_in[,j] <- temp_yr$HM_sd
@@ -239,7 +238,7 @@ for (j in 1:nyr)
     
     #fiter daymet temp data by cell and fill matrix
     temp_tmax2 <- dplyr::filter(temp_tmax, cell == cells[n])
-    tmax[n, j] <- temp_tmax2
+    tmax[n, j] <- temp_tmax2$HC_FMA_tmax
   }
   
   #which are not NA
@@ -296,10 +295,32 @@ DATA <- list(J = nyr,
              ii_mis = ii_mis_in,
              lat = cellcenters$lat_deg,
              yrs = 1:nyr,
-             temp = tmax)
+             tmax = tmax)
 
 
 # Stan model --------------------------------------------------------------
+
+
+# Model in latex
+# ==============
+# y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
+# y_{true[i,j]} = \gamma_{[i]} + \beta_{[j]} * temp_{[i,j]} + \nu_{[i,j]} * \sigma_{\nu[j]}
+# \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
+# \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
+# \beta_{[j]} \sim N(\mu_{\beta}, \sigma_{\beta})
+# \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
+# \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
+# \rho \sim Beta(0.5, 0.5)
+# \theta \sim N(0, 1)
+# \alpha_{\gamma} \sim N(0, 30)
+# \beta_{\gamma} \sim N(2, 3)
+# \sigma_{\gamma} \sim HN(0, 5)
+# \mu_{\beta} \sim N(0, 1)
+# \sigma_{\beta} \sim HN(0, 3)
+# \mu_{\sigma_{\nu}} \sim N(0, 1.5)
+# \phi_{[i,j]} \sim N(0, [D - W]^{-1})
+# \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
+
 
 #matrix[N,J] -> cells in rows, years in columns
 
@@ -307,7 +328,7 @@ IAR_2 <- '
 data {
 int<lower = 0> J;                                     // number of years      
 int<lower = 0> N;                                     // number of cells
-int<lower = 0> NJ;                                     // number of cell/years
+int<lower = 0> NJ;                                    // number of cell/years
 int<lower = 0> N_obs[J];                              // number of non-missing for each year
 int<lower = 0> N_mis[J];                              // number missing for each year
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
@@ -320,6 +341,7 @@ int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
 real<lower = 26, upper = 90> lat[N];
 real<lower = 1> yrs[J];
+matrix[N, J] tmax;                                    // max temp in cell/year
 }
 
 parameters {
@@ -331,7 +353,7 @@ vector[N] gamma_raw;
 matrix[N, J] phi;                                     // spatial error component (scaled to N(0,1))
 matrix[N, J] theta;                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
-real<lower = 0> sigma_nu_raw[J];
+vector<lower = 0>[J] sigma_nu_raw;
 vector[N] beta_raw;
 real<lower = 0> sigma_beta_raw;
 real mu_beta_raw;
@@ -348,7 +370,7 @@ real alpha_gamma;
 real beta_gamma;
 real<lower = 0> sigma_gamma;
 real mu_gamma[N];
-real<lower = 0> sigma_nu[J];
+vector<lower = 0>[J] sigma_nu;
 matrix[N, J] y_true;
 matrix[N, J] nu;                            // spatial and non-spatial component
 // real beta0;
@@ -380,9 +402,12 @@ for (i in 1:N)
 for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
-
   sigma_nu[j] = exp(sigma_nu_raw[j] * 0.7 + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, 0.7) 
-  y_true[,j] = gamma + beta * tmax[,j] + nu[,j] * sigma_nu[j];
+  
+  for (i in 1:N)
+  {
+    y_true[i,j] = gamma[i] + beta [i] * tmax[i,j] + nu[i,j] * sigma_nu[j];
+  }
 }
 
 // indexing to avoid NAs
@@ -395,28 +420,7 @@ for (j in 1:J)
 
 model {
 
-\\    Model in latex
-\\    ==============
-\\ y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
-\\ y_{true[i,j]} = \gamma_{[i]} + \beta_{[j]} * temp_{[i,j]} + \nu_{[i,j]} * \sigma_{\nu[j]}
-\\ \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
-\\ \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
-\\ \beta_{[j]} \sim N(\mu_{\beta}, \sigma_{\beta})
-\\ \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
-\\ \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
-\\ \rho \sim Beta(0.5, 0.5)
-\\ \theta \sim N(0, 1)
-\\ \alpha_{\gamma} \sim N(0, 30)
-\\ \beta_{\gamma} \sim N(2, 3)
-\\ \sigma_{\gamma} \sim HN(0, 5)
-\\ \mu_{\beta} \sim N(0, 1)
-\\ \sigma_{\beta} \sim HN(0, 3)
-\\ \mu_{\sigma_{\nu}} \sim N(0, 1.5)
-\\ \phi_{[i,j]} \sim N(0, [D - W]^{-1})
-\\ \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
-
-
-\\ priors
+// priors
 alpha_gamma_raw ~ normal(0, 1);
 beta_gamma_raw ~ normal(0, 1);
 sigma_gamma_raw ~ normal(0, 1);
@@ -467,7 +471,7 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.98
+DELTA <- 0.97
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.0005
 CHAINS <- 4
