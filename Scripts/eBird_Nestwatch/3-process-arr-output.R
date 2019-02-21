@@ -154,7 +154,7 @@ for (i in 1:nsp)
   {
     #j <- 1
     tt_halfmax1 <- dplyr::filter(temp_halfmax, 
-                          year == years[j])
+                                 year == years[j])
     
     cells <- unique(tt_halfmax1$cell)
     ncell <- length(cells)
