@@ -19,11 +19,10 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-halfmax_breeding_date <- '2019-01-30'
-bc_query_date <- '2019-01-30'
+halfmax_breeding_date <- '2019-02-13'
 NW_date <- '2019-01-28'
 MAPS_date <- '2019-01-31'
-eBird_query_dir <- 'eBird_query_2018-10-15'
+eBird_query_dir <- 'eBird_query_2019-02-02'
 
 
 # Load packages -----------------------------------------------------------
@@ -99,9 +98,6 @@ for (i in 1:nsp)
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', halfmax_breeding_date))
   temp_halfmax <- readRDS(paste0('halfmax_df_breeding_', species_list[i], '.rds'))
   
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', bc_query_date))
-  temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list[i], '.rds'))
-  
   cells <- sort(unique(temp_halfmax$cell))
   years <- sort(unique(temp_halfmax$year))
   nyr <- length(years)
@@ -122,11 +118,7 @@ for (i in 1:nsp)
       #####################
       #ebird breeding codes
       #####################
-      
-      cysdata <- dplyr::filter(temp_bc, 
-                               year == years[j] & 
-                               cell == cells[k])
-      
+
       tt_halfmax <- filter(temp_halfmax, 
                            year == years[j], 
                            cell == cells[k])
