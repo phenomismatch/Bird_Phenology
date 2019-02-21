@@ -38,7 +38,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 # import eBird species list -----------------------------------------------------
 
-species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
+species_list_i <- read.table('IAR_species_list-2019-02-02.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
@@ -81,6 +81,11 @@ m_breeding_df <- data.frame(species = na_reps,
                             EB_max_Rhat = na_reps,
                             EB_min_neff = na_reps,
                             EB_nphen_bad = na_reps,
+                            EB_delta = na_reps,
+                            EB_tree_depth = na_reps,
+                            EB_num_diverge = na_reps,
+                            EB_num_tree = na_reps,
+                            EB_num_BFMI = na_reps,
                             NW_mean_cid = na_reps,
                             NW_sd_cid = na_reps,
                             NW_num_obs = na_reps,
@@ -92,25 +97,34 @@ m_breeding_df <- data.frame(species = na_reps,
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 1
+  #i <- 87
   
   #readin halfmax data
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', halfmax_breeding_date))
   temp_halfmax <- readRDS(paste0('halfmax_df_breeding_', species_list[i], '.rds'))
   
   cells <- sort(unique(temp_halfmax$cell))
-  years <- sort(unique(temp_halfmax$year))
-  nyr <- length(years)
   ncell <- length(cells)
   
   #loop through years
   for (j in 1:nyr)
   {
-    #j <- 1
+    #j <- 2
+    tt_halfmax1 <- dplyr::filter(temp_halfmax, 
+                                 year == years[j])
+    
+    cells <- unique(tt_halfmax1$cell)
+    ncell <- length(cells)
     
     for (k in 1:ncell)
     {
-      #k <- 1
+      #k <- 75
+      
+      #write species/cell/year data
+      m_breeding_df$species[counter] <- species_list[i]
+      m_breeding_df$year[counter] <- years[j]
+      m_breeding_df$cell[counter] <- cells[k]
+
       print(paste0('species: ', species_list[i], ', ',
                    'year: ', years[j], ', ',
                    'cell: ', cells[k]))
@@ -119,38 +133,41 @@ for (i in 1:nsp)
       #ebird breeding codes
       #####################
 
-      tt_halfmax <- filter(temp_halfmax, 
-                           year == years[j], 
-                           cell == cells[k])
+      #get model fits
+      tt_halfmax2 <- dplyr::filter(tt_halfmax1, 
+                                   cell == cells[k])
       
-      #write species/cell/year data
-      m_breeding_df$SPECIES[counter] <- species_list[i]
-      m_breeding_df$CELL[counter] <- cells[k]
-      m_breeding_df$YEAR[counter] <- years[j]
-        
       #number of surveys where breeding was detected (confirmed or probable)
-      m_breeding_df$EB_n1[counter] <- tt_halfmax$n1
+      m_breeding_df$EB_n1[counter] <- tt_halfmax2$n1
       #number of surveys where breeding was not detected (bird not seen breeding or not seen)
-      m_breeding_df$EB_n0[counter] <- tt_halfmax$n0
+      m_breeding_df$EB_n0[counter] <- tt_halfmax2$n0
       #number of detections that came before jday 60
-      m_breeding_df$EB_n1W[counter] <- tt_halfmax$n1W
-      #number of unique days with detections
-      m_breeding_df$EB_njd1[counter] <- tt_halfmax$njd1
-      #number of unique days with non-detection
-      m_breeding_df$EB_njd0[counter] <- tt_halfmax$njd0
-      #number of unique days of non-detections before first detection
-      m_breeding_df$EB_njd0i[counter] <- tt_halfmax$njd0i
+      m_breeding_df$EB_n1W[counter] <- tt_halfmax2$n1W
       #number of non-detections before first detection
-      m_breeding_df$EB_n0i[counter] <- tt_halfmax$n0i
+      m_breeding_df$EB_n0i[counter] <- tt_halfmax2$n0i
+      #number of unique days with detections
+      m_breeding_df$EB_njd1[counter] <- tt_halfmax2$njd1
+      #number of unique days with non-detection
+      m_breeding_df$EB_njd0[counter] <- tt_halfmax2$njd0
+      #number of unique days of non-detections before first detection
+      m_breeding_df$EB_njd0i[counter] <- tt_halfmax2$njd0i
+
+      m_breeding_df$EB_min_neff[counter] <- tt_halfmax2$min_neff
+      m_breeding_df$EB_max_Rhat[counter] <- tt_halfmax2$max_Rhat
       
-      m_breeding_df$EB_min_neff[counter] <- tt_halfmax$min_neff
-      m_breeding_df$EB_max_Rhat[counter] <- tt_halfmax$max_Rhat
+      m_breeding_df$delta[counter] <- tt_halfmax2$delta
+      m_breeding_df$tree_depth[counter] <- tt_halfmax2$tree_depth
+      m_breeding_df$num_diverge[counter] <- tt_halfmax2$num_diverge
+      m_breeding_df$num_tree[counter] <- tt_halfmax2$num_tree
+      m_breeding_df$num_BFMI[counter] <- tt_halfmax2$num_BFMI
       
-      iter_ind <- grep('iter', colnames(tt_halfmax))
-      halfmax_posterior <- as.numeric(tt_halfmax[,iter_ind])
+      iter_ind <- grep('iter', colnames(tt_halfmax2))
+      halfmax_posterior <- as.numeric(tt_halfmax2[,iter_ind])
+      
       
       #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
       m_breeding_df$EB_nphen_bad[counter] <- sum(halfmax_posterior == 1)
+      #halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
 
       #calculate posterior mean and sd
       if (sum(!is.na(halfmax_posterior)) > 0)
@@ -158,7 +175,6 @@ for (i in 1:nsp)
         m_breeding_df$EB_HM_mean[counter] <- mean(halfmax_posterior)
         m_breeding_df$EB_HM_sd[counter] <- sd(halfmax_posterior)
       }
-      
       
       ########
       #NW data
@@ -171,9 +187,9 @@ for (i in 1:nsp)
       
       if (NROW(t_NW) > 0)
       {
-        m_breeding_df$NW_mean_cid[counter] <- t_NW$MEAN_FIRST_LAY
-        m_breeding_df$NW_sd_cid[counter] <- t_NW$SD_FIRST_LAY
-        m_breeding_df$NW_num_obs[counter] <- t_NW$NUM_OBS
+        m_breeding_df$NW_mean_cid[counter] <- as.numeric(t_NW$MEAN_FIRST_LAY)
+        m_breeding_df$NW_sd_cid[counter] <- as.numeric(t_NW$SD_FIRST_LAY)
+        m_breeding_df$NW_num_obs[counter] <- as.numeric(t_NW$NUM_OBS)
       }
       
       #########
@@ -193,10 +209,10 @@ for (i in 1:nsp)
         {
           if (t_MAPS$midpoint > 0)
           {
-            m_breeding_df$MAPS_midpoint[counter] <- t_MAPS$midpoint
-            m_breeding_df$MAPS_l_bounds[counter] <- t_MAPS$l_bounds
-            m_breeding_df$MAPS_u_bounds[counter] <- t_MAPS$u_bounds
-            m_breeding_df$MAPS_n_stations[counter] <- t_MAPS$n_stations
+            m_breeding_df$MAPS_midpoint[counter] <- as.numeric(t_MAPS$midpoint)
+            m_breeding_df$MAPS_l_bounds[counter] <- as.numeric(t_MAPS$l_bounds)
+            m_breeding_df$MAPS_u_bounds[counter] <- as.numeric(t_MAPS$u_bounds)
+            m_breeding_df$MAPS_n_stations[counter] <- as.numeric(t_MAPS$n_stations)
           }
         }
       }
@@ -206,16 +222,49 @@ for (i in 1:nsp)
   } # j - year
 } # i - species
 
-
 #remove NA padding (find first year row to have NA and subtract one from that index)
-fin_ind <- min(which(is.na(m_breeding_df$YEAR)))
-m_breeding_df2 <- m_breeding_df[1:(fin_ind - 1),]
+to.rm <- which(is.na(m_breeding_df$EB_n1))
+m_breeding_df2 <- m_breeding_df[-to.rm,]
 
 
-#check diags - look okay
-ct <- m_breeding_df2[which(!is.na(m_breeding_df$EB_HM_mean)),]
-min(ct$EB_min_neff)
-max(ct$EB_max_Rhat)
+### add NA for both EB_HM_mean and EB_HM_sd if any of the following conditions are met
+#num_diverge > 0
+#max_Rhat >= 1.1
+#min_neff < 250
+#num_BFMI > 0
+
+to.NA <- which(m_breeding_df2$num_diverge > 0 | 
+                 m_breeding_df2$max_Rhat >= 1.1 |
+                 m_breeding_df2$min_neff < 200 |
+                 m_breeding_df2$num_BFMI > 0)
+
+if (length(to.NA) > 0)
+{
+  m_breeding_df2[to.NA,'EB_HM_mean'] <- NA
+  m_breeding_df2[to.NA,'EB_HM_sd'] <- NA
+}
+
+
+# setwd('~/Desktop/')
+# saveRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
+# readRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
+
+# #Look at plots that have a number of nphen_bad...why is this hapenning
+# range(df_out$nphen_bad, na.rm = TRUE)
+# hist(df_out$nphen_bad)
+# df_out[which(df_out$nphen_bad > 10),]
+# 
+# 
+# #remove if sd is greater than 15? That should filter out higih nphen_bad values
+# NROW(df_out[which(df_out$nphen_bad > 10),])
+# NROW(df_out[which(df_out$nphen_bad > 0),])
+# hist(df_out$nphen_bad[-(which(df_out$nphen_bad > 5))])
+# 
+# NROW(dplyr::filter(df_out, HM_sd > 15))
+# hist(df_out$HM_sd, breaks = 20)
+
+#dplyr::filter(df_out, species == 'Agelaius_phoeniceus', year == 2014)
+
 
 
 
@@ -232,26 +281,32 @@ MAPS <- as.numeric(!is.na(m_breeding_df2$MAPS_midpoint))
 
 m_breeding_df2$d_avail <- paste0(EB, NW, MAPS)
 
-sum(m_breeding_df2$d_avail == '111')
-sum(m_breeding_df2$d_avail == '110')
-sum(m_breeding_df2$d_avail == '101')
-sum(m_breeding_df2$d_avail == '100')
-
-
-#ALL YEARS/CELLS MODELED IN IAR MODEL
-#write to rds
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-saveRDS(m_breeding_df2, paste0('temp_breeding_master_', Sys.Date(), '.rds'))
-
-#m_breeding_df2 <- readRDS('temp_breeding_master_2019-01-30.rds')
+# sum(m_breeding_df2$d_avail == '111')
+# sum(m_breeding_df2$d_avail == '110')
+# sum(m_breeding_df2$d_avail == '101')
+# sum(m_breeding_df2$d_avail == '100')
 
 
 
-#vvv OLD OLD vvv
 
-#add 'meets criteria' column
-diagnostics_frame$MODEL <- NA
-diagnostics_frame$shp_fname <- NA
+# determine which years to model breeding IAR?? --------------------------------------
 
+
+#use same filtering as with arrival???
+#m_breeding_df2$MODEL <- NA
+
+
+
+
+
+# write to RDS ------------------------------------------------------------
+
+
+# #ALL YEARS/CELLS MODELED IN IAR MODEL
+# #write to rds
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+# saveRDS(m_breeding_df2, paste0('temp_breeding_master_', Sys.Date(), '.rds'))
+# 
+# #m_breeding_df2 <- readRDS('temp_breeding_master_2019-01-30.rds')
 
 
