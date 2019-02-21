@@ -361,7 +361,7 @@ vector<lower = 0>[J] sigma_nu_raw;
 real beta0_raw[J];
 real mu_sn_raw;
 // real sigma_sn_raw;
-real sigma_beta0_raw;
+real<lower = 0> sigma_beta0_raw;
 }
 
 transformed parameters {
@@ -381,7 +381,7 @@ matrix[N, J] nu;                            // spatial and non-spatial component
 // real beta;
 real mu_sn;
 // real sigma_sn;
-real sigma_beta0;
+real<lower = 0> sigma_beta0;
 real beta0[J];
 
 alpha_gamma = alpha_gamma_raw * 30;
