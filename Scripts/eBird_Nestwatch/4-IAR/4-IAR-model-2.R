@@ -7,10 +7,10 @@
 # i = cell
 # j = year
 # y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
-# y_{true[i,j]} = \gamma_{[i]} + \beta_{[j]} * temp_{[i,j]} + \nu_{[i,j]} * \sigma_{\nu[j]}
+# y_{true[i,j]} = \beta_{0[j]} + \gamma_{[i]} + \nu_{[i,j]} * \sigma_{\nu[j]}
+# \beta_{0[j]} \sim N(0, \sigma_{\beta_{0}})
 # \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
 # \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
-# \beta_{[j]} \sim N(\mu_{\beta}, \sigma_{\beta})
 # \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
 # \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
 #
@@ -27,17 +27,17 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-02-02'
-IAR_out_dir <- 'IAR_output_2019-02-13'
+IAR_out_dir <- 'IAR_output_2019-02-21'
 
 
 
@@ -66,9 +66,9 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 # species arg -----------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
-args <- as.character('Empidonax_virescens')
+#args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
 
 
@@ -191,14 +191,14 @@ scaling_factor <- exp(mean(log(diag(Q_inv))))
 
 
 
-# process daymet data -----------------------------------------------------
-
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
-
-daymet_tmax <- readRDS('daymet_hex_tmax.rds')
-
-#filter by relevant cells
-f_daymet_tmax <- dplyr::filter(daymet_tmax, cell %in% cells)
+# # process daymet data -----------------------------------------------------
+# 
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
+# 
+# daymet_tmax <- readRDS('daymet_hex_tmax.rds')
+# 
+# #filter by relevant cells
+# f_daymet_tmax <- dplyr::filter(daymet_tmax, cell %in% cells)
 
 
 # create Stan data object -------------------------------------------------
@@ -207,7 +207,7 @@ f_daymet_tmax <- dplyr::filter(daymet_tmax, cell %in% cells)
 sigma_y_in <- matrix(nrow = ncell, ncol = nyr)
 y_obs_in <- matrix(nrow = ncell, ncol = nyr)
 y_PPC <- rep(NA, ncell * nyr)
-tmax <- matrix(nrow = ncell, ncol = nyr)
+#tmax <- matrix(nrow = ncell, ncol = nyr)
 
 
 #number of observation and NAs for each year
@@ -224,7 +224,7 @@ for (j in 1:nyr)
 {
   #j <- 16
   temp_yr <- dplyr::filter(f_out, year == years[j])
-  temp_tmax <- dplyr::filter(f_daymet_tmax, year == years[j])
+  #temp_tmax <- dplyr::filter(f_daymet_tmax, year == years[j])
   
   #don't need to manipulate position of sigmas
   sigma_y_in[,j] <- temp_yr$HM_sd
@@ -237,8 +237,8 @@ for (j in 1:nyr)
     counter <- counter + 1
     
     #fiter daymet temp data by cell and fill matrix
-    temp_tmax2 <- dplyr::filter(temp_tmax, cell == cells[n])
-    tmax[n, j] <- temp_tmax2$HC_FMA_tmax
+    #temp_tmax2 <- dplyr::filter(temp_tmax, cell == cells[n])
+    #tmax[n, j] <- temp_tmax2$HC_FMA_tmax
   }
   
   #which are not NA
@@ -294,8 +294,8 @@ DATA <- list(J = nyr,
              ii_obs = ii_obs_in,
              ii_mis = ii_mis_in,
              lat = cellcenters$lat_deg,
-             yrs = 1:nyr,
-             tmax = tmax)
+             yrs = 1:nyr)
+
 
 
 # Stan model --------------------------------------------------------------
@@ -304,19 +304,18 @@ DATA <- list(J = nyr,
 # Model in latex
 # ==============
 # y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
-# y_{true[i,j]} = \gamma_{[i]} + \beta_{[j]} * temp_{[i,j]} + \nu_{[i,j]} * \sigma_{\nu[j]}
+# y_{true[i,j]} = \beta_{0[j]} + \gamma_{[i]} + \nu_{[i,j]} * \sigma_{\nu[j]}
+# \beta_{0[j]} \sim N(0, \sigma_{\beta_{0}})
 # \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
 # \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
-# \beta_{[j]} \sim N(\mu_{\beta}, \sigma_{\beta})
 # \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
 # \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
 # \rho \sim Beta(0.5, 0.5)
 # \theta \sim N(0, 1)
+# \sigma_{\beta_{0}} \ sim HN(0, 5)
 # \alpha_{\gamma} \sim N(0, 30)
 # \beta_{\gamma} \sim N(2, 3)
 # \sigma_{\gamma} \sim HN(0, 5)
-# \mu_{\beta} \sim N(0, 1)
-# \sigma_{\beta} \sim HN(0, 3)
 # \mu_{\sigma_{\nu}} \sim N(0, 1.5)
 # \phi_{[i,j]} \sim N(0, [D - W]^{-1})
 # \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
@@ -500,8 +499,8 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 
 #save to RDS
-#setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-setwd("~/Google_Drive/R/Bird_Phenology/Data/Processed/Empidonax_virescens_test_no_slope/Ev_ns_ye")
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+#setwd("~/Google_Drive/R/Bird_Phenology/Data/Processed/Empidonax_virescens_test_no_slope/Ev_ns_ye")
 saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
 
 
@@ -822,16 +821,6 @@ for (i in 1:length(years))
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 
-# alpha_gamma = alpha_gamma_raw * 30;
-# beta_gamma = beta_gamma_raw * 3 + 2;
-# sigma_gamma = sigma_gamma_raw * 5;
-# mu_beta = mu_beta_raw * 1;
-# sigma_beta = sigma_beta_raw * 3;
-# // beta = beta_raw * 2;
-# mu_sn = mu_sn_raw * 1.5;
-# // sigma_sn = sigma_sn_raw * 1;
-# // beta0 = beta0_raw * 10 + 130;
-
 
 #alpha_gamma ~ normal(0, 30)
 PR <- rnorm(10000, 0, 30)
@@ -858,22 +847,22 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma.pdf'))
 
-#mu_beta ~ halfnormal(0, 1)
-PR <- rnorm(10000, 0, 1)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_beta',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta.pdf'))
+# #mu_beta ~ halfnormal(0, 1)
+# PR <- rnorm(10000, 0, 1)
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'mu_beta',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta.pdf'))
 
-#sigma_beta ~ halfnormal(0, 3)
-PR_p <- rnorm(10000, 0, 3)
-PR <- PR_p[which(PR_p > 0)]
-MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_beta',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta.pdf'))
+# #sigma_beta ~ halfnormal(0, 3)
+# PR_p <- rnorm(10000, 0, 3)
+# PR <- PR_p[which(PR_p > 0)]
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'sigma_beta',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta.pdf'))
 
 #mu_sn ~ halfnormal(0, 1.5)
 PR <- rnorm(10000, 0, 1.5)
@@ -890,6 +879,16 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_rho.pdf'))
+
+#sigma_beta0 ~ HN(0, 5)
+PR_p <- rnorm(10000, 0, 5)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_beta0',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta0.pdf'))
+
 
 # #sigma_nu ~ halfnormal(0, 5)
 # PR_p <- rnorm(10000, 0, 5)
