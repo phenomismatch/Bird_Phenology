@@ -7,12 +7,10 @@
 # i = cell
 # j = year
 # y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
-# y_{true[i,j]} = \beta_{0[j]} + \gamma_{[i]} + \nu_{[i,j]} * \sigma_{\nu[j]}
-# \beta_{0[j]} \sim N(0, \sigma_{\beta_{0}})
+# y_{true[i,j]} \sim N(\mu_{[i,j]}, \sigma_{y_{true}})
+# \mu_{[i,j]} = \gamma_{[i]} + \phi_{[i,j]}
 # \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
 # \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
-# \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
-# \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
 #
 ######################
 
@@ -37,14 +35,13 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-02-02'
-IAR_out_dir <- 'IAR_output_2019-02-21'
+IAR_out_dir <- 'IAR_output_2019-02-13'
 
 
 
 # Load packages -----------------------------------------------------------
 
 library(rstan)
-library(INLA)
 library(geosphere)
 library(ggplot2)
 library(maps)
@@ -170,45 +167,13 @@ if (max(ninds) < ncell)
 
 
 
-# Estimate scaling factor for BYM2 model with INLA ------------------------
-
-#Build the adjacency matrix using INLA library functions
-adj.matrix <- Matrix::sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
-
-#The IAR precision matrix (note! This is singular)
-Q <- Matrix::Diagonal(ncell, Matrix::rowSums(adj.matrix)) - adj.matrix
-#Add a small jitter to the diagonal for numerical stability (optional but recommended)
-Q_pert <- Q + Matrix::Diagonal(ncell) * max(diag(Q)) * sqrt(.Machine$double.eps)
-
-# Compute the diagonal elements of the covariance matrix subject to the 
-# constraint that the entries of the ICAR sum to zero.
-# See the inla.qinv function help for further details.
-Q_inv <- INLA::inla.qinv(Q_pert, 
-                         constr = list(A = matrix(1, 1, ncell), e = 0))
-
-#Compute the geometric mean of the variances, which are on the diagonal of Q.inv
-scaling_factor <- exp(mean(log(diag(Q_inv))))
-
-
-
-# # process daymet data -----------------------------------------------------
-# 
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
-# 
-# daymet_tmax <- readRDS('daymet_hex_tmax.rds')
-# 
-# #filter by relevant cells
-# f_daymet_tmax <- dplyr::filter(daymet_tmax, cell %in% cells)
-
 
 # create Stan data object -------------------------------------------------
 
-#create and fill sds, obs, data for PPC, and temp
+#create and fill sds and obs
 sigma_y_in <- matrix(nrow = ncell, ncol = nyr)
 y_obs_in <- matrix(nrow = ncell, ncol = nyr)
 y_PPC <- rep(NA, ncell * nyr)
-#tmax <- matrix(nrow = ncell, ncol = nyr)
-
 
 #number of observation and NAs for each year
 len_y_obs_in <- rep(NA, nyr)
@@ -223,8 +188,8 @@ counter <- 1
 for (j in 1:nyr)
 {
   #j <- 16
-  temp_yr <- dplyr::filter(f_out, year == years[j])
-  #temp_tmax <- dplyr::filter(f_daymet_tmax, year == years[j])
+  temp_yr_p <- dplyr::filter(f_out, year == years[j])
+  temp_yr <- temp_yr_p
   
   #don't need to manipulate position of sigmas
   sigma_y_in[,j] <- temp_yr$HM_sd
@@ -235,10 +200,6 @@ for (j in 1:nyr)
     #matrix with observed values with NAs
     y_PPC[counter] <- temp_yr$HM_mean[n]
     counter <- counter + 1
-    
-    #fiter daymet temp data by cell and fill matrix
-    #temp_tmax2 <- dplyr::filter(temp_tmax, cell == cells[n])
-    #tmax[n, j] <- temp_tmax2$HC_FMA_tmax
   }
   
   #which are not NA
@@ -273,7 +234,6 @@ for (j in 1:nyr)
 
 #fill 0 where NA in y_obs - Stan does not like NA and zeros are not being used to estimate any param (y_obs is used to fill y)
 y_obs_in[which(is.na(y_obs_in), arr.ind = TRUE)] <- 0
-#see script here showing this value fo sigma_y_in has no impact on y_true: Archive/test_sigma_insert.R
 sigma_y_in[which(is.na(sigma_y_in), arr.ind = TRUE)] <- 0.1
 ii_obs_in[which(is.na(ii_obs_in), arr.ind = TRUE)] <- 0
 ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
@@ -290,36 +250,12 @@ DATA <- list(J = nyr,
              node2 = ninds[,2],
              y_obs = y_obs_in,
              sigma_y = sigma_y_in,
-             scaling_factor = scaling_factor,
              ii_obs = ii_obs_in,
              ii_mis = ii_mis_in,
-             lat = cellcenters$lat_deg,
-             yrs = 1:nyr)
-
+             lat = cellcenters$lat_deg)
 
 
 # Stan model --------------------------------------------------------------
-
-
-# Model in latex
-# ==============
-# y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
-# y_{true[i,j]} = \beta_{0[j]} + \gamma_{[i]} + \nu_{[i,j]} * \sigma_{\nu[j]}
-# \beta_{0[j]} \sim N(0, \sigma_{\beta_{0}})
-# \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
-# \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
-# \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
-# \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
-# \rho \sim Beta(0.5, 0.5)
-# \theta \sim N(0, 1)
-# \sigma_{\beta_{0}} \ sim HN(0, 5)
-# \alpha_{\gamma} \sim N(0, 30)
-# \beta_{\gamma} \sim N(2, 3)
-# \sigma_{\gamma} \sim HN(0, 5)
-# \mu_{\sigma_{\nu}} \sim N(0, 1.5)
-# \phi_{[i,j]} \sim N(0, [D - W]^{-1})
-# \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
-
 
 #matrix[N,J] -> cells in rows, years in columns
 
@@ -327,7 +263,7 @@ IAR_2 <- '
 data {
 int<lower = 0> J;                                     // number of years      
 int<lower = 0> N;                                     // number of cells
-int<lower = 0> NJ;                                    // number of cell/years
+int<lower = 0> NJ;                                     // number of cell/years
 int<lower = 0> N_obs[J];                              // number of non-missing for each year
 int<lower = 0> N_mis[J];                              // number missing for each year
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
@@ -337,81 +273,56 @@ real<lower = 0, upper = 200> y_obs[N, J];             // observed response data 
 real<lower = 0> sigma_y[N, J];                        // observed sd of data (observation error)
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
-real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
 real<lower = 26, upper = 90> lat[N];
-real<lower = 1> yrs[J];
-matrix[N, J] tmax;                                    // max temp in cell/year
 }
 
 parameters {
 real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
+// real beta0_raw[J];                                    // intercept
 real alpha_gamma_raw;
 real beta_gamma_raw;                                       // effect of latitude
+// real mu_beta0_raw;
 real<lower = 0> sigma_gamma_raw;
+matrix[N, J] phi;                                     // spatial error component (centered on 0)
 vector[N] gamma_raw;
-matrix[N, J] phi;                                     // spatial error component (scaled to N(0,1))
-matrix[N, J] theta;                                   // non-spatial error component (scaled to N(0,1))
-real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
-vector<lower = 0>[J] sigma_nu_raw;
-// vector[N] beta_raw;
-// real<lower = 0> sigma_beta_raw;
-// real mu_beta_raw;
-// real beta_raw;
-real beta0_raw[J];
-real mu_sn_raw;
-// real sigma_sn_raw;
-real<lower = 0> sigma_beta0_raw;
+real<lower = 0> sigma_y_true_raw;
+real<lower = 0> sigma_phi_raw;
+matrix[N, J] y_true_raw;
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
+// real beta0[J];
 vector[N] gamma;
 real alpha_gamma;
 real beta_gamma;
 real<lower = 0> sigma_gamma;
 real mu_gamma[N];
-vector<lower = 0>[J] sigma_nu;
+// real mu_beta0;
+real<lower = 0> sigma_y_true;
+matrix[N, J] mu;                                      // latent true halfmax values
+real<lower = 0> sigma_phi;
 matrix[N, J] y_true;
-matrix[N, J] nu;                            // spatial and non-spatial component
-// real beta0;
-// vector[N] beta;
-// real<lower = 0> sigma_beta;
-// real mu_beta;
-// real beta;
-real mu_sn;
-// real sigma_sn;
-real<lower = 0> sigma_beta0;
-real beta0[J];
 
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 3 + 2;
-sigma_gamma = sigma_gamma_raw * 5;
-// mu_beta = mu_beta_raw * 1;
-// sigma_beta = sigma_beta_raw * 3;
-// beta = beta_raw * 2;
-mu_sn = mu_sn_raw * 1.5;
-// sigma_sn = sigma_sn_raw * 1;
-// beta0 = beta0_raw * 10 + 130;
-sigma_beta0 = sigma_beta0_raw * 5;
+// mu_beta0 = mu_beta0_raw * 30;
+sigma_y_true = sigma_y_true_raw * 3;
+sigma_gamma = sigma_gamma_raw * 3;
+sigma_phi = sigma_phi_raw * 3;
 
 for (i in 1:N)
 {
   mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
   gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
-  // beta[i] = beta_raw[i] * sigma_beta + mu_beta;
 }
 
 for (j in 1:J)
 {
-  nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
-  sigma_nu[j] = exp(sigma_nu_raw[j] * 0.7 + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, 0.7) 
-  beta0[j] = beta0_raw[j] * sigma_beta0;
-  y_true[,j] = beta0[j] + gamma + nu[,j] * sigma_nu[j];
-  
-  // for (i in 1:N)
-  // {
-  //  y_true[i,j] = gamma[i] + beta[i] * tmax[i,j] + nu[i,j] * sigma_nu[j];
-  // }
+  // beta0[j] = beta0_raw[j] * 15 + mu_beta0;
+  // mu[,j] = beta0[j] + gamma + phi[,j];
+  mu[,j] = gamma + phi[,j] * sigma_phi;
+  y_true[,j] = y_true_raw[,j] * sigma_y_true + mu[,j];
 }
 
 // indexing to avoid NAs
@@ -424,24 +335,22 @@ for (j in 1:J)
 
 model {
 
-// priors
 alpha_gamma_raw ~ normal(0, 1);
 beta_gamma_raw ~ normal(0, 1);
+// mu_beta0_raw ~ normal(0, 1);
+sigma_y_true_raw ~ normal(0, 1);
 sigma_gamma_raw ~ normal(0, 1);
-sigma_nu_raw ~ normal(0, 1);
-rho ~ beta(0.5, 0.5);
-// mu_beta_raw ~ normal(0, 1);
-// sigma_beta_raw ~ normal(0, 1);
-// beta_raw ~ normal(0, 1);
-gamma_raw ~ normal(0, 1);
-beta0_raw ~ normal(0, 1);
-mu_sn_raw ~ normal(0, 1);
-// sigma_sn_raw ~ normal(0, 1);
-sigma_beta0_raw ~ normal(0, 1);
+sigma_phi_raw ~ normal(0, 1);
+
+for (i in 1:N)
+{
+ gamma_raw[i] ~ normal(0, 1);
+}
 
 for (j in 1:J)
 {
-  theta[,j] ~ normal(0, 1);
+  y_true_raw[,j] ~ normal(0, 1);  
+  // beta0_raw[j] ~ normal(0, 1);
   target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   
@@ -461,9 +370,9 @@ for (j in 1:J)
 {
   for (n in 1:N)
   {
-  // y_rep[n,j] = normal_rng(y_true[,j], sigma_y[,j]);
-  y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
-  counter = counter + 1;
+    // y_rep[n,j] = normal_rng(y_true[,j], sigma_y[,j]);
+    y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
+    counter = counter + 1;
   }
 }
 }'
@@ -475,35 +384,24 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
+DELTA <- 0.95
 TREE_DEPTH <- 18
-STEP_SIZE <- 0.0005
-CHAINS <- 4
-ITER <- 4000
+STEP_SIZE <- 0.001
+CHAINS <- 3
+ITER <- 3000
 
 tt <- proc.time()
-fit <- rstan::stan(model_code = IAR_2,
+fit <- stan(model_code = IAR_2,
             data = DATA,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('sigma_beta0', 'beta0',
-                     'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-                     'sigma_nu', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
-                     'y_true', 'y_rep'),
+            pars = c('alpha_gamma', 'beta_gamma', 'sigma_gamma', 'sigma_phi', #'beta0', 'mu_beta0',
+                     'gamma', 'sigma_y_true', 'sigma_phi', 'phi', 'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
-
-
-
-#save to RDS
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-#setwd("~/Google_Drive/R/Bird_Phenology/Data/Processed/Empidonax_virescens_test_no_slope/Ev_ns_ye")
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
-
-
 
 
 
@@ -546,7 +444,7 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 # fit <- readRDS('IAR_stan_Catharus_minimus-2019-02-11-test-2.rds')
-# fit <- readRDS('Empidonax_virescens-2019-02-13-iar-stan_output.rds')
+# fit <- readRDS('Empidonax_virescens-2019-02-13-iar-stan_output3.rds')
 # fit <- readRDS('Vireo_olivaceus-2019-02-13-IAR_stan-test-3.rds')
 
 # MCMCtrace(fit)
@@ -593,8 +491,14 @@ PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
 # write model results to file ---------------------------------------------
 
 
+#save to RDS
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output3.rds'))
+
+
+
 options(max.print = 50000)
-sink(paste0(args, '-', IAR_out_date, '-iar-stan_results.txt'))
+sink(paste0(args, '-', IAR_out_date, '-iar-stan_results3.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -618,49 +522,6 @@ sink()
 #extract median and sd estimates for mu params
 med_fit <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = median)[[1]]
 sd_fit <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = sd)[[1]]
-
-
-#create y_true and y_rep manually
-# gamma_ch <- MCMCvis::MCMCpstr(fit, params = 'gamma', type = 'chains')[[1]]
-# nu_ch <- MCMCvis::MCMCpstr(fit, params = 'nu', type = 'chains')[[1]]
-# sigma_nu_ch <- MCMCvis::MCMCpstr(fit, params = 'sigma_nu', type = 'chains')[[1]]
-# 
-# y_t <- array(NA, c(ncell, nyr, dim(gamma_ch)[2]))
-# for (j in 1:nyr)
-# {
-#   #j <- 1
-#   for (i in 1:ncell)
-#   {
-#     #i <- 1
-#     y_t[i,j,] <- gamma_ch[i,] + nu_ch[i,j,] * sigma_nu_ch
-#   }
-# }
-# 
-# med_fit <- apply(y_t, c(1,2), median)
-# sd_fit <- apply(y_t, c(1,2), sd)
-# mean_fit <- apply(y_t, c(1,2), mean)
-
-
-# # y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
-# y_rep <- array(NA, c(ncell*nyr, dim(gamma_ch)[2]))
-# counter <- 1
-# for (j in 1:nyr)
-# {
-#   #j <- 1
-#   for (i in 1:ncell)
-#   {
-#     #i <- 1
-#     for (k in 1:dim(y_rep)[2])
-#     {
-#       #k <- 2
-#       y_rep[counter, k] <- rnorm(1, y_t[i,j,k], sigma_y_in[i,j])
-#     }
-#     counter <- counter + 1
-#   }
-# }
-
-
-
 
 
 #transform cells to grid
@@ -711,12 +572,12 @@ nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 #create output image dir if it doesn't exist
 
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3')),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3')),
        FALSE)
 
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
+setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date, '3'))
 
 #loop plots for each year
 for (i in 1:length(years))
@@ -821,6 +682,12 @@ for (i in 1:length(years))
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 
+# alpha_gamma = alpha_gamma_raw * 30;
+# beta_gamma = beta_gamma_raw * 5 + 2;
+# mu_beta0 = mu_beta0_raw * 30;
+# sigma_y_true = sigma_y_true_raw * 5;
+# sigma_gamma = sigma_gamma_raw * 5;
+
 
 #alpha_gamma ~ normal(0, 30)
 PR <- rnorm(10000, 0, 30)
@@ -830,13 +697,30 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_alpha_gamma.pdf'))
 
-#beta_gamma ~ normal(2, 3)
-PR <- rnorm(10000, 2, 3)
+#beta_gamma ~ normal(2, 5)
+PR <- rnorm(10000, 2, 5)
 MCMCvis::MCMCtrace(fit,
                    params = 'beta_gamma',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_beta_gamma.pdf'))
+
+# #mu_beta0 ~ normal(0, 30)
+# PR <- rnorm(10000, 0, 30)
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'mu_beta0',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta0-3.pdf'))
+
+#sigma_y_true ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+          params = 'sigma_y_true',
+          priors = PR,
+          open_pdf = FALSE,
+          filename = paste0(args, '-', IAR_out_date, '-trace_sigma_y_true.pdf'))
 
 #sigma_gamma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -847,76 +731,14 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma.pdf'))
 
-# #mu_beta ~ halfnormal(0, 1)
-# PR <- rnorm(10000, 0, 1)
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'mu_beta',
-#                    priors = PR,
-#                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta.pdf'))
-
-# #sigma_beta ~ halfnormal(0, 3)
-# PR_p <- rnorm(10000, 0, 3)
-# PR <- PR_p[which(PR_p > 0)]
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_beta',
-#                    priors = PR,
-#                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta.pdf'))
-
-#mu_sn ~ halfnormal(0, 1.5)
-PR <- rnorm(10000, 0, 1.5)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_sn',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_sn.pdf'))
-
-#rho ~ beta(0.5, 0.5)
-PR <- rbeta(10000, 0.5, 0.5)
-MCMCvis::MCMCtrace(fit,
-                   params = 'rho',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_rho.pdf'))
-
-#sigma_beta0 ~ HN(0, 5)
+#sigma_phi ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_beta0',
+                   params = 'sigma_phi',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta0.pdf'))
-
-
-# #sigma_nu ~ halfnormal(0, 5)
-# PR_p <- rnorm(10000, 0, 5)
-# PR <- PR_p[which(PR_p > 0)]
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_nu',
-#                    priors = PR,
-#                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_nu.pdf'))
-
-# #beta ~ halfnormal(0, 2)
-# PR <- rnorm(10000, 0, 2)
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'beta',
-#                    priors = PR,
-#                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_beta.pdf'))
-# 
-# 
-# 
-# #sigma_sn ~ halfnormal(0, 0.5)
-# PR <- rnorm(10000, 0, 0.5)
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_sn',
-#                    priors = PR,
-#                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_sn.pdf'))
-
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_phi.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
