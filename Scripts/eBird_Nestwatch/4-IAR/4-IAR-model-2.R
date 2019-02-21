@@ -354,13 +354,14 @@ matrix[N, J] phi;                                     // spatial error component
 matrix[N, J] theta;                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 vector<lower = 0>[J] sigma_nu_raw;
-vector[N] beta_raw;
-real<lower = 0> sigma_beta_raw;
-real mu_beta_raw;
+// vector[N] beta_raw;
+// real<lower = 0> sigma_beta_raw;
+// real mu_beta_raw;
 // real beta_raw;
-// real beta0_raw;
+real beta0_raw[J];
 real mu_sn_raw;
 // real sigma_sn_raw;
+real sigma_beta0_raw;
 }
 
 transformed parameters {
@@ -374,40 +375,44 @@ vector<lower = 0>[J] sigma_nu;
 matrix[N, J] y_true;
 matrix[N, J] nu;                            // spatial and non-spatial component
 // real beta0;
-vector[N] beta;
-real<lower = 0> sigma_beta;
-real mu_beta;
+// vector[N] beta;
+// real<lower = 0> sigma_beta;
+// real mu_beta;
 // real beta;
 real mu_sn;
 // real sigma_sn;
-
+real sigma_beta0;
+real beta0[J];
 
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_gamma = sigma_gamma_raw * 5;
-mu_beta = mu_beta_raw * 1;
-sigma_beta = sigma_beta_raw * 3;
+// mu_beta = mu_beta_raw * 1;
+// sigma_beta = sigma_beta_raw * 3;
 // beta = beta_raw * 2;
 mu_sn = mu_sn_raw * 1.5;
 // sigma_sn = sigma_sn_raw * 1;
 // beta0 = beta0_raw * 10 + 130;
+sigma_beta0 = sigma_beta0_raw * 5;
 
 for (i in 1:N)
 {
   mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
   gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
-  beta[i] = beta_raw[i] * sigma_beta + mu_beta;
+  // beta[i] = beta_raw[i] * sigma_beta + mu_beta;
 }
 
 for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
   sigma_nu[j] = exp(sigma_nu_raw[j] * 0.7 + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, 0.7) 
+  beta0[j] = beta0_raw[j] * sigma_beta0;
+  y_true[,j] = beta0[j] + gamma + nu[,j] * sigma_nu[j];
   
-  for (i in 1:N)
-  {
-    y_true[i,j] = gamma[i] + beta [i] * tmax[i,j] + nu[i,j] * sigma_nu[j];
-  }
+  // for (i in 1:N)
+  // {
+  //  y_true[i,j] = gamma[i] + beta[i] * tmax[i,j] + nu[i,j] * sigma_nu[j];
+  // }
 }
 
 // indexing to avoid NAs
@@ -426,14 +431,14 @@ beta_gamma_raw ~ normal(0, 1);
 sigma_gamma_raw ~ normal(0, 1);
 sigma_nu_raw ~ normal(0, 1);
 rho ~ beta(0.5, 0.5);
-mu_beta_raw ~ normal(0, 1);
-sigma_beta_raw ~ normal(0, 1);
-beta_raw ~ normal(0, 1);
+// mu_beta_raw ~ normal(0, 1);
+// sigma_beta_raw ~ normal(0, 1);
+// beta_raw ~ normal(0, 1);
 gamma_raw ~ normal(0, 1);
-// beta0_raw ~ normal(0, 1);
+beta0_raw ~ normal(0, 1);
 mu_sn_raw ~ normal(0, 1);
 // sigma_sn_raw ~ normal(0, 1);
-
+sigma_beta0_raw ~ normal(0, 1);
 
 for (j in 1:J)
 {
@@ -483,14 +488,23 @@ fit <- rstan::stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('beta', 'mu_beta', 'sigma_beta', 
-                     'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma', #'sigma_sn', 'beta0',
+            pars = c('sigma_beta0', 'beta0',
+                     'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
                      'sigma_nu', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
                      'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
+
+
+
+#save to RDS
+#setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+setwd("~/Google_Drive/R/Bird_Phenology/Data/Processed/Empidonax_virescens_test_no_slope/Ev_ns_ye")
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
+
+
 
 
 
@@ -578,12 +592,6 @@ PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
 
 
 # write model results to file ---------------------------------------------
-
-
-#save to RDS
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
-
 
 
 options(max.print = 50000)
@@ -817,11 +825,12 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 # alpha_gamma = alpha_gamma_raw * 30;
 # beta_gamma = beta_gamma_raw * 3 + 2;
 # sigma_gamma = sigma_gamma_raw * 5;
-# sigma_nu = sigma_nu_raw * 5;
-# mu_beta = mu_beta_raw * 2;
-# sigma_beta = sigma_beta_raw * 2;
-# mu_sn = mu_sn_raw * 1;
-# sigma_sn = sigma_sn_raw * 0.5;
+# mu_beta = mu_beta_raw * 1;
+# sigma_beta = sigma_beta_raw * 3;
+# // beta = beta_raw * 2;
+# mu_sn = mu_sn_raw * 1.5;
+# // sigma_sn = sigma_sn_raw * 1;
+# // beta0 = beta0_raw * 10 + 130;
 
 
 #alpha_gamma ~ normal(0, 30)
@@ -849,14 +858,30 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma.pdf'))
 
-# #sigma_nu ~ halfnormal(0, 5)
-# PR_p <- rnorm(10000, 0, 5)
-# PR <- PR_p[which(PR_p > 0)]
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_nu',
-#                    priors = PR,
-#                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_nu.pdf'))
+#mu_beta ~ halfnormal(0, 1)
+PR <- rnorm(10000, 0, 1)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_beta',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta.pdf'))
+
+#sigma_beta ~ halfnormal(0, 3)
+PR_p <- rnorm(10000, 0, 3)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_beta',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta.pdf'))
+
+#mu_sn ~ halfnormal(0, 1.5)
+PR <- rnorm(10000, 0, 1.5)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_sn',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_sn.pdf'))
 
 #rho ~ beta(0.5, 0.5)
 PR <- rbeta(10000, 0.5, 0.5)
@@ -866,45 +891,32 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_rho.pdf'))
 
-#beta ~ halfnormal(0, 2)
-PR <- rnorm(10000, 0, 2)
-MCMCvis::MCMCtrace(fit,
-                   params = 'beta',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_beta.pdf'))
-
-#mu_sn ~ halfnormal(0, 1)
-PR <- rnorm(10000, 0, 1)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_sn',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_sn.pdf'))
-
-#sigma_sn ~ halfnormal(0, 0.5)
-PR <- rnorm(10000, 0, 0.5)
-MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_sn',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_sn.pdf'))
-
-# #mu_beta ~ halfnormal(0, 2)
-# PR <- rnorm(10000, 0, 2)
+# #sigma_nu ~ halfnormal(0, 5)
+# PR_p <- rnorm(10000, 0, 5)
+# PR <- PR_p[which(PR_p > 0)]
 # MCMCvis::MCMCtrace(fit,
-#                    params = 'mu_beta',
+#                    params = 'sigma_nu',
 #                    priors = PR,
 #                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_beta.pdf'))
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_nu.pdf'))
+
+# #beta ~ halfnormal(0, 2)
+# PR <- rnorm(10000, 0, 2)
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'beta',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_beta.pdf'))
 # 
-# #sigma_beta ~ halfnormal(0, 2)
-# PR <- rnorm(10000, 0, 2)
+# 
+# 
+# #sigma_sn ~ halfnormal(0, 0.5)
+# PR <- rnorm(10000, 0, 0.5)
 # MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_beta',
+#                    params = 'sigma_sn',
 #                    priors = PR,
 #                    open_pdf = FALSE,
-#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta.pdf'))
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_sn.pdf'))
 
 
 
