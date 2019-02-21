@@ -32,22 +32,21 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Fit 4 with slope for lat
 *[DONE] Run 3
 *[DONE] Run 6 - query ebrid br codes (local)
+*[DONE] Run 7
 
-*[IN PROGRESS] Run 7
-*Rerun singularity issues
-
-*[IN PROGRESS] New 4
-
-*[IN PROGRESS] Run arr over time model with all cells - from tests
-*??? Run arr over time model with cells that had halfmax data - from tests
-
-*Run 4 tests with new data (2019-02-14)
+*Run 4 tests with new data (2019-02-14) - 3 species
 *Run 4 - BATCH
 
+*Breeding IAR
 
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
 
-*Build IAR intergrating other datasets for BR
+*Breeding IAR integrating other datasets
+  -Query NW and MAPS from DB
+  -Model NW using 5th quantile? Model MAPS using logistic? Or proportion of yearlings hitting nets?
+  -If no IAR, integrate other datasets into similar model
+
+
 
 
 #4 - NOTES
