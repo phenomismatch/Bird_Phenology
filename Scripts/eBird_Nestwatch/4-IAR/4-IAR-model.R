@@ -340,7 +340,7 @@ int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
 real<lower = 26, upper = 90> lat[N];
 real<lower = 1> yrs[J];
-matrix[N, J] tmax;                                    // max temp in cell/year
+// matrix[N, J] tmax;                                    // max temp in cell/year
 }
 
 parameters {
