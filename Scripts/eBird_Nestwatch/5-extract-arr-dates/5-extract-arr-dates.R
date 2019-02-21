@@ -8,10 +8,10 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
@@ -46,7 +46,7 @@ df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 species <- as.character(read.table('../../IAR_species_list.txt')[,1])
 
 #switch to out dir
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+#setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 #setwd(paste0('~/Desktop/Bird_Phenology_Offline/Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 
@@ -55,7 +55,7 @@ out <- data.frame()
 for (i in 1:length(species))
 {
   #i <- 96 #Vireo olivaceus
-  #i <- 24
+  #i <- 24 #Empidonax virescens
   
   #filter by species
   sp <- species[i]
