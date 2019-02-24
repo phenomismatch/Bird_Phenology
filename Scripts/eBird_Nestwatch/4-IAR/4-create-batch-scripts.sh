@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-02-14"
+DATE="2019-02-24"
 
 while read name
 do
