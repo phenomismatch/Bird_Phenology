@@ -9,8 +9,8 @@
 #SBATCH --mem=8G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-02-14/Quiscalus_quiscula-iar.out #STDOUT
-#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-02-14/Quiscalus_quiscula-iar.err #STDERR
+#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-02-24/Quiscalus_quiscula-iar.out #STDOUT
+#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-02-24/Quiscalus_quiscula-iar.err #STDERR
 
 #echos name of node
 echo `hostname`
