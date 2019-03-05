@@ -33,11 +33,12 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Run 3
 *[DONE] Run 6 - query ebrid br codes (local)
 *[DONE] Run 7
+*[DONE] Run 4 tests - 3 species
+*[IN PROGRESS] Run 4 - BATCH
 
-*Run 4 tests with new data (2019-02-14) - 3 species
-*Run 4 - BATCH
-
-*Breeding IAR
+*Breeding processing
+*Breeding IAR - restrict to breeding range
+*Polynomials (3rd to 7th) - DIC/PPC?
 
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
 
@@ -50,19 +51,31 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 
 
 #4 - NOTES
-*Rerun these models with higher adapt delta (0.98) due to divergences (# should after -)
-iar-Antrostomus_vociferus.err - 51 - DIV (20, 0.98, 0.005) - DONE SUPP
-iar-Bombycilla_cedrorum.err - 440 - 94 DIV (20, 0.98, 0.005) - DIV (20, 0.99, 0.005) - 7 DIV (20, 0.999, 0.005) - DONE SUPP
-iar-Cardellina_pusilla.err - 1 ** (super slow for one chain) - CANCELED
-iar-Euphagus_carolinus.err - DONE SUPP
-iar-Passerculus_sandwichensis.err - 4
-iar-Setophaga_castanea.err - 2 ** (super slow for one chain) - CANCELED
-*Rerun these models with lower adapt alpha (too slow) - MAXTREE = 20, delta = 0.9
-Contopus_cooperi
-Coccyzus_erythropthalmus
-Setophaga_palmarum
-Spiza_americana
-Vireo_philadelphicus
+SLOW
+Contopus_cooperi **chain 3 30%, March 5
+Empidonax_minimus **chain 2 40%, March 5
+Passerculus_sandwichensis **chain 3 30%, March 5
+Setophaga_palmarum ** chain 3 10%, chain 2 20%, chain 4 30% March 5
+
+DIVERGE (1 transition, except where noted)
+Contopus_virens
+Geothlypis_trichas
+Petrochelidon_pyrrhonota ** 3 
+Setophagea_ruticilla
+Vireo_flavifrons ** 2
+Vireo_olivaceus
+
+TREE
+Ammodramus_nelsoni (502 min) OKAY
+Bombycilla_cedrorum (288 min) OKAY
+Cardellina_pusilla (4310 min) min neff = 180
+Catharus_minimus (3369 min) min neff = 174
+Melospiza_georgiana (10510 min) min neff = 191
+Oreothlypis_celata (4688 min) min neff = 157
+Passerella_iliaca (6929 min) OKAY
+Quiscalus_quiscula (3605 min) OKAY
+Setophaga_fusca (10213 min) OKAY
+Zonotrichia_leucophrys (1678 min) min neff = 82
 
 
 
