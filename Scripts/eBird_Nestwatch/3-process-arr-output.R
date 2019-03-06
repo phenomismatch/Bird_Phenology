@@ -250,10 +250,6 @@ if (length(to.NA) > 0)
 }
 
 
-# setwd('~/Desktop/')
-# saveRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
-# readRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
-
 # #Look at plots that have a number of nphen_bad...why is this hapenning
 # range(df_out$nphen_bad, na.rm = TRUE)
 # hist(df_out$nphen_bad)
