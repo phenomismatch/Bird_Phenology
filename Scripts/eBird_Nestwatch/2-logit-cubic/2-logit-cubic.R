@@ -70,13 +70,14 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Mimus_polyglottos'
 #args <- 'Agelaius_phoeniceus'
 
+
+
 # import processed data ---------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
 
 #import data for species
 spdata <- readRDS(paste0('ebird_NA_phen_proc_', args, '.rds'))
-
 
 
 
@@ -90,6 +91,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
 #dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
 #read in grid
 hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
+
 
 
 # filter cells by range  ---------------------------------------------------
@@ -232,13 +234,13 @@ if (NROW(nrng@data) > 0)
 
 
 
-
 # process data ------------------------------------------------------------
 
 ncell <- length(cells)
 
 years <- min(spdata2$year):max(spdata2$year)
 nyr <- length(years)
+
 
 
 # fit logit cubic ---------------------------------------------------------
@@ -326,15 +328,15 @@ for (j in 1:nyr)
     
     if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     {
-      fit2 <- rstanarm::stan_glm(detect ~ sjday + sjday2 + sjday3 + shr,
-                       data = cyspdata,
-                       family = binomial(link = "logit"),
-                       algorithm = 'sampling',
-                       iter = ITER,
-                       chains = CHAINS,
-                       cores = CHAINS,
-                       adapt_delta = DELTA,
-                       control = list(max_treedepth = TREE_DEPTH))
+      fit2 <- rstanarm::stan_glm(detect ~ sjday + sjday2 + sjday3 + shr, 
+                                 data = cyspdata,
+                                 family = binomial(link = "logit"),
+                                 algorithm = 'sampling',
+                                 iter = ITER,
+                                 chains = CHAINS,
+                                 cores = CHAINS,
+                                 adapt_delta = DELTA,
+                                 control = list(max_treedepth = TREE_DEPTH))
       
       #calculate diagnostics
       num_diverge <- rstan::get_num_divergent(fit2$stanfit)
