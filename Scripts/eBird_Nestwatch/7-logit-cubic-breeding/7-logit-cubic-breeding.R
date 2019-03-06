@@ -8,10 +8,10 @@
 
 # top-level dir ---------------------------------------------------------------
 
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
@@ -20,17 +20,17 @@ dir <- '~/Google_Drive/R/'
 #read in ebird breeding code data
 DATE_BC <- '2019-02-12'
 
-RUN_DATE <- '2019-02-13'
+RUN_DATE <- '2019-03-06'
 
 
 # model settings ----------------------------------------------------------
 
 #model settings
-# ITER <- 2500
-# CHAINS <- 4
-
-ITER <- 10
+ITER <- 2500
 CHAINS <- 4
+
+# ITER <- 10
+# CHAINS <- 4
 
 
 
@@ -52,9 +52,9 @@ tt <- proc.time()
 
 # Get args fed to script --------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
-args <- 'Agelaius_phoeniceus'
+#args <- 'Agelaius_phoeniceus'
 
 
 
@@ -78,7 +78,7 @@ hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 
 
 
-# filter cells by range  ---------------------------------------------------
+# filter cells by breeding range  ---------------------------------------------------
 
 '%ni%' <- Negate('%in%')
 
@@ -399,7 +399,7 @@ for (j in 1:nyr)
       
       ########################
       #PLOT MODEL FIT AND DATA
-      
+
       #summary(fit2)
       mn_dfit <- apply(dfit, 2, mean)
       LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
