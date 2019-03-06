@@ -69,7 +69,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Empidonax_virescens'
 #args <- 'Mimus_polyglottos'
 #args <- 'Agelaius_phoeniceus'
-
+#args <- 'Vireo_olivaceus'
 
 
 # import processed data ---------------------------------------------------
@@ -145,26 +145,32 @@ if (NROW(nrng@data) > 0)
   br_mig_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
   
   #bad cells
-  nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
-  sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-  ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
-  res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
+  if (length(nrng_rm) > 0)
+  {
+    nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
+    sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
+    ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
+    res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
+
+    #remove cells that appear in resident and overwinter range that also appear in breeding range
+    cell_mrg <- c(br_mig_cells, res_ovr_cells)
+    to_rm <- cell_mrg[duplicated(cell_mrg)]
+      
+    rm(nrng_rm)
+    rm(nrng_rm_sp)  
+    rm(ptsreg_rm)
+    rm(res_ovr_cells)
+    
+  } else {
+    cell_mrg <- br_mig_cells
+    to_rm <- NULL
+  }
   
   #remove unneeded objects
   rm(hge)
   rm(nrng)
-  rm(nrng_rm)
   rm(nrng_sp)
-  rm(nrng_rm_sp)
   rm(ptsreg)
-  rm(ptsreg_rm)
-  
-  #remove cells that appear in resident and overwinter range that also appear in breeding range
-  cell_mrg <- c(br_mig_cells, res_ovr_cells)
-  to_rm <- cell_mrg[duplicated(cell_mrg)]
-  
-  #remove unneeded objects
-  rm(res_ovr_cells)
   
   if (length(to_rm) > 0)
   {
@@ -200,8 +206,6 @@ if (NROW(nrng@data) > 0)
   rm(n_cc_df)
   rm(spdata)
   
-  #create rows for cells that were missing in ebird data
-  #missing_cells <- cells[which(cells %ni% spdata2$cell)]
 } else {
   #write blank .rds file
   t_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
