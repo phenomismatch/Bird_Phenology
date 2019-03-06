@@ -22,7 +22,7 @@ dir <- '~/Google_Drive/R/'
 halfmax_breeding_date <- '2019-02-13'
 NW_date <- '2019-01-28'
 MAPS_date <- '2019-01-31'
-eBird_query_dir <- 'eBird_query_2019-02-02'
+eBird_query_date <- '2019-02-02'
 
 
 # Load packages -----------------------------------------------------------
@@ -59,7 +59,7 @@ MAPS_data <- readRDS(paste0('breeding_MAPS_obs_', MAPS_date, '.rds'))
 # create and fill df ------------------------------------------------------
 
 #read in ebird surveys to get full list of cells
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', eBird_query_dir))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/eBird_query_', eBird_query_date))
 t_data <- readRDS(paste0('ebird_NA_phen_proc_', species_list[1], '.rds'))
 
 na_reps <- rep(NA, (nsp*nyr*length(unique(t_data$cell))))
@@ -244,11 +244,6 @@ if (length(to.NA) > 0)
   m_breeding_df2[to.NA,'EB_HM_sd'] <- NA
 }
 
-
-# setwd('~/Desktop/')
-# saveRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
-# readRDS(diagnostics_frame2, paste0('temp_diagnostics_frame.rds'))
-
 # #Look at plots that have a number of nphen_bad...why is this hapenning
 # range(df_out$nphen_bad, na.rm = TRUE)
 # hist(df_out$nphen_bad)
@@ -287,26 +282,130 @@ m_breeding_df2$d_avail <- paste0(EB, NW, MAPS)
 # sum(m_breeding_df2$d_avail == '100')
 
 
-
-
-# determine which years to model breeding IAR?? --------------------------------------
-
-
-#use same filtering as with arrival???
-#m_breeding_df2$MODEL <- NA
+#add 'meets criteria' column
+m_breeding_df2$MODEL <- NA
+m_breeding_df2$shp_fname <- NA
 
 
 
+# save RDS for later use --------------------------------------
 
 
-# write to RDS ------------------------------------------------------------
+saveRDS(m_breeding_df2, 'temp_br_processing.rds')
 
 
-# #ALL YEARS/CELLS MODELED IN IAR MODEL
-# #write to rds
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-# saveRDS(m_breeding_df2, paste0('temp_breeding_master_', Sys.Date(), '.rds'))
-# 
-# #m_breeding_df2 <- readRDS('temp_breeding_master_2019-01-30.rds')
+
+
+# Filter data based on criteria -----------------------------------------------------------
+
+# Which species-years are worth modeling? At a bare minimum:
+#     Species with at least 'NC' cells in all three years from 2015-2017
+#     Species-years with at least 'NC' cells for those species
+
+NC <- 3
+
+'%ni%' <- Negate('%in%')
+
+#reference key for species synonyms
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
+sp_key <- read.csv('species_filenames_key.csv')
+
+#change dir to shp files
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+
+df_out <- data.frame()
+#which species/years meet criteria for model
+for (i in 1:length(species_list))
+{
+  #i <- 1
+  
+  print(i)
+  #filter by species
+  t_sp <- dplyr::filter(m_breeding_df2, species == species_list[i])
+  
+  if (NROW(t_sp) > 0)
+  {
+    #match species name to shp file name
+    g_ind <- grep(species_list[i], sp_key$file_names_2016)
+    
+    #check for synonyms if there are no matches
+    if (length(g_ind) == 0)
+    {
+      g_ind2 <- grep(species_list[i], sp_key$BL_Checklist_name)
+    } else {
+      g_ind2 <- g_ind
+    }
+    
+    #get filename to put in df
+    fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
+    t_sp$shp_fname <- fname
+    
+    #number of cells with good data in each year from 2015-2017
+    nobs_yr <- c()
+    for (j in 2015:2017)
+    {
+      #j <- 2017
+      ty_sp3 <- dplyr::filter(t_sp, year == j)
+      ind <- which(!is.na(ty_sp3$HM_mean))
+      nobs_yr <- c(nobs_yr, length(ind))
+      #ty_sp[ind,]
+    }
+    
+    #if all three years have greater than or = to 'NC' cells of data, figure 
+    #...out which years have at least 'NC' cells
+    yrs_kp <- c()
+    if (sum(nobs_yr >= NC) == 3)
+    {
+      #see which years have more than 3 cells of data
+      nobs_yr2 <- c()
+      for (j in min(years):max(years))
+      {
+        #j <- 2012
+        ty2_sp3 <- dplyr::filter(t_sp, year == j)
+        ind2 <- which(!is.na(ty2_sp3$HM_mean))
+        nobs_yr2 <- c(nobs_yr2, length(ind2))
+      }
+      
+      #years to keep (more than three cells of data)
+      yrs_kp <- years[which(nobs_yr2 >= NC)]
+    }
+    
+    if (length(yrs_kp) > 0)
+    {
+      t_sp[which(t_sp$year %in% yrs_kp),]$MODEL <- TRUE
+    }
+    
+    df_out <- rbind(df_out, t_sp)
+  }
+}
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+
+
+
+# order -------------------------------------------------------------------
+
+#order diagnostics frame by species, year, and cell #
+df_master <- df_out[with(df_out, order(species, year, cell)),]
+
+
+# write to RDS --------------------------------------------------
+
+IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_br_input_', halfmax_breeding_date)
+
+dir.create(IAR_dir_path)
+setwd(IAR_dir_path)
+
+saveRDS(df_master, paste0('IAR_br_input-', halfmax_breeding_date, '.rds'))
+
+
+
+# create list of species to run through IAR model -------------------------
+
+species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))$species
+
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
+write.table(species_tm, file = paste0('IAR_br_species_list-', halfmax_breeding_date, '.txt'), 
+            row.names = FALSE, col.names = FALSE)
 
 
