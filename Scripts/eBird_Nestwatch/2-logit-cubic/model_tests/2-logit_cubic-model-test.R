@@ -375,38 +375,36 @@ for (j in 1:nyr)
     DELTA <- 0.95
     TREE_DEPTH <- 15
     
-    
-    #generate predict data
-    predictDays <- range(cyspdata$sjday)[1]:range(cyspdata$sjday)[2]
-    predictDays2 <- predictDays^2
-    predictDays3 <- predictDays^3
-    predictDays4 <- predictDays^4
-    predictDays5 <- predictDays^5
-    predictDays6 <- predictDays^6
-    predictDays7 <- predictDays^7
-
-    newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2,
-                          sjday3 = predictDays3, sjday4 = predictDays4,
-                          sjday5 = predictDays5, sjday6 = predictDays6,
-                          sjday7 = predictDays7, shr = 0)
-    
-    # #generate predict data (scaled)
-    # predictDays <- scale(range(cyspdata$sjday)[1]:range(cyspdata$sjday)[2])
-    # predictDays2 <- scale(predictDays^2)
-    # predictDays3 <- scale(predictDays^3)
-    # predictDays4 <- scale(predictDays^4)
-    # predictDays5 <- scale(predictDays^5)
-    # predictDays6 <- scale(predictDays^6)
-    # predictDays7 <- scale(predictDays^7)
-    # 
-    # newdata <- data.frame(ssjday = predictDays, ssjday2 = predictDays2,
-    #                       ssjday3 = predictDays3, ssjday4 = predictDays4,
-    #                       ssjday5 = predictDays5, ssjday6 = predictDays6,
-    #                       ssjday7 = predictDays7, shr = 0)
-    
-    
     if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     {
+      #generate predict data
+      predictDays <- range(cyspdata$sjday)[1]:range(cyspdata$sjday)[2]
+      predictDays2 <- predictDays^2
+      predictDays3 <- predictDays^3
+      predictDays4 <- predictDays^4
+      predictDays5 <- predictDays^5
+      predictDays6 <- predictDays^6
+      predictDays7 <- predictDays^7
+      
+      newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2,
+                            sjday3 = predictDays3, sjday4 = predictDays4,
+                            sjday5 = predictDays5, sjday6 = predictDays6,
+                            sjday7 = predictDays7, shr = 0)
+      
+      # #generate predict data (scaled)
+      # predictDays <- scale(range(cyspdata$sjday)[1]:range(cyspdata$sjday)[2])
+      # predictDays2 <- scale(predictDays^2)
+      # predictDays3 <- scale(predictDays^3)
+      # predictDays4 <- scale(predictDays^4)
+      # predictDays5 <- scale(predictDays^5)
+      # predictDays6 <- scale(predictDays^6)
+      # predictDays7 <- scale(predictDays^7)
+      # 
+      # newdata <- data.frame(ssjday = predictDays, ssjday2 = predictDays2,
+      #                       ssjday3 = predictDays3, ssjday4 = predictDays4,
+      #                       ssjday5 = predictDays5, ssjday6 = predictDays6,
+      #                       ssjday7 = predictDays7, shr = 0)
+      
       for (m in 1:length(formulas))
       {
         #m <- 1
@@ -524,28 +522,31 @@ for (j in 1:nyr)
                lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
         for (bin in 1:10) 
         {
-          #bin <- 1
+          #bin <- 3
           #for each draw, how many detections are in a particular bin
-          binpredict <- rowSums(pp[, bin_number == bin])
-          truenumber <- sum(cyspdata$detect[bin_number == bin])
-          
-          #what proportion of time are more detections predicted
-          halfmax_df[counter, paste0('ppc_b', bin)] <- sum(binpredict > truenumber) / ((ITER/2)*CHAINS)
-          
-          #sum of squared errors for that bin
-          halfmax_df[counter, paste0('SSE_b', bin)] <- sum((truenumber - binpredict)^2)
-          
-          # sum(binpredict == truenumber) / 1000
-          # sum(binpredict > truenumber) / 1000
-          # sum(binpredict < truenumber) / 1000
-          
-          h_plt <- function()
+          if (sum(bin_number == bin) > 1)
           {
-            hist(binpredict, xaxt = 'n', yaxt = 'n', main = NULL,
-                 xlab = NULL, ylab = NULL)
-            abline(v = truenumber, col = 'red', lwd = 3)
+            binpredict <- rowSums(pp[, bin_number == bin])
+            truenumber <- sum(cyspdata$detect[bin_number == bin])
+          
+            #what proportion of time are more detections predicted
+            halfmax_df[counter, paste0('ppc_b', bin)] <- sum(binpredict > truenumber) / ((ITER/2)*CHAINS)
+          
+            #sum of squared errors for that bin
+            halfmax_df[counter, paste0('SSE_b', bin)] <- sum((truenumber - binpredict)^2)
+          
+            # sum(binpredict == truenumber) / 1000
+            # sum(binpredict > truenumber) / 1000
+            # sum(binpredict < truenumber) / 1000
+          
+            h_plt <- function()
+            {
+              hist(binpredict, xaxt = 'n', yaxt = 'n', main = NULL,
+                   xlab = NULL, ylab = NULL)
+              abline(v = truenumber, col = 'red', lwd = 3)
+            }
+            Hmisc::subplot(h_plt, x = ((bin * 20) - 8), y = -(max(UCI_dfit) / 8), size = c(0.5, 0.5))
           }
-          Hmisc::subplot(h_plt, x = ((bin * 20) - 8), y = -(max(UCI_dfit) / 8), size = c(0.5, 0.5))
         }
         
         dev.off()
