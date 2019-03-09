@@ -158,7 +158,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     FROM places
                                     JOIN events USING (place_id)
                                     JOIN counts USING (event_id)
-                                    JOIN taxons USING (taxon_id)
+                                    JOIN taxa USING (taxon_id)
                                     WHERE dataset_id = 'ebird'
                                     AND year > 2001
                                     AND day < 300
@@ -238,7 +238,7 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       FROM events
                                       JOIN places USING (place_id)
                                       JOIN counts USING (event_id)
-                                      JOIN taxons USING (taxon_id)
+                                      JOIN taxa USING (taxon_id)
                                       WHERE dataset_id = 'ebird'
                                       AND year > 2001
                                       AND day < 300
@@ -360,7 +360,7 @@ if (length(m_sp2) > 0)
                                         FROM events
                                         JOIN places USING (place_id)
                                         JOIN counts USING (event_id)
-                                        JOIN taxons USING (taxon_id)
+                                        JOIN taxa USING (taxon_id)
                                         WHERE dataset_id = 'ebird'
                                         AND year > 2001
                                         AND day < 300
