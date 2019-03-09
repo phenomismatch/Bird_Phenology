@@ -34,13 +34,27 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Run 6 - query ebrid br codes (local)
 *[DONE] Run 7
 *[DONE] Run 4 tests - 3 species
+*[DONE] *Polynomials (2nd to 6th) - RWBB
 *[IN PROGRESS] Run 4 - BATCH
 
-*Breeding processing
-*Breeding IAR - restrict to breeding range
-*Polynomials (3rd to 7th) - DIC/PPC?
+*[IN PROGRESS] Run 2 test (GAM)
+*Test ebird query 1
+
+
+*Fix 7 (breeding logit cubic) - had errors in Xanadu run
+*Run 8 (process 7)
+*Run 9 (breeding IAR)
 
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
+
+*Run new ebird query - include 2018 - jday filter to 215?
+*Make sure breeding query matches with presence query
+*Run 1-9
+
+
+*Add correlation structure in IAR models
+
+
 
 *Breeding IAR integrating other datasets
   -Query NW and MAPS from DB
@@ -52,10 +66,10 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 
 #4 - NOTES
 SLOW
-Contopus_cooperi **chain 3 30%, March 5
-Empidonax_minimus **chain 2 40%, March 5
-Passerculus_sandwichensis **chain 3 30%, March 5
-Setophaga_palmarum ** chain 3 10%, chain 2 20%, chain 4 30% March 5
+Contopus_cooperi **chain 3 30%, March 5, 40% March 7, 50% March 9
+Empidonax_minimus **chain 2 40%, March 5, 60% March 7, 80% March 9
+Passerculus_sandwichensis **chain 3 30%, March 5, 50% March 7, 70% March 9
+Setophaga_palmarum ** chain 3 10%, chain 2 20%, chain 4 30% March 5, unchanged March 7 - CANCELED
 
 DIVERGE (1 transition, except where noted)
 Contopus_virens
@@ -146,23 +160,6 @@ while read p
 do
   scancel "$p"
 done <tt.txt
-
-#####################
-*Rafe update database
-#####################
-*Change query for arrival to 215?
-*Change initial ebird query filtering??? (so that surveys started earlier than 7pm, not 4 pm)
-*Run 1
-*In 3 and 8, don't calc n1, n0 etc. These values nwo calculated in 2 and 7 - only calculate posterior mean/sd/etc in processing scripts
-*Run 2 on cluster
-*Run 3 locally
-*Run 4 - INLA locally
-*Run 5 locally
-*Change query for ebird breeding codes to match initial ebird query
-*Run 7 on cluster
-*Run 8 locally
-
-*Rerun breeding ~ arrival models -> further analyses
 
 
 
