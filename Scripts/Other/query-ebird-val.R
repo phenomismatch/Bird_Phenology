@@ -1,5 +1,7 @@
 ##############################
 # query ebird database for Val
+#
+# can't do bc DB only has 120 species of interest
 ##############################
 
 #Lat/longs: -74.0267, -70.82259, 40.7584, 42.27485  (xmin, xmax, ymin, ymax)
@@ -124,10 +126,10 @@ setwd(query_dir_path)
 # format(as.Date('2020-07-31'), '%j')
 
 
-#get list of all species
+#check regarding protocol type
 data <- DBI::dbGetQuery(cxn, paste0("
                                     SELECT event_id, year, day, place_id, lat, lng,
-                                    event_json, place_json, count_json
+                                    count_json ->> 'PROTOCOL_TYPE' AS pt
                                     FROM places
                                     JOIN events USING (place_id)
                                     JOIN counts USING (event_id)
@@ -137,14 +139,18 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND day BETWEEN 121 AND 213
                                     AND lng BETWEEN -74.5 AND -70
                                     AND lat BETWEEN 40 AND 42.5
-                                    LIMIT 1000;
+                                    LIMIT 100000;
                                     "))
+head(data)
+
+sum(!is.na(data$pt))
 
 
 
-#get list of all event_ids
+
+#get list of all species
 data <- DBI::dbGetQuery(cxn, paste0("
-                                    SELECT event_id, year, day, place_id, lat, lng,
+                                    SELECT DISTINCT ON (species) event_id, year, day, place_id, lat, lng,
                                     event_json, place_json, count_json
                                     FROM places
                                     JOIN events USING (place_id)
@@ -160,6 +166,29 @@ data <- DBI::dbGetQuery(cxn, paste0("
 
 
 
+
+
+
+#get list of all event ids
+data <- DBI::dbGetQuery(cxn, paste0("
+                                    SELECT DISTINCT ON (species) event_id, year, day, place_id, lat, lng,
+                                    event_json, place_json, count_json
+                                    FROM places
+                                    JOIN events USING (place_id)
+                                    JOIN counts USING (event_id)
+                                    JOIN taxa USING (taxon_id)
+                                    WHERE day BETWEEN 121 AND 213
+                                    AND dataset_id = 'ebird'
+                                    AND year BETWEEN 2013 AND 2018
+                                    AND lng BETWEEN -75 AND -70
+                                    AND lat BETWEEN 40 AND 43
+                                    LIMIT 1000;
+                                    "))
+
+
+
+
+#query each species individually
 
 
 
