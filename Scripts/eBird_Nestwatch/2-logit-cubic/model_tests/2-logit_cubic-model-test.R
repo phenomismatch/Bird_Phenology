@@ -264,7 +264,7 @@ nm <- length(formulas)
 #t_mat <- matrix(data = NA, nrow = ncell * nyr * nm, ncol = ((ITER/2)*CHAINS))
 #colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
 
-halfmax_df <- data.frame(species = rep(args, times = (ncell * nyr * nm)), 
+halfmax_df <- data.frame(species = rep(args, times = (ncell * nyr * (nm + 1))), 
                          year = NA, 
                          cell = NA,
                          poly = NA,
@@ -562,6 +562,159 @@ for (j in 1:nyr)
         
         counter <- counter + 1
       }
+      
+      halfmax_df$year[counter] <- years[j]
+      halfmax_df$cell[counter] <- cells[k]
+      halfmax_df$poly[counter] <- m + 1
+      
+      halfmax_df$n1[counter] <- n1
+      halfmax_df$n1W[counter] <- n1W
+      halfmax_df$n0[counter] <- n0
+      halfmax_df$n0i[counter] <- n0i
+      halfmax_df$njd1[counter] <- njd1
+      halfmax_df$njd0[counter] <- njd0
+      halfmax_df$njd0i[counter] <- njd0i
+      
+      tfit_gam <- rstanarm::stan_gamm4(detect ~ s(sjday) + shr, 
+                                        data = cyspdata,
+                                        family = binomial(link = "logit"),
+                                        algorithm = 'sampling',
+                                        iter = ITER,
+                                        chains = CHAINS,
+                                        cores = CHAINS,
+                                        adapt_delta = DELTA,
+                                        control = list(max_treedepth = TREE_DEPTH))
+      
+      name <- paste0(args, '_', years[j], '_', cells[k], '- GAM')
+      assign(name, tfit_gam)
+      
+      #calculate diagnostics
+      halfmax_df$num_diverge[counter] <- rstan::get_num_divergent(tfit_gam$stanfit)
+      halfmax_df$num_tree[counter] <- rstan::get_num_max_treedepth(tfit_gam$stanfit)
+      halfmax_df$num_BFMI[counter] <- length(rstan::get_low_bfmi_chains(tfit_gam$stanfit))
+      halfmax_df$delta[counter] <- DELTA
+      halfmax_df$tree_depth[counter] <- TREE_DEPTH
+      halfmax_df$max_Rhat[counter] <- round(max(summary(tfit_gam)[, "Rhat"]), 2)
+      halfmax_df$min_neff[counter] <- min(summary(tfit_gam)[, "n_eff"])
+      
+      
+      #predict response
+      dfit <- rstanarm::posterior_linpred(tfit_gam, newdata = newdata, transform = T)
+      halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
+      
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        #L <- 1
+        rowL <- as.vector(dfit[L,])
+        halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
+      }
+      
+      #draw from posterior predictive distribution
+      pp <- rstanarm::posterior_predict(tfit_gam)
+      
+      #assign bin numbers to each point
+      bin_number <- 1 + cyspdata$day %/% 20
+      
+      ########################
+      #PLOT MODEL FIT AND DATA
+      
+      setwd('~/Desktop/Agelaius_phoeniceus_tests')
+      cyspdata2 <- cyspdata
+      
+      #summary(fit2)
+      mn_dfit <- apply(dfit, 2, mean)
+      LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
+      UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+      mn_hm <- mean(halfmax_fit)
+      LCI_hm <- quantile(halfmax_fit, probs = 0.025)
+      UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+      
+      pdf(paste0(args, '_', years[j], '_', cells[k], '-GAM_arrival.pdf'))
+      plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 3,
+           ylim = c(-(max(UCI_dfit)/5), max(UCI_dfit)),
+           main = paste0(args, ' - ', years[j], ' - ', cells[k], '- poly ', m + 1),
+           xlab = 'Julian Day', ylab = 'Detection Probability')
+      lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 3)
+      lines(predictDays, mn_dfit, lwd = 3)
+      cyspdata2$detect[which(cyspdata2$detect == 1)] <- max(UCI_dfit)
+      points(cyspdata2$day, cyspdata2$detect, col = rgb(0,0,0,0.25))
+      
+      ds <- sort(unique(cyspdata$day))
+      prop_d <- rep(NA, length(ds))
+      for (p in 1:length(ds))
+      {
+        #p <- 2
+        td <- filter(cyspdata, day == ds[p])
+        prop_d[p] <- mean(td$detect)
+      }
+      
+      ma <- function(x, n = 5)
+      {
+        stats::filter(x, rep(1/n, n), sides = 2)
+      }
+      ma_prop_d <- ma(prop_d) * max(UCI_dfit)
+      
+      lines(ds, ma_prop_d, col = rgb(0.5,0.5,0.5,0.9), lwd = 2)
+      
+      segments(x0 = mn_hm, x1 = mn_hm, y0 = 0, y1 = 1, col = rgb(0,0,1,0.5), lwd = 3)
+      segments(x0 = LCI_hm, x1 = LCI_hm, y0 = 0, y1 = 1, col = rgb(0,0,1,0.5), lwd = 3, lty = 2)
+      segments(x0 = UCI_hm, x1 = UCI_hm, y0 = 0, y1 = 1, col = rgb(0,0,1,0.5), lwd = 3, lty = 2)
+      
+      rect(xleft = 0, ybottom = 0, xright = 20, ytop = max(UCI_dfit),
+           col = rgb(0,1,1,0.2), border = FALSE)
+      rect(xleft = 40, ybottom = 0, xright = 60, ytop = max(UCI_dfit),
+           col = rgb(0,1,1,0.2), border = FALSE)
+      rect(xleft = 80, ybottom = 0, xright = 100, ytop = max(UCI_dfit),
+           col = rgb(0,1,1,0.2), border = FALSE)
+      rect(xleft = 120, ybottom = 0, xright = 140, ytop = max(UCI_dfit),
+           col = rgb(0,1,1,0.2), border = FALSE)
+      rect(xleft = 160, ybottom = 0, xright = 180, ytop = max(UCI_dfit),
+           col = rgb(0,1,1,0.2), border = FALSE)
+      legend('topleft',
+             legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM', '5d MA'),
+             col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5), rgb(0.5,0.5,0.5,0.7)),
+             lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
+      for (bin in 1:10) 
+      {
+        #bin <- 3
+        #for each draw, how many detections are in a particular bin
+        if (sum(bin_number == bin) > 1)
+        {
+          binpredict <- rowSums(pp[, bin_number == bin])
+          truenumber <- sum(cyspdata$detect[bin_number == bin])
+          
+          #what proportion of time are more detections predicted
+          halfmax_df[counter, paste0('ppc_b', bin)] <- sum(binpredict > truenumber) / ((ITER/2)*CHAINS)
+          
+          #sum of squared errors for that bin
+          halfmax_df[counter, paste0('SSE_b', bin)] <- sum((truenumber - binpredict)^2)
+          
+          # sum(binpredict == truenumber) / 1000
+          # sum(binpredict > truenumber) / 1000
+          # sum(binpredict < truenumber) / 1000
+          
+          h_plt <- function()
+          {
+            hist(binpredict, xaxt = 'n', yaxt = 'n', main = NULL,
+                 xlab = NULL, ylab = NULL)
+            abline(v = truenumber, col = 'red', lwd = 3)
+          }
+          Hmisc::subplot(h_plt, x = ((bin * 20) - 8), y = -(max(UCI_dfit) / 8), size = c(0.5, 0.5))
+        }
+      }
+      
+      dev.off()
+      ########################
+      
+      #halfax mean and sd
+      halfmax_df[counter, 'hf_mean'] <- mean(halfmax_fit)
+      halfmax_df[counter, 'hf_sd'] <- sd(halfmax_fit)
+      
+      #waic and se
+      halfmax_df[counter, 'waic'] <- waic(tfit_gam)$estimates[3, 1]
+      halfmax_df[counter, 'waic_se'] <- waic(tfit_gam)$estimates[3, 2]
+      
+      counter <- counter + 1
     }
   } #k
 } #j
@@ -618,9 +771,14 @@ OUT
 
 
 
-# zero inflated begta -----------------------------------------------------
 
 
+
+
+
+
+
+# zero inflated beta -----------------------------------------------------
 
 zeros <- cyspdata$day[which(cyspdata$detect == 0)]
 ones <- cyspdata$day[which(cyspdata$detect == 1)]
@@ -697,8 +855,6 @@ fit_zinb1 <- brm(count ~ persons + child + camper,
 
 
 # ARMA model --------------------------------------------------------------
-
-
 
 ds <- sort(unique(cyspdata$day))
 prop_d <- rep(NA, length(ds))
@@ -796,6 +952,8 @@ ggplot(pred, aes(x, est, ymin = lower, ymax = upper)) +
 
 
 
+
+
 # Process test data ----------------------------------------------------------------
 
 #Agelaius phoeniceus - 2014 - 536
@@ -804,12 +962,12 @@ ggplot(pred, aes(x, est, ymin = lower, ymax = upper)) +
 #Agelaius phoeniceus - 2014 - 566
 
 # saveRDS(spdata2, 'ex_data.rds')
-# spdata <- readRDS('ex_data.rds')
+# spdata2 <- readRDS('ex_data.rds')
 
 YEAR <- 2014
-CELL <- 538
+CELL <- 566
 
-cysdata <- dplyr::filter(spdata2, year == YEAR, cell == CELL)
+cyspdata <- dplyr::filter(spdata2, year == YEAR, cell == CELL)
 
 
 
@@ -823,7 +981,7 @@ prop_d <- rep(NA, length(ds))
 for (p in 1:length(ds))
 {
   #p <- 2
-  td <- filter(cyspdata, day == ds[p])
+  td <- dplyr::filter(cyspdata, day == ds[p])
   prop_d[p] <- mean(td$detect)
 }
 
@@ -844,7 +1002,7 @@ DATA <- data.frame(prop_d, ds)
 #Asym/(1+exp((xmid-input)/scal))
 
 fit <- nls(prop_d ~ SSlogis(ds, Asym, xmid, scal),
-           control = nls.control(maxiter = 10000),
+           control = nls.control(maxiter = 10000, minFactor = 1/5000000),
            data = DATA)
 
 
@@ -914,7 +1072,7 @@ UCI_hm <- quantile(halfmax_fit, probs = 0.975)
 
 plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 3,
      ylim = c(-(max(UCI_dfit)/5), max(UCI_dfit)),
-     main = paste0(args, ' - ', years[j], ' - ', cells[k]),
+     main = paste0(args, ' - ', YEAR, ' - ', CELL),
      xlab = 'Julian Day', ylab = 'Detection Probability')
 lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 3)
 lines(predictDays, mn_dfit, lwd = 3)
@@ -926,7 +1084,7 @@ prop_d <- rep(NA, length(ds))
 for (p in 1:length(ds))
 {
   #p <- 2
-  td <- filter(cyspdata, day == ds[p])
+  td <- dplyr::filter(cyspdata, day == ds[p])
   prop_d[p] <- mean(td$detect)
 }
 
@@ -994,7 +1152,7 @@ UCI_hm <- quantile(halfmax_fit, probs = 0.975)
 
 plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 3,
      ylim = c(-(max(UCI_dfit)/5), max(UCI_dfit)),
-     main = paste0(args, ' - ', years[j], ' - ', cells[k], ' - GAM'),
+     main = paste0(args, ' - ', YEAR, ' - ', CELL, ' - GAM'),
      xlab = 'Julian Day', ylab = 'Detection Probability')
 lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 3)
 lines(predictDays, mn_dfit, lwd = 3)
@@ -1006,7 +1164,7 @@ prop_d <- rep(NA, length(ds))
 for (p in 1:length(ds))
 {
   #p <- 2
-  td <- filter(cyspdata, day == ds[p])
+  td <- dplyr::filter(cyspdata, day == ds[p])
   prop_d[p] <- mean(td$detect)
 }
 
