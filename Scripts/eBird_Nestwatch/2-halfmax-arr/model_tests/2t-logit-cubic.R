@@ -731,6 +731,7 @@ saveRDS(halfmax_df_2, paste0('2t-', args, '.rds'))
 
 # check results -----------------------------------------------------------
 
+# halfmax_df_2 <- readRDS(paste0(args, '_poly_tests.rds'))
 # 
 # fyrs <- unique(halfmax_df_2$year)
 # 
@@ -742,16 +743,16 @@ saveRDS(halfmax_df_2, paste0('2t-', args, '.rds'))
 #   #i <- 1
 #   tyr <- dplyr::filter(halfmax_df_2, year == fyrs[i])
 #   fcell <- unique(tyr$cell)
-#   
+# 
 #   for (j in 1:length(fcell))
 #   {
 #     print(paste0(i, ', ', j))
 #     #j <- 1
 #     tcell <- dplyr::filter(tyr, cell == fcell[j])
 #     td <- max(tcell$hf_mean) - min(tcell$hf_mean)
-#     tw <- max(tcell$waic) - min(tcell$waic) 
+#     tw <- max(tcell$waic) - min(tcell$waic)
 #     bwaic <- tcell$poly[which.min(tcell$waic)]
-#     
+# 
 #     ndf <- data.frame(year = fyrs[i], cell = fcell[j], diff = td, dwaic = tw, best = bwaic)
 #     OUT <- rbind(OUT, ndf)
 #   }
