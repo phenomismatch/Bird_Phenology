@@ -1,9 +1,16 @@
 ####################
-# 8 - logit-cubic-breeding
+# 7 - logit-cubic-breeding
 #
-# *logit cubic for ebird breeding codes
+# Fit model (GAM logistic regression) to eBird data to get half-max parameter (bird breeding) for each species-cell-year
 #
-####################
+# y ~ bernouli(p)
+# logit(p) = s(day)
+#
+# Halfmax is derived from model fit
+#
+# Species name should be given as an arg to this script. The model will then be fit to that species only.
+# Runtime: Up to ? days on Xanadu
+######################  
 
 
 # top-level dir ---------------------------------------------------------------
@@ -12,7 +19,6 @@
 
 #Xanadu
 dir <- '/UCHC/LABS/Tingley/phenomismatch/'
-
 
 
 # query dir ---------------------------------------------------------------

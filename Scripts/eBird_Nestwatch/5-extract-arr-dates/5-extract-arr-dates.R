@@ -1,7 +1,7 @@
 ######################
 # 5 - Extract arrival dates from IAR output
 #
-# Compiles dataframe with pre (2-logit_cubic.R) and post (4-IAR-model.R) IAR data for every year/cell
+# Compiles dataframe with pre (2-halfmax-arr.R) and post (4-IAR-arr.R) IAR data for every year/cell
 ######################
 
 

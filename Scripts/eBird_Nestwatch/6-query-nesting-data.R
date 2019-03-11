@@ -42,7 +42,7 @@ library(foreach)
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
-species_list_i <- read.table(paste0('IAR_species_list-', hm_date, '.txt'), stringsAsFactors = FALSE)
+species_list_i <- read.table(paste0('IAR_species_list.txt'), stringsAsFactors = FALSE)
 
 #remove underscore and coerce to vector
 species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
@@ -159,13 +159,12 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     JOIN events USING (place_id)
                                     JOIN counts USING (event_id)
                                     JOIN taxa USING (taxon_id)
-                                    WHERE dataset_id = 'ebird'
+                                    WHERE events.dataset_id = 'ebird'
                                     AND year > 2001
                                     AND day < 300
-                                    AND lng BETWEEN -100 AND -50
+                                    AND lng BETWEEN -95 AND -50
                                     AND lat > 26
                                     AND (sci_name IN (", SL,"))
-                                    AND (event_json ->> 'ALL_SPECIES_REPORTED')::int = 1
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
                                     AND LEFT(started, 2)::int < 18
                                     AND RADIUS < 100000;
@@ -181,19 +180,10 @@ rm(data)
 
 #calculate polynomial then center data
 #scaled julian day, scaled julian day^2, and scaled julian day^3
-SJDAY  <- as.vector(data2$day)
-SJDAY2 <- as.vector(data2$day^2)
-SJDAY3 <- as.vector(data2$day^3)
-
-data2$sjday <- SJDAY
-data2$sjday2 <- SJDAY2
-data2$sjday3 <- SJDAY3
+data2$jday <- as.vector(data2$day)
 
 #scaled effort hours
-SHR <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
-
-data2$shr <- SHR
-
+data2$shr <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
 
 
 
@@ -239,7 +229,7 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       JOIN places USING (place_id)
                                       JOIN counts USING (event_id)
                                       JOIN taxa USING (taxon_id)
-                                      WHERE dataset_id = 'ebird'
+                                      WHERE events.dataset_id = 'ebird'
                                       AND year > 2001
                                       AND day < 300
                                       AND lng BETWEEN -100 AND -50
@@ -309,8 +299,8 @@ foreach::foreach(i = 1:nsp) %dopar%
   data2[z_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         year, day, cell, sjday, sjday2, 
-                         sjday3, shr, species_list_i[i,1])
+                         year, day, cell, jday,
+                         shr, species_list_i[i,1])
   
   names(sdata)[8] <- "bba_category"
   sdata['species'] <- species_list_i[i,1]
@@ -361,10 +351,10 @@ if (length(m_sp2) > 0)
                                         JOIN places USING (place_id)
                                         JOIN counts USING (event_id)
                                         JOIN taxa USING (taxon_id)
-                                        WHERE dataset_id = 'ebird'
+                                        WHERE events.dataset_id = 'ebird'
                                         AND year > 2001
                                         AND day < 300
-                                        AND lng BETWEEN -100 AND -50
+                                        AND lng BETWEEN -95 AND -50
                                         AND lat > 26
                                         AND (sci_name IN ('", m_sp2[i],"'));
                                         "))
@@ -429,8 +419,8 @@ if (length(m_sp2) > 0)
     data2[z_ind, m_sp[i]] <- 0
     
     sdata <- dplyr::select(data2, 
-                           year, day, cell, sjday, sjday2, 
-                           sjday3, shr, m_sp[i])
+                           year, day, cell, jday,
+                           shr, m_sp[i])
     
     names(sdata)[8] <- "bba_category"
     sdata['species'] <- m_sp[i]

@@ -11,4 +11,4 @@ do
 done < ../../../Data/eBird_species_list.txt
 #done < ../../../Data/test_species_list.txt
 
-cp 2-logit-cubic.R ../../../Data/Processed/halfmax_species_$DATE/2-halfmax-arr-$DATE.R
+cp 2-halfmax-arr.R ../../../Data/Processed/halfmax_species_$DATE/2-halfmax-arr-$DATE.R
