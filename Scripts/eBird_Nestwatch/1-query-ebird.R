@@ -80,6 +80,17 @@ setwd(query_dir_path)
 
 # filter dataset notes ----------------------------------------------------------
 
+#From Rafe:
+#all ebird records must meet the following for inclusion in DB:
+#*ALL_SPECIES_REPORTED = 1 (complete surveys)
+#*APPROVED = 1
+#*Must have date
+#*Must have count
+#*Lng between -95 and -50
+#*Lat between 20 and 90
+#*Sci Name on approved ~120 passerine list
+
+
 #SQL FILTER BY:
 # * only ebird data
 # * species of interest (import from text file)
@@ -146,7 +157,6 @@ setwd(query_dir_path)
 
 
 #filter all unique event_ids that meet criteria - about 38 min to complete query
-
 data <- DBI::dbGetQuery(cxn, paste0("
                                     SELECT DISTINCT ON (event_id) event_id, year, day, place_id, lat, lng, started, 
                                     radius,
@@ -160,18 +170,16 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     JOIN events USING (place_id)
                                     JOIN counts USING (event_id)
                                     JOIN taxa USING (taxon_id)
-                                    WHERE dataset_id = 'ebird'
+                                    WHERE events.dataset_id = 'ebird'
                                     AND year > 2001
                                     AND day < 200
-                                    AND lng BETWEEN -100 AND -50
+                                    AND lng BETWEEN -95 AND -50
                                     AND lat > 26
                                     AND (sci_name IN (", SL,"))
-                                    AND (event_json ->> 'ALL_SPECIES_REPORTED')::int = 1
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
                                     AND LEFT(started, 2)::int < 18
                                     AND RADIUS < 100000;
                                     "))
-
 
 
 #only values with unique group identifiers (or no group identifier)
@@ -184,20 +192,11 @@ rm(data)
 
 # add sjday, sjday^2, sjday^3 and shr ---------------------------------------------------
 
-#calculate polynomial then center data
-#julian day, julian day^2, and julian day^3
-SJDAY  <- as.vector(data2$day)
-SJDAY2 <- as.vector(data2$day^2)
-SJDAY3 <- as.vector(data2$day^3)
-
-data2$sjday <- SJDAY
-data2$sjday2 <- SJDAY2
-data2$sjday3 <- SJDAY3
+#julian day
+data2$jday <- as.vector(data2$day)
 
 #scaled effort hours
-SHR <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
-
-data2$shr <- SHR
+data2$shr <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
 
 
 
@@ -244,10 +243,10 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       JOIN places USING (place_id)
                                       JOIN counts USING (event_id)
                                       JOIN taxa USING (taxon_id)
-                                      WHERE dataset_id = 'ebird'
+                                      WHERE events.dataset_id = 'ebird'
                                       AND year > 2001
                                       AND day < 200
-                                      AND lng BETWEEN -100 AND -50
+                                      AND lng BETWEEN -95 AND -50
                                       AND lat > 26
                                       AND (sci_name IN ('", species_list_i2[i],"'));
                                       "))
@@ -265,8 +264,8 @@ foreach::foreach(i = 1:nsp) %dopar%
   data2[n_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         year, day, sjday, sjday2, 
-                         sjday3, shr, cell, species_list_i[i,1])
+                         year, day, jday,
+                         shr, cell, species_list_i[i,1])
   
   names(sdata)[8] <- "detect"
   sdata['species'] <- species_list_i[i,1]
@@ -315,10 +314,10 @@ if (length(m_sp2) > 0)
                                         JOIN places USING (place_id)
                                         JOIN counts USING (event_id)
                                         JOIN taxa USING (taxon_id)
-                                        WHERE dataset_id = 'ebird'
+                                        WHERE events.dataset_id = 'ebird'
                                         AND year > 2001
                                         AND day < 200
-                                        AND lng BETWEEN -100 AND -50
+                                        AND lng BETWEEN -95 AND -50
                                         AND lat > 26
                                         AND (sci_name IN ('", m_sp2[i],"'));
                                         "))
@@ -336,8 +335,8 @@ if (length(m_sp2) > 0)
     data2[n_ind, m_sp2[i]] <- 0
     
     sdata <- dplyr::select(data2, 
-                           year, day, sjday, sjday2, 
-                           sjday3, shr, cell, m_sp2[i])
+                           year, day, jday,
+                           shr, cell, m_sp2[i])
     
     names(sdata)[8] <- "detect"
     sdata['species'] <- m_sp2[i]

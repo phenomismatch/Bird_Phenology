@@ -20,7 +20,7 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-hm_dir <- 'halfmax_species_2019-02-02'
+hm_dir <- 'halfmax_species_2019-03-11'
 hm_date <- substr(hm_dir, start = 17, stop = 26)
 
 
@@ -50,8 +50,8 @@ species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
 
-#DATA ONLY VALID THROUGH 2017 (2018 data only goes to ~ jday 60 as of 2018-10-15 query)
-years <- 2002:2017
+
+years <- 2002:2018
 nyr <- length(years)
 
 
@@ -96,7 +96,7 @@ cell_grid <- dggridR::dgcellstogrid(hexgrid6, tcells)
 #   theme_bw()
 
 
-# Proces logit cubic results -----------------------------------------------------------------
+# Proces halfmax results -----------------------------------------------------------------
 
 #get number of cell/years
 cell_years <- 0
@@ -272,7 +272,7 @@ if (length(to.NA) > 0)
 # Filter data based on criteria -----------------------------------------------------------
 
 # Which species-years are worth modeling? At a bare minimum:
-#     Species with at least 'NC' cells in all three years from 2015-2017
+#     Species with at least 'NC' cells in all three years from 2016-2018
 #     Species-years with at least 'NC' cells for those species
 
 NC <- 3
@@ -313,11 +313,11 @@ for (i in 1:length(species_list))
       fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
       t_sp$shp_fname <- fname
     
-      #number of cells with good data in each year from 2015-2017
+      #number of cells with good data in each year from 2016-2018
       nobs_yr <- c()
-      for (j in 2015:2017)
+      for (j in 2016:2018)
       {
-        #j <- 2017
+        #j <- 2018
         ty_sp3 <- dplyr::filter(t_sp, year == j)
         ind <- which(!is.na(ty_sp3$HM_mean))
         nobs_yr <- c(nobs_yr, length(ind))
@@ -377,7 +377,7 @@ saveRDS(df_master, paste0('IAR_input-', hm_date, '.rds'))
 species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))$species
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
-write.table(species_tm, file = paste0('IAR_species_list-', hm_date, '.txt'), row.names = FALSE, col.names = FALSE)
+write.table(species_tm, file = paste0('IAR_species_list.txt'), row.names = FALSE, col.names = FALSE)
 
 
 

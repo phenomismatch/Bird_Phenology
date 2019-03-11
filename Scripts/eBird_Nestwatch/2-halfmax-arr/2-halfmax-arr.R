@@ -1,5 +1,5 @@
 ######################
-# 2 - halfmax model
+# 2 - halfmax model arrival
 #
 # Fit model (GAM logistic regression) to eBird data to get half-max parameter (bird arrival) for each species-cell-year
 #
@@ -8,14 +8,13 @@
 #
 # Halfmax is derived from model fit
 #
-# Species name should be given as an arg to this script. The logit cubic will then be fit to that species only.
+# Species name should be given as an arg to this script. The model will then be fit to that species only.
 # Runtime: Up to 7 days on Xanadu
 ######################  
 
 
 # top-level dir -----------------------------------------------------------
 
-#desktop/laptop
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
