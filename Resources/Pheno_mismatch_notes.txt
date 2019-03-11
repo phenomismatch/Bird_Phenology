@@ -35,40 +35,35 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Run 7
 *[DONE] Run 4 tests - 3 species
 *[DONE] *Polynomials (2nd to 6th) - RWBB
+
 *[IN PROGRESS] Run 4 - BATCH
-
 *[IN PROGRESS] Run 2 test (GAM)
-*Test ebird query 1
+*[IN PROGRESS] Test ebird query 1
 
 
-*Fix 7 (breeding logit cubic) - had errors in Xanadu run
+*Check 2 test (GAM)
+*Test 2/7 (halfmax models) - had errors in 7 Xanadu run
+*Run 2 (GAM)
+*Run 6 (query breeding)
+*Run 7 (GAM)
+*Run 3-5 (process 2)
 *Run 8 (process 7)
 *Run 9 (breeding IAR)
 
+
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
-
-*Run new ebird query - include 2018 - jday filter to 215?
-*Make sure breeding query matches with presence query
-*Run 1-9
-
-
-*Add correlation structure in IAR models
-
-
-
+*Add correlation structure for gamma in IAR models
 *Breeding IAR integrating other datasets
   -Query NW and MAPS from DB
   -Model NW using 5th quantile? Model MAPS using logistic? Or proportion of yearlings hitting nets?
   -If no IAR, integrate other datasets into similar model
 
 
-
-
 #4 - NOTES
 SLOW
-Contopus_cooperi **chain 3 30%, March 5, 40% March 7, 50% March 9
+Contopus_cooperi **chain 3 30%, March 5, 40% March 7, 50% March 9, 60% March 11 - CANCELED
 Empidonax_minimus **chain 2 40%, March 5, 60% March 7, 80% March 9
-Passerculus_sandwichensis **chain 3 30%, March 5, 50% March 7, 70% March 9
+Passerculus_sandwichensis **chain 3 30%, March 5, 50% March 7, 70% March 9, 90% March 11
 Setophaga_palmarum ** chain 3 10%, chain 2 20%, chain 4 30% March 5, unchanged March 7 - CANCELED
 
 DIVERGE (1 transition, except where noted)
