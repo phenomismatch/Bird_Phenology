@@ -6,9 +6,7 @@
 # Creates directory of processed data (rds file for each species) and copy of this 
 # ... script (for reproducability) in /Data/Processed/eBird_query_<DATE>
 #
-# Runtime: 8-9 hours on 7 core machine - could be sped if run on on Xanadu but need to add IP to DB whitelist
-#
-# Replaces 1-process-ebird-data.R, which processed data based on local copy of eBird reference dataset
+# Runtime: 8-9 hours on 7 core machine - could be sped if run on on Xanadu?
 ####################
 
 

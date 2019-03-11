@@ -268,11 +268,11 @@ halfmax_df <- data.frame(species = args,
 
 
 #create dir for figs if doesn't exist
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/breeding_', RUN_DATE)), 
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/breeding_', RUN_DATE)), 
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_DATE)), 
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_DATE)), 
        FALSE)
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/breeding_', RUN_DATE))
+setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_DATE))
 
 counter <- 1
 for (j in 1:nyr)
@@ -425,7 +425,7 @@ for (j in 1:nyr)
            xlab = 'Julian Day', ylab = 'Detection Probability')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
-      cyspdata$detect[which(cyspdata$br == 1)] <- max(UCI_dfit)
+      cyspdata$br[which(cyspdata$br == 1)] <- max(UCI_dfit)
       points(cyspdata$day, cyspdata$br, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
