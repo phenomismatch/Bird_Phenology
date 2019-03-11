@@ -24,7 +24,7 @@ Repository structure:
 
 * `Data/` - Datasets relevant for project
   * `eBird_species_list.txt` - initial list of species to be queried
-  * `IAR_species_list-<DATE>.txt` - list of species to be modeled using IAR
+  * `IAR_species_list.txt` - list of species to be modeled using IAR
   * `db_pass.txt` (ignored) - database password
   * `BirdLife_range_maps` (ignored) - range maps for birds from BirdLife International
   * `Hurlbert_breeding_data` - breeding phenology data taken from repo [here](https://github.com/hurlbertlab/bird-repro-times)
@@ -45,39 +45,49 @@ Repository structure:
   * `Climate_Veg/` - comparing vegetation phenology products
   * `eBird_Nestwatch/` - eBird and nestwatch phenology scripts
     * `1-query-ebird.R` - query eBird database for arrival
-    * `2-logit-cubic/` - scripts to fit logit-cubic to estimate bird arrival for each species-cell-year - each species run as separate job on HPC cluster [run time: up to 7 days]
+    * `2-halfmax-arr/` - scripts to fit model to estimate bird arrival for each species-cell-year - each species run as separate job on HPC cluster [run time: up to 7 days]
       * `2-create-batch-scripts.sh` - script to create scripts (`2-<Genus_species>.sh`) for HPC job submission
-      * `2-logit-cubic.R` - R script that takes species argument (run from `2-<Genus_species>.sh` scripts)
-      * `2-master-submit.sh` - script to be run (`./2-master-submit.sh`) on HPC cluster to submit all logit cubic jobs
+      * `2-halfmax-arr.R` - R script that takes species argument (run from `2-<Genus_species>.sh` scripts)
+      * `2-master-submit.sh` - script to be run (`./2-master-submit.sh`) on HPC cluster to submit all halfmax arr jobs
       * `species/` - contains job scripts for each species
         * `2-<Genus_species>.sh` - scripts to submit jobs for each species; run with `2-master-submit.sh`
-    * `3-process-arr-output.R` - process model output from `2-logit-cubic.R`, in prep for `4-IAR-model.R`
+      * `model_tests` - scripts to test which model to use to estimate halfmax
+    * `3-process-arr-output.R` - process model output from `2-halfmax-arr.R`, in prep for `4-IAR-model.R`
     * `3b-extract-temps.R` - extract temperature data from Daymet in prep for `4-IAR-model.R`
-    * `4-IAR/` - scripts to fit IAR model to estimate bird arrival for each species-cell-year with spatial smoothing - one model per species [run time: ???]
+    * `4-IAR-arr/` - scripts to fit IAR model to estimate bird arrival for each species-cell-year with spatial smoothing - one model per species [run time: ???]
        * `4-create-batch-scripts.sh` - script to create scripts (`4-<Genus_species>.sh`) for HPC job submission    
-       * `4-IAR-model.R` - fit arrival dates using IAR model to derive arrival date estimates
-       * `4-master-submit.sh` - script to be run (`./2-master-submit.sh`) on HPC cluster to submit all logit cubic jobs
+       * `4-IAR-arr.R` - fit arrival dates using IAR model to derive arrival date estimates
+       * `4-master-submit.sh` - script to be run (`./4-master-submit.sh`) on HPC cluster to submit all jobs
        * `species/` - contains job scripts for each species
          * `4-<Genus_species>.sh` - scripts to submit jobs for each species; run with `4-master-submit.sh`
     * `5-extract-arr-dates.R` - extract arrival dates for each species-cell-year from `4-IAR-model.R` output
     * `6-query-nesting-data.R` - query eBird database for breeding; also MAPS and Nestwatch breeding processing
-    * `7-logit-cubic-breeding/` - scripts to fit logit-cubic to estimate bird breeding for each species-cell-year - each species run as separate job on HPC cluster [run time: ???]
+    * `7-halfmax-br/` - scripts to fit model to estimate bird breeding for each species-cell-year - each species run as separate job on HPC cluster [run time: ???]
       * `7-create-batch-scripts.sh` - script to create scripts (`7-<Genus_species>.sh`) for HPC job submission
-      * `7-logit-cubic-breeding.R` - R script that takes species argument (run from `7-<Genus_species>.sh` scripts)
-      * `7-master-submit.sh` - script to be run (`./7-master-submit.sh`) on HPC cluster to submit all logit cubic jobs
+      * `7-halfmax-br.R` - R script that takes species argument (run from `7-<Genus_species>.sh` scripts)
+      * `7-master-submit.sh` - script to be run (`./7-master-submit.sh`) on HPC cluster to submit all jobs
       * `species/` - contains job scripts for each species
         * `7-<Genus_species>.sh` - scripts to submit jobs for each species; run with `7-master-submit.sh`
-    * `8-process-br-output.R` - process model output from `7-logit-cubic-breeding.R`
-    * `8-phen-compare.R` - correlations among veg and bird phenology products (NEEDS UPDATING)
-    * `9-trend-models/` - scripts to fit models looking at trends over time
-      * `9-arr-time-lat-IND-corr.R` - arrival trends over time - correlation between intercepts and slopes
-      * `9-br-time-lat-IND-corr.R` - arrival trends over time
-      * `9-breeding-arrival-model.R` - model relationship between arrival timing and breeding timing
+    * `8-process-br-output.R` - process model output from `7-halfmax-br.R`
+    * `9-IAR-br` - scripts to fit IAR model to estimate bird breeding for each species-cell-year with spatial smoothing - one model per species [run time: ???]
+       * `9-create-batch-scripts.sh` - script to create scripts (`9-<Genus_species>.sh`) for HPC job submission    
+       * `9-IAR-br.R` - fit breeding dates using IAR model to derive arrival date estimates
+       * `9-master-submit.sh` - script to be run (`./9-master-submit.sh`) on HPC cluster to submit all jobs
+       * `species/` - contains job scripts for each species
+         * `9-<Genus_species>.sh` - scripts to submit jobs for each species; run with `9-master-submit.sh`
+    * `10-trend-models/` - scripts to fit models looking at trends over time
+      * `10-arr-time-lat-IND-corr.R` - arrival trends over time - correlation between intercepts and slopes
+      * `10-br-time-lat-IND-corr.R` - arrival trends over time
+      * `10-breeding-arrival-model.R` - model relationship between arrival timing and breeding timing
 
 * `Figures/` (ignored)
-  * `arrival_trends/` - trends in arrival over time from `9-arr-time-lat-IND-corr.R`
-  * `breeding_trends/` - trends in breeding over time from `9-br-time-lat-IND-corr.R`
-  * `cubic_halfmax/` - fits for logit-cubic arrival model from `2-logit-cubic.R`
-  * `pre_post_IAR_maps/` - maps to visualize bird arrival dates pre- and post-IAR from `4-IAR-model.R`
+  * `arrival_trends/` - trends in arrival over time from `10-arr-time-lat-IND-corr.R`
+  * `breeding_trends/` - trends in breeding over time from `10-br-time-lat-IND-corr.R`
+  * `halfmax/` - halfmax figs
+    * `arrival/` - figs from `2-halfmax-arr.R`
+    * `breeding/` - figs from `7-halfmax-br.R`
+  * `pre_post_IAR_maps/` - maps to visualize bird arrival dates pre- and post-IAR 
+    * `arrival/` - figs from `4-IAR-arr.R`
+    * `breeding/` - figs from `9-IAR-br.R`
     
 * `Resources/` - various resources
