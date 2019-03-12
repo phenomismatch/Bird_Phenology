@@ -347,7 +347,7 @@ for (j in 1:nyr)
     #same thresholds as arrival models
     if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     {
-      fit2 <- rstanarm::stan_glm(br ~ sjday + sjday2 + sjday3 + shr,
+      fit2 <- rstanarm::stan_gamm4(br ~ s(jday) + shr,
                                  data = cyspdata,
                                  family = binomial(link = "logit"),
                                  algorithm = 'sampling',
@@ -368,7 +368,7 @@ for (j in 1:nyr)
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
         
-        fit2 <- rstanarm::stan_glm(br ~ sjday + sjday2 + sjday3 + shr,
+        fit2 <- rstanarm::stan_gamm4(br ~ s(jday) + shr,
                                    data = cyspdata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -390,11 +390,8 @@ for (j in 1:nyr)
       halfmax_df$tree_depth[counter] <- TREE_DEPTH
       
       #generate predict data
-      predictDays <- range(cyspdata$sjday)[1]:range(cyspdata$sjday)[2]
-      predictDays2 <- predictDays^2
-      predictDays3 <- predictDays^3
-      newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, 
-                            sjday3 = predictDays3, shr = 0)
+      predictDays <- range(cyspdata$jday)[1]:range(cyspdata$jday)[2]
+      newdata <- data.frame(jday = predictDays, shr = 0)
       
       #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
