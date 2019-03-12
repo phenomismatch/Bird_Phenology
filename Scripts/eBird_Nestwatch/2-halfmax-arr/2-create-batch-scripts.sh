@@ -8,7 +8,7 @@ do
   temp="${temp#\"}"
   echo "#!/bin/bash
 
-#SBATCH --job-name=lc-arr-$temp
+#SBATCH --job-name=hm-arr-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
@@ -17,8 +17,8 @@ do
 #SBATCH --mem=25G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE/lc-arr-$temp.out #STDOUT
-#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE/lc-arr-$temp.err #STDERR
+#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE/hm-arr-$temp.out #STDOUT
+#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE/hm-arr-$temp.err #STDERR
 
 #echos name of node
 echo \`hostname\`
