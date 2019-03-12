@@ -23,7 +23,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2019-03-1'
+db_dir <- 'eBird_query_2019-03-11'
 RUN_DATE <- '2019-03-11'
 
 
@@ -329,7 +329,7 @@ for (j in 1:nyr)
     
     if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     {
-      fit2 <- rstanarm::stan_gamm4(detect ~ jday + shr, 
+      fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr, 
                                  data = cyspdata,
                                  family = binomial(link = "logit"),
                                  algorithm = 'sampling',
@@ -349,8 +349,8 @@ for (j in 1:nyr)
       {
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
-        
-        fit2 <- rstanarm::stan_gamm4(detect ~ jday + shr,
+
+        fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr,
                                    data = cyspdata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -359,7 +359,7 @@ for (j in 1:nyr)
                                    cores = CHAINS,
                                    adapt_delta = DELTA,
                                    control = list(max_treedepth = TREE_DEPTH))
-        
+
         num_diverge <- rstan::get_num_divergent(fit2$stanfit)
         num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
         num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
