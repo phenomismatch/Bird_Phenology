@@ -731,7 +731,8 @@ saveRDS(halfmax_df_2, paste0('2t-', args, '.rds'))
 
 # check results -----------------------------------------------------------
 
-# halfmax_df_2 <- readRDS(paste0(args, '_poly_tests.rds'))
+# # halfmax_df_2 <- readRDS('2t-Limnothlypis_swainsonii.rds')
+# halfmax_df_2 <- readRDS('2t-Geothlypis_formosa.rds')
 # 
 # fyrs <- unique(halfmax_df_2$year)
 # 
