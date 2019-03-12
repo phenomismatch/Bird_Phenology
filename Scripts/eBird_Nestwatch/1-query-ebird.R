@@ -224,7 +224,7 @@ doParallel::registerDoParallel(cores = 4)
 tt <- proc.time()
 foreach::foreach(i = 1:nsp) %dopar%
 {
-  #i <- 89
+  #i <- 1
   print(i)
   
   pg <- DBI::dbDriver("PostgreSQL")
@@ -265,7 +265,7 @@ foreach::foreach(i = 1:nsp) %dopar%
                          year, day, jday,
                          shr, cell, species_list_i[i,1])
   
-  names(sdata)[8] <- "detect"
+  names(sdata)[6] <- "detect"
   sdata['species'] <- species_list_i[i,1]
   
   saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
@@ -336,7 +336,7 @@ if (length(m_sp2) > 0)
                            year, day, jday,
                            shr, cell, m_sp2[i])
     
-    names(sdata)[8] <- "detect"
+    names(sdata)[6] <- "detect"
     sdata['species'] <- m_sp2[i]
     
     saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', m_sp[i], '.rds'))
