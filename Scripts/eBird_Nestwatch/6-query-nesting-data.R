@@ -302,7 +302,7 @@ foreach::foreach(i = 1:nsp) %dopar%
                          year, day, cell, jday,
                          shr, species_list_i[i,1])
   
-  names(sdata)[8] <- "bba_category"
+  names(sdata)[6] <- "bba_category"
   sdata['species'] <- species_list_i[i,1]
   
   saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
@@ -422,7 +422,7 @@ if (length(m_sp2) > 0)
                            year, day, cell, jday,
                            shr, m_sp[i])
     
-    names(sdata)[8] <- "bba_category"
+    names(sdata)[6] <- "bba_category"
     sdata['species'] <- m_sp[i]
     
     saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', m_sp[i], '.rds'))
