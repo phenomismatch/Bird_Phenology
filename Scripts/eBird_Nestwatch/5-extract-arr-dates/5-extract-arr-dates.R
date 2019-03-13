@@ -18,7 +18,7 @@ dir <- '~/Google_Drive/R/'
 # other dir ---------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-02-02'
-IAR_out_dir <- 'IAR_output_2019-02-13'
+IAR_out_dir <- 'IAR_output_2019-02-24'
 
 
 
@@ -46,7 +46,7 @@ df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 species <- as.character(read.table('../../IAR_species_list.txt')[,1])
 
 #switch to out dir
-#setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 #setwd(paste0('~/Desktop/Bird_Phenology_Offline/Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 
@@ -56,6 +56,7 @@ for (i in 1:length(species))
 {
   #i <- 96 #Vireo olivaceus
   #i <- 24 #Empidonax virescens
+  #i <- 13
   
   #filter by species
   sp <- species[i]
@@ -63,9 +64,15 @@ for (i in 1:length(species))
   #if that species RDS object exists in dir
   if (length(grep(paste0(sp, '-', IAR_out_date, '-iar-stan_output.rds'), list.files())) > 0)
   {
-    f_in <- dplyr::filter(df_master, species == sp & MODEL == TRUE)
+    f_in_p <- dplyr::filter(df_master, species == sp & MODEL == TRUE)
     
-    #cells and years that were modeled
+    #read in IAR model output and input
+    t_fit <- readRDS(paste0(sp, '-', IAR_out_date, '-iar-stan_output.rds'))
+    t_data <- readRDS(paste0(sp, '-', IAR_out_date, '-iar-stan_input.rds'))
+    
+    #only cells and years that were modeled (to account for any lone cells that were dropped in 4-IAR-arr.R)
+    f_in <- dplyr::filter(f_in_p, cell %in% t_data$cells)
+    
     t_cells <- unique(f_in$cell)
     t_years <- unique(f_in$year)
   
@@ -74,9 +81,6 @@ for (i in 1:length(species))
   
     #get hexgrid cell centers
     cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
-  
-    #read in IAR model output
-    t_fit <- readRDS(paste0(sp, '-', IAR_out_date, '-iar-stan_output.rds'))
   
     #extract median and sd for IAR arrival dates
     mean_fit <- round(MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]], digits = 2)

@@ -256,6 +256,7 @@ ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
 
 #create data list for Stan
 DATA <- list(J = nyr,
+             cells = cells,
              N = ncell, 
              NJ = nyr * ncell,
              N_obs = len_y_obs_in,
@@ -450,7 +451,8 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 #setwd("~/Google_Drive/R/Bird_Phenology/Data/Processed/Empidonax_virescens_test_no_slope/Ev_ns_ye")
 saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
 
-
+#save data to RDS (has which cells are modeled)
+saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
 
 
 
