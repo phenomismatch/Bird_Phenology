@@ -277,12 +277,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 2
+  #j <- 16
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
   {
-    #k <- 27
+    #k <- 32
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
     
     #new column with 'probable' or 'confirmed' breeding

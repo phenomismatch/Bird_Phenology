@@ -14,4 +14,3 @@ Rafe
 *how many 'cores' do we have on the server that hosts the phenomismatch database (for querying purposes)
 *subspecies - does a query with a species return subspecies also?
 
-

@@ -15,7 +15,6 @@
 
 dir <- '~/Google_Drive/R/'
 
-hm_date <- '2019-02-02'
 
 # Load packages -----------------------------------------------------------
 
@@ -51,7 +50,7 @@ species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ",
 #combine species names into a single string with quotes
 SL <- paste0("'", species_list_i2, "'", collapse = ", ")
 
-
+SL <- "'Vireo olivaceus'"
 
 
 
@@ -164,7 +163,6 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND day < 300
                                     AND lng BETWEEN -95 AND -50
                                     AND lat > 26
-                                    AND (sci_name IN (", SL,"))
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
                                     AND LEFT(started, 2)::int < 18
                                     AND RADIUS < 100000;
@@ -232,7 +230,7 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       WHERE events.dataset_id = 'ebird'
                                       AND year > 2001
                                       AND day < 300
-                                      AND lng BETWEEN -100 AND -50
+                                      AND lng BETWEEN -95 AND -50
                                       AND lat > 26
                                       AND (sci_name IN ('", species_list_i2[i],"'));
                                       "))
