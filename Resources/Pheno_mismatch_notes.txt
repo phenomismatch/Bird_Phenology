@@ -35,18 +35,25 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Run 7
 *[DONE] Run 4 tests - 3 species
 *[DONE] *Polynomials (2nd to 6th) - RWBB
+*[DONE] Test ebird query 1
+*[DONE] Run 4 - BATCH
+*[DONE] Test 2 (limited iter)
+*[DONE] Transfer 2 test and check figs
+*[DONE] Test 7 (GAM br)
 
-*[IN PROGRESS] Run 4 - BATCH
-*[IN PROGRESS] Run 2 test (GAM)
-*[IN PROGRESS] Test ebird query 1
+*[IN PROGRESS] Run 2 test (GAM arr) - keep for reference - no need to look in depth as already spot-checked
+
+*Check 4 fits (divergences), output, maps, and PPO plots
+*Add check for 4-IAR to see if Rhat and n_eff are alright (rhat < 1.1, n_eff > 250)
+*Code up and test breeding IAR
+*Further tests for arr/br model
 
 
-*Check 2 test (GAM)
-*Test 2/7 (halfmax models) - had errors in 7 Xanadu run
+#WAIT FOR RAFE TO UPDATE DB
 *Run 2 (GAM)
-*Run 6 (query breeding)
+*Run 3-5 (process 2) - exclude all sp/cell/years with very large hm sd?
+*Run 6 (query breeding) - need IAR species list from 3
 *Run 7 (GAM)
-*Run 3-5 (process 2)
 *Run 8 (process 7)
 *Run 9 (breeding IAR)
 
