@@ -41,7 +41,7 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Transfer 2 test and check figs
 *[DONE] Test 7 (GAM br)
 
-*[IN PROGRESS] Run 2 test (GAM arr) - keep for reference - no need to look in depth as already spot-checked
+*[IN PROGRESS] Run 2 test (GAM arr) - keep for reference - no need to look in depth as already spot-checked - transfer figs to lab comp - remove dirs that don't have rds files (~5 do not?)
 
 *Check 4 fits (divergences), output, maps, and PPO plots
 *Add check for 4-IAR to see if Rhat and n_eff are alright (rhat < 1.1, n_eff > 250)
