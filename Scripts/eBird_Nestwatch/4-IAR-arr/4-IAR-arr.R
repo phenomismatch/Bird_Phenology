@@ -78,7 +78,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Melospiza_lincolnii')
 #args <- as.character('Zonotrichia_leucophrys')
 #args <- as.character('Bombycilla_cedrorum')
-
+#args <- as.character('Coccyzus_americanus')
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -115,7 +115,7 @@ for (i in 1:ncell)
   #i <- 1
   for (j in i:ncell)
   {
-    #j <- 4
+    #j <- 69
     dists <- geosphere::distm(c(cellcenters$lon_deg[i], cellcenters$lat_deg[i]),
                               c(cellcenters$lon_deg[j], cellcenters$lat_deg[j]))
     adjacency_matrix[i,j] <- as.numeric((dists/1000) > 0 & (dists/1000) < 311)
@@ -128,12 +128,13 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 
 #if a cell doesn't border any other cells, drop it and redefine objects
 DROP <- FALSE
-if (max(ninds) < ncell)
-{
-  s_cols <- apply(adjacency_matrix, 2, function(x) sum(x, na.rm = TRUE))
-  s_rows <- apply(adjacency_matrix, 1, function(x) sum(x, na.rm = TRUE))
-  to.rm.ind <- which((s_cols + s_rows) == 0)
+
+s_cols <- apply(adjacency_matrix, 2, function(x) sum(x, na.rm = TRUE))
+s_rows <- apply(adjacency_matrix, 1, function(x) sum(x, na.rm = TRUE))
+to.rm.ind <- which((s_cols + s_rows) == 0)
   
+if (length(to.rm.ind) > 0)
+{
   DROP <- cells[to.rm.ind]
   
   cells <- cells[-to.rm.ind]
