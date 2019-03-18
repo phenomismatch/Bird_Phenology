@@ -40,13 +40,12 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Test 2 (limited iter)
 *[DONE] Transfer 2 test and check figs
 *[DONE] Test 7 (GAM br)
+*[DONE] Run 2 test (GAM arr)
 
-*[IN PROGRESS] Run 2 test (GAM arr) - keep for reference - no need to look in depth as already spot-checked - transfer figs to lab comp - remove dirs that don't have rds files (~5 do not?)
 
-*Check 4 fits (divergences), output, maps, and PPO plots
-*Add check for 4-IAR to see if Rhat and n_eff are alright (rhat < 1.1, n_eff > 250)
 *Code up and test breeding IAR
 *Further tests for arr/br model
+*Add correlation structure for gamma in IAR models
 
 
 #WAIT FOR RAFE TO UPDATE DB
@@ -59,7 +58,6 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 
 
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
-*Add correlation structure for gamma in IAR models
 *Breeding IAR integrating other datasets
   -Query NW and MAPS from DB
   -Model NW using 5th quantile? Model MAPS using logistic? Or proportion of yearlings hitting nets?
