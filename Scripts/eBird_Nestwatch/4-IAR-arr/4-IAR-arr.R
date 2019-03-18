@@ -499,7 +499,7 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 # Checks -------------------------------------------------------------
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-# fit <- readRDS('Catharus_minimus-2019-02-21-iar-stan_output.rds')
+# fit <- readRDS('Catharus_minimus-2019-02-24-iar-stan_output.rds')
 # fit <- readRDS('Empidonax_virescens-2019-02-21-iar-stan_output.rds')
 # fit <- readRDS('Vireo_olivaceus-2019-02-13-IAR_stan-test-3.rds')
 
@@ -579,11 +579,14 @@ usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
 canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
 mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
 
-#determine min/max for plotting
-f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
-MIN <- round(min(f_rng))
-MAX <- round(max(f_rng))
+#min/max for plotting using input data
+#f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
+#MIN <- round(min(f_rng))
+#MAX <- round(max(f_rng))
 
+#min/max for plotting using output data
+MIN <- round(min(med_fit))
+MAX <- round(max(med_fit))
 
 #read in breeding/migration range shp file
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
@@ -623,7 +626,7 @@ for (i in 1:length(years))
   #i <- 1
   
   #filter data for year[i]
-  f_out_filt <- filter(f_out, year == years[i])
+  f_out_filt <- dplyr::filter(f_out, year == years[i])
   
   #merge hex spatial data with HM data
   to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
