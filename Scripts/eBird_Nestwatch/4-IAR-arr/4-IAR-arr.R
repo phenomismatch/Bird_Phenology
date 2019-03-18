@@ -521,6 +521,14 @@ l_PPC <- sum(!is.na(y_PPC))
 PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
 
 
+#get summary of model output
+model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2)
+
+#extract Rhat and neff values
+rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
+neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
+
+
 # #shiny stan
 #for shiny stan PPC
 # na.y.rm <- which(is.na(y_PPC))
@@ -552,8 +560,12 @@ cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
 cat(paste0('PPC p-val: ', round(PPC_p, 3), ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
-print(MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2))
+cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
+cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
+print(model_summary)
 sink()
+
+
 
 
 
