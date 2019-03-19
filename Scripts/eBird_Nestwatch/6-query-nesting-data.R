@@ -526,16 +526,58 @@ proc.time() - tt
 
 
 
+# MAPS obs - DB -----------------------------------------------------------
 
-# MAPS obs ----------------------------------------------------------------
+pass <- readLines('db_pass.txt')
 
+pg <- DBI::dbDriver("PostgreSQL")
 
-setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs/Export_2018_11'))
+cxn <- DBI::dbConnect(pg, 
+                      user = "cyoungflesh", 
+                      password = pass, 
+                      host = "35.221.16.125", 
+                      port = 5432, 
+                      dbname = "sightings")
 
-MAPS_obs <- read.csv('1106Band18.csv', stringsAsFactors = FALSE)
+maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day,
+                                      (event_json ->> 'STATION') AS station,
+                                      (place_json ->> 'HABITAT') AS habitat,
+                                      (place_json ->> 'ELEV')::int AS elev,
+                                      (count_json ->> 'C') capture_code,
+                                      (count_json ->> 'BAND')::int AS band_id,
+                                      (count_json ->> 'AGE')::int AS age,
+                                      (count_json ->> 'SEX') AS sex,
+                                      (count_json ->> 'CP')::int AS cloacal_pro,
+                                      (count_json ->> 'BP')::int AS brood_patch,
+                                      (count_json ->> 'F')::int AS fat_content,
+                                      (count_json ->> 'WNG')::float AS wing_chord,
+                                      (count_json ->> 'WEIGHT')::float AS weight,
+                                      (count_json ->> 'N') AS standard_effort
+                                      FROM places
+                                      JOIN events USING (place_id)
+                                      JOIN counts USING (event_id)
+                                      JOIN taxa USING (taxon_id)
+                                      WHERE events.dataset_id = 'maps'
+                                      AND year > 2001
+                                      AND day < 300
+                                      AND lng BETWEEN -95 AND -50
+                                      AND lat > 26
+                                      AND (count_json ->> 'C') in ('N', 'R', 'U')
+                                      AND (count_json ->> 'N') in ('-', 'D', 'S', 'T', 'O');
+                                      "))
 
-#Capture_code: only codes N,R,U are used for analyses
-#Species: 4-letter codes
+#C (Capture code): Only codes N,R,U are used for analyses according to MAPS docs
+#N = newly banded bird
+#R = recaptured bird
+#U = unbanded bird
+
+#N (Indicator to include in productivity and survivorship analyses): Okay to use these for analyses that do not require to control for effort
+#0 = not caught at MAPS station
+#T = outside normaps MAPS operation for that station
+#S = caught within MAPS station boundary but not in a MAPS net
+#D = date outside of MAPS periods
+#- = record exmained with current MAPS analytical procedure (taken to be standard capture methods)
+
 #Age: 
 #0 - unknown
 #4 - local (young bird incapable of flight)
@@ -545,16 +587,19 @@ MAPS_obs <- read.csv('1106Band18.csv', stringsAsFactors = FALSE)
 #6 - after second-year bird
 #7 - third-year bird
 #8 - after third-year bird
+
 #Sex: 
 #M - male
 #F - female
 #U - unknown
 #X - unattempted
+
 #Cloacal protuberance:
 #0 - none
 #1 - small
 #2 - medium
 #3 - large
+
 #Brood patch:
 #0 - none
 #1 - smooth
@@ -562,6 +607,7 @@ MAPS_obs <- read.csv('1106Band18.csv', stringsAsFactors = FALSE)
 #3 - heavy
 #4 - wrinkled
 #5 - molting
+
 #Fat content:
 #0 - none
 #1 - trace
@@ -572,43 +618,7 @@ MAPS_obs <- read.csv('1106Band18.csv', stringsAsFactors = FALSE)
 #6 - greatly bulging
 #7 - very excessive
 
-#get grid cell of each station by lat/lon
-setwd(paste0(dir, 'Bird_phenology/Data/MAPS_Obs/CntrlStations'))
-MAPS_stations <- read.csv('STATIONS.csv', skipNul = TRUE, stringsAsFactors = FALSE)
-
-MAPS_mrg <- dplyr::left_join(MAPS_obs, MAPS_stations, by = 'STA')
-
-#check to make sure STATION names are in same
-#sum(MAPS_mrg$STATION.x != MAPS_mrg$STATION.y)
-
-#LAT/LON PROBLEM STATIONS: 
-#DFME (Harrison, OH) - NOT IN OBS
-#SSPT (Ashford, WA) - NOT IN OBS
-#HDQR (Weldon, CA) - NOT IN OBS
-#MAMA (Weldon, CA) - NOT IN OBS
-#PLMR (Weldon, CA) - NOT IN OBS
-#SUNY (Old Westbury, NY) - NOT IN OBS
-#RKCK (REMOVE) - NOT IN OBS
-#EASA (New Waverly, TX) - (30.54, -95.48)
-#ANWR (Kotz Springs, LA) - (30.54, -91.75)
-#REGR (Columbus, AR) - (33.78, -93.82)
-#CEFB (Clemson, SC) - (34.68, -82.81)
-#HRAE (REMOVE) - NOT IN OBS
-
-#These stations do not appear in the data
-# #insert lat/lons for these stations
-# st_rep <- data.frame(STATION = c('EASA', 'ANWR', 'REGR', 'CEFB'), 
-#                      LAT = c(30.54, 30.54, 33.78, 34.68),
-#                      LNG = c(-95.48, -91.75, -93.82, -82.81))
-# 
-# 
-# for (i in 1:NROW(st_rep))
-# {
-#   #i <- 4
-#   tt <- which(MAPS_mrg$STATION.x == st_rep$STATION[i])
-#   MAPS_mrg[tt,'DECLAT'] <- st_rep$LAT[i]
-#   MAPS_mrg[tt,'DECLNG'] <- st_rep$LNG[i]
-# }
+head(maps_data)
 
 
 hexgrid6 <- dggridR::dgconstruct(res = 6) 
@@ -616,37 +626,7 @@ MAPS_mrg$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
                                           in_lon_deg = MAPS_mrg$DECLNG, 
                                           in_lat_deg = MAPS_mrg$DECLAT)[[1]]
 
-#merge MAPS data with species codes
-setwd(paste0(dir, 'Bird_Phenology/Data/MAPS_Obs'))
-sp_codes <- read.csv('sp_4_letter_codes.csv', stringsAsFactors = FALSE)
-MAPS_mrg2 <- dplyr::left_join(MAPS_mrg, sp_codes, by = 'SPEC')
 
-#split date into separate cols
-dsplit <- strsplit(MAPS_mrg2$DATE, '/')
-MAPS_mrg2$month <- unlist(dsplit)[3*(1:length(MAPS_mrg2$DATE)) - 2]
-MAPS_mrg2$day <- unlist(dsplit)[3*(1:length(MAPS_mrg2$DATE)) - 1]
-MAPS_mrg2$year <- unlist(dsplit)[3*(1:length(MAPS_mrg2$DATE))]
-
-post_2000 <- which(as.numeric(MAPS_mrg2$year) < 70)
-pre_2000 <- which(as.numeric(MAPS_mrg2$year) > 70)
-
-MAPS_mrg2$year[post_2000] <- paste0('20', MAPS_mrg2$year[post_2000])
-MAPS_mrg2$year[pre_2000] <- paste0('19', MAPS_mrg2$year[pre_2000])
-
-MAPS_mrg2$jday <- as.numeric(format(as.Date(paste0(MAPS_mrg2$year, '-', 
-                                                  MAPS_mrg2$month, '-', MAPS_mrg2$day)), '%j'))
-
-MAPS_mrg3 <- dplyr::select(MAPS_mrg2, STA, LOC.x, cell, DATE, year, month, day, jday, C, BAND, 
-                           SPEC, SCINAME, AGE, SEX, CP, BP, F, WEIGHT)
-
-colnames(MAPS_mrg3) <- c('STA', 'Location_code', 'Cell', 'Date', 'Year', 'Month', 'Day', 
-                         'Jday', 'Capture_code', 'Band_id', 'Species', 'Sci_name', 'Age_code', 'Sex', 
-                         'Cloacal_prot', 'Brood_patch', 'Fat_content', 'Weight')
-
-#filter by species and capture code (only codes N,R,U are used for analyses)
-MAPS_mrg4 <- dplyr::filter(MAPS_mrg3, Sci_name %in% species_list_i2 & 
-                             Capture_code %in% c('N', 'R', 'U') &
-                             Year > 2001)
 
 #Age split up into AFTER... codes - these may or may not have been advanced in database for recaptures
 #What characterizes breeding?
@@ -1035,6 +1015,23 @@ MAPS_out2 <- MAPS_out[1:(fin_ind - 1),]
 #write to rds
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 saveRDS(MAPS_out2, paste0('breeding_MAPS_obs_', Sys.Date(), '.rds'))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
