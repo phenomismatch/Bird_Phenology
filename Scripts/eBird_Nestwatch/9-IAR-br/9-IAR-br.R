@@ -128,12 +128,13 @@ ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 
 #if a cell doesn't border any other cells, drop it and redefine objects
 DROP <- FALSE
-if (max(ninds) < ncell)
+
+s_cols <- apply(adjacency_matrix, 2, function(x) sum(x, na.rm = TRUE))
+s_rows <- apply(adjacency_matrix, 1, function(x) sum(x, na.rm = TRUE))
+to.rm.ind <- which((s_cols + s_rows) == 0)
+
+if (length(to.rm.ind) > 0)
 {
-  s_cols <- apply(adjacency_matrix, 2, function(x) sum(x, na.rm = TRUE))
-  s_rows <- apply(adjacency_matrix, 1, function(x) sum(x, na.rm = TRUE))
-  to.rm.ind <- which((s_cols + s_rows) == 0)
-  
   DROP <- cells[to.rm.ind]
   
   cells <- cells[-to.rm.ind]
@@ -256,6 +257,7 @@ ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
 
 #create data list for Stan
 DATA <- list(J = nyr,
+             cells = cells,
              N = ncell, 
              NJ = nyr * ncell,
              N_obs = len_y_obs_in,
@@ -308,7 +310,7 @@ int<lower = 0> N_mis[J];                              // number missing for each
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
 int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
 int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
-real<lower = 0, upper = 200> y_obs[N, J];             // observed response data (add NAs to end)
+real<lower = 0, upper = 300> y_obs[N, J];             // observed response data (add NAs to end)
 real<lower = 0> sigma_y[N, J];                        // observed sd of data (observation error)
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
@@ -317,7 +319,7 @@ real<lower = 26, upper = 90> lat[N];
 }
 
 parameters {
-real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
+real<lower = 1, upper = 300> y_mis[N, J];             // missing response data
 real alpha_gamma_raw;
 real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
@@ -332,7 +334,7 @@ real<lower = 0> sigma_beta0_raw;
 }
 
 transformed parameters {
-real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
+real<lower = 0, upper = 300> y[N, J];                 // response data to be modeled
 vector[N] gamma;
 real alpha_gamma;
 real beta_gamma;
@@ -518,6 +520,14 @@ l_PPC <- sum(!is.na(y_PPC))
 PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
 
 
+#get summary of model output
+model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2)
+
+#extract Rhat and neff values
+rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
+neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
+
+
 # #shiny stan
 #for shiny stan PPC
 # na.y.rm <- which(is.na(y_PPC))
@@ -549,7 +559,9 @@ cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
 cat(paste0('PPC p-val: ', round(PPC_p, 3), ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
-print(MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2))
+cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
+cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
+print(model_summary)
 sink()
 
 
@@ -576,11 +588,14 @@ usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
 canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
 mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
 
-#determine min/max for plotting
-f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
-MIN <- round(min(f_rng))
-MAX <- round(max(f_rng))
+#min/max for plotting using input data
+#f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
+#MIN <- round(min(f_rng))
+#MAX <- round(max(f_rng))
 
+#min/max for plotting using output data
+MIN <- round(min(med_fit))
+MAX <- round(max(med_fit))
 
 #read in breeding/migration range shp file
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
