@@ -6,24 +6,24 @@
 
 
 
-
-#--------------------------------#
-#logistic model for presence of brood patch
+# maps_data <- readRDS('MAPS_age_filled.rds')
 
 
 #What characterizes breeding? Brood patch?
 
 
-#just hatch year birds
-MAPS_f <- dplyr::filter(MAPS_mrg5, True_age == 0)
-plyr::count(MAPS_f, 'Sci_name')
 
-oc_0 <- filter(MAPS_f, Sci_name == 'Oreothlypis celata')
+#--------------------------------#
+#distirbution of hatch year birds caught over the season
+
+maps_f <- dplyr::filter(maps_data, true_age == 0)
+plyr::count(maps_f, 'Sci_name')
+
+oc_0 <- filter(maps_f, sci_name == 'Oreothlypis celata')
 plyr::count(oc_0, c('Cell', 'Year'))
 tt <- dplyr::filter(oc_0, Cell == 444, Year == 2011)
 
 plot(density(tt$Jday))
-
 
 #--------------------------------#
 
@@ -31,46 +31,45 @@ plot(density(tt$Jday))
 #--------------------------------#
 #logistic model for presence of brood patch
 
-MAPS_age <- dplyr::filter(MAPS_mrg5, True_age > 0)
-plyr::count(MAPS_age, 'Sci_name')
+maps_adults <- dplyr::filter(maps_data, age %in% c('1', '5', '6', '7', '8'))
 
-C_ustulatus <- filter(MAPS_age, Sci_name == 'Catharus ustulatus')
+plyr::count(maps_adults, 'sci_name')
+
+C_ustulatus <- dplyr::filter(maps_adults, sci_name == 'Catharus ustulatus')
 
 #breeding defined as:
 #BP 2-4
 #CP 1-3
 
-C_ustulatus <- dplyr::filter(MAPS_age, Sci_name == 'Catharus ustulatus')
-
-cu_f <- dplyr::filter(C_ustulatus, Sex == 'F')
-cu_m <- dplyr::filter(C_ustulatus, Sex == 'M')
+cu_f <- dplyr::filter(C_ustulatus, sex == 'F')
+cu_m <- dplyr::filter(C_ustulatus, sex == 'M')
 
 #add breeder col
-C_ustulatus$BR <- NA
-cu_f$BR <- NA
+C_ustulatus$br <- NA
+cu_f$br <- NA
 
 #male female
-plot(density(C_ustulatus[which(C_ustulatus$Sex == 'M'),]$Jday))
-lines(density(C_ustulatus[which(C_ustulatus$Sex == 'F'),]$Jday), col = 'red')
+plot(density(C_ustulatus[which(C_ustulatus$Sex == 'M'),]$day))
+lines(density(C_ustulatus[which(C_ustulatus$Sex == 'F'),]$day), col = 'red')
 
 #cloacal protuberance probably not a good metric
-plot(density(cu_m[which(cu_m$Cloacal_prot <= 2),]$Jday))
-lines(density(cu_m[which(cu_m$Cloacal_prot > 2),]$Jday), col = 'red')
+plot(density(cu_m[which(cu_m$cloacal_pro <= 2),]$day))
+lines(density(cu_m[which(cu_m$cloacal_pro > 2),]$day), col = 'red')
 
 #brood patch maybe better
-plot(density(cu_f[which(cu_f$Brood_patch <= 2 | cu_f$Brood_patch == 5),]$Jday))
-lines(density(cu_f[which(cu_f$Brood_patch > 2 & cu_f$Brood_patch < 5),]$Jday), 
+plot(density(cu_f[which(cu_f$brood_patch <= 2 | cu_f$brood_patch == 5),]$day))
+lines(density(cu_f[which(cu_f$brood_patch > 2 & cu_f$brood_patch < 5),]$day), 
       col = 'red')
 
-cu_f[which(cu_f$Brood_patch > 2 & cu_f$Brood_patch < 5),]$BR <- 1
-cu_f[which(cu_f$Brood_patch <= 2 | cu_f$Brood_patch == 5),]$BR <- 0
+cu_f[which(cu_f$brood_patch > 2 & cu_f$brood_patch < 5),]$br <- 1
+cu_f[which(cu_f$brood_patch <= 2 | cu_f$brood_patch == 5),]$br <- 0
 
 #DATA <- dplyr::filter(cu_f, Jday < DAY, Jday > 50)
 DATA <- cu_f
 
-DATA$sjday <- DATA$Jday
-DATA$sjday2 <- DATA$Jday^2
-DATA$sjday3 <- DATA$Jday^3
+DATA$jday <- DATA$day
+DATA$jday2 <- DATA$day^2
+DATA$jday3 <- DATA$day^3
 
 plyr::count(cu_f, c('Cell', 'Year'))
 
@@ -80,22 +79,58 @@ ITER <- 1000
 #ITER <- 10
 CHAINS <- 3
 
-fit2 <- rstanarm::stan_glm(BR ~ sjday + sjday2 + sjday3,
-                           data = DATA,
-                           family = binomial(link = "logit"),
-                           algorithm = 'sampling',
-                           iter = ITER,
-                           chains = CHAINS,
-                           cores = CHAINS)
+#defaults for rstanarm are 0.95 and 15
+DELTA <- 0.95
+TREE_DEPTH <- 15
 
-summary(fit2)
+fit2 <- rstanarm::stan_gamm4(br ~ s(jday), 
+                             data = cyspdata,
+                             family = binomial(link = "logit"),
+                             algorithm = 'sampling',
+                             iter = ITER,
+                             chains = CHAINS,
+                             cores = CHAINS,
+                             adapt_delta = DELTA,
+                             control = list(max_treedepth = TREE_DEPTH))
 
-predictDays <- range(DATA$sjday)[1]:range(DATA$sjday)[2]
-predictDays2 <- predictDays^2
-predictDays3 <- predictDays^3
 
-newdata <- data.frame(sjday = predictDays, sjday2 = predictDays2, sjday3 = predictDays3)
+#calculate diagnostics
+num_diverge <- rstan::get_num_divergent(fit2$stanfit)
+num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
+num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
 
+#rerun model if things didn't go well
+while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
+{
+  DELTA <- DELTA + 0.01
+  TREE_DEPTH <- TREE_DEPTH + 1
+  
+  fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr,
+                               data = cyspdata,
+                               family = binomial(link = "logit"),
+                               algorithm = 'sampling',
+                               iter = ITER,
+                               chains = CHAINS,
+                               cores = CHAINS,
+                               adapt_delta = DELTA,
+                               control = list(max_treedepth = TREE_DEPTH))
+  
+  num_diverge <- rstan::get_num_divergent(fit2$stanfit)
+  num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
+  num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
+}
+
+halfmax_df$num_diverge[counter] <- num_diverge
+halfmax_df$num_tree[counter] <- num_tree
+halfmax_df$num_BFMI[counter] <- num_BFMI
+halfmax_df$delta[counter] <- DELTA
+halfmax_df$tree_depth[counter] <- TREE_DEPTH
+
+#generate predict data
+predictDays <- range(cyspdata$jday)[1]:range(cyspdata$jday)[2]
+newdata <- data.frame(jday = predictDays, shr = 0)
+
+#predict response
 dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
 halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
 
@@ -106,7 +141,10 @@ for (L in 1:((ITER/2)*CHAINS))
   halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
 }
 
+########################
+#PLOT MODEL FIT AND DATA
 
+#summary(fit2)
 mn_dfit <- apply(dfit, 2, mean)
 LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
 UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
@@ -114,27 +152,31 @@ mn_hm <- mean(halfmax_fit)
 LCI_hm <- quantile(halfmax_fit, probs = 0.025)
 UCI_hm <- quantile(halfmax_fit, probs = 0.975)
 
+pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
 plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
      ylim = c(0, max(UCI_dfit)),
+     main = paste0(args, ' - ', years[j], ' - ', cells[k]),
      xlab = 'Julian Day', ylab = 'Detection Probability')
 lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
 lines(predictDays, mn_dfit, lwd = 2)
-DATA$BR_pl <- NA
-DATA[which(DATA$BR == 1),]$BR_pl <- max(UCI_dfit)
-DATA[which(DATA$BR == 0),]$BR_pl <- 0
-points(DATA$Jday, DATA$BR_pl, col = rgb(0,0,0,0.25))
+cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
+points(cyspdata$day, cyspdata$detect, col = rgb(0,0,0,0.25))
 abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
 abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
 abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
-mean(halfmax_fit)
-sd(halfmax_fit)
+legend('topleft',
+       legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
+       col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
+       lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
+dev.off()
 
 
 
-#--------------------------------#
 
 
-# 
+
+# phenology as it related to age ------------------------------------------
+
 # jfit <- lm(MAPS_age$Jday ~ MAPS_age$True_age)
 # summary(jfit)
 # 
@@ -150,7 +192,6 @@ sd(halfmax_fit)
 # lines(density(a3$Jday))
 # lines(density(a4$Jday))
 # lines(density(a5$Jday))
-
 
 
 
@@ -170,6 +211,13 @@ sd(halfmax_fit)
 #*difference in arrival between males and females - how this maps onto phlogeny/traits
 
 
+
+
+# other metric changes with age -------------------------------------------
+
+
+#maybe standardized by wing chord
+
 #*fat content and age - Fat[i] ~ alpha[id[i]] + beta1[id[i]] * Age[i] + beta2[id[i]] * Day[i] + beta3[id[i]] * Day[i]^2
 plot(MAPS_age$True_age, MAPS_age$Fat_content, col = rgb(0,0,0, 0.5))
 plot(MAPS_age$Jday, MAPS_age$Fat_content, col = rgb(0,0,0, 0.5))
@@ -182,146 +230,7 @@ summary(lm(Weight ~ True_age + poly(Jday, 2, raw = TRUE), data = MAPS_age))
 
 
 
-#filter by species, get breeding date (breeding period in this case) for each year/cell
-na_reps <- rep(NA, NROW(unique(MAPS_mrg2[c('YR', 'cell', 'SCINAME')])))
 
-MAPS_out <- data.frame(YR = na_reps,
-                       cell = na_reps,
-                       SCINAME = na_reps,
-                       midpoint = na_reps,
-                       l_bounds = na_reps,
-                       u_bounds = na_reps,
-                       n_stations = na_reps)
+# has age distribution of birds changed over time? ------------------------
 
-counter <- 1
-for (i in 1:length(species_list_i2))
-{
-  #i <- 19
-  temp <- dplyr::filter(MAPS_mrg2, SCINAME == species_list_i2[i])
-  if (NROW(temp) > 0)
-  {
-    
-    t_cell <- unique(temp$cell)
-    
-    for (j in 1:length(t_cell))
-    {
-      #j <- 4
-      temp2 <- dplyr::filter(temp, cell == t_cell[j])
-      t_yr <- unique(temp2$YR)
-      
-      for (k in 1:length(t_yr))
-      {
-        
-        print(paste0('species: ', species_list_i2[i], ', ',
-                     'cell: ', t_cell[j], ', ',
-                     'year: ', t_yr[k]))
-        
-        #k <- 12
-        temp3 <- dplyr::filter(temp2, YR == t_yr[k])
-        
-        #C = confirmed breeder
-        #P = probably breeder
-        #O = observed
-        #- = not observed
-        
-        #input is 'MM-DD' (05-01)
-        #returns julian day
-        dfun <- function(input)
-        {
-          t_date_lb <- paste0(t_yr[k], '-', input)
-          t_j_lb <- format(as.Date(t_date_lb), '%j')
-          return(t_j_lb)
-        }
-        
-        PS1 <- dfun('05-01')
-        PS2 <- dfun('05-11')
-        PS3 <- dfun('05-21')
-        PS4 <- dfun('05-31')
-        PS5 <- dfun('06-10')
-        PS6 <- dfun('06-20')
-        PS7 <- dfun('06-30')
-        PS8 <- dfun('07-10')
-        PS9 <- dfun('07-20')
-        PS10 <- dfun('07-30')
-        PS11 <- dfun('08-09')
-        PS12 <- dfun('08-18')
-        
-        periods <- c(PS1, PS2, PS3, PS4, PS5, PS6, PS7, PS8, PS9, PS10, PS11, PS12)
-        
-        #from first observaton observed breeding in hex cell:
-        #input julian day if breeding
-        #input 0 if observed in the season but not breeding
-        #input NA if not observed at all
-        
-        cind <- grep('PS', colnames(temp3))
-        
-        #confirmed or possbile breeding for each station
-        cp_ind <- c()
-        ob_ind <- c()
-        no_ind <- c()
-        for (m in 1:NROW(temp3))
-        {
-          #m <- 1
-          cp_ind <- c(cp_ind, which(temp3[m,cind] == 'C' | temp3[m,cind] == 'P'))
-          ob_ind <- c(ob_ind, which(temp3[m,cind] == 'O'))
-          no_ind <- c(no_ind, which(temp3[m,cind] == '-'))
-        }
-        
-        if (length(cp_ind) > 0)
-        {
-          #lower bounds of period observed
-          first_br_obs_lb <- as.numeric(periods[min(cp_ind)])
-          #upper bounds of period observed
-          first_br_obs_ub <- first_br_obs_lb + 9
-          midpoint_br <- mean(c(first_br_obs_lb, first_br_obs_ub))
-        } else {
-          if (length(ob_ind) > 0)
-          {
-            first_br_obs_lb <- 0
-            first_br_obs_ub <- 0
-            midpoint_br <- 0
-          } else {
-            first_br_obs_lb <- NA
-            first_br_obs_ub <- NA
-            midpoint_br <- NA
-          }
-        }
-        
-        #column for midpoint breeding date
-        #column for lower bounds breeding date
-        #column for upper bounds breeding date
-        #column for cell
-        #column for year
-        #column for species SCI NAME (with underscore)
-        
-        t_info <- dplyr::select(temp3, YR, cell, SCINAME)[1,]
-        
-        t_info$SCINAME <- gsub(' ', '_', t_info$SCINAME)
-        
-        t_info$midpoint <- midpoint_br
-        t_info$l_bounds <- first_br_obs_lb
-        t_info$u_bounds <- first_br_obs_ub
-        #n_stations is number of stations that recorded probably or confirmed breeding
-        t_info$n_stations <- length(cp_ind)
-        
-        MAPS_out[counter,] <- t_info
-        counter <- counter + 1
-      }
-    }
-  }
-}
-
-
-
-#remove NA padding (find first year row to have NA and subtract one from that index)
-fin_ind <- min(which(is.na(MAPS_out$YR)))
-MAPS_out2 <- MAPS_out[1:(fin_ind - 1),]
-
-
-#NA = station operating in that year/cell, but bird not observed
-#0 = station operating in that year/cell, bird observed, but not observed breeding
-#JDAY = station operating in that year/cell, bird observed breeding
-
-#write to rds
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-saveRDS(MAPS_out2, paste0('breeding_MAPS_obs_', Sys.Date(), '.rds'))
+#more older birds over time? more younger birds over time?
