@@ -539,7 +539,7 @@ cxn <- DBI::dbConnect(pg,
                       port = 5432, 
                       dbname = "sightings")
 
-maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day,
+maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name,
                                       (event_json ->> 'STATION') AS station,
                                       (place_json ->> 'HABITAT') AS habitat,
                                       (place_json ->> 'ELEV')::int AS elev,
@@ -633,6 +633,9 @@ maps_data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 
 # fill in true ages ------------------------------------------------------------
 
+#true_age 1 means 1 year old (born in previous season)
+
+
 #add col for true age (actual age, not 'year' of bird)
 maps_data$true_age <- NA
 
@@ -660,11 +663,11 @@ for (i in 1:length(ids))
   {
     birth_year <- t_yrs[1]
   } else {
-    if (sum(temp$age == 5) > 0 & length(t_yrs) > 1)
+    if (sum(temp$age == 5) > 0)
     {
       birth_year <- (t_yrs[1] - 1)
     } else {
-      if (sum(temp$age == 7) > 0 & length(t_yrs) > 1)
+      if (sum(temp$age == 7) > 0)
       {
         birth_year <- (t_yrs[1] - 2)
       }
@@ -674,9 +677,9 @@ for (i in 1:length(ids))
   #fill in age values for subsequent year if birth year was defined
   if (!is.na(birth_year))
   {
-    for (j in 2:length(t_yrs))
+    for (j in 1:length(t_yrs))
     {
-      #j <- 2
+      #j <- 1
       #insert age
       maps_data[which(maps_data$band_id == ids[i] & maps_data$year == t_yrs[j]), 
                 'true_age'] <- (t_yrs[j] - birth_year)
@@ -691,8 +694,7 @@ sum(!is.na(maps_data$true_age))/NROW(maps_data)
 
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-# saveRDS(MAPS_mrg5, 'MAPS_age_filled.rds')
-# MAPS_mrg5 <- readRDS('MAPS_age_filled.rds')
+# saveRDS(maps_data, 'MAPS_age_filled.rds')
 
 
 
