@@ -568,8 +568,6 @@ sink()
 
 
 
-
-
 # Plot pre-IAR/post_IAR halfmax estimates ------------------------------------------
 
 #estimated half-max in grey, sd in white (derived from logit cubic)

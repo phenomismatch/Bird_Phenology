@@ -1,5 +1,5 @@
 ####################
-# 7 - logit-cubic-breeding
+# 7 - halfmax model breeding
 #
 # Fit model (GAM logistic regression) to eBird data to get half-max parameter (bird breeding) for each species-cell-year
 #
