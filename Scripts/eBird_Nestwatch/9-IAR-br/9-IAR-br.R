@@ -366,6 +366,10 @@ for (j in 1:J)
   beta0[j] = beta0_raw[j] * sigma_beta0;
   y_true[,j] = beta0[j] + gamma + nu[,j] * sigma_nu[j];
   
+  // Adding NW and MAPS breeding dates as covariates in model
+  // need to model these covariates as latent states due to missing data where eBird br is available?
+  // May not be missing?
+  // y_true[,j] = beta0[j] + gamma + beta1 * NW[,] + beta2 * MAPS[,j] + nu[,j] * sigma_nu[j];
 }
 
 // indexing to avoid NAs

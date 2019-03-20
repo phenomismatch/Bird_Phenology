@@ -244,7 +244,7 @@ nyr <- length(years)
 
 
 
-# fit logit cubic ---------------------------------------------------------
+# fit model ---------------------------------------------------------
 
 t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
 colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))

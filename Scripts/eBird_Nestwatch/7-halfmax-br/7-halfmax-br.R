@@ -237,7 +237,7 @@ nyr <- length(years)
 
 
 
-# fit logit cubic ---------------------------------------------------------
+# fit model ---------------------------------------------------------
 
 #Breeding categories - http://www.ctbirdatlas.org/Surveys-Breeding-codes.htm
 #C1 - bird observed, not breeding (though there are many surveys without a breeding category which I believe would fulfill C1)
