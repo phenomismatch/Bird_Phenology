@@ -1,175 +1,124 @@
 #############################
-#MAPS exploration
+# MAPS exploration
 #
-#
+# *breeding onset with brood patch - see halfmax-bp (may need to aggregate to larger cells)
+# *phenology as it relates to sex (difficult to do with MAPS data) - maybe with a few very late species?
+# *phenology as it relates to age (difficult to do with MAPS data) - maybe with a few very late species?
+# *weight/fat changes with age - CHANGING! Getting larger (wing chord/weight) but losing fat content and relative weight as they age
+# *weight/fat changes with age of individual birds - CHANGING! Getting larger (wing chord/weight) but losing fat content and maybe relative weight as they age
+# *weight/fat changes over time of population - CHANGING! Declines in weight and fat over time
+# *weight/fat changes over time of year - weight complicated, fat yes, but complicated
+# *males live longer than females - yes, supported by lit 
+# *age distribution over time of population - yes, though due to birds of known age starting when project started
+# *NEED TO EXPLORE: proportion (or frequency) of young hiting nets as metric of breeding phenology
 #############################
 
 
 
-# maps_data <- readRDS('MAPS_age_filled.rds')
+# top-level dir --------------------------------------------------------------
+
+dir <- '~/Google_Drive/R/'
 
 
-#What characterizes breeding? Brood patch?
+# load packages -----------------------------------------------------------
+
+library(dplyr)
+library(dggridR)
 
 
 
-#--------------------------------#
-#distirbution of hatch year birds caught over the season
+# load data ---------------------------------------------------------------
 
-maps_young <- dplyr::filter(maps_data, true_age == 0)
-plyr::count(maps_young, 'Sci_name')
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
-oc_0 <- filter(maps_young, sci_name == 'Oreothlypis celata')
-plyr::count(oc_0, c('Cell', 'Year'))
-tt <- dplyr::filter(oc_0, Cell == 444, Year == 2011)
-
-plot(density(tt$day))
-
-#--------------------------------#
+maps_data <- readRDS('MAPS_age_filled.rds')
 
 
-#--------------------------------#
-#logistic model for presence of brood patch (onset of breeding)
+
+
+
+# Only MAPS adults --------------------------------------------------------
 
 maps_adults <- dplyr::filter(maps_data, age %in% c('1', '5', '6', '7', '8'))
 
-plyr::count(maps_adults, 'sci_name')
 
-C_ustulatus <- dplyr::filter(maps_adults, sci_name == 'Catharus ustulatus')
+
+# Onset of breeding with brood patch --------------------------------------
 
 #breeding defined as:
-#BP 2-4
+#BP 3-4
 #CP 1-3
 
 #only captures that recorded brood patch/cloacal protuberance
-cu_f <- dplyr::filter(C_ustulatus, sex == 'F', brood_patch %in% c(0:5))
-cu_m <- dplyr::filter(C_ustulatus, sex == 'M', cloacal_pro %in% c(0:3))
+maps_bp_f <- dplyr::filter(maps_adults, sex == 'F', brood_patch %in% c(0:5))
+#maps_cp_m <- dplyr::filter(maps_adults, sex == 'M', cloacal_pro %in% c(0:3))
 
 #add breeder col
-C_ustulatus$br <- NA
-cu_f$br <- NA
+maps_bp_f$bp <- NA
 
-#male female
-plot(density(C_ustulatus[which(C_ustulatus$Sex == 'M'),]$day))
-lines(density(C_ustulatus[which(C_ustulatus$Sex == 'F'),]$day), col = 'red')
-
-#cloacal protuberance probably not a good metric
-plot(density(cu_m[which(cu_m$cloacal_pro <= 2),]$day))
-lines(density(cu_m[which(cu_m$cloacal_pro > 2),]$day), col = 'red')
-
-#brood patch maybe better
-plot(density(cu_f[which(cu_f$brood_patch <= 2 | cu_f$brood_patch == 5),]$day))
-lines(density(cu_f[which(cu_f$brood_patch > 2 & cu_f$brood_patch < 5),]$day), 
+#brood patch maybe better than CP
+plot(density(maps_bp_f[which(maps_bp_f$brood_patch <= 2 | maps_bp_f$brood_patch == 5),]$day))
+lines(density(maps_bp_f[which(maps_bp_f$brood_patch > 2 & maps_bp_f$brood_patch < 5),]$day), 
       col = 'red')
 
-cu_f[which(cu_f$brood_patch > 2 & cu_f$brood_patch < 5),]$bp <- 1
-cu_f[which(cu_f$brood_patch <= 2 | cu_f$brood_patch == 5),]$bp <- 0
-
-#DATA <- dplyr::filter(cu_f, Jday < DAY, Jday > 50)
-DATA <- cu_f
-
-plyr::count(cu_f, c('Cell', 'Year'))
+maps_bp_f[which(maps_bp_f$brood_patch <= 2 | maps_bp_f$brood_patch == 5),]$bp <- 0
+maps_bp_f[which(maps_bp_f$brood_patch > 2 & maps_bp_f$brood_patch < 5),]$bp <- 1
 
 
+#how many obs for each species - top 10
+cnt_bpf <- plyr::count(maps_bp_f, 'sci_name')
+
+sp <- head(cnt_bpf[order(cnt_bpf$freq, decreasing = TRUE),], n = 10)$sci_name
+
+cnt_spf <- plyr::count(maps_bp_f, c('cell', 'year'))
+
+#see halfmax-bp for models
 
 
-#cyspdata
 
 
+# phenology as it relates to sex ------------------------------------------
 
-library(rstanarm)
-ITER <- 1000
-#ITER <- 10
-CHAINS <- 3
+#DIFFICULT TO DO WITH MAPS DATA
+#can't reliably measure because MAPS starts so late - after bird arrival, even though females are being captured in nets later (may be due to the fact that females do most of the incubation)
 
-#defaults for rstanarm are 0.95 and 15
-DELTA <- 0.95
-TREE_DEPTH <- 15
+#difference between male and female arrival time
 
-fit2 <- rstanarm::stan_gamm4(bp ~ s(day), 
-                             data = cyspdata,
-                             family = binomial(link = "logit"),
-                             algorithm = 'sampling',
-                             iter = ITER,
-                             chains = CHAINS,
-                             cores = CHAINS,
-                             adapt_delta = DELTA,
-                             control = list(max_treedepth = TREE_DEPTH))
+plot(density(maps_adults[which(maps_adults$sex == 'M'),]$day))
+lines(density(maps_adults[which(maps_adults$sex == 'F'),]$day), col = 'red')
 
-#calculate diagnostics
-num_diverge <- rstan::get_num_divergent(fit2$stanfit)
-num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
-num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
+sci_names <- sort(unique(maps_adults$sci_name))
 
-#rerun model if things didn't go well
-while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
+#species with some data that are relatively late arrivers:
+#Contopus virens
+#Empidonax alnorum
+#Empidonax traillii
+#Empidonax virescens
+#Icteria virens
+#Passerina cyanea
+#Vireo olivaceus
+
+for (i in 1:length(sci_names))
 {
-  DELTA <- DELTA + 0.01
-  TREE_DEPTH <- TREE_DEPTH + 1
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 178
+  temp <- dplyr::filter(maps_adults, sci_name == sci_names[i])
   
-  fit2 <- rstanarm::stan_gamm4(bp ~ s(day),
-                               data = cyspdata,
-                               family = binomial(link = "logit"),
-                               algorithm = 'sampling',
-                               iter = ITER,
-                               chains = CHAINS,
-                               cores = CHAINS,
-                               adapt_delta = DELTA,
-                               control = list(max_treedepth = TREE_DEPTH))
-  
-  num_diverge <- rstan::get_num_divergent(fit2$stanfit)
-  num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
-  num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
+  dev.off()
+  par(mfrow = c(3,3))
+  t_yrs <- sort(unique(temp$year))
+  for (j in 1:length(t_yrs))
+  {
+    #j <- 1
+    temp2 <- dplyr::filter(temp, year == t_yrs[j])
+    #plyr::count(temp2, c('cell'))
+    if ((NROW(dplyr::filter(temp2, sex == 'F')) > 2) & (NROW(dplyr::filter(temp2, sex == 'M')) > 2))
+    {
+      plot(density(temp2[which(temp2$sex == 'M'),]$day), main = paste0(temp2$sci_name[1], ' - ', t_yrs[j]))
+      lines(density(temp2[which(temp2$sex == 'F'),]$day), col = 'red')
+    }
+  }
 }
-
-#generate predict data
-predictDays <- range(cyspdata$day)[1]:range(cyspdata$day)[2]
-newdata <- data.frame(day = predictDays)
-
-#predict response
-dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
-halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
-
-for (L in 1:((ITER/2)*CHAINS))
-{
-  #L <- 1
-  rowL <- as.vector(dfit[L,])
-  halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
-}
-
-
-########################
-#PLOT MODEL FIT AND DATA
-
-cyspdata2 <- cyspdata
-
-#summary(fit2)
-mn_dfit <- apply(dfit, 2, mean)
-LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
-UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
-mn_hm <- mean(halfmax_fit)
-LCI_hm <- quantile(halfmax_fit, probs = 0.025)
-UCI_hm <- quantile(halfmax_fit, probs = 0.975)
-
-#pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
-plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
-     ylim = c(0, max(UCI_dfit)),
-     main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-     xlab = 'Julian Day', ylab = 'Probability')
-lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
-lines(predictDays, mn_dfit, lwd = 2)
-cyspdata2$bp[which(cyspdata2$bp == 1)] <- max(UCI_dfit)
-points(cyspdata2$day, cyspdata2$bp, col = rgb(0,0,0,0.25))
-abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
-abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
-abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
-legend('topleft',
-       legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
-       col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
-       lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
-#dev.off()
-
-########################
 
 
 
@@ -177,89 +126,480 @@ legend('topleft',
 
 # phenology as it relates to age ------------------------------------------
 
-# jfit <- lm(maps_adults$day ~ maps_adults$true_age)
-# summary(jfit)
-# 
-# plot(maps_adults$true_age, maps_adults$day, pch = '.', col = rgb(0,0,0, 0.5))
-# abline(jfit, col = 'red')
-# a1 <- dplyr::filter(maps_adults, true_age == 1)
-# a2 <- dplyr::filter(maps_adults, true_age == 2)
-# a3 <- dplyr::filter(maps_adults, true_age == 3)
-# a4 <- dplyr::filter(maps_adults, true_age == 4)
-# a5 <- dplyr::filter(maps_adults, true_age == 5)
-# 
-# plot(density(a1$day))
-# lines(density(a2$day))
-# lines(density(a3$day))
-# lines(density(a4$day))
-# lines(density(a5$day))
-# 
-# hist(maps_adults$true_age)
+#DIFFICULT TO DO WITH MAPS DATA
 
-#filter sex, fat, weight, wing chord and plot densities
+#known age males
+maps_age <- dplyr::filter(maps_adults, !is.na(true_age))
 
+for (i in 1:length(sci_names))
+{
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 178
+  temp <- dplyr::filter(maps_age, sci_name == sci_names[i])
+  
+  # if (NROW(temp) > 30)
+  # {
+  #   sfit <- summary(lm(temp$day ~ temp$true_age))
+  #   print(sfit$coef[2,4])
+  # }
 
-
-#*phenology and age - could fit age as random effect in gam model above using rstanarm
-#could fit logistic regression with age as random effect -> each age class would have different beta param
-#for each cell/year: predict start of breeding for each age class (age 1, age 2, age 3+)
-#calculate derived qty - difference in halfmax estimates
-#y[i] ~ bern(p[i])
-#logit(p[i]) = alpha[id[i]] + beta[id[i]] * DAY[i]
-
-
-
-#*for a given species, number of birds caught per hour in each cell
-#*fit gam and find halfmax?
-#*add params: age, sex, fat, weight, wing chord
-#*in generating prediction data, need to hold all vars constant with the exception of one of interest
-#e.g., vary age, mean fat, mean weight, mean wing chord 
-
-
-# difference in arrival based on traits -----------------------------------
-
-#does fat, weight, sex, wing chord, age explain differences in arrival timing?
-
-
-
-
-
-
-
-# other metric changes with age -------------------------------------------
-
-#*fat content and age - Fat[i] ~ alpha[id[i]] + beta1[id[i]] * Age[i] + beta2[id[i]] * Day[i] + beta3[id[i]] * Day[i]^2
-plot(MAPS_age$True_age, MAPS_age$Fat_content, col = rgb(0,0,0, 0.5))
-plot(MAPS_age$Jday, MAPS_age$Fat_content, col = rgb(0,0,0, 0.5))
-summary(lm(Fat_content ~ True_age + poly(Jday, 2, raw = TRUE), data = MAPS_age))
-
-
-#maybe standardize weight by wing chord
-
-#*Weight and age - Weight[i] ~ alpha[id[i]] + beta1[id[i]] * Age[i] + beta2[id[i]] * Day[i] + beta3[id[i]] * Day[i]^2
-plot(MAPS_age$True_age, MAPS_age$Weight, col = rgb(0,0,0, 0.5))
-plot(MAPS_age$Jday, MAPS_age$Weight, col = rgb(0,0,0, 0.5))
-summary(lm(Weight ~ True_age + poly(Jday, 2, raw = TRUE), data = MAPS_age))
+  dev.off()
+  par(mfrow = c(3,3))
+  t_yrs <- sort(unique(temp$year))
+  for (j in 1:length(t_yrs))
+  {
+    #j <- 1
+    temp2 <- dplyr::filter(temp, year == t_yrs[j])
+    
+    a1 <- dplyr::filter(temp2, true_age == 1)
+    a2 <- dplyr::filter(temp2, true_age == 2)
+    a3 <- dplyr::filter(temp2, true_age == 3)
+    a4 <- dplyr::filter(temp2, true_age == 4)
+    a5p <- dplyr::filter(temp2, true_age > 4)
+    
+    if (NROW(a1) > 1)
+    {
+      plot(density(a1$day), lwd = 2)
+      
+      if (NROW(a2) > 1)
+      {
+        lines(density(a2$day), col = 'red', lwd = 2)
+      }
+      if (NROW(a3) > 1)
+      {
+        lines(density(a3$day), col = 'orange', lwd = 2)
+      }
+      if (NROW(a4) > 1)
+      {
+        lines(density(a4$day), col = 'green', lwd = 2)
+      }
+      if (NROW(a5p) > 1)
+      {
+        lines(density(a5p$day), col = 'blue', lwd = 2)
+      }
+    }
+  }
+}
 
 
 
+# how does weight/fat change with age -------------------------------------------
 
-# are there years where birds were heavier or lighter? --------------------
+#getting larger but losing fat content and relative weight as they age
+
+to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(maps_adults$weight) | is.na(maps_adults$fat_content))
+maps_adults_qc <- maps_adults[-to.rm, ]
+
+ma_qc <-  dplyr::filter(maps_adults_qc, !is.na(true_age))
+
+#quantile regression with fat/weight and age
+
+df_tt3 <- data.frame(sci_name = rep(NA, length(sci_names)),
+                     c_name = NA,
+                     N = NA,
+                     slope_sweight = NA,
+                     pv_sweight = NA,
+                     slope_weight = NA,
+                     pv_weight = NA,
+                     slope_fat = NA,
+                     pv_fat = NA,
+                     slope_wc = NA,
+                     pv_wc = NA)
+dev.off()
+par(mfrow = c(4,4))
+for (i in 1:length(sci_names))
+{
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 7
+  temp <- dplyr::filter(ma_qc, sci_name == sci_names[i])
+  
+  df_tt3$sci_name[i] <- temp$sci_name[1]
+  df_tt3$c_name[i] <- temp$common_name[1]
+  df_tt3$N[i] <- NROW(temp)
+  
+  if (length(unique(temp$true_age)) > 2)
+  {
+    tfit <- summary(lm((weight/wing_chord) ~ true_age, data = temp))
+    #plot(temp$true_age, (temp$weight/temp$wing_chord), main = paste0('Weight ', temp$sci_name[1]))
+    df_tt3$slope_sweight[i] <- round(tfit$coef[2,1], 3)
+    df_tt3$pv_sweight[i] <- round(tfit$coef[2,4], 3)
+    
+    tfit15 <- summary(lm(weight ~ true_age, data = temp))
+    #plot(temp$true_age, (temp$weight), main = paste0('Weight ', temp$sci_name[1]))
+    df_tt3$slope_weight[i] <- round(tfit15$coef[2,1], 3)
+    df_tt3$pv_weight[i] <- round(tfit15$coef[2,4], 3)
+    
+    tfit2 <- summary(lm(fat_content ~ true_age, data = temp))
+    #plot(temp$true_age, temp$fat_content, main = paste0('Fat ', temp$sci_name[1]))
+    df_tt3$slope_fat[i] <- round(tfit2$coef[2,1], 3)
+    df_tt3$pv_fat[i] <- round(tfit2$coef[2,4], 3)
+    
+    tfit3 <- summary(lm(wing_chord ~ true_age, data = temp))
+    plot(temp$true_age, temp$wing_chord, main = paste0('Wing Chord ', temp$sci_name[1]))
+    abline(tfit3, col = 'red')
+    df_tt3$slope_wc[i] <- round(tfit3$coef[2,1], 3)
+    df_tt3$pv_wc[i] <- round(tfit3$coef[2,4], 3)
+  }
+}
+
+ntt3 <- dplyr::filter(df_tt3, N > 200)
+
+#losing standardized weight slightly as they age
+hist(ntt3$slope_sweight)
+hist(ntt3$pv_sweight)
+
+#overall gaining weight
+hist(ntt3$slope_weight)
+hist(ntt3$pv_weight)
+
+#losing fat content
+hist(ntt3$slope_fat)
+hist(ntt3$pv_fat)
+
+#and wing chords growing
+hist(ntt3$slope_wc)
+hist(ntt3$pv_wc)
 
 
-#*is weight changing over time?
-#*is wing chord changing over time?
+
+
+
+# how does weight/fat of poplation change over time --------------------
+
+#*is weight (std by wing chord) changing over time? DECLINING
+#*is fat changing over time? DECLINING
+#*is wing chord changing over time? relatively stable
+
+
+df_tt2 <- data.frame(sci_name = rep(NA, length(sci_names)),
+                    c_name = NA,
+                    N = NA,
+                    slope_sweight = NA,
+                    pv_sweight = NA,
+                    slope_weight = NA,
+                    pv_weight = NA,
+                    slope_fat = NA,
+                    pv_fat = NA,
+                    slope_wc = NA,
+                    pv_wc = NA)
+dev.off()
+par(mfrow = c(4,4))
+for (i in 1:length(sci_names))
+{
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 55
+  temp <- dplyr::filter(maps_adults_qc, sci_name == sci_names[i])
+  
+  df_tt2$sci_name[i] <- temp$sci_name[1]
+  df_tt2$c_name[i] <- temp$common_name[1]
+  df_tt2$N[i] <- NROW(temp)
+  
+  if (length(unique(temp$year)) > 3)
+  {
+    tfit <- summary(lm((weight/wing_chord) ~ year, data = temp))
+    plot(temp$year, (temp$weight/temp$wing_chord), main = paste0('Weight ', temp$sci_name[1]))
+    abline(tfit, col = 'red')
+    df_tt2$slope_sweight[i] <- round(tfit$coef[2,1], 3)
+    df_tt2$pv_sweight[i] <- round(tfit$coef[2,4], 3)
+    
+    tfit15 <- summary(lm(weight ~ year, data = temp))
+    plot(temp$year, temp$weight, main = paste0('Weight ', temp$sci_name[1]))
+    abline(tfit15, col = 'red')
+    df_tt2$slope_weight[i] <- round(tfit15$coef[2,1], 3)
+    df_tt2$pv_weight[i] <- round(tfit15$coef[2,4], 3)
+    
+    tfit2 <- summary(lm(fat_content ~ year, data = temp))
+    plot(temp$year, temp$fat_content, main = paste0('Fat ', temp$sci_name[1]))
+    abline(tfit2, col = 'red')
+    df_tt2$slope_fat[i] <- round(tfit2$coef[2,1], 3)
+    df_tt2$pv_fat[i] <- round(tfit2$coef[2,4], 3)
+
+    tfit3 <- summary(lm(wing_chord ~ year, data = temp))
+    plot(temp$year, temp$wing_chord, main = paste0('Wing Chord ', temp$sci_name[1]))
+    abline(tfit3, col = 'red')
+    df_tt2$slope_wc[i] <- round(tfit3$coef[2,1], 3)
+    df_tt2$pv_wc[i] <- round(tfit3$coef[2,4], 3)
+  }
+}
+
+ntt2 <- dplyr::filter(df_tt2, N > 200)
+
+#declining overall weight
+hist(ntt2$slope_sweight)
+hist(ntt2$pv_sweight)
+
+#slight loss in weight
+hist(ntt2$slope_weight)
+hist(ntt2$pv_weight)
+
+#losing fat over time
+hist(ntt2$slope_fat)
+hist(ntt2$pv_fat)
+
+#some change in wc, but both ways
+hist(ntt2$slope_wc)
+hist(ntt2$pv_wc)
+
+
+
+
+# how does weight/fat of population change over a year --------------------
+
+#COMPLICATED
+#fat scores change over season - differs and is complex, though
+#weight more complicated
+
+
+df_tt <- data.frame(sci_name = rep(NA, length(sci_names)),
+                       c_name = NA,
+                       N = NA,
+                       slope_weight = NA,
+                       pv_weight = NA,
+                       slope_fat = NA,
+                       pv_fat = NA,
+                       slope_wf = NA,
+                       pv_wf = NA)
+dev.off()
+par(mfrow = c(4,4))
+for (i in 1:length(sci_names))
+{
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 2
+  temp <- dplyr::filter(maps_adults_qc, sci_name == sci_names[i])
+  
+  df_tt$sci_name[i] <- temp$sci_name[1]
+  df_tt$c_name[i] <- temp$common_name[1]
+  df_tt$N[i] <- NROW(temp)
+  
+  if (NROW(temp) > 3)
+  {
+    tfit <- summary(lm((weight/wing_chord) ~ day, data = temp))
+    plot(temp$day, (temp$weight/temp$wing_chord), main = paste0('Weight ', temp$sci_name[1]))
+    df_tt$slope_weight[i] <- round(tfit$coef[2,1], 3)
+    df_tt$pv_weight[i] <- round(tfit$coef[2,4], 3)
+    
+    tfit2 <- summary(lm(fat_content ~ day, data = temp))
+    plot(temp$day, temp$fat_content, main = paste0('Fat ', temp$sci_name[1]))
+    df_tt$slope_fat[i] <- round(tfit2$coef[2,1], 3)
+    df_tt$pv_fat[i] <- round(tfit2$coef[2,4], 3)
+    
+    tfit3 <- summary(lm(fat_content ~ (weight/wing_chord), data = temp))
+    plot((temp$weight/temp$wing_chord), temp$fat_content, main = paste0('WF ', temp$sci_name[1]))
+    df_tt$slope_wf[i] <- round(tfit3$coef[2,1], 3)
+    df_tt$pv_wf[i] <- round(tfit3$coef[2,4], 3)
+  }
+}
+  
+
+
+
+
+# how does weight/fat/wing_chord of individual birds change over time -----------
+
+
+#DECREASE in fat, INCREASE wing chord, INCREASE weight
+
+#find unique band ids
+bid_cnt <- plyr::count(maps_adults_qc$band_id)
+
+#individuals that have been captured more than 5 times
+bid_c <- dplyr::filter(bid_cnt, freq > 3)
+c_birds <- bid_c[,1]
+
+
+maps_c <- dplyr::filter(maps_adults_qc, band_id %in% c_birds, !is.na(true_age))
+
+#weight
+ggplot(maps_c, aes(true_age, weight, col = band_id)) +
+  geom_line() +
+  theme(legend.position="none")
+
+#sweight
+ggplot(maps_c, aes(true_age, (weight/wing_chord), col = band_id)) +
+  geom_line() +
+  theme(legend.position="none")
+
+#fat content
+ggplot(maps_c, aes(true_age, fat_content, col = band_id)) +
+  geom_line() +
+  theme(legend.position="none")
+
+#wing chord
+ggplot(maps_c, aes(true_age, wing_chord, col = band_id)) +
+  geom_line() +
+  theme(legend.position="none")
+
+
+df_temp <- data.frame(band_id = rep(NA, length(c_birds)),
+                      sci_name = rep(NA, length(c_birds)),
+                      slope_weight = rep(NA, length(c_birds)), 
+                      pv_weight = rep(NA, length(c_birds)),
+                      slope_sweight = rep(NA, length(c_birds)), 
+                      pv_sweight = rep(NA, length(c_birds)),
+                      slope_fat = rep(NA, length(c_birds)), 
+                      pv_fat = rep(NA, length(c_birds)),
+                      slope_wc = rep(NA, length(c_birds)), 
+                      pv_wc = rep(NA, length(c_birds)),
+                      slope_wfc = rep(NA, length(c_birds)), 
+                      pv_wfc = rep(NA, length(c_birds)))
+
+for (i in 1:length(c_birds))
+{
+  #i <- 3100
+  temp <- dplyr::filter(maps_c, band_id == c_birds[i])
+  
+  df_temp$band_id[i] <- temp$band_id[1]
+  df_temp$sci_name[i] <- temp$sci_name[1]
+  
+  if (length(unique(temp$true_age)) > 1)
+  {
+    #weight
+    tfit <- summary(lm(weight ~ true_age, data = temp))
+    df_temp$slope_weight[i] <- round(tfit$coef[2,1], 2)
+    df_temp$pv_weight[i] <- round(tfit$coef[2,4], 2)
+    
+    tfit15 <- summary(lm((weight/wing_chord) ~ true_age, data = temp))
+    df_temp$slope_sweight[i] <- round(tfit15$coef[2,1], 2)
+    df_temp$pv_sweight[i] <- round(tfit15$coef[2,4], 2)
+    
+    #fat
+    tfit2 <- summary(lm(fat_content ~ true_age, data = temp))
+    df_temp$slope_fat[i] <- round(tfit2$coef[2,1], 2)
+    df_temp$pv_fat[i] <- round(tfit2$coef[2,4], 2)
+    
+    #wing chord
+    tfit3 <- summary(lm(wing_chord ~ true_age, data = temp))
+    df_temp$slope_wc[i] <- round(tfit3$coef[2,1], 2)
+    df_temp$pv_wc[i] <- round(tfit3$coef[2,4], 2)
+    
+    #weight ~ fat content
+    if (length(unique(temp$fat_content)) > 1)
+    {
+      tfit4 <- summary(lm(weight ~ fat_content, data = temp))
+      df_temp$slope_wfc[i] <- round(tfit4$coef[2,1], 2)
+      df_temp$pv_wfc[i] <- round(tfit4$coef[2,4], 2)
+    }
+  }
+}
+
+hist(df_temp$slope_weight)
+hist(df_temp$slope_sweight)
+hist(df_temp$pv_weight)
+hist(df_temp$slope_fat)
+hist(df_temp$slope_wc)
+hist(df_temp$slope_wfc)
+hist(df_temp$pv_wfc)
+
+hist(dplyr::filter(df_temp, pv_weight < 0.05)$slope_weight)
+hist(dplyr::filter(df_temp, pv_weight < 0.05)$slope_sweight)
+
+
+# do females live longer than males? max life span each species -----------------------------------------
+
+#MALES LIVE LONGER - known in lit
+#max ages of each species calculated
+
+maps_as <- dplyr::filter(maps_age, sex %in% c('M', 'F'))
+maps_m <- dplyr::filter(maps_age, sex %in% c('M'))
+maps_f <- dplyr::filter(maps_age, sex %in% c('F'))
+
+#30% more males captures than females
+#(NROW(maps_m) - NROW(maps_f)) / NROW(maps_f)
+
+hist(maps_m$true_age)
+hist(maps_f$true_age)
+
+mean(maps_m$true_age)
+sd(maps_m$true_age)
+mean(maps_f$true_age)
+sd(maps_f$true_age)
+
+
+
+df_temp2 <- data.frame(sci_name = rep(NA, length(sci_names)),
+                      c_name = NA,
+                      N = NA,
+                      max_age = NA,
+                      mn_male_age = NA,
+                      sd_male_age = NA,
+                      mn_female_age = NA,
+                      sd_female_age = NA)
+
+for (i in 1:length(sci_names))
+{
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 142
+  
+  temp <- dplyr::filter(maps_age, sci_name == sci_names[i])
+  df_temp2$sci_name[i] <- temp$sci_name[1]
+  df_temp2$c_name[i] <- temp$common_name[1]
+  df_temp2$N[i] <- NROW(temp)
+  df_temp2$max_age[i] <- max(temp$true_age)
+  
+  temp_m <- dplyr::filter(temp, sex %in% c('M'))
+  temp_f <- dplyr::filter(temp, sex %in% c('F'))
+  
+  if (NROW(temp) > 1)
+  {
+    df_temp2$mn_male_age[i] <- round(mean(temp_m$true_age, na.rm = TRUE), 2)
+    df_temp2$sd_male_age[i] <- round(sd(temp_m$true_age, na.rm = TRUE), 2)
+    df_temp2$mn_female_age[i] <- round(mean(temp_f$true_age, na.rm = TRUE), 2)
+    df_temp2$sd_female_age[i] <- round(sd(temp_f$true_age, na.rm = TRUE), 2)
+  }
+}
+
+to.rm <- which(is.na(df_temp2$sci_name))
+df_temp3 <- df_temp2[-to.rm,]
+
+#Blackpol warbler
+df_temp2[grep('Shrike', df_temp2$c_name),]
+
 
 
 
 
 # has age distribution of birds changed over time? ------------------------
 
-#more older birds over time? more younger birds over time?
+#AGE OF KNOWN AGE BIRDS INCREASING - likely due to true age being calculated from birds that were tagged as juveniles
 
+df_temp4 <- data.frame(sci_name = rep(NA, length(sci_names)),
+                       c_name = NA,
+                       N = NA,
+                       slope = NA,
+                       pv = NA)
 
+for (i in 1:length(sci_names))
+{
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 3
+  
+  temp <- dplyr::filter(maps_age, sci_name == sci_names[i])
+  df_temp4$sci_name[i] <- temp$sci_name[1]
+  df_temp4$c_name[i] <- temp$common_name[1]
+  df_temp4$N[i] <- NROW(temp)
+  
+  t_yrs <- unique(temp$year)
+  
+  if (NROW(temp) > 3)
+  {
+    tdf <- data.frame(year = rep(NA, length(t_yrs)), mn_age = NA, sd_age = NA)
+    for (j in 1:length(t_yrs))
+    {
+      #j <- 1
+      temp2 <- dplyr::filter(temp, year == t_yrs[j])
+  
+      tdf$year[j] <- temp2$year[1]
+      tdf$mn_age[j] <- mean(temp2$true_age)
+      tdf$sd_age[j] <- sd(temp2$true_age)
+    }
+    
+    tfit <- summary(lm(mn_age ~ year, data = tdf))
+    df_temp4$slope[i] <- round(tfit$coef[2,1], 2)
+    df_temp4$pv[i] <- round(tfit$coef[2,4], 2)
+  }
+}
 
+df_temp5 <- dplyr::filter(df_temp4, N > 50)
 
-# how does weight of individual birds change (inter- and intra-annual) -----
-
+NROW(df_temp5)
 
