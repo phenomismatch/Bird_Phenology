@@ -528,6 +528,8 @@ proc.time() - tt
 
 # MAPS obs - DB -----------------------------------------------------------
 
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
+
 pass <- readLines('db_pass.txt')
 
 pg <- DBI::dbDriver("PostgreSQL")
@@ -539,7 +541,8 @@ cxn <- DBI::dbConnect(pg,
                       port = 5432, 
                       dbname = "sightings")
 
-maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name,
+maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name, event_id, started, ended,
+                                      (count_json ->> 'ANET') AS anet,
                                       (event_json ->> 'STATION') AS station,
                                       (place_json ->> 'HABITAT') AS habitat,
                                       (place_json ->> 'ELEV')::int AS elev,
@@ -631,10 +634,15 @@ maps_data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 
 
 
+# calculate effort data from event_id and anet ----------------------------
+
+
+
+
+
 # fill in true ages ------------------------------------------------------------
 
 #true_age 1 means 1 year old (born in previous season)
-
 
 #add col for true age (actual age, not 'year' of bird)
 maps_data$true_age <- NA
@@ -689,14 +697,78 @@ for (i in 1:length(ids))
 }
 close(pb)
 
-#proportion of captures that have a True_age
+#proportion of captures that have a true_age
 sum(!is.na(maps_data$true_age))/NROW(maps_data)
-
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 # saveRDS(maps_data, 'MAPS_age_filled.rds')
 
 
+
+
+
+
+# Nestwatch data - query db -----------------------------------------------
+
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
+
+pass <- readLines('db_pass.txt')
+
+pg <- DBI::dbDriver("PostgreSQL")
+
+cxn <- DBI::dbConnect(pg, 
+                      user = "cyoungflesh", 
+                      password = pass, 
+                      host = "35.221.16.125", 
+                      port = 5432, 
+                      dbname = "sightings")
+
+
+nestwatch_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name,
+                                              event_id, count_id, count,
+                                              (event_json ->> 'FIRST_LAY_DT') AS lay,
+                                              (event_json ->> 'HATCH_DT') AS hatch,
+                                              (event_json ->> 'FLEDGE_DT') AS fledge,
+                                              (event_json ->> 'event_type') AS event_type,
+                                              (count_json ->> 'count_type') AS count_type
+                                              FROM places
+                                              JOIN events USING (place_id)
+                                              JOIN counts USING (event_id)
+                                              JOIN taxa USING (taxon_id)
+                                              WHERE events.dataset_id = 'nestwatch'
+                                              AND lng BETWEEN -95 AND -50
+                                              AND lat > 26;
+                                              "))
+
+
+
+nestwatch_data <- DBI::dbGetQuery(cxn, paste0("SELECT *,
+                                              (event_json ->> 'FIRST_LAY_DT') AS lay,
+                                              (event_json ->> 'HATCH_DT') AS hatch,
+                                              (event_json ->> 'FLEDGE_DT') AS fledge,
+                                              (event_json ->> 'event_type') AS event_type,
+                                              (count_json ->> 'count_type') AS count_type
+                                              FROM places
+                                              JOIN events USING (place_id)
+                                              JOIN counts USING (event_id)
+                                              JOIN taxa USING (taxon_id)
+                                              WHERE events.dataset_id = 'nestwatch'
+                                              AND lng BETWEEN -95 AND -50
+                                              AND lat > 26;
+                                              "))
+
+
+head(nestwatch_data)
+
+NROW(nestwatch_data)
+length(unique(nestwatch_data$count_id))
+length(unique(nestwatch_data$event_id))
+length(!is.na(nestwatch_data$lay))
+length(!is.na(nestwatch_data$hatch))
+length(!is.na(nestwatch_data$fledge))
+
+plyr::count(nestwatch_data, 'event_type')
+plyr::count(nestwatch_data, 'count_type')
 
 
 
