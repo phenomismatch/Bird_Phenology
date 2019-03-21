@@ -19,7 +19,8 @@ library(rstan)
 
 # load data ---------------------------------------------------------------
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+setwd(paste0(dir, '/..'))
+#setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
 maps_data <- readRDS('MAPS_age_filled.rds')
 
@@ -32,7 +33,7 @@ maps_data <- readRDS('MAPS_age_filled.rds')
 maps_adults <- dplyr::filter(maps_data, age %in% c('1', '5', '6', '7', '8'))
 
 #QC data - remove zeros
-to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(maps_adults$weight) | is.na(maps_adults$fat_content))
+to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(maps_adults$weight) | is.na(maps_adults$weight) | is.na(maps_adults$fat_content) | is.na(maps_adults$wing_chord))
 maps_adults_qc <- maps_adults[-to.rm, ]
 
 
@@ -49,12 +50,35 @@ usp <- unique(sp_f)[order(unique(sp_f$sp_factor)),]
 #range(unique(maps_f$year))
 #range(usp[,2])
 
+
 # model input -------------------------------------------------------------
+
 
 DATA <- data.frame(N = NROW(maps_f),
                    L = length(unique(maps_f$year)),
                    year = maps_f$year,
                    sp = sp_f$sp_factor,
+                   
+                   mass_obs = mass_obs,
+                   mass_mis = mass_mis,
+                   smass_obs = smass_obs,
+                   smass_mis = smass_mis,
+                   fat_obs = fat_obs,
+                   fat_mis = fat_mis,
+                   N_mass_obs = length(mass_obs),
+                   N_mass_mis = length(mass_mis),
+                   N_smass_obs = length(smass_obs),
+                   N_smass_mis = length(smass_mis),
+                   N_fat_obs = length(fat_obs),
+                   N_fat_mis = length(fat_mis),
+                   ii_mass_obs = NA,
+                   ii_mass_mis = NA,
+                   ii_smass_obs = NA,
+                   ii_smass_mis = NA,
+                   ii_fat_obs = NA,
+                   ii_fat_mis = NA,
+                   
+                   #FIX
                    mass = maps_f$weight,
                    smass = maps_f$weight/maps_f$wing_chord,
                    fat = maps_f$fat_content)
@@ -69,64 +93,80 @@ DATA <- data.frame(N = NROW(maps_f),
 MAPS_m <- '
 data {
 int<lower = 0> N;                                     // number of data points
-int<lower = 0> L;                                     // number of years
-int<lower = 1992, upper=2017> year;                   // year
+int<lower = 0> J;                                     // number of species
+int<lower = 0> N_mass_obs;
+int<lower = 0> N_mass_mis;
+int<lower = 0> N_smass_obs;
+int<lower = 0> N_smass_mis;
+int<lower = 0> N_fat_obs;
+int<lower = 0> N_fat_mis;
+int<lower = 1992, upper = 2017> year;                 // year
 int<lower = 1, upper = 88> sp;                        // species id
-real<lower = 0> mass;                                 // mass
-real<lower = 0> smass;                                // mass standardized by wing chord
-int<lower = 0> fat;                                   // fat score
+real<lower = 0> mass_obs;                             // mass obs
+real<lower = 0> smass_obs;                            // mass standardized by wing chord obs
+int<lower = 0> fat_obs;                               // fat score obs
+real<lower = 0> mass_mis;                             // mass NA
+real<lower = 0> smass_mis;                            // mass standardized by wing chord NA
+int<lower = 0> fat_mis;                               // fat score NA
+real<lower = 1> ii_mass_obs[N_mass_obs];              //indices for mass obs
+real<lower = 1> ii_mass_mis[N_mass_mis];              //indices for missing obs
+real<lower = 1> ii_smass_obs[N_smass_obs];            //indices for mass obs
+real<lower = 1> ii_smass_mis[N_smass_mis];            //indices for missing obs
+real<lower = 1> ii_fat_obs[N_fat_obs];                //indices for mass obs
+real<lower = 1> ii_fat_mis[N_fat_mis];                //indices for missing obs
 }
 
 parameters {
-real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
-real alpha_mass;                                      // intercept mass
-real beta_mass;                                       // slope mass
-real alpha_smass;                                     // intercept smass
-real beta_smass;                                      // slope smass
-real alpha_fat;                                       // intercept fat
-real beta_fat;                                        // slope fat
+real alpha_mass[J];                                   // intercept mass
+real beta_mass[J];                                    // slope mass
+real alpha_smass[J];                                  // intercept smass
+real beta_smass[J];                                   // slope smass
+real alpha_fat[J];                                    // intercept fat
+real beta_fat[J];                                     // slope fat
 
-real sigma_mass;
-real sigma_smass;
-real sigma_fat;
+real<lower = 0> sigma_mass;
+real<lower = 0> sigma_smass;
+real<lower = 0> sigma_fat;
 
-real mu_alpha_mass;
-real mu_beta_mass;
-real mu_alpha_smass;
-real mu_beta_smass;
-real mu_alpha_fat;
-real mu_beta_fat;
+real mu_alpha_mass_raw;
+real mu_alpha_smass_raw;
+real mu_alpha_fat_raw;
+real mu_beta_mass_raw;
+real mu_beta_smass_raw;
+real mu_beta_fat_raw;
 
-real sigma_alpha_mass;
-real sigma_beta_mass;
-real sigma_alpha_smass;
-real sigma_beta_smass;
-real sigma_alpha_fat;
-real sigma_beta_fat;
+real<lower = 0> sigma_alpha_mass;
+real<lower = 0> sigma_beta_mass;
+real<lower = 0> sigma_alpha_smass;
+real<lower = 0> sigma_beta_smass;
+real<lower = 0> sigma_alpha_fat;
+real<lower = 0> sigma_beta_fat;
 }
 
 transformed parameters {
 real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
-vector[N] gamma;
-real alpha_gamma;
-real beta_gamma;
-real<lower = 0> sigma_gamma;
-real mu_gamma[N];
-vector<lower = 0>[J] sigma_nu;
-matrix[N, J] y_true;
-matrix[N, J] nu;                            // spatial and non-spatial component
-real mu_sn;
-real<lower = 0> sigma_beta0;
-real beta0[J];
+real mu_mass[N];
+real mu_smass[N];
+real mu_fat[N];
+real mu_alpha_mass;
+real mu_alpha_smass;
+real mu_alpha_fat;
+real mu_beta_mass;
+real mu_beta_smass;
+real mu_beta_fat;
+real mass[N];
+real smass[N];
+real fat[N];
 
-alpha_gamma = alpha_gamma_raw * 30;
-beta_gamma = beta_gamma_raw * 3 + 2;
-sigma_gamma = sigma_gamma_raw * 5;
-mu_sn = mu_sn_raw * 1.5;
-sigma_beta0 = sigma_beta0_raw * 5;
+mu_alpha_mass = mu_alpha_mass_raw * 10;
+mu_alpha_smass = mu_alpha_smass_raw * 10;
+mu_alpha_fat = mu_alpha_fat_raw * 10;
 
+mu_beta_mass = mu_beta_mass_raw * 5;
+mu_beta_smass = mu_beta_smass_raw * 5;
+mu_beta_fat = mu_beta_dat_raw * 5;
 
-for (j in 1:sp)
+for (j in 1:J)
 {
   alpha_mass[j] ~ normal(mu_alpha_mass, sigma_alpha_mass)
   beta_mass[j] ~ normal(mu_beta_mass, sigma_beta_mass)
@@ -147,17 +187,33 @@ for (i in 1:N)
 }
 
 // indexing to avoid NAs
-for (j in 1:J)
-{
-  y[ii_obs[1:N_obs[j], j], j] = y_obs[1:N_obs[j], j];
-  y[ii_mis[1:N_mis[j], j], j] = y_mis[1:N_mis[j], j];
-}
+mass[ii_mass_obs] = mass_obs
+mass[ii_mass_mis] = mass_mis
+smass[ii_smass_obs] = smass_obs
+smass[ii_smass_mis] = smass_mis
+fat[ii_fat_obs] = fat_obs
+fat[ii_fat_mis] = fat_mis
 }
 
 model {
 
 // priors
+mu_alpha_mass_raw ~ normal(0, 1);
+mu_alpha_smass_raw ~ normal(0, 1);
+mu_alpha_fat_raw ~ normal(0, 1);
 
+sigma_alpha_mass ~ normal(0, 5);
+sigma_beta_mass ~ normal(0, 5);
+sigma_alpha_smass ~ normal(0, 5);
+sigma_beta_smass ~ normal(0, 5);
+sigma_alpha_fat ~ normal(0, 5);
+sigma_beta_fat ~ normal(0, 5);
+
+sigma_mass ~ normal(0, 5);
+sigma_smass ~ normal(0, 5);
+sigma_fat ~ normal(0, 5);
+
+// model
 mass ~ normal(mu_mass, sigma_mass);
 smass ~ normal(mu_smass, sigma_smass);
 fat ~ normal(mu_fat, sigma_fat);
@@ -166,19 +222,13 @@ fat ~ normal(mu_fat, sigma_fat);
 
 generated quantities {
 
-// real y_rep[N, J];
-vector[NJ] y_rep;
-int<lower = 0> counter;
+vector[N] mass_rep;
+vector[N] smass_rep;
+vector[N] fat_rep;
 
-counter = 1;
-for (j in 1:J)
-{
-  for (n in 1:N)
-  {
-  y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
-  counter = counter + 1;
-  }
-}
+mass_rep = normal_rng(mu_mass, sigma_mass);
+smass_rep = normal_rng(mu_smass, sigma_smass);
+fat_rep = normal_rng(mu_fat, sigma_fat);
 }'
 
 
