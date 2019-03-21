@@ -50,35 +50,15 @@ usp <- unique(sp_f)[order(unique(sp_f$sp_factor)),]
 #range(unique(maps_f$year))
 #range(usp[,2])
 
+maps_f$year_f <- as.numeric(factor(maps_f$year))
 
 # model input -------------------------------------------------------------
 
 
 DATA <- data.frame(N = NROW(maps_f),
                    L = length(unique(maps_f$year)),
-                   year = maps_f$year,
+                   year = maps_f$year_f,
                    sp = sp_f$sp_factor,
-                   
-                   mass_obs = mass_obs,
-                   mass_mis = mass_mis,
-                   smass_obs = smass_obs,
-                   smass_mis = smass_mis,
-                   fat_obs = fat_obs,
-                   fat_mis = fat_mis,
-                   N_mass_obs = length(mass_obs),
-                   N_mass_mis = length(mass_mis),
-                   N_smass_obs = length(smass_obs),
-                   N_smass_mis = length(smass_mis),
-                   N_fat_obs = length(fat_obs),
-                   N_fat_mis = length(fat_mis),
-                   ii_mass_obs = NA,
-                   ii_mass_mis = NA,
-                   ii_smass_obs = NA,
-                   ii_smass_mis = NA,
-                   ii_fat_obs = NA,
-                   ii_fat_mis = NA,
-                   
-                   #FIX
                    mass = maps_f$weight,
                    smass = maps_f$weight/maps_f$wing_chord,
                    fat = maps_f$fat_content)
@@ -90,30 +70,15 @@ DATA <- data.frame(N = NROW(maps_f),
 #varying slopes, varying intercept models
 #need to accomodate missing data for years
 
-MAPS_m <- '
+wf_time <- '
 data {
 int<lower = 0> N;                                     // number of data points
 int<lower = 0> J;                                     // number of species
-int<lower = 0> N_mass_obs;
-int<lower = 0> N_mass_mis;
-int<lower = 0> N_smass_obs;
-int<lower = 0> N_smass_mis;
-int<lower = 0> N_fat_obs;
-int<lower = 0> N_fat_mis;
-int<lower = 1992, upper = 2017> year;                 // year
+int<lower = 1, upper = 26> year;                      // year
 int<lower = 1, upper = 88> sp;                        // species id
-real<lower = 0> mass_obs;                             // mass obs
-real<lower = 0> smass_obs;                            // mass standardized by wing chord obs
-int<lower = 0> fat_obs;                               // fat score obs
-real<lower = 0> mass_mis;                             // mass NA
-real<lower = 0> smass_mis;                            // mass standardized by wing chord NA
-int<lower = 0> fat_mis;                               // fat score NA
-real<lower = 1> ii_mass_obs[N_mass_obs];              //indices for mass obs
-real<lower = 1> ii_mass_mis[N_mass_mis];              //indices for missing obs
-real<lower = 1> ii_smass_obs[N_smass_obs];            //indices for mass obs
-real<lower = 1> ii_smass_mis[N_smass_mis];            //indices for missing obs
-real<lower = 1> ii_fat_obs[N_fat_obs];                //indices for mass obs
-real<lower = 1> ii_fat_mis[N_fat_mis];                //indices for missing obs
+real<lower = 0> mass[N];                              // mass
+real<lower = 0> smass[N];                             // mass standardized by wing chord
+int<lower = 0> fat[N];                                // fat score
 }
 
 parameters {
@@ -144,7 +109,6 @@ real<lower = 0> sigma_beta_fat;
 }
 
 transformed parameters {
-real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
 real mu_mass[N];
 real mu_smass[N];
 real mu_fat[N];
@@ -154,9 +118,6 @@ real mu_alpha_fat;
 real mu_beta_mass;
 real mu_beta_smass;
 real mu_beta_fat;
-real mass[N];
-real smass[N];
-real fat[N];
 
 mu_alpha_mass = mu_alpha_mass_raw * 10;
 mu_alpha_smass = mu_alpha_smass_raw * 10;
@@ -186,13 +147,6 @@ for (i in 1:N)
   mu_fat[i] = alpha_fat[sp[i]] + beta_fat[sp[i]] * year[sp[i]];
 }
 
-// indexing to avoid NAs
-mass[ii_mass_obs] = mass_obs
-mass[ii_mass_mis] = mass_mis
-smass[ii_smass_obs] = smass_obs
-smass[ii_smass_mis] = smass_mis
-fat[ii_fat_obs] = fat_obs
-fat[ii_fat_mis] = fat_mis
 }
 
 model {
@@ -201,6 +155,9 @@ model {
 mu_alpha_mass_raw ~ normal(0, 1);
 mu_alpha_smass_raw ~ normal(0, 1);
 mu_alpha_fat_raw ~ normal(0, 1);
+mu_beta_mass_raw ~ normal(0, 1);
+mu_beta_smass_raw ~ normal(0, 1);
+mu_beta_fat_raw ~ normal(0, 1);
 
 sigma_alpha_mass ~ normal(0, 5);
 sigma_beta_mass ~ normal(0, 5);
@@ -238,23 +195,34 @@ fat_rep = normal_rng(mu_fat, sigma_fat);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
-TREE_DEPTH <- 19
-STEP_SIZE <- 0.0005
-CHAINS <- 4
-ITER <- 6000
+DELTA <- 0.90
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.05
+CHAINS <- 3
+ITER <- 10
 
 tt <- proc.time()
-fit <- rstan::stan(model_code = IAR_2,
+fit <- rstan::stan(model_code = wf_time,
             data = DATA,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('sigma_beta0', 'beta0',
-                     'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-                     'sigma_nu', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
-                     'y_true', 'y_rep'),
+            pars = c('alpha_mass', 'alpha_smass', 'alpha_fat',
+                     'beta_mass', 'beta_smass', 'beta_fat',
+                     'mu_alpha_mass', 'mu_alpha_smass', 'mu_alpha_fat',
+                     'mu_beta_mass', 'mu_beta_smass', 'mu_beta_fat',
+                     'sigma_mass', 'sigma_smass', 'sigma_fat',
+                     'mu_mass', 'mu_smass', 'mu_fat',
+                     'mass_rep', 'smass_rep', 'fat_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
+
+
+
+
+
+# analyze data ------------------------------------------------------------
+
+
