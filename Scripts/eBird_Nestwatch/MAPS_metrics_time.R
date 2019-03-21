@@ -55,13 +55,13 @@ maps_f$year_f <- as.numeric(factor(maps_f$year))
 # model input -------------------------------------------------------------
 
 
-DATA <- data.frame(N = NROW(maps_f),
-                   L = length(unique(maps_f$year)),
-                   year = maps_f$year_f,
-                   sp = sp_f$sp_factor,
-                   mass = maps_f$weight,
-                   smass = maps_f$weight/maps_f$wing_chord,
-                   fat = maps_f$fat_content)
+DATA <- list(N = NROW(maps_f),
+             J = NROW(usp),
+             year = maps_f$year_f,
+             sp = sp_f$sp_factor,
+             mass = maps_f$weight,
+             smass = maps_f$weight/maps_f$wing_chord,
+             fat = maps_f$fat_content)
 
 
 
@@ -74,11 +74,11 @@ wf_time <- '
 data {
 int<lower = 0> N;                                     // number of data points
 int<lower = 0> J;                                     // number of species
-int<lower = 1, upper = 26> year;                      // year
-int<lower = 1, upper = 88> sp;                        // species id
+int<lower = 1, upper = 26> year[N];                   // year id
+int<lower = 1, upper = 88> sp[N];                     // species id
 real<lower = 0> mass[N];                              // mass
 real<lower = 0> smass[N];                             // mass standardized by wing chord
-int<lower = 0> fat[N];                                // fat score
+real<lower = 0> fat[N];                                // fat score
 }
 
 parameters {
@@ -125,20 +125,7 @@ mu_alpha_fat = mu_alpha_fat_raw * 10;
 
 mu_beta_mass = mu_beta_mass_raw * 5;
 mu_beta_smass = mu_beta_smass_raw * 5;
-mu_beta_fat = mu_beta_dat_raw * 5;
-
-for (j in 1:J)
-{
-  alpha_mass[j] ~ normal(mu_alpha_mass, sigma_alpha_mass)
-  beta_mass[j] ~ normal(mu_beta_mass, sigma_beta_mass)
-  
-  alpha_smass[j] ~ normal(mu_alpha_smass, sigma_alpha_smass)
-  beta_smass[j] ~ normal(mu_beta_smass, sigma_beta_smass)
-
-  alpha_fat[j] ~ normal(mu_alpha_fat, sigma_alpha_fat)
-  beta_fat[j] ~ normal(mu_beta_fat, sigma_beta_fat)
-}
-
+mu_beta_fat = mu_beta_fat_raw * 5;
 
 for (i in 1:N)
 {
@@ -170,6 +157,20 @@ sigma_mass ~ normal(0, 5);
 sigma_smass ~ normal(0, 5);
 sigma_fat ~ normal(0, 5);
 
+
+for (j in 1:J)
+{
+  alpha_mass[j] ~ normal(mu_alpha_mass, sigma_alpha_mass);
+  beta_mass[j] ~ normal(mu_beta_mass, sigma_beta_mass);
+  
+  alpha_smass[j] ~ normal(mu_alpha_smass, sigma_alpha_smass);
+  beta_smass[j] ~ normal(mu_beta_smass, sigma_beta_smass);
+  
+  alpha_fat[j] ~ normal(mu_alpha_fat, sigma_alpha_fat);
+  beta_fat[j] ~ normal(mu_beta_fat, sigma_beta_fat);
+}
+
+
 // model
 mass ~ normal(mu_mass, sigma_mass);
 smass ~ normal(mu_smass, sigma_smass);
@@ -179,13 +180,13 @@ fat ~ normal(mu_fat, sigma_fat);
 
 generated quantities {
 
-vector[N] mass_rep;
-vector[N] smass_rep;
-vector[N] fat_rep;
+// real mass_rep[N];
+// real smass_rep[N];
+// real fat_rep[N];
 
-mass_rep = normal_rng(mu_mass, sigma_mass);
-smass_rep = normal_rng(mu_smass, sigma_smass);
-fat_rep = normal_rng(mu_fat, sigma_fat);
+// mass_rep = normal_rng(mu_mass, sigma_mass);
+// smass_rep = normal_rng(mu_smass, sigma_smass);
+// fat_rep = normal_rng(mu_fat, sigma_fat);
 }'
 
 
@@ -198,7 +199,7 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.90
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.05
-CHAINS <- 3
+CHAINS <- 1
 ITER <- 10
 
 tt <- proc.time()
@@ -211,9 +212,9 @@ fit <- rstan::stan(model_code = wf_time,
                      'beta_mass', 'beta_smass', 'beta_fat',
                      'mu_alpha_mass', 'mu_alpha_smass', 'mu_alpha_fat',
                      'mu_beta_mass', 'mu_beta_smass', 'mu_beta_fat',
-                     'sigma_mass', 'sigma_smass', 'sigma_fat',
-                     'mu_mass', 'mu_smass', 'mu_fat',
-                     'mass_rep', 'smass_rep', 'fat_rep'),
+                     'sigma_mass', 'sigma_smass', 'sigma_fat'),
+                     #'mu_mass', 'mu_smass', 'mu_fat',
+                     #'mass_rep', 'smass_rep', 'fat_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
