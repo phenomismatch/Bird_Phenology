@@ -14,7 +14,7 @@ dir <- '~/Google_Drive/R/'
 
 library(dplyr)
 library(rstan)
-
+library(brms)
 
 
 # load data ---------------------------------------------------------------
@@ -37,9 +37,14 @@ to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(map
 maps_adults_qc <- maps_adults[-to.rm, ]
 
 
-#only species with > 200 data points
+#only species with > 1000 data points
 d_cnt <- plyr::count(maps_adults_qc, 'sci_name')
-sp <- dplyr::filter(d_cnt, freq > 200)[,1]
+sp_p <- dplyr::filter(d_cnt, freq > 1000)[,1]
+
+#subset of species
+set.seed(1)
+sp <- base::sample(sp_p, size = 6)
+#sp <- sp_p
 
 maps_f <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
 
@@ -51,6 +56,22 @@ usp <- unique(sp_f)[order(unique(sp_f$sp_factor)),]
 #range(usp[,2])
 
 maps_f$year_f <- as.numeric(factor(maps_f$year))
+maps_f$sweight <- maps_f$weight/maps_f$wing_chord
+
+
+
+# plot and lm -------------------------------------------------------------
+
+# ggplot(maps_f, aes(year_f, sweight, col = sci_name)) +
+#   geom_point(alpha = 0.2) +
+#   theme(legend.position="none") +
+#   geom_smooth(method='lm') +
+#   ylim(c(0, 3))
+# 
+# summary(lm(maps_f$sweight ~ maps_f$year_f))
+
+
+
 
 # model input -------------------------------------------------------------
 
@@ -59,8 +80,7 @@ DATA <- list(N = NROW(maps_f),
              J = NROW(usp),
              year = maps_f$year_f,
              sp = sp_f$sp_factor,
-             mass = maps_f$weight,
-             smass = maps_f$weight/maps_f$wing_chord,
+             mass = maps_f$sweight,
              fat = maps_f$fat_content)
 
 
@@ -75,62 +95,48 @@ data {
 int<lower = 0> N;                                     // number of data points
 int<lower = 0> J;                                     // number of species
 int<lower = 1, upper = 26> year[N];                   // year id
-int<lower = 1, upper = 88> sp[N];                     // species id
-real<lower = 0> mass[N];                              // mass
-real<lower = 0> smass[N];                             // mass standardized by wing chord
-real<lower = 0> fat[N];                                // fat score
+int<lower = 1> sp[N];                                 // species id
+real<lower = 0> mass[N];                              // mass standardized by wing chord
+real<lower = 0> fat[N];                               // fat score
 }
 
 parameters {
 real alpha_mass[J];                                   // intercept mass
 real beta_mass[J];                                    // slope mass
-// real alpha_smass[J];                                  // intercept smass
-// real beta_smass[J];                                   // slope smass
 // real alpha_fat[J];                                    // intercept fat
 // real beta_fat[J];                                     // slope fat
 
 real<lower = 0> sigma_mass;
-// real<lower = 0> sigma_smass;
 // real<lower = 0> sigma_fat;
 
 real mu_alpha_mass_raw;
-// real mu_alpha_smass_raw;
 // real mu_alpha_fat_raw;
 real mu_beta_mass_raw;
-// real mu_beta_smass_raw;
 // real mu_beta_fat_raw;
 
 real<lower = 0> sigma_alpha_mass;
 real<lower = 0> sigma_beta_mass;
-// real<lower = 0> sigma_alpha_smass;
-// real<lower = 0> sigma_beta_smass;
 // real<lower = 0> sigma_alpha_fat;
 // real<lower = 0> sigma_beta_fat;
 }
 
 transformed parameters {
 real mu_mass[N];
-// real mu_smass[N];
 //real mu_fat[N];
 real mu_alpha_mass;
-// real mu_alpha_smass;
 // real mu_alpha_fat;
 real mu_beta_mass;
-// real mu_beta_smass;
 // real mu_beta_fat;
 
 mu_alpha_mass = mu_alpha_mass_raw * 10;
-// mu_alpha_smass = mu_alpha_smass_raw * 10;
 // mu_alpha_fat = mu_alpha_fat_raw * 10;
 
 mu_beta_mass = mu_beta_mass_raw * 5;
-// mu_beta_smass = mu_beta_smass_raw * 5;
 // mu_beta_fat = mu_beta_fat_raw * 5;
 
 for (i in 1:N)
 {
   mu_mass[i] = alpha_mass[sp[i]] + beta_mass[sp[i]] * year[sp[i]];
-  // mu_smass[i] = alpha_smass[sp[i]] + beta_smass[sp[i]] * year[sp[i]];
   // mu_fat[i] = alpha_fat[sp[i]] + beta_fat[sp[i]] * year[sp[i]];
 }
 
@@ -140,21 +146,16 @@ model {
 
 // priors
 mu_alpha_mass_raw ~ normal(0, 1);
-// mu_alpha_smass_raw ~ normal(0, 1);
 // mu_alpha_fat_raw ~ normal(0, 1);
 mu_beta_mass_raw ~ normal(0, 1);
-// mu_beta_smass_raw ~ normal(0, 1);
 // mu_beta_fat_raw ~ normal(0, 1);
 
 sigma_alpha_mass ~ normal(0, 5);
 sigma_beta_mass ~ normal(0, 5);
-// sigma_alpha_smass ~ normal(0, 5);
-// sigma_beta_smass ~ normal(0, 5);
 // sigma_alpha_fat ~ normal(0, 5);
 // sigma_beta_fat ~ normal(0, 5);
 
 sigma_mass ~ normal(0, 5);
-// sigma_smass ~ normal(0, 5);
 // sigma_fat ~ normal(0, 5);
 
 
@@ -163,9 +164,6 @@ for (j in 1:J)
   alpha_mass[j] ~ normal(mu_alpha_mass, sigma_alpha_mass);
   beta_mass[j] ~ normal(mu_beta_mass, sigma_beta_mass);
   
-  // alpha_smass[j] ~ normal(mu_alpha_smass, sigma_alpha_smass);
-  // beta_smass[j] ~ normal(mu_beta_smass, sigma_beta_smass);
-  
   // alpha_fat[j] ~ normal(mu_alpha_fat, sigma_alpha_fat);
   // beta_fat[j] ~ normal(mu_beta_fat, sigma_beta_fat);
 }
@@ -173,7 +171,6 @@ for (j in 1:J)
 
 // model
 mass ~ normal(mu_mass, sigma_mass);
-// smass ~ normal(mu_smass, sigma_smass);
 // fat ~ normal(mu_fat, sigma_fat);
 
 }
@@ -181,11 +178,9 @@ mass ~ normal(mu_mass, sigma_mass);
 generated quantities {
 
 // real mass_rep[N];
-// real smass_rep[N];
 // real fat_rep[N];
 
 // mass_rep = normal_rng(mu_mass, sigma_mass);
-// smass_rep = normal_rng(mu_smass, sigma_smass);
 // fat_rep = normal_rng(mu_fat, sigma_fat);
 }'
 
@@ -208,13 +203,13 @@ fit <- rstan::stan(model_code = wf_time,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('alpha_mass', #'alpha_smass', 'alpha_fat',
-                     'beta_mass', #'beta_smass', 'beta_fat',
-                     'mu_alpha_mass', #'mu_alpha_smass', 'mu_alpha_fat',
-                     'mu_beta_mass', #'mu_beta_smass', 'mu_beta_fat',
-                     'sigma_mass'))#, 'sigma_smass', 'sigma_fat'),
-                     #'mu_mass', 'mu_smass', 'mu_fat',
-                     #'mass_rep', 'smass_rep', 'fat_rep'),
+            pars = c('alpha_mass', #'alpha_fat',
+                     'beta_mass', #'beta_fat',
+                     'mu_alpha_mass', #'mu_alpha_fat',
+                     'mu_beta_mass', #'mu_beta_fat',
+                     'sigma_mass'))#, 'sigma_fat'),
+                     #'mu_mass', 'mu_fat',
+                     #'mass_rep', 'fat_rep'),
             # control = list(adapt_delta = DELTA,
             #                max_treedepth = TREE_DEPTH,
             #                stepsize = STEP_SIZE))
@@ -240,7 +235,7 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 # analyze data ------------------------------------------------------------
 
-MCMCvis::MCMCsummary(fit, round = 2)
+MCMCvis::MCMCsummary(fit, round = 2, n.eff = TRUE)
 MCMCvis::MCMCplot(fit, params = 'beta_mass')
 MCMCvis::MCMCplot(fit, params = 'beta_smass')
 MCMCvis::MCMCplot(fit, params = 'beta_fat')
@@ -252,6 +247,18 @@ MCMCvis::MCMCplot(fit, params = 'beta_fat')
 
 
 
+
+
+# process data for brms ---------------------------------------------------
+
+brms_data <- maps_f
+
+#factors for sp and fat
+brms_data$sp_f <- factor(brms_data$sci_name)
+brms_data$fat_f <- ordered(brms_data$fat_content)
+
+
+
 # fat model -------------------------------------------------------------------
 
 #varying slopes, varying intercept models
@@ -259,34 +266,69 @@ MCMCvis::MCMCplot(fit, params = 'beta_fat')
 #random slopes, random intercepts
 #fat ~ year + (year | sp)
 
-#only species with > 9k data points
-d_cnt <- plyr::count(maps_adults_qc, 'sci_name')
-sp <- dplyr::filter(d_cnt, freq > 9000)[,1]
+DELTA <- 0.90
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.05
+CHAINS <- 4
+ITER <- 2000
 
-brms_data <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
-
-#add ids for species and year
-brms_data$spf <- factor(brms_data$sci_name)
-brms_data$yearf <- as.numeric(factor(brms_data$year))
-brms_data$fatf <- ordered(brms_data$fat_content)
-
-b_fit_fat <- brms::brm(formula = fatf ~ yearf + (yearf | spf), 
+b_fit_fat <- brms::brm(formula = fat_f ~ year_f + (year_f | sp_f), 
                        data = brms_data, 
                        family = cumulative('logit'),
-                       cores = 3,
-                       chains = 3,
-                       iter = 1000)
+                       cores = CORES,
+                       chains = CHAINS,
+                       iter = ITER,
+                       control = list(adapt_delta = DELTA,
+                                      max_treedepth = TREE_DEPTH,
+                                      stepsize = STEP_SIZE))
+
+b_fit_fat$model
 
 #https://groups.google.com/forum/#!msg/brms-users/2dH6EawVrtM/X7NPi0CACAAJ
 #https://discourse.mc-stan.org/t/interpretation-brms-results/6374/17
 #https://discourse.mc-stan.org/t/coef-versus-fixef-and-ranef/3914/8
+#https://www.statisticssolutions.com/ordinal-regression-2/
+
+
+#non bayes shows that there is a decline over time in fat content
+polr_fit <- MASS::polr(formula = fat_f ~ year_f, 
+                       data = brms_data, 
+                       Hess = TRUE,
+                       method = 'logistic')
+summary(polr_fit)
+
+#loglog, also known as negative loglog, used when lots of low cats
+polr_fit <- MASS::polr(formula = fat_f ~ year_f, 
+                       data = brms_data, 
+                       Hess = TRUE,
+                       method = 'loglog')
+summary(polr_fit)
+
+clm_fit <- ordinal::clmm(fat_f ~ year_f + (year_f | sp_f),  
+                         data = brms_data,
+                         link = 'loglog')
+summary(clm_fit)
+
+
+
+
 
 # weight model with brms --------------------------------------------------
 
-b_fit_weight <- brms::brm(formula = weight ~ yearf + (yearf | spf), 
+DELTA <- 0.90
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.05
+CHAINS <- 4
+ITER <- 2000
+
+b_fit_weight <- brms::brm(formula = sweight ~ year_f + (year_f | sp_f), 
                           data = brms_data, 
-                          cores = 3,
-                          chains = 3,
-                          iter = 1000)
+                          cores = CORES,
+                          chains = CHAINS,
+                          iter = ITER,
+                          control = list(adapt_delta = DELTA,
+                                         max_treedepth = TREE_DEPTH,
+                                         stepsize = STEP_SIZE))
 
-
+b_fit_weight$model
+summary(b_fit_weight)
