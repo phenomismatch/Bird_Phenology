@@ -272,17 +272,22 @@ STEP_SIZE <- 0.05
 CHAINS <- 4
 ITER <- 2000
 
+tt <- proc.time()
 b_fit_fat <- brms::brm(formula = fat_f ~ year_f + (year_f | sp_f), 
                        data = brms_data, 
                        family = cumulative('logit'),
-                       cores = CORES,
+                       cores = CHAINS,
                        chains = CHAINS,
                        iter = ITER,
                        control = list(adapt_delta = DELTA,
                                       max_treedepth = TREE_DEPTH,
                                       stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
 
-b_fit_fat$model
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(b_fit_fat, file = 'MAPS-fat-time-brms_output.rds')
+
+#b_fit_fat$model
 
 #https://groups.google.com/forum/#!msg/brms-users/2dH6EawVrtM/X7NPi0CACAAJ
 #https://discourse.mc-stan.org/t/interpretation-brms-results/6374/17
@@ -321,14 +326,19 @@ STEP_SIZE <- 0.05
 CHAINS <- 4
 ITER <- 2000
 
-b_fit_weight <- brms::brm(formula = sweight ~ year_f + (year_f | sp_f), 
+b_fit_sweight <- brms::brm(formula = sweight ~ year_f + (year_f | sp_f), 
                           data = brms_data, 
-                          cores = CORES,
+                          cores = CHAINS,
                           chains = CHAINS,
                           iter = ITER,
                           control = list(adapt_delta = DELTA,
                                          max_treedepth = TREE_DEPTH,
                                          stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
 
-b_fit_weight$model
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(b_fit_sweight, file = 'MAPS-sweight-time-brms_output.rds')
+
+
+#b_fit_weight$model
 summary(b_fit_weight)
