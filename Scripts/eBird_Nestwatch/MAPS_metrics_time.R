@@ -49,8 +49,8 @@ sp <- base::sample(sp_p, size = 6)
 maps_f <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
 
 #factor for species_id
-sp_f <- data.frame(sp = maps_f$sci_name, sp_factor = as.numeric(factor(maps_f$sci_name)))
-usp <- unique(sp_f)[order(unique(sp_f$sp_factor)),]
+maps_f$sp_f <- factor(maps_f$sci_name)
+usp <- unique(maps_f$sci_name)
 
 #range(unique(maps_f$year))
 #range(usp[,2])
@@ -254,7 +254,6 @@ MCMCvis::MCMCplot(fit, params = 'beta_fat')
 brms_data <- maps_f
 
 #factors for sp and fat
-brms_data$sp_f <- factor(brms_data$sci_name)
 brms_data$fat_f <- ordered(brms_data$fat_content)
 
 
@@ -269,11 +268,11 @@ brms_data$fat_f <- ordered(brms_data$fat_content)
 DELTA <- 0.90
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.05
-CHAINS <- 4
-ITER <- 2000
+CHAINS <- 1
+ITER <- 10
 
 tt <- proc.time()
-b_fit_fat <- brms::brm(formula = fat_f ~ year_f + (year_f | sp_f), 
+b_fit_fat <- brms::brm(formula = fat_f ~ year_f, 
                        data = brms_data, 
                        family = cumulative('logit'),
                        cores = CHAINS,
@@ -286,6 +285,8 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 saveRDS(b_fit_fat, file = 'MAPS-fat-time-brms_output.rds')
+
+summary(b_fit_fat)
 
 #b_fit_fat$model
 
@@ -317,15 +318,184 @@ summary(clm_fit)
 
 
 
+# fat stan model ----------------------------------------------------------
 
-# weight model with brms --------------------------------------------------
+#https://groups.google.com/forum/#!category-topic/stan-users/general/sgX2Edo8qiQ
+#page 28 Stan users guide for accessing array/vector
 
-DELTA <- 0.90
+DATA <- list(K = length(unique(brms_data$fat_content)),
+             N = NROW(brms_data),
+             Nsp = length(usp),
+             y = brms_data$fat_content + 1,
+             sp = as.numeric(brms_data$sp_f),
+             year = brms_data$year_f)
+
+stanmodel <- "
+data {
+int<lower=0> K;                     // number of bins
+int<lower=0> N;                     // number of obs
+int<lower=0> Nsp;                   // number of species
+int<lower=1, upper=K> y[N];         // response
+int<lower=1, upper=Nsp> sp[N];      // groups
+vector<lower=0>[N] year;
+}
+
+parameters {
+vector[K-1] Cutpoints[Nsp];
+vector[K-1] CutpointsMean;
+vector<lower=0>[K-1] CutpointsSigma;
+real beta_raw;
+}
+
+transformed parameters {
+vector[N] mu;
+real beta;
+vector[K-1] cuts[Nsp];
+
+// map to ordered sequence by Ordered Inverse Transform
+for (j in 1:Nsp)
+{
+  cuts[j] = Cutpoints[j];
+  for (k in 2:(K-1))
+  {
+    cuts[j, k] = cuts[j, k-1] + exp(cuts[j, k]);
+  }
+}
+
+beta = beta_raw * 2;
+
+mu = beta * year;
+}
+
+model {
+CutpointsSigma ~ exponential(1);
+CutpointsMean  ~ normal(0, 10);
+beta_raw ~ normal(0, 1);
+
+for (k in 1:(K-1))
+{
+  Cutpoints[, k] ~ normal(CutpointsMean[k], CutpointsSigma[k]);
+}
+
+for (i in 1:N)
+{
+  y[i] ~ ordered_logistic(mu[i], cuts[sp[i]]);
+}
+}
+"
+
+#Add hierarchical beta
+#Add capture station random effect
+
+
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+DELTA <- 0.95
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.01
+CHAINS <- 4
+ITER <- 2000
+
+tt <- proc.time()
+fit <- rstan::stan(model_code = stanmodel,
+                   data = DATA,
+                   chains = CHAINS,
+                   iter = ITER,
+                   cores = CHAINS,
+                   pars = c('Cutpoints',
+                            'cuts',
+                            'CutpointsMean',
+                            'CutpointsSigma',
+                            'beta'), 
+                   control = list(adapt_delta = DELTA,
+                   max_treedepth = TREE_DEPTH,
+                   stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(fit, file = 'MAPS-fat-time-stan_output.rds')
+
+
+library(shinystan)
+MCMCvis::MCMCsummary(fit, round = 2, n.eff = TRUE)
+
+
+# fat latitude model ------------------------------------------------------
+
+#varying slopes, varying intercept models
+
+DELTA <- 0.95
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.05
 CHAINS <- 4
 ITER <- 2000
 
+tt <- proc.time()
+b_fit_fat_lat <- brms::brm(formula = fat_f ~ lat, 
+                       data = brms_data, 
+                       family = cumulative('logit'),
+                       cores = CHAINS,
+                       chains = CHAINS,
+                       iter = ITER,
+                       control = list(adapt_delta = DELTA,
+                                      max_treedepth = TREE_DEPTH,
+                                      stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(b_fit_fat_lat, file = 'MAPS-fat-lat-brms_output.rds')
+
+summary(b_fit_fat_lat)
+
+#PPC
+pp_check(b_fit_fat_lat) #dens overlay
+pp_check(b_fit_fat_lat, type = 'error_hist')
+pp_check(b_fit_fat_lat, type = 'rootogram')
+
+b_fit_fat_lat$model
+
+# wing chord latitude model ------------------------------------------------------
+
+#varying slopes, varying intercept models
+
+DELTA <- 0.95
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.05
+CHAINS <- 4
+ITER <- 2000
+
+tt <- proc.time()
+b_fit_wc_lat <- brms::brm(formula = wing_chord ~ lat + (lat | sp_f), 
+                           data = brms_data, 
+                           cores = CHAINS,
+                           chains = CHAINS,
+                           iter = ITER,
+                           control = list(adapt_delta = DELTA,
+                                          max_treedepth = TREE_DEPTH,
+                                          stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(b_fit_wc_lat, file = 'MAPS-wc-lat-brms_output.rds')
+
+summary(b_fit_wc_lat)
+
+#PPC
+pp_check(b_fit_wc_lat) #dens overlay
+pp_check(b_fit_wc_lat, type = 'error_hist')
+pp_check(b_fit_wc_lat, type = 'intervals')
+
+# weight model with brms --------------------------------------------------
+
+DELTA <- 0.92
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.05
+CHAINS <- 4
+ITER <- 2000
+
+tt <- proc.time()
 b_fit_sweight <- brms::brm(formula = sweight ~ year_f + (year_f | sp_f), 
                           data = brms_data, 
                           cores = CHAINS,
@@ -341,4 +511,4 @@ saveRDS(b_fit_sweight, file = 'MAPS-sweight-time-brms_output.rds')
 
 
 #b_fit_weight$model
-summary(b_fit_weight)
+summary(b_fit_sweight)
