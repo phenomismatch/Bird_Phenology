@@ -341,6 +341,82 @@ hist(ntt2$slope_wc)
 hist(ntt2$pv_wc)
 
 
+# how does weight/fat of poplation change over lat --------------------
+
+#*is weight (std by wing chord) changing over lat? slight decrease in weight with higher lat
+#*is weight (non std) changing over lat? slight increse at high lat for most species (decrease for some)
+#*is fat changing over lat? decrease in fat with higher lat
+#*is wing chord changing over lat? increse in wing chord with higher lat
+
+df_tt5 <- data.frame(sci_name = rep(NA, length(sci_names)),
+                     c_name = NA,
+                     N = NA,
+                     slope_sweight = NA,
+                     pv_sweight = NA,
+                     slope_weight = NA,
+                     pv_weight = NA,
+                     slope_fat = NA,
+                     pv_fat = NA,
+                     slope_wc = NA,
+                     pv_wc = NA)
+#dev.off()
+#par(mfrow = c(4,4))
+for (i in 1:length(sci_names))
+{
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 55
+  temp <- dplyr::filter(maps_adults_qc, sci_name == sci_names[i])
+  
+  df_tt5$sci_name[i] <- temp$sci_name[1]
+  df_tt5$c_name[i] <- temp$common_name[1]
+  df_tt5$N[i] <- NROW(temp)
+  
+  if (length(unique(temp$lat)) > 3)
+  {
+    tfit <- summary(lm((weight/wing_chord) ~ lat, data = temp))
+    #plot(temp$lat, (temp$weight/temp$wing_chord), main = paste0('Weight ', temp$sci_name[1]))
+    #abline(tfit, col = 'red')
+    df_tt5$slope_sweight[i] <- round(tfit$coef[2,1], 3)
+    df_tt5$pv_sweight[i] <- round(tfit$coef[2,4], 3)
+    
+    tfit15 <- summary(lm(weight ~ lat, data = temp))
+    #plot(temp$lat, (temp$weight), main = paste0('Weight ', temp$sci_name[1]))
+    #abline(tfit, col = 'red')
+    df_tt5$slope_weight[i] <- round(tfit15$coef[2,1], 3)
+    df_tt5$pv_weight[i] <- round(tfit15$coef[2,4], 3)
+    
+    tfit2 <- summary(lm(fat_content ~ lat, data = temp))
+    #plot(temp$lat, temp$fat_content, main = paste0('Fat ', temp$sci_name[1]))
+    #abline(tfit2, col = 'red')
+    df_tt5$slope_fat[i] <- round(tfit2$coef[2,1], 3)
+    df_tt5$pv_fat[i] <- round(tfit2$coef[2,4], 3)
+    
+    tfit3 <- summary(lm(wing_chord ~ lat, data = temp))
+    #plot(temp$lat, temp$wing_chord, main = paste0('Wing Chord ', temp$sci_name[1]))
+    #abline(tfit3, col = 'red')
+    df_tt5$slope_wc[i] <- round(tfit3$coef[2,1], 3)
+    df_tt5$pv_wc[i] <- round(tfit3$coef[2,4], 3)
+  }
+}
+
+ntt5 <- dplyr::filter(df_tt5, N > 200)
+
+#no pronounced changes
+hist(ntt5$slope_sweight)
+hist(ntt5$pv_sweight)
+
+hist(ntt5$slope_weight)
+hist(ntt5$pv_weight)
+
+
+#deccrease in fat as moving to higher lats
+hist(ntt5$slope_fat)
+hist(ntt5$pv_fat)
+
+#larger wing chord moving north
+hist(ntt5$slope_wc)
+hist(ntt5$pv_wc)
+
 
 
 # how does weight/fat of population change over a year --------------------
@@ -602,4 +678,39 @@ for (i in 1:length(sci_names))
 df_temp5 <- dplyr::filter(df_temp4, N > 50)
 
 NROW(df_temp5)
+
+
+# How does age change over lat --------------------------------------------
+
+#a number of sig trends, but could be due to sampling bias (perhaps more southerly sites sampling less over time?)
+df_age_lat <- data.frame(sci_name = rep(NA, length(sci_names)),
+                       c_name = NA,
+                       N = NA,
+                       slope = NA,
+                       pv = NA)
+
+for (i in 1:length(sci_names))
+{
+  #which(sci_names == 'Vireo olivaceus')
+  #i <- 3
+  
+  temp <- dplyr::filter(maps_age, sci_name == sci_names[i])
+  df_age_lat$sci_name[i] <- temp$sci_name[1]
+  df_age_lat$c_name[i] <- temp$common_name[1]
+  df_age_lat$N[i] <- NROW(temp)
+  
+  t_lat <- unique(temp$lat)
+  
+  if (NROW(temp) > 50)
+  {
+    tfit <- summary(lm(true_age ~ lat, data = temp))
+    df_age_lat$slope[i] <- round(tfit$coef[2,1], 2)
+    df_age_lat$pv[i] <- round(tfit$coef[2,4], 2)
+  }
+}
+
+hist(df_age_lat$slope)
+hist(df_age_lat$pv)
+
+  
 
