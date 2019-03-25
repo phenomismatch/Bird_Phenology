@@ -251,11 +251,11 @@ MCMCvis::MCMCplot(fit, params = 'beta_fat')
 
 # process data for brms ---------------------------------------------------
 
-brms_data <- maps_f
+brms_data <- dplyr::filter(maps_f, day <= 160, day >=130)
 
 #factors for sp and fat
 brms_data$fat_f <- ordered(brms_data$fat_content)
-
+brms_data$st_f <- as.numeric(factor(brms_data$station))
 
 
 # fat model -------------------------------------------------------------------
@@ -297,14 +297,88 @@ summary(b_fit_fat)
 
 
 #non bayes shows that there is a decline over time in fat content
-polr_fit <- MASS::polr(formula = fat_f ~ year_f, 
+polr_fit <- MASS::polr(formula = fat_f ~ year_f + lat + poly(day, 2), 
                        data = brms_data, 
                        Hess = TRUE,
                        method = 'logistic')
 summary(polr_fit)
 
+lm_fit <- lm(sweight ~ year_f, data = brms_data)
+plot(brms_data$year_f, brms_data$sweight, ylim = c(0, 0.6))
+abline(lm_fit, col = 'red')
+summary(lm_fit)
+lm_fit <- lm(wing_chord ~ year_f, data = brms_data)
+plot(brms_data$wing_chord, brms_data$fat_content)
+lm_fit <- lm(fat_content ~ wing_chord, data = brms_data)
+summary(lm_fit)
+abline(lm_fit)
+
+
+#There is an increase in wing_chord over time
+
+#decreasing fat but increasing wing chord over time
+species <- unique(brms_data$sp_f)
+for (i in 1:length(species))
+{
+  #i <- 1
+  temp <- dplyr::filter(brms_data, sci_name == species[i])
+  
+  # plot(temp$wing_chord, temp$weight, xlim = c(35, 70), ylim = c(5, 20))
+  # plot(temp$lat, temp$wing_chord)
+  # summary(lm(wing_chord ~ lat + weight, data = temp))
+  # summary(lm(wing_chord ~ year_f + lat + year_f*lat, data = temp))
+  # plot(temp$lat, temp$weight)
+  # summary(lm(weight ~ lat, data = temp))
+  #summary(lm(weight ~ wing_chord, data = temp))
+  # boxplot(temp$fat_content ~ temp$year)
+  # boxplot(temp$sweight ~ temp$year, ylim = c(0.1, 0.3))
+  # boxplot(temp$weight ~ temp$year, ylim = c(7, 16))
+  # boxplot(temp$wing_chord ~ temp$year, ylim = c(45, 60))
+  # boxplot(temp$wing_chord ~ temp$day, ylim = c(45, 60))
+  # plot(temp$wing_chord ~ temp$day)
+  # plot(temp$wing_chord ~ temp$lat)
+  # plot(temp$fat_content ~ temp$lat)
+  # plot(temp$sweight ~ temp$lat)
+  # summary(lm(temp$sweight ~ temp$lat))
+  # summary(lm(temp$wing_chord ~ temp$lat))
+  # plot(temp$fat_content ~ temp$lat)
+  # plot(temp$fat_content ~ temp$wing_chord)
+  # boxplot(temp$fat_content ~ temp$day)
+  # boxplot(temp$day ~ temp$year)
+  # yrs <- sort(unique(temp$year))
+  # mf <- c()
+  # plot(temp$day, temp$fat_content, col = 'white')
+  # colors <- colorspace::sequential_hcl(length(yrs), alpha = 0.5)
+  # plyr::count(temp, 'year')
+  
+  # for (j in length(yrs):1)
+  # {
+  #   #j <- 24
+  #   t2 <- dplyr::filter(temp, year == yrs[j])
+  #   mf <- c(mf, quantile(t2$fat_content, probs = c(0.6)))
+  #   plot(t2$day, t2$fat_content, col = colors[j], lwd = 2, ylim = c(0, 7))
+  #   #points(t2$day, t2$fat_content, col = colors[j], lwd = 2)
+  #   #hist(sqrt(t2$fat_content), xlim = c(0, 7))
+  #   #Sys.sleep(1)
+  # }
+  # 
+  # plot(temp$year, temp$fat_content)
+  # plot(temp$year, temp$day)
+  
+  polr_fit2 <- MASS::polr(formula = fat_f ~ year_f + poly(day, 2), 
+                         data = temp, 
+                         Hess = TRUE,
+                         method = 'logistic')
+  print(summary(polr_fit2)$coef[1,])
+  
+  lm_fit <- lm(formula = wing_chord ~ year_f, 
+                         data = temp)
+  print(summary(lm_fit)$coef[2,])
+}
+
+
 #loglog, also known as negative loglog, used when lots of low cats
-polr_fit <- MASS::polr(formula = fat_f ~ year_f, 
+polr_fit <- MASS::polr(formula = fat_f ~ year_f + poly(day, 2), 
                        data = brms_data, 
                        Hess = TRUE,
                        method = 'loglog')
@@ -323,70 +397,103 @@ summary(clm_fit)
 #https://groups.google.com/forum/#!category-topic/stan-users/general/sgX2Edo8qiQ
 #page 28 Stan users guide for accessing array/vector
 
+#count # of obs for each year
+plyr::count(brms_data, c('st_f', 'year_f'))
+
+#fat over julian day - should increase 2nd order poly
+plot(brms_data$day, brms_data$fat_content)
+fd_fit <- lm(fat_content ~ day, data = brms_data)
+summary(fd_fit)
+abline(fd_fit, col = 'red', lwd = 3)
+fd2_fit <- lm(fat_content ~ poly(day,2,raw=TRUE), data = brms_data)
+summary(fd2_fit)
+dd <- 120:160
+lines(dd, predict(fd2_fit, data.frame(day = dd)), col="blue", lwd = 3)
+AIC(fd_fit)
+AIC(fd2_fit)
+
+#lat over time
+
+boxplot(brms_data$lat ~ brms_data$year)
+boxplot(brms_data$fat_content ~ brms_data$year)
+ly_fit <- lm(lat ~ year, data = brms_data)
+abline(ly_fit, col = 'red', lwd = 3)
+
+#fat over lat
+plot(brms_data$lat, brms_data$fat_content)
+fl_fit <- lm(fat_content ~ lat, data = brms_data)
+abline(fl_fit, col = 'red', lwd = 3)
+
+#julian day over time
+plot(brms_data$year, brms_data$day)
+summary(lm(day ~ year, data = brms_data))
+
+
+
 DATA <- list(K = length(unique(brms_data$fat_content)),
              N = NROW(brms_data),
              Nsp = length(usp),
+             Nst = length(brms_data$st_f),
              y = brms_data$fat_content + 1,
-             sp = as.numeric(brms_data$sp_f),
-             year = brms_data$year_f)
+             sp = as.numeric(brms_data$sp_f), #species
+             st = brms_data$st_f, #station
+             year = brms_data$year_f,
+             day = brms_data$day,
+             lat = brms_data$lat)
 
 stanmodel <- "
 data {
-int<lower=0> K;                     // number of bins
-int<lower=0> N;                     // number of obs
-int<lower=0> Nsp;                   // number of species
-int<lower=1, upper=K> y[N];         // response
-int<lower=1, upper=Nsp> sp[N];      // groups
-vector<lower=0>[N] year;
+  int<lower=0> K;                     // number of bins
+  int<lower=0> N;                     // number of obs
+  int<lower=0> Nsp;                   // number of species
+  int<lower=0> Nst;                   // number of stations
+  int<lower=1, upper=K> y[N];         // response
+  int<lower=1, upper=Nsp> sp[N];      // groups
+  int<lower=1, upper=Nst> st[N];      // stations
+  vector<lower=0>[N] year;
+  vector<lower=0>[N] day;
+  vector<lower=0>[N] lat;
 }
 
 parameters {
-vector[K-1] Cutpoints[Nsp];
-vector[K-1] CutpointsMean;
-vector<lower=0>[K-1] CutpointsSigma;
-real beta_raw;
+  ordered[K-1] c;
+  vector[Nsp] eta_raw;
+  real gamma_raw;
+  real nu_1_raw;
+  real nu_2_raw;
+  real beta_raw;
 }
 
 transformed parameters {
-vector[N] mu;
-real beta;
-vector[K-1] cuts[Nsp];
+  vector[N] mu;
+  vector[Nsp] eta;
+  real gamma;
+  real nu_1;
+  real nu_2;
+  real beta;
 
-// map to ordered sequence by Ordered Inverse Transform
-for (j in 1:Nsp)
-{
-  cuts[j] = Cutpoints[j];
-  for (k in 2:(K-1))
+  eta = eta_raw * 3;              // eta ~ normal(0, 3)
+  gamma = gamma_raw * 2;          // gamma ~ normal(0, 2)
+  nu_1 = nu_1_raw * 2;            // nu_1 ~ normal(0, 2)
+  nu_2 = nu_2_raw * 2;        // nu_2 ~ normal(0, 2)
+  beta = beta_raw * 2;            // beta ~ normal(0, 2)
+
+  for (i in 1:N)
   {
-    cuts[j, k] = cuts[j, k-1] + exp(cuts[j, k]);
+    mu[i] = eta[sp[i]] + gamma * lat[i] + nu_1 * day[i] + nu_2 * day[i]^2 + beta * year[i];
   }
 }
 
-beta = beta_raw * 2;
-
-mu = beta * year;
-}
-
 model {
-CutpointsSigma ~ exponential(1);
-CutpointsMean  ~ normal(0, 10);
-beta_raw ~ normal(0, 1);
+  eta_raw ~ normal(0, 1);
+  gamma_raw ~ normal(0, 1);
+  nu_1_raw ~ normal(0, 1);
+  nu_2_raw ~ normal(0, 1);
+  beta_raw ~ normal(0, 1);
 
-for (k in 1:(K-1))
-{
-  Cutpoints[, k] ~ normal(CutpointsMean[k], CutpointsSigma[k]);
-}
-
-for (i in 1:N)
-{
-  y[i] ~ ordered_logistic(mu[i], cuts[sp[i]]);
-}
+  y ~ ordered_logistic(mu, c);
 }
 "
-
-#Add hierarchical beta
-#Add capture station random effect
-
 
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
@@ -403,11 +510,12 @@ fit <- rstan::stan(model_code = stanmodel,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('Cutpoints',
-                            'cuts',
-                            'CutpointsMean',
-                            'CutpointsSigma',
-                            'beta'), 
+                   pars = c('eta',
+                            'gamma',
+                            'nu_1',
+                            'nu_2',
+                            'beta',
+                            'c'), 
                    control = list(adapt_delta = DELTA,
                    max_treedepth = TREE_DEPTH,
                    stepsize = STEP_SIZE))
@@ -512,3 +620,160 @@ saveRDS(b_fit_sweight, file = 'MAPS-sweight-time-brms_output.rds')
 
 #b_fit_weight$model
 summary(b_fit_sweight)
+
+
+
+
+
+
+
+
+
+
+# wing chord --------------------------------------------------------------
+
+maps_adults <- dplyr::filter(maps_data, age %in% c('1', '5', '6', '7', '8'))
+
+#QC data - remove zeros
+to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(maps_adults$weight) | is.na(maps_adults$weight) | is.na(maps_adults$fat_content) | is.na(maps_adults$wing_chord))
+maps_adults_qc <- maps_adults[-to.rm, ]
+
+#only species with > 1000 data points
+d_cnt <- plyr::count(maps_adults_qc, 'sci_name')
+sp_p <- dplyr::filter(d_cnt, freq > 1000)[,1]
+
+#subset of species
+set.seed(1)
+#sp <- base::sample(sp_p, size = 30)
+sp <- sp_p
+
+maps_f <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
+
+#factor for species_id
+maps_f$sp_f <- factor(maps_f$sci_name)
+usp <- unique(maps_f$sci_name)
+
+maps_f$year_f <- as.numeric(factor(maps_f$year))
+maps_f$sweight <- maps_f$weight/maps_f$wing_chord
+
+#brms_data <- dplyr::filter(maps_f, day <= 160, day >=130)
+
+#only males age 2+
+brms_data <- dplyr::filter(maps_f, sex == 'M', age >= 5)
+
+#factors for sp and fat
+brms_data$fat_f <- ordered(brms_data$fat_content)
+brms_data$st_f <- as.numeric(factor(brms_data$station))
+
+
+
+
+
+DATA <- list(K = length(unique(brms_data$fat_content)),
+             N = NROW(brms_data),
+             Nsp = length(usp),
+             Nst = length(brms_data$st_f),
+             y = brms_data$wing_chord,
+             sp = as.numeric(brms_data$sp_f), #species
+             st = brms_data$st_f, #station
+             year = brms_data$year_f,
+             day = brms_data$day,
+             lat = brms_data$lat)
+
+stanmodel2 <- "
+data {
+int<lower=0> K;                     // number of bins
+int<lower=0> N;                     // number of obs
+int<lower=0> Nsp;                   // number of species
+int<lower=0> Nst;                   // number of stations
+real<lower=0> y[N];                 // response
+int<lower=1, upper=Nsp> sp[N];      // groups
+int<lower=1, upper=Nst> st[N];      // stations
+vector<lower=0>[N] year;
+vector<lower=0>[N] day;
+vector<lower=0>[N] lat;
+}
+
+parameters {
+vector[Nsp] eta_raw;
+real gamma_raw;
+real beta_raw;
+real rho_raw;
+real<lower = 0> sigma_raw;
+}
+
+transformed parameters {
+vector[N] mu;
+vector[Nsp] eta;
+real gamma;
+real beta;
+real rho;
+real<lower = 0> sigma;
+
+eta = eta_raw * 20;              // eta ~ normal(0, 3)
+gamma = gamma_raw * 2;          // gamma ~ normal(0, 2)
+beta = beta_raw * 2;            // beta ~ normal(0, 2)
+rho = rho_raw * 2;              // rho ~ normal(0, 2)
+sigma = sigma_raw * 5;
+
+for (i in 1:N)
+{
+  mu[i] = eta[sp[i]] + gamma * lat[i] + beta * year[i] + rho * (year[i] * lat[i]);
+}
+}
+
+model {
+eta_raw ~ normal(0, 1);
+gamma_raw ~ normal(0, 1);
+beta_raw ~ normal(0, 1);
+rho_raw ~ normal(0, 1);
+sigma_raw ~ normal(0, 1);
+
+y ~ normal(mu, sigma);
+}
+
+generated quantities {
+real<lower=0> y_rep[N];
+
+y_rep = normal_rng(mu, sigma);
+}
+"
+
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+DELTA <- 0.95
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.005
+CHAINS <- 4
+ITER <- 3000
+
+tt <- proc.time()
+fit2 <- rstan::stan(model_code = stanmodel2,
+                   data = DATA,
+                   chains = CHAINS,
+                   iter = ITER,
+                   cores = CHAINS,
+                   pars = c('eta',
+                            'gamma',
+                            'beta',
+                            'rho',
+                            'sigma',
+                            'y_rep'), 
+                   control = list(adapt_delta = DELTA,
+                                  max_treedepth = TREE_DEPTH,
+                                  stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(fit2, file = 'MAPS-wc-time-lat-stan_output.rds')
+
+MCMCvis::MCMCsummary(fit2, n.eff = TRUE, round = 2)
+MCMCvis::MCMCplot(fit2, excl = c('eta', 'lp__'))
+
+library(shinystan)
+launch_shinystan(fit2)
+
+# y_rep <- MCMCvis::MCMCpstr(fit2, params = 'yrep')[[1]]
+# bayesplot::ppc_dens_overlay(DATA$y, y_rep)
+# ppc_dens_overlay(y, yrep_poisson[1:50, ])

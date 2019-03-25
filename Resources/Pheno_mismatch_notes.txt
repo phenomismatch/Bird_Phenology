@@ -43,8 +43,7 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Run 2 test (GAM arr)
 
 
-*Code up and test breeding IAR
-*Further tests for arr/br model
+*Run MAPS brood patch model? Aggregate cells?
 *Add correlation structure for gamma in IAR models
 
 
@@ -59,7 +58,7 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
 *Breeding IAR integrating other datasets
-  -Query NW and MAPS from DB
+  -Query NW from DB
   -Model NW using 5th quantile? Model MAPS using logistic? Or proportion of yearlings hitting nets?
   -If no IAR, integrate other datasets into similar model
 
