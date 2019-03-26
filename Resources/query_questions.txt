@@ -1,0 +1,46 @@
+                                    
+#RAFE query
+
+SELECT COALESCE(count, 0) AS zfilled, * 
+  FROM (SELECT DISTINCT event_id, taxa.taxon_id, target 
+                   FROM counts 
+             CROSS JOIN taxa
+                  WHERE event_id IN (4207913, 4207914) 
+                    AND target = 't') AS crss
+LEFT JOIN counts USING (taxon_id, event_id)
+
+
+
+
+=============
+
+CAN I MAKE ONE QUERY PER SPECIES?
+Where XXXX is the species of interest
+
+#One query per species
+
+SELECT COALESCE(count, 0) AS zfilled, * 
+  FROM (SELECT DISTINCT event_id, taxa.taxon_id, target 
+                   FROM counts 
+             CROSS JOIN taxa
+                  WHERE counts.dataset_id = 'ebird'
+                    AND sci_name IN (XXXX) 
+                    AND target = 't') AS crss
+LEFT JOIN counts USING (taxon_id, event_id)
+
+
+
+=============
+
+HOW DO I JOIN THE OTHER TABLES (places, events)?
+
+SELECT COALESCE(count, 0) AS zfilled, * 
+  FROM (SELECT DISTINCT event_id, taxa.taxon_id, target 
+                   FROM counts 
+             CROSS JOIN taxa
+                  WHERE counts.dataset_id = 'ebird'
+                    AND sci_name IN (XXXX) 
+                    AND target = 't') AS crss
+LEFT JOIN counts USING (taxon_id, event_id))
+LEFT JOIN events USING (event_id)
+LEFT JOIN places USING (place_id)
