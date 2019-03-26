@@ -648,13 +648,17 @@ maps_data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 maps_data$true_age <- NA
 
 #fill 0 for all birds banded in birth year
+#2 = hatching year bird
+#4 = local (young bird incapable of flight))
+#5 = second year bird
+#7 = third year bird - unreliable due to molting in second year (id as third year bird late second year)
 maps_data$true_age[which(maps_data$age %in% c(2, 4))] <- 0 
 
 #ids for birds banded in birth year
 ids <- unique(as.numeric(maps_data$band_id))
 
 
-#enter in true age for all birds banded in birth year
+#enter in true age for all birds banded in birth year (or entered as second year or third year)
 # create progress bar
 pb <- txtProgressBar(min = 0, max = length(ids), style = 3)
 for (i in 1:length(ids))
@@ -674,11 +678,6 @@ for (i in 1:length(ids))
     if (sum(temp$age == 5) > 0)
     {
       birth_year <- (t_yrs[1] - 1)
-    } else {
-      if (sum(temp$age == 7) > 0)
-      {
-        birth_year <- (t_yrs[1] - 2)
-      }
     }
   }
   
