@@ -36,7 +36,6 @@ maps_data <- readRDS('MAPS_age_filled.rds')
 
 
 
-
 # Only MAPS adults --------------------------------------------------------
 
 maps_adults <- dplyr::filter(maps_data, age %in% c('1', '5', '6', '7', '8'))
@@ -142,7 +141,7 @@ for (i in 1:length(sci_names))
   #   sfit <- summary(lm(temp$day ~ temp$true_age))
   #   print(sfit$coef[2,4])
   # }
-
+  
   dev.off()
   par(mfrow = c(3,3))
   t_yrs <- sort(unique(temp$year))
@@ -272,16 +271,16 @@ hist(ntt3$pv_wc)
 
 
 df_tt2 <- data.frame(sci_name = rep(NA, length(sci_names)),
-                    c_name = NA,
-                    N = NA,
-                    slope_sweight = NA,
-                    pv_sweight = NA,
-                    slope_weight = NA,
-                    pv_weight = NA,
-                    slope_fat = NA,
-                    pv_fat = NA,
-                    slope_wc = NA,
-                    pv_wc = NA)
+                     c_name = NA,
+                     N = NA,
+                     slope_sweight = NA,
+                     pv_sweight = NA,
+                     slope_weight = NA,
+                     pv_weight = NA,
+                     slope_fat = NA,
+                     pv_fat = NA,
+                     slope_wc = NA,
+                     pv_wc = NA)
 dev.off()
 par(mfrow = c(4,4))
 for (i in 1:length(sci_names))
@@ -313,7 +312,7 @@ for (i in 1:length(sci_names))
     abline(tfit2, col = 'red')
     df_tt2$slope_fat[i] <- round(tfit2$coef[2,1], 3)
     df_tt2$pv_fat[i] <- round(tfit2$coef[2,4], 3)
-
+    
     tfit3 <- summary(lm(wing_chord ~ year, data = temp))
     plot(temp$year, temp$wing_chord, main = paste0('Wing Chord ', temp$sci_name[1]))
     abline(tfit3, col = 'red')
@@ -427,14 +426,14 @@ hist(ntt5$pv_wc)
 
 
 df_tt <- data.frame(sci_name = rep(NA, length(sci_names)),
-                       c_name = NA,
-                       N = NA,
-                       slope_weight = NA,
-                       pv_weight = NA,
-                       slope_fat = NA,
-                       pv_fat = NA,
-                       slope_wf = NA,
-                       pv_wf = NA)
+                    c_name = NA,
+                    N = NA,
+                    slope_weight = NA,
+                    pv_weight = NA,
+                    slope_fat = NA,
+                    pv_fat = NA,
+                    slope_wf = NA,
+                    pv_wf = NA)
 dev.off()
 par(mfrow = c(4,4))
 for (i in 1:length(sci_names))
@@ -465,7 +464,7 @@ for (i in 1:length(sci_names))
     df_tt$pv_wf[i] <- round(tfit3$coef[2,4], 3)
   }
 }
-  
+
 
 
 
@@ -475,15 +474,25 @@ for (i in 1:length(sci_names))
 
 #DECREASE in fat, INCREASE wing chord, INCREASE weight
 
+to.rm <- which(maps_data$weight == 0 | maps_data$wing_chord == 0 | is.na(maps_data$weight) | is.na(maps_data$fat_content))
+maps_data_qc <- maps_data[-to.rm, ]
+
+#only known-age adults
+maps_adults_qc <- dplyr::filter(maps_data_qc, true_age > 0)
+
 #find unique band ids
 bid_cnt <- plyr::count(maps_adults_qc$band_id)
 
-#individuals that have been captured more than 5 times
-bid_c <- dplyr::filter(bid_cnt, freq > 3)
+#individuals that have been captured more than 2 times
+bid_c <- dplyr::filter(bid_cnt, freq > 2)
 c_birds <- bid_c[,1]
 
+#only band_ids of interest
+maps_cp <- dplyr::filter(maps_data_qc, band_id %in% c_birds)
 
-maps_c <- dplyr::filter(maps_adults_qc, band_id %in% c_birds, !is.na(true_age))
+b_rm <- unique(maps_c[which(maps_cp$day < 100),'band_id'])
+
+maps_c <- maps_c[-which(maps_cp$band_id %in% b_rm),]
 
 #weight
 ggplot(maps_c, aes(true_age, weight, col = band_id)) +
@@ -505,29 +514,32 @@ ggplot(maps_c, aes(true_age, wing_chord, col = band_id)) +
   geom_line() +
   theme(legend.position="none")
 
+nid <- unique(maps_c$band_id)
 
-df_temp <- data.frame(band_id = rep(NA, length(c_birds)),
-                      sci_name = rep(NA, length(c_birds)),
-                      slope_weight = rep(NA, length(c_birds)), 
-                      pv_weight = rep(NA, length(c_birds)),
-                      slope_sweight = rep(NA, length(c_birds)), 
-                      pv_sweight = rep(NA, length(c_birds)),
-                      slope_fat = rep(NA, length(c_birds)), 
-                      pv_fat = rep(NA, length(c_birds)),
-                      slope_wc = rep(NA, length(c_birds)), 
-                      pv_wc = rep(NA, length(c_birds)),
-                      slope_wfc = rep(NA, length(c_birds)), 
-                      pv_wfc = rep(NA, length(c_birds)))
 
-for (i in 1:length(c_birds))
+df_temp <- data.frame(band_id = rep(NA, length(nid)),
+                      sci_name = NA,
+                      slope_weight = NA,
+                      pv_weight = NA,
+                      slope_sweight = NA,
+                      pv_sweight = NA,
+                      slope_fat = NA,
+                      pv_fat = NA,
+                      slope_wc = NA,
+                      pv_wc = NA,
+                      slope_wfc = NA,
+                      pv_wfc = NA)
+
+
+for (i in 1:length(nid))
 {
-  #i <- 3100
-  temp <- dplyr::filter(maps_c, band_id == c_birds[i])
+  #i <- 1
+  temp <- dplyr::filter(maps_c, band_id == nid[i])
   
   df_temp$band_id[i] <- temp$band_id[1]
   df_temp$sci_name[i] <- temp$sci_name[1]
   
-  if (length(unique(temp$true_age)) > 1)
+  if (length(unique(temp$true_age)) > 1 & length(unique(temp$fat_content)) > 1)
   {
     #weight
     tfit <- summary(lm(weight ~ true_age, data = temp))
@@ -563,11 +575,95 @@ hist(df_temp$slope_sweight)
 hist(df_temp$pv_weight)
 hist(df_temp$slope_fat)
 hist(df_temp$slope_wc)
+hist(df_temp$pv_wc)
 hist(df_temp$slope_wfc)
 hist(df_temp$pv_wfc)
 
 hist(dplyr::filter(df_temp, pv_weight < 0.05)$slope_weight)
 hist(dplyr::filter(df_temp, pv_weight < 0.05)$slope_sweight)
+
+
+
+
+#paired t-test wing chord and age
+
+ttd <- data.frame()
+for (i in 1:length(nid))
+{
+  #i <- 6
+  temp <- dplyr::filter(maps_c, band_id == nid[i])
+  
+  #only if have at least one year age > 1 and one year age = 1
+  if (sum(temp$true_age > 1) > 0 & sum(temp$true_age == 1) > 0)
+  {
+    #age 1
+    a1 <- mean(dplyr::filter(temp, true_age == 1)$wing_chord)
+    a1_sd <- sd(dplyr::filter(temp, true_age == 1)$wing_chord)
+    #age 2+
+    a2p <- mean(dplyr::filter(temp, true_age > 1)$wing_chord)
+    a2p_sd <- sd(dplyr::filter(temp, true_age > 1)$wing_chord)
+    
+    temp <- data.frame(sp = temp$sci_name[1], band_id = nid[i], 
+                       a1_wc = a1, a1_cv = a1_sd/a1, 
+                       a2p_wc = a2p, a2p_cv = a2p_sd/a2p)
+    ttd <- rbind(ttd, temp)
+  }
+}
+
+head(ttd)
+hist(ttd$a1_cv, breaks = 50)
+hist(ttd$a2p_cv, breaks = 50)
+
+#if sd within year 1 is greater than 3% of mean - exclude
+#if sd year 2+ is greater than 5% of mean - exclude
+to.rm.a1 <- which(ttd$a1_cv > 0.03)
+to.rm.a2p <- which(ttd$a2p_cv > 0.05)
+ctm <- c(to.rm.a1, to.rm.a2p)
+ctm2 <- ctm[!(duplicated(ctm) | duplicated(ctm, fromLast = TRUE))]
+
+ttd2 <- ttd[-ctm2,]
+csp <- plyr::count(ttd2, 'sp')
+nsp <- csp[which(csp$freq > 10), 1]
+
+out <- data.frame()
+for (i in 1:length(nsp))
+{
+  #i <- 1
+  temp <- dplyr::filter(ttd2, sp == nsp[i])
+  tfit <- t.test(temp$a1_wc, temp$a2p_wc, paired = TRUE)
+  tt <- data.frame(sp = nsp[i],
+                   a1_mn = mean(temp$a1_wc),
+                   a1_sd = sd(temp$a1_wc, na.rm = TRUE),
+                   a2p_mn = mean(temp$a2p_wc),
+                   a2p_sd = sd(temp$a2p_wc, na.rm = TRUE),
+                   est = round(tfit$estimate, 2), 
+                   p = round(tfit$p.value, 2))
+  out <- rbind(out, tt)
+}
+
+row.names(out) <- NULL
+hist(out$est)
+hist(out$p)
+
+ttd3 <- dplyr::filter(ttd2, sp %in% nsp) 
+
+
+tplt <- reshape2::melt(ttd3[,c('sp', 'a1_wc', 'a2p_wc')], id = 'sp')
+tplt$spvar <- interaction(tplt$sp, tplt$var)
+
+ggplot(aes(y = value, x = sp, fill = variable), data = tplt) + 
+  geom_boxplot() +
+  theme_bw() +
+  theme(legend.position="none")
+
+
+nmc <- dplyr::filter(maps_c, sci_name %in% nsp)
+#wing chord
+ggplot(nmc, aes(true_age, wing_chord, col = band_id)) +
+  geom_line(alpha = 0.5) +
+  theme(legend.position="none") +
+  theme_bw()
+
 
 
 # do females live longer than males? max life span each species -----------------------------------------
@@ -593,13 +689,13 @@ sd(maps_f$true_age)
 
 
 df_temp2 <- data.frame(sci_name = rep(NA, length(sci_names)),
-                      c_name = NA,
-                      N = NA,
-                      max_age = NA,
-                      mn_male_age = NA,
-                      sd_male_age = NA,
-                      mn_female_age = NA,
-                      sd_female_age = NA)
+                       c_name = NA,
+                       N = NA,
+                       max_age = NA,
+                       mn_male_age = NA,
+                       sd_male_age = NA,
+                       mn_female_age = NA,
+                       sd_female_age = NA)
 
 for (i in 1:length(sci_names))
 {
@@ -663,7 +759,7 @@ for (i in 1:length(sci_names))
     {
       #j <- 1
       temp2 <- dplyr::filter(temp, year == t_yrs[j])
-  
+      
       tdf$year[j] <- temp2$year[1]
       tdf$mn_age[j] <- mean(temp2$true_age)
       tdf$sd_age[j] <- sd(temp2$true_age)
@@ -684,10 +780,10 @@ NROW(df_temp5)
 
 #a number of sig trends, but could be due to sampling bias (perhaps more southerly sites sampling less over time?)
 df_age_lat <- data.frame(sci_name = rep(NA, length(sci_names)),
-                       c_name = NA,
-                       N = NA,
-                       slope = NA,
-                       pv = NA)
+                         c_name = NA,
+                         N = NA,
+                         slope = NA,
+                         pv = NA)
 
 for (i in 1:length(sci_names))
 {
@@ -712,5 +808,5 @@ for (i in 1:length(sci_names))
 hist(df_age_lat$slope)
 hist(df_age_lat$pv)
 
-  
+
 
