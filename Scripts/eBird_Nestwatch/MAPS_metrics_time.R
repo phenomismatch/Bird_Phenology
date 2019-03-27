@@ -733,7 +733,7 @@ y ~ normal(mu, sigma);
 }
 
 generated quantities {
-real<lower=0> y_rep[N];
+real y_rep[N];
 
 y_rep = normal_rng(mu, sigma);
 }
@@ -742,7 +742,7 @@ y_rep = normal_rng(mu, sigma);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.93
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.005
 CHAINS <- 4
@@ -768,12 +768,177 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 saveRDS(fit2, file = 'MAPS-wc-time-lat-stan_output.rds')
 
-MCMCvis::MCMCsummary(fit2, n.eff = TRUE, round = 2)
+MCMCvis::MCMCsummary(fit2, n.eff = TRUE, round = 2, excl = 'y_rep')
 MCMCvis::MCMCplot(fit2, excl = c('eta', 'lp__'))
 
 library(shinystan)
 launch_shinystan(fit2)
-
-# y_rep <- MCMCvis::MCMCpstr(fit2, params = 'yrep')[[1]]
+?ppc_dens_overlay
+# y_rep <- MCMCvis::MCMCchains(fit2, params = 'y_rep')
 # bayesplot::ppc_dens_overlay(DATA$y, y_rep)
-# ppc_dens_overlay(y, yrep_poisson[1:50, ])
+# bayesplot::ppc_dens_overlay(y, yrep_poisson[1:50, ])
+
+
+
+
+
+# wing chord --------------------------------------------------------------
+
+maps_adults <- dplyr::filter(maps_data, age %in% c('1', '5', '6', '7', '8'))
+
+#QC data - remove zeros
+to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(maps_adults$weight) | is.na(maps_adults$weight) | is.na(maps_adults$fat_content) | is.na(maps_adults$wing_chord))
+maps_adults_qc <- maps_adults[-to.rm, ]
+
+#only species with > 1000 data points
+d_cnt <- plyr::count(maps_adults_qc, 'sci_name')
+sp_p <- dplyr::filter(d_cnt, freq > 1000)[,1]
+
+#subset of species
+set.seed(1)
+sp <- base::sample(sp_p, size = 10)
+#sp <- sp_p
+
+maps_f <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
+
+#factor for species_id
+maps_f$sp_f <- factor(maps_f$sci_name)
+usp <- unique(maps_f$sci_name)
+
+maps_f$year_f <- as.numeric(factor(maps_f$year))
+maps_f$sweight <- maps_f$weight/maps_f$wing_chord
+
+#brms_data <- dplyr::filter(maps_f, day <= 160, day >=130)
+
+#only males age 2+
+brms_data <- dplyr::filter(maps_f, sex == 'M', age >= 5)
+
+#factors for sp and fat
+brms_data$fat_f <- ordered(brms_data$fat_content)
+brms_data$st_f <- as.numeric(factor(brms_data$station))
+
+
+
+
+DATA <- list(K = length(unique(brms_data$fat_content)),
+             N = NROW(brms_data),
+             Nsp = length(usp),
+             Nst = length(brms_data$st_f),
+             y = brms_data$wing_chord,
+             sp = as.numeric(brms_data$sp_f), #species
+             st = brms_data$st_f, #station
+             year = brms_data$year_f,
+             day = brms_data$day,
+             lat = brms_data$lat)
+
+stanmodel3 <- "
+data {
+int<lower=0> N;                     // number of obs
+int<lower=0> Nsp;                   // number of species
+real<lower=0> y[N];                 // response
+int<lower=1, upper=Nsp> sp[N];      // species
+vector<lower=0>[N] year;
+vector<lower=0>[N] day;
+vector<lower=0>[N] lat;
+}
+
+parameters {
+real mu_alpha;
+real mu_beta;
+real<lower = 0> sigma_raw;
+vector<lower = 0>[2] sigma_sp;                    // standard deviations
+cholesky_factor_corr[2] L_Rho;                    // correlation matrix
+matrix[2, Nsp] z;
+real gamma_raw;
+real eta_raw;
+}
+
+transformed parameters {
+vector[N] mu;
+matrix[Nsp, 2] alphabeta;                         // matrix for alpha and beta
+matrix[2, 2] Rho;                                 // covariance matrix
+real<lower = 0> sigma;
+real gamma;
+real eta;
+
+sigma = sigma_raw * 5;
+gamma = gamma_raw * 3;
+eta = eta_raw * 3;
+
+alphabeta = (diag_pre_multiply(sigma_sp, L_Rho) * z)';  // cholesky factor of covariance matrix multiplied by z score
+alpha = alphabeta[,1];
+beta = alphabeta[,2];
+Rho = L_Rho * L_Rho';
+
+for (i in 1:N)
+{
+  mu[i] = (mu_alpha + alphabeta[sp[i], 1]) + 
+          (mu_beta + alphabeta[sp[i], 2]) * year[i] + 
+          gamma * lat[i] + eta * (year[i] * lat[i]);
+}
+}
+
+model {
+sigma_raw ~ normal(0, 1);
+gamma_raw ~ normal(0, 1);
+eta_raw ~ normal(0, 1);
+
+to_vector(z) ~ normal(0, 1);
+mu_alpha ~ normal(0, 10);
+mu_beta ~ normal(0, 10);
+L_Rho ~ lkj_corr_cholesky(2);
+sigma_sp ~ normal(0, 5);
+
+y ~ normal(mu, sigma);
+}
+
+generated quantities {
+real y_rep[N];
+
+y_rep = normal_rng(mu, sigma);
+}
+"
+
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+DELTA <- 0.95
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.005
+CHAINS <- 3
+ITER <- 1000
+
+tt <- proc.time()
+fit3 <- rstan::stan(model_code = stanmodel3,
+                    data = DATA,
+                    chains = CHAINS,
+                    iter = ITER,
+                    cores = CHAINS,
+                    pars = c('alpha',
+                             'beta',
+                             'mu_alpha',
+                             'mu_beta',
+                             'Rho',
+                             'sigma_sp',
+                             'sigma',
+                             'eta',
+                             'gamma'), 
+                    control = list(adapt_delta = DELTA,
+                                   max_treedepth = TREE_DEPTH,
+                                   stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(fit3, file = 'MAPS-wc-time-lat-corr-stan_output.rds')
+
+MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2)
+MCMCvis::MCMCplot(fit3, excl = c('eta', 'lp__'))
+
+# library(shinystan)
+# launch_shinystan(fit3)
+
+# y_rep <- MCMCvis::MCMCchains(fit2, params = 'y_rep')
+# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:25,])
+# plot(DATA$y, y_rep[4,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
+# abline(a = 0, b = 1, col = 'red', lty = 2)
+
