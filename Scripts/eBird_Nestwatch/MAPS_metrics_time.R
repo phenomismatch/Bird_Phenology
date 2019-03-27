@@ -796,7 +796,7 @@ sp_p <- dplyr::filter(d_cnt, freq > 1000)[,1]
 
 #subset of species
 set.seed(1)
-sp <- base::sample(sp_p, size = 10)
+sp <- base::sample(sp_p, size = 8)
 #sp <- sp_p
 
 maps_f <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
@@ -805,31 +805,34 @@ maps_f <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
 maps_f$sp_f <- factor(maps_f$sci_name)
 usp <- unique(maps_f$sci_name)
 
+#numeric year
 maps_f$year_f <- as.numeric(factor(maps_f$year))
-maps_f$sweight <- maps_f$weight/maps_f$wing_chord
 
+#0/1 sex - M = 1
+maps_f$sex_f <- 0
+maps_f$sex_f[which(maps_f$sex == 'M')] <- 1
+
+#only birds 2+ years of age (bc of changing wing chord from Age 1 to 2)
+#age here is age code, with >= 5 denoting ASY ()
+stan_data <- dplyr::filter(maps_f, age >= 5)
+
+#filter by time period
 #brms_data <- dplyr::filter(maps_f, day <= 160, day >=130)
 
-#only males age 2+
-brms_data <- dplyr::filter(maps_f, sex == 'M', age >= 5)
 
-#factors for sp and fat
-brms_data$fat_f <- ordered(brms_data$fat_content)
-brms_data$st_f <- as.numeric(factor(brms_data$station))
-
-
-
-
-DATA <- list(K = length(unique(brms_data$fat_content)),
-             N = NROW(brms_data),
+DATA <- list(N = NROW(stan_data),
              Nsp = length(usp),
-             Nst = length(brms_data$st_f),
-             y = brms_data$wing_chord,
-             sp = as.numeric(brms_data$sp_f), #species
-             st = brms_data$st_f, #station
-             year = brms_data$year_f,
-             day = brms_data$day,
-             lat = brms_data$lat)
+             Nst = length(stan_data$st_f),
+             y = stan_data$wing_chord,
+             sp = as.numeric(stan_data$sp_f), #species
+             year = stan_data$year_f,
+             day = stan_data$day,
+             lat = stan_data$lat,
+             sex = stan_data$sex_f)
+
+#NEXT:
+#hierarchical gamma (effect of lat)
+#hierarchical nu (effect of sex)
 
 stanmodel3 <- "
 data {
@@ -840,6 +843,7 @@ int<lower=1, upper=Nsp> sp[N];      // species
 vector<lower=0>[N] year;
 vector<lower=0>[N] day;
 vector<lower=0>[N] lat;
+int<lower=0, upper=1> sex[N];
 }
 
 parameters {
@@ -851,6 +855,7 @@ cholesky_factor_corr[2] L_Rho;                    // correlation matrix
 matrix[2, Nsp] z;
 real gamma_raw;
 real eta_raw;
+real nu_raw;
 }
 
 transformed parameters {
@@ -860,10 +865,14 @@ matrix[2, 2] Rho;                                 // covariance matrix
 real<lower = 0> sigma;
 real gamma;
 real eta;
+real nu;
+vector[Nsp] alpha;
+vector[Nsp] beta;
 
 sigma = sigma_raw * 5;
 gamma = gamma_raw * 3;
 eta = eta_raw * 3;
+nu = nu_raw * 5;
 
 alphabeta = (diag_pre_multiply(sigma_sp, L_Rho) * z)';  // cholesky factor of covariance matrix multiplied by z score
 alpha = alphabeta[,1];
@@ -874,7 +883,8 @@ for (i in 1:N)
 {
   mu[i] = (mu_alpha + alphabeta[sp[i], 1]) + 
           (mu_beta + alphabeta[sp[i], 2]) * year[i] + 
-          gamma * lat[i] + eta * (year[i] * lat[i]);
+          gamma * lat[i] + eta * (year[i] * lat[i]) + 
+          nu * sex[i];
 }
 }
 
@@ -882,6 +892,7 @@ model {
 sigma_raw ~ normal(0, 1);
 gamma_raw ~ normal(0, 1);
 eta_raw ~ normal(0, 1);
+nu_raw ~ normal(0, 1);
 
 to_vector(z) ~ normal(0, 1);
 mu_alpha ~ normal(0, 10);
@@ -902,7 +913,7 @@ y_rep = normal_rng(mu, sigma);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.90
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.005
 CHAINS <- 3
@@ -921,15 +932,16 @@ fit3 <- rstan::stan(model_code = stanmodel3,
                              'Rho',
                              'sigma_sp',
                              'sigma',
+                             'gamma',
                              'eta',
-                             'gamma'), 
+                             'nu'), 
                     control = list(adapt_delta = DELTA,
                                    max_treedepth = TREE_DEPTH,
                                    stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit3, file = 'MAPS-wc-time-lat-corr-stan_output.rds')
+saveRDS(fit3, file = 'MAPS-wc-time-lat-chol-stan_output.rds')
 
 MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2)
 MCMCvis::MCMCplot(fit3, excl = c('eta', 'lp__'))
