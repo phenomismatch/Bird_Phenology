@@ -154,7 +154,7 @@ setwd(query_dir_path)
 #*create rds objects for each species
 
 
-#filter all unique event_ids that meet criteria - about 40 min to complete query
+#filter all unique event_ids that meet criteria - about 30 min to complete query
 data <- DBI::dbGetQuery(cxn, paste0("
                                     SELECT DISTINCT ON (event_id) event_id, year, day, place_id, lat, lng, started, 
                                     radius,
@@ -164,10 +164,9 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     count_json ->> 'GLOBAL_UNIQUE_IDENTIFIER' AS global_unique_id,
                                     (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
                                     event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
-                                    FROM places
-                                    JOIN events USING (place_id)
-                                    JOIN counts USING (event_id)
-                                    JOIN taxa USING (taxon_id)
+                                    FROM events
+                                    INNER JOIN places USING (place_id)
+                                    LEFT JOIN counts USING (event_id)
                                     WHERE events.dataset_id = 'ebird'
                                     AND year > 2001
                                     AND day < 200
@@ -175,7 +174,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND lat > 26
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
                                     AND LEFT(started, 2)::int < 18
-                                    AND RADIUS < 100000;
+                                    AND radius < 100000;
                                     "))
 
 
@@ -238,9 +237,9 @@ foreach::foreach(i = 1:nsp) %dopar%
   
   temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id
                                       FROM events
-                                      JOIN places USING (place_id)
-                                      JOIN counts USING (event_id)
-                                      JOIN taxa USING (taxon_id)
+                                      INNER JOIN places USING (place_id)
+                                      INNER JOIN counts USING (event_id)
+                                      INNER JOIN taxa USING (taxon_id)
                                       WHERE events.dataset_id = 'ebird'
                                       AND year > 2001
                                       AND day < 200
@@ -262,7 +261,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   data2[n_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         global_unique_id, year, jday,
+                         event_id, year, jday,
                          shr, cell, species_list_i[i,1])
   
   names(sdata)[6] <- "detect"
@@ -309,9 +308,9 @@ if (length(m_sp2) > 0)
     
     temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id
                                         FROM events
-                                        JOIN places USING (place_id)
-                                        JOIN counts USING (event_id)
-                                        JOIN taxa USING (taxon_id)
+                                        INNER JOIN places USING (place_id)
+                                        INNER JOIN counts USING (event_id)
+                                        INNER JOIN taxa USING (taxon_id)
                                         WHERE events.dataset_id = 'ebird'
                                         AND year > 2001
                                         AND day < 200
@@ -333,7 +332,7 @@ if (length(m_sp2) > 0)
     data2[n_ind, m_sp2[i]] <- 0
     
     sdata <- dplyr::select(data2, 
-                           global_unique_id, year, jday,
+                           event_id, year, jday,
                            shr, cell, m_sp2[i])
     
     names(sdata)[6] <- "detect"
