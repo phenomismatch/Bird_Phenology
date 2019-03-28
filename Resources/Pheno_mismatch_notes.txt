@@ -41,19 +41,32 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Transfer 2 test and check figs
 *[DONE] Test 7 (GAM br)
 *[DONE] Run 2 test (GAM arr)
+*[IN PROGRESS] Query new ebird
+*[IN PROGRESS] New age fill MAPS
+*[IN PROGRESS] Wing chord ~ lat/time - test
+* Wing chord ~ lat/time - only males - separate model for females
 
-
-*Run MAPS brood patch model? Aggregate cells?
-*Add correlation structure for gamma in IAR models
-
-
-#WAIT FOR RAFE TO UPDATE DB
+*Check NROW new ebird data - how much larger are these datasets?
 *Run 2 (GAM)
+*Run wing chord ~ age analysis/make figs - send to Morgan
+*Run wing chord ~ lat/time with full dataset (limit species) - add varying gamma (lat slopes) - possibly remove eta
+
+
+#AFTER 2
 *Run 3-5 (process 2) - exclude all sp/cell/years with very large hm sd?
 *Run 6 (query breeding) - need IAR species list from 3
 *Run 7 (GAM)
+
+*Run fat ~ lat/time
+
+#AFTER 7
 *Run 8 (process 7)
 *Run 9 (breeding IAR)
+
+
+*Run MAPS brood patch model? Aggregate cells?
+*Add correlation structure for gamma in IAR models - what was meant by this?
+
 
 
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)

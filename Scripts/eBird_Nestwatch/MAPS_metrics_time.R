@@ -847,10 +847,10 @@ int<lower=0, upper=1> sex[N];
 }
 
 parameters {
-real mu_alpha;
-real mu_beta;
+real mu_alpha_raw;
+real mu_beta_raw;
 real<lower = 0> sigma_raw;
-vector<lower = 0>[2] sigma_sp;                    // standard deviations
+vector<lower = 0>[2] sigma_sp_raw;                // standard deviations
 cholesky_factor_corr[2] L_Rho;                    // correlation matrix
 matrix[2, Nsp] z;
 real gamma_raw;
@@ -868,13 +868,20 @@ real eta;
 real nu;
 vector[Nsp] alpha;
 vector[Nsp] beta;
+vector<lower = 0>[2] sigma_sp;
+real mu_alpha;
+real mu_beta;
 
 sigma = sigma_raw * 5;
+sigma_sp = sigma_sp_raw * 3;
 gamma = gamma_raw * 3;
 eta = eta_raw * 3;
 nu = nu_raw * 5;
+mu_alpha = mu_alpha_raw * 10 + 50;
+mu_beta = mu_beta_raw * 3;
 
-alphabeta = (diag_pre_multiply(sigma_sp, L_Rho) * z)';  // cholesky factor of covariance matrix multiplied by z score
+// cholesky factor of covariance matrix multiplied by z score
+alphabeta = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
 alpha = alphabeta[,1];
 beta = alphabeta[,2];
 Rho = L_Rho * L_Rho';
@@ -889,16 +896,16 @@ for (i in 1:N)
 }
 
 model {
-sigma_raw ~ normal(0, 1);
-gamma_raw ~ normal(0, 1);
-eta_raw ~ normal(0, 1);
-nu_raw ~ normal(0, 1);
+sigma_raw ~ normal(0, 1);         // sigma ~ halfnormal(0, 5)
+gamma_raw ~ normal(0, 1);         // gamma ~ normal(0, 3)
+eta_raw ~ normal(0, 1);           // eta ~ normal(0, 3)
+nu_raw ~ normal(0, 1);            // nu ~ normal(0, 5)
 
 to_vector(z) ~ normal(0, 1);
-mu_alpha ~ normal(0, 10);
-mu_beta ~ normal(0, 10);
+mu_alpha_raw ~ normal(0, 1);      // mu_alpha ~ normal(50, 10)
+mu_beta_raw ~ normal(0, 1);       // mu_beta ~ normal(0, 3)
 L_Rho ~ lkj_corr_cholesky(2);
-sigma_sp ~ normal(0, 5);
+sigma_sp_raw ~ normal(0, 1);      // sigma_sp ~ halfnormal(0, 3)
 
 y ~ normal(mu, sigma);
 }
@@ -916,7 +923,7 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.90
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.005
-CHAINS <- 3
+CHAINS <- 4
 ITER <- 1000
 
 tt <- proc.time()
@@ -934,7 +941,8 @@ fit3 <- rstan::stan(model_code = stanmodel3,
                              'sigma',
                              'gamma',
                              'eta',
-                             'nu'), 
+                             'nu',
+                             'y_rep'), 
                     control = list(adapt_delta = DELTA,
                                    max_treedepth = TREE_DEPTH,
                                    stepsize = STEP_SIZE))

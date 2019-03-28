@@ -152,6 +152,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     (event_json ->> 'ALL_SPECIES_REPORTED')::int AS all_species_reported,
                                     (event_json ->> 'DURATION_MINUTES')::int AS duration_minutes,
                                     count_json ->> 'OBSERVER_ID' AS observer_id,
+                                    count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS BBA_code,
                                     (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
                                     event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
                                     FROM places

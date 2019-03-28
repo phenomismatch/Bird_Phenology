@@ -190,7 +190,8 @@ rm(data)
 # add jday and shr ---------------------------------------------------
 
 #julian day
-data2$jday <- as.vector(data2$day)
+cn_id <- grep('day', colnames(data2))
+colnames(data2)[cn_id] <- 'jday'
 
 #scaled effort hours
 data2$shr <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
@@ -261,7 +262,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   data2[n_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         year, day, jday,
+                         event_id, year, jday,
                          shr, cell, species_list_i[i,1])
   
   names(sdata)[6] <- "detect"
@@ -332,7 +333,7 @@ if (length(m_sp2) > 0)
     data2[n_ind, m_sp2[i]] <- 0
     
     sdata <- dplyr::select(data2, 
-                           year, day, jday,
+                           event_id, year, jday,
                            shr, cell, m_sp2[i])
     
     names(sdata)[6] <- "detect"
