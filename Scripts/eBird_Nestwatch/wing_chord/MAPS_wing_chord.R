@@ -11,14 +11,14 @@
 # 
 # Data processing:
 # ----------------
-# Fill true age for each bird for each year. Done using birth year derived from birds either caught during the hatch year or birds listed as Second Year Bird or Third Year. Remove all 0 values for weight and wing_chord. Filter to only known age adults (greater than 1 year old AKA Second Year or later).
+# Fill true age for each bird for each year. Done using birth year derived from birds either caught during the hatch year or birds listed as Second Year Bird. Remove all 0 values for weight and wing_chord. Filter to only known age adults (greater than 1 year old AKA Second Year or later).
 # 
-# For each individual band_id, take mean wing_chord for Age 1 (Second Year) and mean wing chord for Age 2+ (Third Year +); also calculate wing_chord coefficient of variation (sd/mean) Age 1 and Age 2+. Remove any individuals that have Age 1 CV of greater than 0.03 and Age 2+ CV of greater than 0.05 (sds that are greater than 3% and 5% of mean, respectively). 
+# For each individual band_id, take mean wing_chord for Age 1 (Second Year) and mean wing chord for Age 2+ (Third Year +); also calculate wing_chord coefficient of variation (sd/mean) Age 1 and Age 2+. Remove any individuals that have Age 1 CV of greater than 0.03 and Age 2+ CV of greater than 0.05 (sds that are greater than 3% and 5% of mean, respectively).
 # 
 # 
 # Analysis:
 # ---------
-# Run paired two-tailed t-test for each species that had measurements for greater than 10 individuals (to test difference in wing_chord between Age 1 and Age 2+ age classes). Estimated difference and p-values returned for each species.
+# Run paired two-tailed t-test for each species that had measurements for greater than 20 individuals (to test difference in wing_chord between Age 1 and Age 2+ age classes). Estimated difference and p-values returned for each species.
 ####################
 
 
@@ -32,14 +32,14 @@ dir <- '~/Google_Drive/R/'
 library(dplyr)
 library(RPostgreSQL)
 library(DBI)
-
+library(ggplot2)
 
 
 # read in data ------------------------------------------------------------
 
 #if after query
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-# maps_data <- readRDS('MAPS_wing_chord_age_filled.rds')
+# maps_data <- readRDS('MAPS-age-filled.rds')
 
 
 # query DB ----------------------------------------------------------------
@@ -201,8 +201,6 @@ saveRDS(maps_data, 'MAPS-age-filled.rds')
 
 
 
-
-
 # Process wing chord data --------------------------------------------
 
 
@@ -259,7 +257,7 @@ ggplot(maps_c, aes(true_age, wing_chord, col = band_id)) +
 ttd <- data.frame()
 for (i in 1:length(nid))
 {
-  #i <- 6
+  #i <- 2
   temp <- dplyr::filter(maps_c, band_id == nid[i])
   
   #only if have at least one year age > 1 and one year age = 1
@@ -273,7 +271,8 @@ for (i in 1:length(nid))
     a2p <- mean(dplyr::filter(temp, true_age > 1)$wing_chord)
     a2p_sd <- sd(dplyr::filter(temp, true_age > 1)$wing_chord)
     
-    temp <- data.frame(sp = temp$sci_name[1], band_id = nid[i], 
+    temp <- data.frame(sp = temp$sci_name[1], cn = temp$common_name[1],
+                       band_id = nid[i], 
                        a1_wc = a1, a1_cv = a1_sd/a1, 
                        a2p_wc = a2p, a2p_cv = a2p_sd/a2p)
     ttd <- rbind(ttd, temp)
@@ -290,9 +289,9 @@ ctm2 <- ctm[!(duplicated(ctm) | duplicated(ctm, fromLast = TRUE))]
 #remove values
 ttd2 <- ttd[-ctm2,]
 
-#only species that have > 10 individuals
+#only species that have > 20 individuals
 csp <- plyr::count(ttd2, 'sp')
-nsp <- csp[which(csp$freq > 10), 1]
+nsp <- csp[which(csp$freq > 20), 1]
 
 #filter relevant species
 ttd3 <- dplyr::filter(ttd2, sp %in% nsp) 
@@ -308,15 +307,19 @@ for (i in 1:length(nsp))
   temp <- dplyr::filter(ttd3, sp == nsp[i])
   tfit <- t.test(temp$a1_wc, temp$a2p_wc, paired = TRUE)
   tt <- data.frame(sp = nsp[i],
-                   a1_mn = mean(temp$a1_wc),
-                   a1_sd = sd(temp$a1_wc, na.rm = TRUE),
-                   a2p_mn = mean(temp$a2p_wc),
-                   a2p_sd = sd(temp$a2p_wc, na.rm = TRUE),
-                   est = round(tfit$estimate, 2), 
-                   p = round(tfit$p.value, 2))
+                   cn = temp$cn[1],
+                   a1_mn = round(mean(temp$a1_wc), 2),
+                   a1_sd = round(sd(temp$a1_wc, na.rm = TRUE), 2),
+                   a2p_mn = round(mean(temp$a2p_wc), 2),
+                   a2p_sd = round(sd(temp$a2p_wc, na.rm = TRUE), 2),
+                   est = round(tfit$estimate, 3), 
+                   p = round(tfit$p.value, 5))
   out <- rbind(out, tt)
 }
 row.names(out) <- NULL
+
+#Benjamini & Hochberg p-value correction
+out$p_adj <-  round(p.adjust(out$p, method="BH"), 3)
 
 
 
@@ -342,12 +345,13 @@ ggplot(aes(y = value, x = sp, fill = variable), data = tplt) +
 
 
 #plots of all individuals used in final analysis
-nmc <- dplyr::filter(maps_c, band_id %in% ttd3$nid)
-#wing chord
-ggplot(nmc, aes(true_age, wing_chord, col = band_id)) +
-  geom_line(alpha = 0.5) +
-  theme(legend.position="none") +
-  theme_bw()
+# nmc <- dplyr::filter(maps_c, band_id %in% ttd3$band_id)
+# #wing chord
+# ggplot(nmc, aes(true_age, wing_chord, col = band_id)) +
+#   geom_line() +
+#   theme_bw() +
+#   theme(legend.position="none")
+  
 
 
 
@@ -355,6 +359,4 @@ ggplot(nmc, aes(true_age, wing_chord, col = band_id)) +
 
 #plot of before and after lines for each species
 
-
-#???
-
+head(out)
