@@ -58,7 +58,7 @@ cxn <- DBI::dbConnect(pg,
                       port = 5432, 
                       dbname = "sightings")
 
-#Entire North America
+#Entire North America - only days 100-300
 
 maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name, event_id, started, ended,
                                          (count_json ->> 'ANET') AS anet,
@@ -194,8 +194,8 @@ for (i in 1:length(ids))
 }
 close(pb)
 
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-# saveRDS(maps_data, 'MAPS_wing_chord_age_filled.rds')
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+saveRDS(maps_data, 'MAPS-age-filled.rds')
 
 
 
@@ -349,4 +349,12 @@ ggplot(nmc, aes(true_age, wing_chord, col = band_id)) +
   theme(legend.position="none") +
   theme_bw()
 
+
+
+
+
+#plot of before and after lines for each species
+
+
+#???
 
