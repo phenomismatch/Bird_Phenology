@@ -9,8 +9,8 @@
 #SBATCH --mem=25G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-03-11/hm-arr-Setophaga_americana.out #STDOUT
-#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-03-11/hm-arr-Setophaga_americana.err #STDERR
+#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-03-27/hm-arr-Setophaga_americana.out #STDOUT
+#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-03-27/hm-arr-Setophaga_americana.err #STDERR
 
 #echos name of node
 echo `hostname`
