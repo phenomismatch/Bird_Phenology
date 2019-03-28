@@ -154,14 +154,14 @@ setwd(query_dir_path)
 #*create rds objects for each species
 
 
-#filter all unique event_ids that meet criteria - about 45? min to complete query
+#filter all unique event_ids that meet criteria - about 40 min to complete query
 data <- DBI::dbGetQuery(cxn, paste0("
                                     SELECT DISTINCT ON (event_id) event_id, year, day, place_id, lat, lng, started, 
                                     radius,
                                     (event_json ->> 'ALL_SPECIES_REPORTED')::int AS all_species_reported,
                                     (event_json ->> 'DURATION_MINUTES')::int AS duration_minutes,
                                     count_json ->> 'OBSERVER_ID' AS observer_id,
-                                    count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS BBA_code,
+                                    count_json ->> 'GLOBAL_UNIQUE_IDENTIFIER' AS global_unique_id,
                                     (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
                                     event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
                                     FROM places
@@ -262,7 +262,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   data2[n_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         event_id, year, jday,
+                         global_unique_id, year, jday,
                          shr, cell, species_list_i[i,1])
   
   names(sdata)[6] <- "detect"
@@ -333,7 +333,7 @@ if (length(m_sp2) > 0)
     data2[n_ind, m_sp2[i]] <- 0
     
     sdata <- dplyr::select(data2, 
-                           event_id, year, jday,
+                           global_unique_id, year, jday,
                            shr, cell, m_sp2[i])
     
     names(sdata)[6] <- "detect"

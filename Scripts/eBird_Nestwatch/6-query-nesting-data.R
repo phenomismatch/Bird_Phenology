@@ -152,7 +152,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     (event_json ->> 'ALL_SPECIES_REPORTED')::int AS all_species_reported,
                                     (event_json ->> 'DURATION_MINUTES')::int AS duration_minutes,
                                     count_json ->> 'OBSERVER_ID' AS observer_id,
-                                    count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS BBA_code,
+                                    count_json ->> 'GLOBAL_UNIQUE_IDENTIFIER' AS global_unique_id,
                                     (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
                                     event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
                                     FROM places
@@ -176,10 +176,10 @@ data2 <- data[!duplicated(data[,'group_identifier'],
 
 rm(data)
 
+#add jday and shr
+cn_id <- grep('day', colnames(data2))
+colnames(data2)[cn_id] <- 'jday'
 
-#calculate polynomial then center data
-#scaled julian day, scaled julian day^2, and scaled julian day^3
-data2$jday <- as.vector(data2$day)
 
 #scaled effort hours
 data2$shr <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
@@ -298,8 +298,8 @@ foreach::foreach(i = 1:nsp) %dopar%
   data2[z_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         year, day, cell, jday,
-                         shr, species_list_i[i,1])
+                         global_unique_id, year, jday,
+                         shr, cell, species_list_i[i,1])
   
   names(sdata)[6] <- "bba_category"
   sdata['species'] <- species_list_i[i,1]
@@ -418,8 +418,9 @@ if (length(m_sp2) > 0)
     data2[z_ind, m_sp[i]] <- 0
     
     sdata <- dplyr::select(data2, 
-                           year, day, cell, jday,
-                           shr, m_sp[i])
+                           global_unique_id, year, jday,
+                           shr, cell, m_sp[i])
+    
     
     names(sdata)[6] <- "bba_category"
     sdata['species'] <- m_sp[i]
