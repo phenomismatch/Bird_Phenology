@@ -23,8 +23,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2019-03-11'
-RUN_DATE <- '2019-03-11'
+db_dir <- 'eBird_query_2019-03-27'
+RUN_DATE <- '2019-03-27'
 
 
 
@@ -280,12 +280,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 13
+  #j <- 4
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
   {
-    #k <- 33
+    #k <- 37
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
@@ -388,7 +388,7 @@ for (j in 1:nyr)
       
       ########################
       #PLOT MODEL FIT AND DATA
-      
+
       #summary(fit2)
       mn_dfit <- apply(dfit, 2, mean)
       LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
