@@ -6,7 +6,7 @@
 # Creates directory of processed data (rds file for each species) and copy of this 
 # ... script (for reproducability) in /Data/Processed/eBird_query_<DATE>
 #
-# Runtime: 8-9 hours on 7 core machine - could be sped if run on on Xanadu?
+# Runtime: 10-11 hours using 4 cores - could be sped if run on on Xanadu?
 ####################
 
 
@@ -94,7 +94,7 @@ setwd(query_dir_path)
 # * species of interest (import from text file)
 # * only complete checklists
 # * duration minutes (6 min to 24 hours)
-# * lat (> 26) and lon (-100 to -50)
+# * lat (> 26) and lon (-95 to -50)
 # * year > 2001
 # * day of year (< julian day 200)
 # * time started before 18:00
@@ -147,14 +147,14 @@ setwd(query_dir_path)
 
 # Query and filter - event_id ----------------------------------------------------
 
-#*get info for each unique event
+#*get all event_ids that meet criterea
 #*create species columns with NA
 #*in a loop, query each species individually and fill obs with 1s, no obs with 0s
 #*merge with hex cells
 #*create rds objects for each species
 
 
-#filter all unique event_ids that meet criteria - about 38 min to complete query
+#filter all unique event_ids that meet criteria - about 45? min to complete query
 data <- DBI::dbGetQuery(cxn, paste0("
                                     SELECT DISTINCT ON (event_id) event_id, year, day, place_id, lat, lng, started, 
                                     radius,
@@ -173,7 +173,6 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND day < 200
                                     AND lng BETWEEN -95 AND -50
                                     AND lat > 26
-                                    AND (sci_name IN (", SL,"))
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
                                     AND LEFT(started, 2)::int < 18
                                     AND RADIUS < 100000;
@@ -188,7 +187,7 @@ rm(data)
 
 
 
-# add sjday, sjday^2, sjday^3 and shr ---------------------------------------------------
+# add jday and shr ---------------------------------------------------
 
 #julian day
 data2$jday <- as.vector(data2$day)
