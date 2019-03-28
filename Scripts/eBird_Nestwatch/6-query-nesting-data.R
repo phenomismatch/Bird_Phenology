@@ -155,10 +155,9 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     count_json ->> 'GLOBAL_UNIQUE_IDENTIFIER' AS global_unique_id,
                                     (event_json ->> 'NUMBER_OBSERVERS')::int AS number_observers,
                                     event_json ->> 'GROUP_IDENTIFIER' AS group_identifier
-                                    FROM places
-                                    JOIN events USING (place_id)
-                                    JOIN counts USING (event_id)
-                                    JOIN taxa USING (taxon_id)
+                                    FROM events
+                                    INNER JOIN places USING (place_id)
+                                    LEFT JOIN counts USING (event_id)                                    
                                     WHERE events.dataset_id = 'ebird'
                                     AND year > 2001
                                     AND day < 300
@@ -225,9 +224,9 @@ foreach::foreach(i = 1:nsp) %dopar%
   temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name,
                                       count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
                                       FROM events
-                                      JOIN places USING (place_id)
-                                      JOIN counts USING (event_id)
-                                      JOIN taxa USING (taxon_id)
+                                      INNER JOIN places USING (place_id)
+                                      INNER JOIN counts USING (event_id)
+                                      INNER JOIN taxa USING (taxon_id)
                                       WHERE events.dataset_id = 'ebird'
                                       AND year > 2001
                                       AND day < 300
@@ -298,7 +297,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   data2[z_ind, species_list_i[i,1]] <- 0
   
   sdata <- dplyr::select(data2, 
-                         global_unique_id, year, jday,
+                         event_id, year, jday,
                          shr, cell, species_list_i[i,1])
   
   names(sdata)[6] <- "bba_category"
@@ -347,9 +346,9 @@ if (length(m_sp2) > 0)
     temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, sci_name,
                                         count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
                                         FROM events
-                                        JOIN places USING (place_id)
-                                        JOIN counts USING (event_id)
-                                        JOIN taxa USING (taxon_id)
+                                        INNER JOIN places USING (place_id)
+                                        INNER JOIN counts USING (event_id)
+                                        INNER JOIN taxa USING (taxon_id)
                                         WHERE events.dataset_id = 'ebird'
                                         AND year > 2001
                                         AND day < 300
@@ -418,7 +417,7 @@ if (length(m_sp2) > 0)
     data2[z_ind, m_sp[i]] <- 0
     
     sdata <- dplyr::select(data2, 
-                           global_unique_id, year, jday,
+                           event_id, year, jday,
                            shr, cell, m_sp[i])
     
     
