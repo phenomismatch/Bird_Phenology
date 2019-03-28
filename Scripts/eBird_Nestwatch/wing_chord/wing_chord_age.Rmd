@@ -1,34 +1,57 @@
 ---
 title: "Wing chord ~ age"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+author: Casey Youngflesh
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
 ```
 
 
-Database query:
----------------
+### Purpose
+
+Investigate changes in wing chord over the lifespan of birds.
+
+### Database query
+
 Day between 100 and 300
-Long between -95 and -50
-Lat > 26
 Only capture code 'N', 'R', 'U' (new, recaptures, unbanded birds)
 
 
-Data processing:
-----------------
+### Data processing
+
 Fill true age for each bird for each year. Done using birth year derived from birds either caught during the hatch year or birds listed as Second Year Bird. Remove all 0 values for weight and wing_chord. Filter to only known age adults (greater than 1 year old AKA Second Year or later).
 
 For each individual band_id, take mean wing_chord for Age 1 (Second Year) and mean wing chord for Age 2+ (Third Year +); also calculate wing_chord coefficient of variation (sd/mean) Age 1 and Age 2+. Remove any individuals that have Age 1 CV of greater than 0.03 and Age 2+ CV of greater than 0.05 (sds that are greater than 3% and 5% of mean, respectively).
 
 
-Analysis:
----------
-Run paired two-tailed t-test for each species that had measurements for greater than 10 individuals (to test difference in wing_chord between Age 1 and Age 2+ age classes). Estimated difference and p-values returned for each species.
+### Analysis
+
+Run paired two-tailed t-test for each species that had measurements for more than 20 individuals (to test difference in wing_chord between Age 1 and Age 2+ age classes). Estimated difference and corrected p-values returned for each species. There are likely better ways to analyze these data, but this was relatively straightforward and easy.
+
+
+### Results
+
+Wing chord increase from Age 1 (Second Year) to Age 2+ (Third Year+). This holds true across most species analyzed.
+
+&nbsp;
 
 
 ```{r}
+# top-level dir -----------------------------------------------------------
+
+dir <- '~/Google_Drive/R/'
+
+
+# Load packages -----------------------------------------------------------
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 maps_data <- readRDS('MAPS-age-filled.rds')
 ```
@@ -119,29 +142,34 @@ for (i in 1:length(nsp))
                    a2p_mn = round(mean(temp$a2p_wc), 2),
                    a2p_sd = round(sd(temp$a2p_wc, na.rm = TRUE), 2),
                    est = round(tfit$estimate, 3), 
-                   p = round(tfit$p.value, 5))
+                   p = round(tfit$p.value, 4))
   out <- rbind(out, tt)
 }
 row.names(out) <- NULL
 
 #Benjamini & Hochberg p-value correction
 out$p_adj <-  round(p.adjust(out$p, method="BH"), 3)
+
+out2 <- out[,c('sp', 'cn', 'est', 'p_adj')]
+colnames(out2) <- c('scientific name', 'common name', 'difference', 'corrected p-value')
 ```
 
 
+```{r}
+sp_table <- knitr::kable(out2)
+kableExtra::kable_styling(sp_table, bootstrap_options = "striped", full_width = F)
+```
 
+Table 1: Results from t-tests. Estimated differences in wing chord (in mm) between Age 1 (Second Year) and Age 2+ (Third Year +) birds and Benjamini & Hochberg adjusted p-values (multiple comparison correction). Negative values for differences in wing chord represent an increase in wing chord with age.
 
+&nbsp;
 
 ```{r}
 # plot results ------------------------------------------------------------
 
-
-#histograms of estimated differences and p-values
-hist(out$est)
-hist(out$p)
-
-
-
+# #histograms of estimated differences and p-values
+# hist(out$est)
+# hist(out$p)
 
 #boxplot
 tplt <- reshape2::melt(ttd3[,c('sp', 'a1_wc', 'a2p_wc')], id = 'sp')
@@ -150,9 +178,12 @@ tplt$spvar <- interaction(tplt$sp, tplt$var)
 ggplot(aes(y = value, x = sp, fill = variable), data = tplt) + 
   geom_boxplot() +
   theme_bw() +
-  theme(legend.position="none")
-
-
+  theme(legend.position="none",
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + 
+  coord_cartesian(ylim = c(38, 140)) +
+  ylab('Wing chord (mm)') +
+  xlab('Species')
 
 #plots of all individuals used in final analysis
 # nmc <- dplyr::filter(maps_c, band_id %in% ttd3$band_id)
@@ -162,10 +193,7 @@ ggplot(aes(y = value, x = sp, fill = variable), data = tplt) +
 #   theme_bw() +
 #   theme(legend.position="none")
   
-
-#plot of before and after lines for each species
-
-head(out)
 ```
 
+Figure 1: Boxplots for wing chord measurements for Age 1 (Second Year; RED) and Age 2+ (Third Year +; BLUE) birds for each species. Note that while the same individuals are shown in both groups, you can't properly visualize the paired differences between the two time period for each individual in this way. There are likely better ways to visualize these data.
 
