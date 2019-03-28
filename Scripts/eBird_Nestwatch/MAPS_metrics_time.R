@@ -22,7 +22,7 @@ library(brms)
 setwd(paste0(dir, '/..'))
 #setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
-maps_data <- readRDS('MAPS_age_filled.rds')
+maps_data <- readRDS('MAPS-age-filled.rds')
 
 
 
