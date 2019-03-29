@@ -69,6 +69,7 @@ maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_nam
                                          (count_json ->> 'BAND') AS band_id,
                                          (count_json ->> 'AGE')::int AS age,
                                          (count_json ->> 'SEX') AS sex,
+                                         (count_json ->> 'FW') AS feather_wear,
                                          (count_json ->> 'CP')::int AS cloacal_pro,
                                          (count_json ->> 'BP')::int AS brood_patch,
                                          (count_json ->> 'F')::int AS fat_content,
@@ -194,14 +195,23 @@ for (i in 1:length(ids))
 }
 close(pb)
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-saveRDS(maps_data, 'MAPS-age-filled.rds')
+#one time fill with feather wear to avoid refilling age data
+# qq <- readRDS('MAPS-age-filled.rds')
+# qq$feather_wear <- maps_data$feather_wear
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+# saveRDS(qq, 'MAPS-age-filled.rds')
 
 
+#save RDS file
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+# saveRDS(maps_data, 'MAPS-age-filled.rds')
 
 
 
 # Process wing chord data --------------------------------------------
+
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+# maps_data <- readRDS('MAPS-age-filled.rds')
 
 
 #remove records that have weight 0 and wing chord 0
@@ -359,4 +369,48 @@ ggplot(aes(y = value, x = sp, fill = variable), data = tplt) +
 
 #plot of before and after lines for each species
 
+
+
+setwd(paste0(dir, '/Bird_Phenology/Data/Traits'))
+traits <- read.csv('Trait_database-2019-03-28.csv')
+
 head(out)
+head(traits)
+
+j_out <- dplyr::left_join(out, traits, by = c('sp' = 'SCI_NAME'))
+head(j_out)
+
+
+plot(j_out$a1_mn, j_out$est, xlab = 'SY Wing Chord', 
+     ylab = 'Diff')
+fit <- lm(est ~ a2p_mn, data = j_out)
+abline(fit, col = 'red')
+
+res <- residuals(fit)
+plot(res, j_out$est/j_out$a2p_mn)
+plot(res, j_out$MIGRATION_DISTANCE_LASORTE, 
+     xlab = 'Wing Chord Residuals', ylab = 'Migration Distance')
+plot(res, j_out$SPRING_MIGRATION_SPEED_LASORTE,
+     xlab = 'Wing Chord Residuals', ylab = 'Migration Speed')
+
+
+plot((j_out$est/j_out$a2p_mn), j_out$MIGRATION_DISTANCE_LASORTE)
+plot((j_out$est/j_out$a2p_mn), j_out$SPRING_MIGRATION_SPEED_LASORTE)
+plot((j_out$est), j_out$MIGRATION_DISTANCE_LASORTE)
+plot((j_out$est), j_out$SPRING_MIGRATION_SPEED_LASORTE)
+
+
+plot(j_out$BODY_MASS_ELTON, j_out$est)
+plot(j_out$MIGRATION_DISTANCE_LASORTE, j_out$est)
+plot(j_out$SPRING_MIGRATION_SPEED_LASORTE, j_out$est)
+plot(j_out$FALL_MIGRATION_SPEED_LASORTE, j_out$est)
+
+plot(j_out$BODY_MASS_ELTON, j_out$MIGRATION_DISTANCE_LASORTE)
+plot(j_out$BODY_MASS_ELTON, j_out$SPRING_MIGRATION_SPEED_LASORTE)
+plot(j_out$MIGRATION_DISTANCE_LASORTE, j_out$SPRING_MIGRATION_SPEED_LASORTE)
+plot(j_out$MIGRATION_DISTANCE_LASORTE, j_out$FALL_MIGRATION_SPEED_LASORTE)
+plot(j_out$SPRING_MIGRATION_SPEED_LASORTE, j_out$FALL_MIGRATION_SPEED_LASORTE)
+plot(j_out$EGG_MASS_BONA, j_out$BODY_MASS_ELTON)
+
+
+
