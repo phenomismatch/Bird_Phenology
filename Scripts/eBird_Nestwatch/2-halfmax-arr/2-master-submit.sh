@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-03-27"
+DATE="2019-03-28"
 mkdir /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE
 
 while read name
