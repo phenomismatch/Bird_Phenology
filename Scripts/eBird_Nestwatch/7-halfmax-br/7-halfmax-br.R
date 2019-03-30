@@ -306,21 +306,21 @@ for (j in 1:nyr)
     #number of surveys where breeding was not detected (bird not seen breeding or not seen)
     n0 <- sum(cyspdata$br == 0)
     #number of detections that came before jday 60
-    n1W <- sum(cyspdata$br * as.numeric(cyspdata$day < 60))
+    n1W <- sum(cyspdata$br * as.numeric(cyspdata$jday < 60))
     #number of unique days with detections
-    njd1 <- length(unique(cyspdata$day[which(cyspdata$br == 1)]))
+    njd1 <- length(unique(cyspdata$jday[which(cyspdata$br == 1)]))
     #number of unique days with non-detection
-    njd0 <- length(unique(cyspdata$day[which(cyspdata$br == 0)]))
+    njd0 <- length(unique(cyspdata$jday[which(cyspdata$br == 0)]))
     
     
     if (n1 > 0)
     {
       #number of unique days of non-detections before first detection
-      njd0i <- length(unique(cyspdata$day[which(cyspdata$br == 0 & cyspdata$day < 
-                                                 min(cyspdata$day[which(cyspdata$br == 1)]))]))
+      njd0i <- length(unique(cyspdata$jday[which(cyspdata$br == 0 & cyspdata$jday < 
+                                                 min(cyspdata$jday[which(cyspdata$br == 1)]))]))
       #number of non-detections before first detection
       n0i <- length(which(cyspdata$br == 0 & 
-                            cyspdata$day < min(cyspdata$day[which(cyspdata$br == 1)])))
+                            cyspdata$jday < min(cyspdata$jday[which(cyspdata$br == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
@@ -423,7 +423,7 @@ for (j in 1:nyr)
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
       cyspdata$br[which(cyspdata$br == 1)] <- max(UCI_dfit)
-      points(cyspdata$day, cyspdata$br, col = rgb(0,0,0,0.25))
+      points(cyspdata$jday, cyspdata$br, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)

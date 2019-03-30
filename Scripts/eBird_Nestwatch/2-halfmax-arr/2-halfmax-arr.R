@@ -23,8 +23,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2019-03-27'
-RUN_DATE <- '2019-03-27'
+db_dir <- 'eBird_query_2019-03-29'
+RUN_DATE <- '2019-03-29'
 
 
 
@@ -118,7 +118,7 @@ if (length(g_ind) == 0)
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
 sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
 #crop to area of interest
-sp_rng2 <- raster::crop(sp_rng, extent(-100, -50, 26, 90))
+sp_rng2 <- raster::crop(sp_rng, raster::extent(-100, -50, 26, 90))
 
 #filter by breeding (2) and migration (4) range - need to convert spdf to sp
 nrng <- sp_rng2[which(sp_rng2$SEASONAL == 2 | sp_rng2$SEASONAL == 4),]
@@ -280,7 +280,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 4
+  #j <- 1
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
@@ -295,21 +295,21 @@ for (j in 1:nyr)
     #number of surveys where species was not detected
     n0 <- sum(cyspdata$detect == 0)
     #number of detections that came before jday 60
-    n1W <- sum(cyspdata$detect * as.numeric(cyspdata$day < 60))
+    n1W <- sum(cyspdata$detect * as.numeric(cyspdata$jday < 60))
     #number of unique days with detections
-    njd1 <- length(unique(cyspdata$day[which(cyspdata$detect == 1)]))
+    njd1 <- length(unique(cyspdata$jday[which(cyspdata$detect == 1)]))
     #number of unique days with non-detection
-    njd0 <- length(unique(cyspdata$day[which(cyspdata$detect == 0)]))
+    njd0 <- length(unique(cyspdata$jday[which(cyspdata$detect == 0)]))
     
     
     if (n1 > 0)
     {
       #number of unique days of non-detections before first detection
-      njd0i <- length(unique(cyspdata$day[which(cyspdata$detect == 0 & cyspdata$day < 
-                                                 min(cyspdata$day[which(cyspdata$detect == 1)]))]))
+      njd0i <- length(unique(cyspdata$jday[which(cyspdata$detect == 0 & cyspdata$jday < 
+                                                 min(cyspdata$jday[which(cyspdata$detect == 1)]))]))
       #number of non-detections before first detection
       n0i <- length(which(cyspdata$detect == 0 & 
-                            cyspdata$day < min(cyspdata$day[which(cyspdata$detect == 1)])))
+                            cyspdata$jday < min(cyspdata$jday[which(cyspdata$detect == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
@@ -405,7 +405,7 @@ for (j in 1:nyr)
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
       cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
-      points(cyspdata$day, cyspdata$detect, col = rgb(0,0,0,0.25))
+      points(cyspdata$jday, cyspdata$detect, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
