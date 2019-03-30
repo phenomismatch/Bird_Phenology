@@ -19,8 +19,8 @@ library(brms)
 
 # load data ---------------------------------------------------------------
 
-setwd(paste0(dir, '/..'))
-#setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
 maps_data <- readRDS('MAPS-age-filled.rds')
 
@@ -43,7 +43,7 @@ sp_p <- dplyr::filter(d_cnt, freq > 1000)[,1]
 
 #subset of species
 set.seed(1)
-sp <- base::sample(sp_p, size = 6)
+sp <- base::sample(sp_p, size = 50)
 #sp <- sp_p
 
 maps_f <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
@@ -632,70 +632,81 @@ summary(b_fit_sweight)
 
 # wing chord --------------------------------------------------------------
 
-maps_adults <- dplyr::filter(maps_data, age %in% c('1', '5', '6', '7', '8'))
 
 #QC data - remove zeros
-to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(maps_adults$weight) | is.na(maps_adults$weight) | is.na(maps_adults$fat_content) | is.na(maps_adults$wing_chord))
-maps_adults_qc <- maps_adults[-to.rm, ]
+to.rm <- which(maps_data$weight == 0 | maps_data$wing_chord == 0 | 
+                 is.na(maps_data$weight) | is.na(maps_data$weight) | 
+                 is.na(maps_data$fat_content) | is.na(maps_data$wing_chord))
+maps_data_qc <- maps_data[-to.rm, ]
 
-#only species with > 1000 data points
-d_cnt <- plyr::count(maps_adults_qc, 'sci_name')
-sp_p <- dplyr::filter(d_cnt, freq > 1000)[,1]
+#just age 2+ males caught on or before day 200
+maps_ad <- dplyr::filter(maps_data_qc, sex == 'M', age >= 5, day <=200)
+
+#remove WC values outside 3 sd of mean
+usp_maps_ad <- unique(maps_ad$sci_name)
+maps_ad_qc <- data.frame()
+for (i in 1:length(usp_maps_ad))
+{
+  #i <- 7
+  temp <- dplyr::filter(maps_ad, sci_name == usp_maps_ad[i])
+  sd_wc <- sd(temp$wing_chord)
+  mn_wc <- mean(temp$wing_chord)
+  #outside 3 sds
+  low <- mn_wc - 3*sd_wc
+  high <-  mn_wc + 3*sd_wc
+  to.rm <- which(temp$wing_chord < low | temp$wing_chord > high)
+  if (length(to.rm) > 0)
+  {
+    tt <- temp[-to.rm,]
+  } else {
+    tt <- temp
+  }
+  
+  maps_ad_qc <- rbind(maps_ad_qc, tt)
+}
+
+
+#only species with > 500 data points
+d_cnt <- plyr::count(maps_ad_qc, 'sci_name')
+sp_p <- dplyr::filter(d_cnt, freq > 500)[,1]
 
 #subset of species
 set.seed(1)
-#sp <- base::sample(sp_p, size = 30)
-sp <- sp_p
+sp <- base::sample(sp_p, size = 50)
+#sp <- sp_p
 
-maps_f <- dplyr::filter(maps_adults_qc, sci_name %in% sp)
+stan_data <- dplyr::filter(maps_ad_qc, sci_name %in% sp)
 
-#factor for species_id
-maps_f$sp_f <- factor(maps_f$sci_name)
-usp <- unique(maps_f$sci_name)
-
-maps_f$year_f <- as.numeric(factor(maps_f$year))
-maps_f$sweight <- maps_f$weight/maps_f$wing_chord
-
-#brms_data <- dplyr::filter(maps_f, day <= 160, day >=130)
-
-#only males age 2+
-brms_data <- dplyr::filter(maps_f, sex == 'M', age >= 5)
-
-#factors for sp and fat
-brms_data$fat_f <- ordered(brms_data$fat_content)
-brms_data$st_f <- as.numeric(factor(brms_data$station))
+#factor for species_id and year
+stan_data$sp_f <- factor(stan_data$sci_name)
+usp <- sort(unique(stan_data$sci_name))
+stan_data$year_f <- as.numeric(factor(stan_data$year))
 
 
 
 
 
-DATA <- list(K = length(unique(brms_data$fat_content)),
-             N = NROW(brms_data),
+DATA <- list(N = NROW(stan_data),
              Nsp = length(usp),
-             Nst = length(brms_data$st_f),
-             y = brms_data$wing_chord,
-             sp = as.numeric(brms_data$sp_f), #species
-             st = brms_data$st_f, #station
-             year = brms_data$year_f,
-             day = brms_data$day,
-             lat = brms_data$lat)
+             Nst = length(stan_data$st_f),
+             y = stan_data$wing_chord,
+             sp = as.numeric(stan_data$sp_f), #species
+             st = stan_data$st_f, #station
+             year = stan_data$year_f,
+             lat = stan_data$lat)
 
 stanmodel2 <- "
 data {
-int<lower=0> K;                     // number of bins
 int<lower=0> N;                     // number of obs
 int<lower=0> Nsp;                   // number of species
-int<lower=0> Nst;                   // number of stations
 real<lower=0> y[N];                 // response
 int<lower=1, upper=Nsp> sp[N];      // groups
-int<lower=1, upper=Nst> st[N];      // stations
 vector<lower=0>[N] year;
-vector<lower=0>[N] day;
 vector<lower=0>[N] lat;
 }
 
 parameters {
-vector[Nsp] eta_raw;
+vector[Nsp] alpha_raw;
 real gamma_raw;
 real beta_raw;
 real rho_raw;
@@ -704,13 +715,13 @@ real<lower = 0> sigma_raw;
 
 transformed parameters {
 vector[N] mu;
-vector[Nsp] eta;
+vector[Nsp] alpha;
 real gamma;
 real beta;
 real rho;
 real<lower = 0> sigma;
 
-eta = eta_raw * 20;              // eta ~ normal(0, 3)
+alpha = alpha_raw * 20;              // alpha ~ normal(0, 3)
 gamma = gamma_raw * 2;          // gamma ~ normal(0, 2)
 beta = beta_raw * 2;            // beta ~ normal(0, 2)
 rho = rho_raw * 2;              // rho ~ normal(0, 2)
@@ -718,12 +729,12 @@ sigma = sigma_raw * 5;
 
 for (i in 1:N)
 {
-  mu[i] = eta[sp[i]] + gamma * lat[i] + beta * year[i] + rho * (year[i] * lat[i]);
+  mu[i] = alpha[sp[i]] + gamma * lat[i] + beta * year[i] + rho * (year[i] * lat[i]);
 }
 }
 
 model {
-eta_raw ~ normal(0, 1);
+alpha_raw ~ normal(0, 1);
 gamma_raw ~ normal(0, 1);
 beta_raw ~ normal(0, 1);
 rho_raw ~ normal(0, 1);
@@ -742,7 +753,7 @@ y_rep = normal_rng(mu, sigma);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.93
+DELTA <- 0.90
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.005
 CHAINS <- 4
@@ -754,7 +765,7 @@ fit2 <- rstan::stan(model_code = stanmodel2,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('eta',
+                   pars = c('alpha',
                             'gamma',
                             'beta',
                             'rho',
@@ -779,3 +790,33 @@ launch_shinystan(fit2)
 # bayesplot::ppc_dens_overlay(y, yrep_poisson[1:50, ])
 
 
+
+d_cnt <- plyr::count(stan_data, 'sci_name')
+
+
+p_fun <- function(NUM)
+{
+  #NUM <- 4
+  dt <- dplyr::filter(stan_data, sci_name == d_cnt[NUM,1])
+  print(paste0('SN: ', dt$sci_name[1]))
+  print(paste0('CN: ', dt$common_name[1]))
+  print(paste0('OBS: ', d_cnt[NUM,2]))
+  bound <- quantile(dt$wing_chord, probs = c(0.01, 0.99))
+  plot(dt$year, dt$wing_chord, col = rgb(0,0,0,0.3), ylim = c(bound[1], bound[2]))
+  fity <- lm(wing_chord ~ year, data = dt)
+  abline(fity, col = 'red')
+  print(paste0('R2: ', round(summary(fity)$r.squared, 3)))
+  print(paste0('p: ', round(summary(fity)$coef[2,4], 3)))
+  plot(dt$lat, dt$wing_chord, col = rgb(0,0,0,0.3), ylim = c(bound[1], bound[2]))
+  fitl <- lm(wing_chord ~ lat, data = dt)
+  abline(fitl, col = 'red')
+  print(paste0('R2: ', round(summary(fitl)$r.squared, 3)))
+  print(paste0('p: ', round(summary(fitl)$coef[2,4], 3)))
+}
+
+
+par(mfrow = c(2,1))
+for (i in 1:length(usp))
+{
+  p_fun(i)
+}
