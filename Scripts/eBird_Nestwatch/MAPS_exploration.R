@@ -31,7 +31,7 @@ library(dggridR)
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
-maps_data <- readRDS('MAPS_age_filled.rds')
+maps_data <- readRDS('MAPS-age-filled.rds')
 
 
 
@@ -186,12 +186,13 @@ for (i in 1:length(sci_names))
 
 #getting larger but losing fat content and relative weight as they age
 
-to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(maps_adults$weight) | is.na(maps_adults$fat_content))
+to.rm <- which(maps_adults$weight == 0 | maps_adults$wing_chord == 0 | is.na(maps_adults$weight) | is.na(maps_adults$fat_content) | is.na(maps_adults$wing_chord))
 maps_adults_qc <- maps_adults[-to.rm, ]
 
 ma_qc <-  dplyr::filter(maps_adults_qc, !is.na(true_age))
 
 #quantile regression with fat/weight and age
+sci_names <- sort(unique(ma_qc$sci_name))
 
 df_tt3 <- data.frame(sci_name = rep(NA, length(sci_names)),
                      c_name = NA,
@@ -234,8 +235,8 @@ for (i in 1:length(sci_names))
     df_tt3$pv_fat[i] <- round(tfit2$coef[2,4], 3)
     
     tfit3 <- summary(lm(wing_chord ~ true_age, data = temp))
-    plot(temp$true_age, temp$wing_chord, main = paste0('Wing Chord ', temp$sci_name[1]))
-    abline(tfit3, col = 'red')
+    #plot(temp$true_age, temp$wing_chord, main = paste0('Wing Chord ', temp$sci_name[1]))
+    #abline(tfit3, col = 'red')
     df_tt3$slope_wc[i] <- round(tfit3$coef[2,1], 3)
     df_tt3$pv_wc[i] <- round(tfit3$coef[2,4], 3)
   }
@@ -296,26 +297,26 @@ for (i in 1:length(sci_names))
   if (length(unique(temp$year)) > 3)
   {
     tfit <- summary(lm((weight/wing_chord) ~ year, data = temp))
-    plot(temp$year, (temp$weight/temp$wing_chord), main = paste0('Weight ', temp$sci_name[1]))
-    abline(tfit, col = 'red')
+    # plot(temp$year, (temp$weight/temp$wing_chord), main = paste0('Weight ', temp$sci_name[1]))
+    # abline(tfit, col = 'red')
     df_tt2$slope_sweight[i] <- round(tfit$coef[2,1], 3)
     df_tt2$pv_sweight[i] <- round(tfit$coef[2,4], 3)
     
     tfit15 <- summary(lm(weight ~ year, data = temp))
-    plot(temp$year, temp$weight, main = paste0('Weight ', temp$sci_name[1]))
-    abline(tfit15, col = 'red')
+    # plot(temp$year, temp$weight, main = paste0('Weight ', temp$sci_name[1]))
+    # abline(tfit15, col = 'red')
     df_tt2$slope_weight[i] <- round(tfit15$coef[2,1], 3)
     df_tt2$pv_weight[i] <- round(tfit15$coef[2,4], 3)
     
     tfit2 <- summary(lm(fat_content ~ year, data = temp))
-    plot(temp$year, temp$fat_content, main = paste0('Fat ', temp$sci_name[1]))
-    abline(tfit2, col = 'red')
+    # plot(temp$year, temp$fat_content, main = paste0('Fat ', temp$sci_name[1]))
+    # abline(tfit2, col = 'red')
     df_tt2$slope_fat[i] <- round(tfit2$coef[2,1], 3)
     df_tt2$pv_fat[i] <- round(tfit2$coef[2,4], 3)
     
     tfit3 <- summary(lm(wing_chord ~ year, data = temp))
-    plot(temp$year, temp$wing_chord, main = paste0('Wing Chord ', temp$sci_name[1]))
-    abline(tfit3, col = 'red')
+    # plot(temp$year, temp$wing_chord, main = paste0('Wing Chord ', temp$sci_name[1]))
+    # abline(tfit3, col = 'red')
     df_tt2$slope_wc[i] <- round(tfit3$coef[2,1], 3)
     df_tt2$pv_wc[i] <- round(tfit3$coef[2,4], 3)
   }
