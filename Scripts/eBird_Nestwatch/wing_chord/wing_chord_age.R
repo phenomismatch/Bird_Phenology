@@ -33,7 +33,7 @@ library(dplyr)
 library(RPostgreSQL)
 library(DBI)
 library(ggplot2)
-
+library(rstan)
 
 
 # # query DB ----------------------------------------------------------------
@@ -204,8 +204,8 @@ library(ggplot2)
 
 # Process wing chord data --------------------------------------------
 
-#setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
-setwd(paste0(dir, '../'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+#setwd(paste0(dir, '../'))
 maps_data <- readRDS('MAPS-age-filled.rds')
 
 
@@ -214,18 +214,43 @@ to.rm <- which(maps_data$weight == 0 | maps_data$wing_chord == 0 |
                  is.na(maps_data$weight) | is.na(maps_data$fat_content) | is.na(maps_data$wing_chord))
 maps_data_qc <- maps_data[-to.rm, ]
 
-#only known-age adults
-maps_adults_qc <- dplyr::filter(maps_data_qc, true_age > 0)
+#only known-age adults with feather wear data
+maps_adults_qc <- dplyr::filter(maps_data_qc, true_age > 0, !is.na(feather_wear))
+
+
+#remove WC values outside 3 sd of mean
+usp_maps_ad <- unique(maps_adults_qc$sci_name)
+maps_adults_qc2 <- data.frame()
+for (i in 1:length(usp_maps_ad))
+{
+  #i <- 7
+  temp <- dplyr::filter(maps_adults_qc, sci_name == usp_maps_ad[i])
+  sd_wc <- sd(temp$wing_chord)
+  mn_wc <- mean(temp$wing_chord)
+  #outside 3 sds
+  low <- mn_wc - 3*sd_wc
+  high <-  mn_wc + 3*sd_wc
+  to.rm <- which(temp$wing_chord < low | temp$wing_chord > high)
+  if (length(to.rm) > 0)
+  {
+    tt <- temp[-to.rm,]
+  } else {
+    tt <- temp
+  }
+  
+  maps_adults_qc2 <- rbind(maps_adults_qc2, tt)
+}
+
 
 #find unique band ids
-bid_cnt <- plyr::count(maps_adults_qc$band_id)
+bid_cnt <- plyr::count(maps_adults_qc2$band_id)
 
 #individuals that have been captured more than 2 times
 bid_c <- dplyr::filter(bid_cnt, freq > 2)
 c_birds <- bid_c[,1]
 
 #only band_ids of interest
-maps_c <- dplyr::filter(maps_adults_qc, band_id %in% c_birds)
+maps_c <- dplyr::filter(maps_adults_qc2, band_id %in% c_birds)
 
 #band ids
 nid <- unique(maps_c$band_id)
@@ -423,9 +448,9 @@ nid <- unique(maps_c$band_id)
 m_band_id <- data.frame()
 for (i in 1:length(nid))
 {
-  #i <- 1
+  #i <- 6428
   temp <- dplyr::filter(maps_c, band_id == nid[i])
-  
+
   #only if have at least one year age > 1 and one year age = 1
   if (sum(temp$true_age > 1) > 0 & sum(temp$true_age == 1) > 0)
   {
@@ -437,112 +462,71 @@ for (i in 1:length(nid))
   }
 }
 
+#remove bandid: 199172930
+#CODED AS BOTH Dumetella carolinensis AND Myiarchus tyrannulus
+#remove bandid: 199172905
+#CODED AS BOTH Dumetella carolinensis AND Melozone crissalis
+# dplyr::filter(maps_data, band_id == '199172930')
+# dplyr::filter(maps_data, band_id == '199172905')
+
+m_band_id2 <- m_band_id[-which(m_band_id$band_id == '199172930' |
+                                 m_band_id$band_id == '199172905'),]
 
 #only species that have > 20 individuals
-csp <- plyr::count(m_band_id, 'sp')
-nsp <- csp[which(csp$freq > 20), 1]
+csp <- plyr::count(m_band_id2, 'sp')
+nsp <- as.character(csp[which(csp$freq > 20), 1])
 
 #filter relevant species
-m_band_id_2 <- dplyr::filter(m_band_id, sp %in% nsp)
+m_band_id3 <- dplyr::filter(m_band_id2, sp %in% nsp)
 
-u_bid <- unique(m_band_id_2$band_id)
+u_bid <- unique(m_band_id3$band_id)
 
 #filter based on new band_ids
-maps_c2 <- dplyr::filter(maps_c, band_id %in% u_bid, !is.na(feather_wear))
-
-usp <- unique(maps_c2$sci_name)
-u_bid2 <- unique(maps_c2$band_id)
+maps_c2 <- dplyr::filter(maps_c, band_id %in% u_bid)
 
 
-
-
-#FINISH BUILDING DF FOR MODEL
-for (i in 1:length(u_bid2))
-{
-  #i <- 1
-  dplyr::filter(maps_c2, band_id == u_bid2[i])
-}
-
+#age ids
 #when true_age == 1, x = 1
 #when true_age > 1, x = 2
 maps_c2$x <- NA
 maps_c2$x[which(maps_c2$true_age == 1)] <- 1
 maps_c2$x[which(maps_c2$true_age > 1)] <- 2
 
+#sci names as numbers
+maps_c2$sci_name_f <- as.numeric(factor(maps_c2$sci_name))
 
-#y[i] = wing chord obs
-#ind[i] = id # j at obs i
-#sp[i] = species # s for measure i
-#sp_j[j] = species # s for ind j
-#x[i] = stage k
-#FW[i] = feather wear for that obs
-#alpha[j,k] = intercept for ind j at stage k
-#beta[s] = effect of feather wear on wing chord for species s
-#sigma[s] = unaccounted for variance in mean as a function of feather wear
-#mu_sp[s,k] = mean for species s, stage k
-#sigma_sp[s,k] = sd for species s, stage k
-#nu = degrees of freedom
-#mu_pooled[s] = mean wing chord for species s
-#sigma_pooled[s] = sd wing chord for species s
-#mu_mp = mean of species wing chord means
-#sigma_mp = sd of species wing chord means
-#mu_sigp = mean of species wing chord sd
-#sigma_sigp = sd of species wing chord sd
+#individual ids as numbers
+maps_c2$band_id_f <- as.numeric(factor(maps_c2$band_id))
+
+usp <- unique(maps_c2$sci_name)
+usp_f <- unique(maps_c2$sci_name_f)
+u_bid2 <- unique(maps_c2$band_id)
+u_bid2_f <- unique(maps_c2$band_id_f)
 
 
-#prep data for stan model
-DATA <- list(N = NROW(maps_c2),
-             NS = length(usp),
-             NJ = length(u_bid2),
-             ind = as.numeric(factor(maps_c2$band_id)), #individuals
-             sp = as.numeric(factor(maps_c2$sci_name)), #species
-             sp_j = ,
-             y = maps_c2$wing_chord,
-             x = maps_c2$x,
-             FW = as.numeric(maps_c2$feather_wear) + 1,
-             )
-
-stanmodel <- "
-data {
-int<lower=0> N;                     // number of obs
-int<lower=0> NS;                    // number of species
-int<lower=0> NJ;                    // number of individuals
-real<lower=0> y[N];                 // response
-real<lower=0> sp[N];                // species id
-int<lower=0> ind[N];                // individual id
-int<lower=1> x[N];                  // stage id
-int<lower=1> FW[N];                 // feather wear index
-int<lower=1> sp_j[NJ];              // species id for individual
+#species id for each individual
+sp_j <- rep(NA, length(u_bid2_f))
+for (i in 1:length(u_bid2_f))
+{
+  #i <- 1
+  temp <- dplyr::filter(maps_c2, band_id_f == i)
+  sp_j[i] <- temp$sci_name_f[1]
 }
 
-parameters {
-real mu_alpha_raw;
-real mu_beta_raw;
-real mu_gamma_raw;
-real<lower = 0> sigma_raw;
-vector<lower = 0>[3] sigma_sp_raw;                // standard deviations
-cholesky_factor_corr[3] L_Rho;                    // correlation matrix
-matrix[3, Nsp] z;
-// real eta_raw;
-real nu_raw;
+#mean and sd for each species
+mean_sp <- c()
+sd_sp <- c()
+for (i in 1:length(usp_f))
+{
+  #i <- 25
+  temp <- dplyr::filter(maps_c2, sci_name_f == i)
+  temp_mn <- mean(temp$wing_chord)
+  temp_sd <- sd(temp$wing_chord)
+  
+  mean_sp <- c(mean_sp, temp_mn)
+  sd_sp <- c(sd_sp, temp_sd)
 }
 
-transformed parameters {
-vector[N] mu;
-matrix[Nsp, 3] abg;                               // matrix for alpha, beta, and gamma
-matrix[3, 3] Rho;                                 // covariance matrix
-real<lower = 0> sigma;
-// real eta;
-vector[Nsp] alpha;
-vector[Nsp] beta;
-vector[Nsp] gamma;
-vector<lower = 0>[3] sigma_sp;
-real mu_alpha;
-real mu_beta;
-real mu_gamma;
-}
-
-model {
 #mean each individual (i) for SY/ASY (k)
 #y[i] = wing chord obs
 #ind[i] = id # j at obs i
@@ -556,104 +540,123 @@ model {
 #mu_sp[s,k] = mean for species s, stage k
 #sigma_sp[s,k] = sd for species s, stage k
 #nu = degrees of freedom
-#mu_pooled[s] = mean wing chord for species s
-#sigma_pooled[s] = sd wing chord for species s
-#mu_mp = mean of species wing chord means
-#sigma_mp = sd of species wing chord means
-#mu_sigp = mean of species wing chord sd
-#sigma_sigp = sd of species wing chord sd
 
-real mu_y[N];
-real<lower = 0> sigma[NS];
-matrix alpha[NJ, 2];
-real beta[NS];
 
-#over all obs i
-for (i in 1:N)
-{
-  y[i] ~ normal(mu_y[i], sigma[sp[i]])
-  mu_y[i] = alpha[ind[i], k[x[i]]] + beta[sp[i]] * FW[i]
+#data for stan model
+DATA <- list(N = NROW(maps_c2),
+             NS = length(usp),
+             NJ = length(u_bid2),
+             y = maps_c2$wing_chord,
+             sp = maps_c2$sci_name_f, #species
+             ind = maps_c2$band_id_f, #individuals
+             x = maps_c2$x,
+             FW = as.numeric(maps_c2$feather_wear) + 1,
+             sp_j = sp_j,
+             mu_mu_sp = mean_sp,
+             mu_sigma_sp = sd_sp)
+
+stanmodel <- "
+data {
+int<lower=0> N;                     // number of obs
+int<lower=0> NS;                    // number of species
+int<lower=0> NJ;                    // number of individuals
+real<lower=0> y[N];                 // response
+int<lower=0> sp[N];                 // species id
+int<lower=0> ind[N];                // individual id
+int<lower=1> x[N];                  // stage id
+int<lower=1> FW[N];                 // feather wear index
+int<lower=1> sp_j[NJ];              // species id for individual
+real<lower = 0> mu_mu_sp[NS];       // mean species wing chord (both stages)
+real<lower = 0> mu_sigma_sp[NS];    // sd species wing chord (both stages)
 }
 
-#over all individuals j
+parameters {
+real<lower = 0> sigma[NS];
+matrix[NJ, 2] alpha;                // individual mean wing chord
+real beta[NS];                      // effect of feather wear on wing chord
+matrix[NS, 2] mu_sp;                // mean species wing chord (SY/ASY)
+matrix<lower = 0>[NS, 2] sigma_sp;  // sd species wing chord (SY/ASY)
+real<lower = 0> nu[NS];             // degrees of freedom for t-dist
+real<lower = 0> mu_nu;
+real<lower = 0> sigma_nu;
+real mu_beta;
+real<lower = 0> sigma_beta;
+}
+
+transformed parameters {
+real mu_y[N];
+
+for (i in 1:N)
+{
+  mu_y[i] = alpha[ind[i], x[i]] + beta[sp[i]] * FW[i];
+}
+}
+
+model {
+
+for (i in 1:N)
+{
+  y[i] ~ normal(mu_y[i], sigma[sp[i]]);
+}
+
 for (j in 1:NJ)
 {
   for (k in 1:2)
   {
-  alpha[j,k] ~ student(mu_sp[sp_j[j], k], sigma_sp[sp_j[j], k], nu)
+    alpha[j,k] ~ student_t(nu[sp_j[j]], mu_sp[sp_j[j], k], sigma_sp[sp_j[j], k]);
   }
 }
 
-#over all species s
 for (s in 1:NS)
 {
+  beta[s] ~ normal(mu_beta, sigma_beta);
+  nu[s] ~ normal(mu_nu, sigma_nu);
+  
   for (k in 1:2)
   {
-  mu_sp[s,k] ~ normal(mu_mpooled[s], sigma_mpooled[s])
-  mu_mpooled[s] ~ normal(mu_mp, sigma_mp)
-  sigma_mpooled[s] ~ halfnormal(mus_mp, sigmas_mp)
-  
-  sigma_sp[s,k] ~ halfnormal(mu_spooled[s], sigma_spooled[s])
-  mu_spooled[s] ~ normal(mu_sp, sigma_sp)
-  sigma_spooled[s] ~ halfnormal(mus_sp, sigmas_sp)
+    mu_sp[s,k] ~ normal(mu_mu_sp[s], 100);
+    sigma_sp[s,k] ~ normal(mu_sigma_sp[s], 100);
   }
 }
 
-beta[s] ~ normal()
-nu ~ gamma(2, 0.1)
-
-mu_mp ~ normal()
-sigma_mp ~ halfnormal()
-mus_mp ~ halfnormal()
-sigmas_mp ~ halfnormal()
-
-mu_sp ~ normal()
-sigma_sp ~ halfnormal()
-mus_sp ~ halfnormal()
-sigmas_sp ~ halfnormal()
-}
-
-generated quantities {
-real y_rep[N];
-
-y_rep = normal_rng(mu, sigma);
+mu_beta ~ normal(0, 5);
+sigma_beta ~ normal(0, 5);
+mu_nu ~ gamma(2, 0.1);
+sigma_nu ~ normal(0, 10);
 }
 "
 
-rstan_options(auto_write = TRUE)
+rstan::rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.85
+DELTA <- 0.80
 TREE_DEPTH <- 16
-STEP_SIZE <- 0.005
+STEP_SIZE <- 0.05
 CHAINS <- 4
 ITER <- 1000
 
 tt <- proc.time()
-fit3 <- rstan::stan(model_code = stanmodel3,
+fit <- rstan::stan(model_code = stanmodel,
                     data = DATA,
                     chains = CHAINS,
                     iter = ITER,
                     cores = CHAINS,
-                    pars = c('alpha',
+                    pars = c('sigma',
+                             'alpha',
                              'beta',
-                             'gamma',
-                             'mu_alpha',
-                             'mu_beta',
-                             'mu_gamma',
-                             'Rho',
-                             'L_Rho',
+                             'mu_sp',
                              'sigma_sp',
-                             'sigma',
-                             #'eta',
-                             'z',
-                             'y_rep'), 
+                             'nu',
+                             'mu_nu',
+                             'sigma_nu',
+                             'mu_beta',
+                             'sigma_beta'), 
                     control = list(adapt_delta = DELTA,
                                    max_treedepth = TREE_DEPTH,
                                    stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit3, file = 'MAPS-wc-time-lat-chol-stan_output-vary-gamma-50.rds')
+saveRDS(fit, file = 'MAPS-wc-age-BEST-stan-output.rds')
 
 
