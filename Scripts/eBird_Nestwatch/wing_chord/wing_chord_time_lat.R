@@ -82,7 +82,6 @@ DATA <- list(N = NROW(stan_data),
              y = stan_data$wing_chord,
              sp = as.numeric(stan_data$sp_f), #species
              year = stan_data$year_f,
-             day = stan_data$day,
              lat = stan_data$lat)
 
 
@@ -93,7 +92,6 @@ int<lower=0> Nsp;                   // number of species
 real<lower=0> y[N];                 // response
 int<lower=1, upper=Nsp> sp[N];      // species ids
 vector<lower=0>[N] year;
-vector<lower=0>[N] day;
 vector<lower=0>[N] lat;
 }
 

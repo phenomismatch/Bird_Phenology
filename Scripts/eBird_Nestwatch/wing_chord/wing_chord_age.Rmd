@@ -74,7 +74,7 @@ bid_c <- dplyr::filter(bid_cnt, freq > 2)
 c_birds <- bid_c[,1]
 
 #only band_ids of interest
-maps_c <- dplyr::filter(maps_data_qc, band_id %in% c_birds)
+maps_c <- dplyr::filter(maps_adults_qc, band_id %in% c_birds)
 
 #band ids
 nid <- unique(maps_c$band_id)

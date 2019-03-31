@@ -721,7 +721,7 @@ real beta;
 real rho;
 real<lower = 0> sigma;
 
-alpha = alpha_raw * 20;              // alpha ~ normal(0, 3)
+alpha = alpha_raw * 20;         // alpha ~ normal(0, 20)
 gamma = gamma_raw * 2;          // gamma ~ normal(0, 2)
 beta = beta_raw * 2;            // beta ~ normal(0, 2)
 rho = rho_raw * 2;              // rho ~ normal(0, 2)
@@ -777,7 +777,7 @@ fit2 <- rstan::stan(model_code = stanmodel2,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit2, file = 'MAPS-wc-time-lat-stan_output.rds')
+saveRDS(fit2, file = 'MAPS-wc-time-lat-stan_output-one-beta-gamma-50.rds')
 
 MCMCvis::MCMCsummary(fit2, n.eff = TRUE, round = 2, excl = 'y_rep')
 MCMCvis::MCMCplot(fit2, excl = c('eta', 'lp__'))
@@ -786,8 +786,7 @@ library(shinystan)
 launch_shinystan(fit2)
 ?ppc_dens_overlay
 # y_rep <- MCMCvis::MCMCchains(fit2, params = 'y_rep')
-# bayesplot::ppc_dens_overlay(DATA$y, y_rep)
-# bayesplot::ppc_dens_overlay(y, yrep_poisson[1:50, ])
+# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:25,])
 
 
 
