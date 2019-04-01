@@ -499,9 +499,18 @@ maps_c2$sci_name_f <- as.numeric(factor(maps_c2$sci_name))
 maps_c2$band_id_f <- as.numeric(factor(maps_c2$band_id))
 
 usp <- unique(maps_c2$sci_name)
+ucn <- unique(maps_c2$common_name)
 usp_f <- unique(maps_c2$sci_name_f)
 u_bid2 <- unique(maps_c2$band_id)
 u_bid2_f <- unique(maps_c2$band_id_f)
+
+
+# # #species used in analysis
+# sp_n <- cbind(sci_name = usp, common_name = ucn)
+# sp_n2 <- sp_n[order(sp_n[,1]),]
+# #setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+# setwd(paste0(dir, '../../Desktop'))
+# write.csv(sp_n2, 'wing_cord_age_species.csv', row.names = FALSE)
 
 
 #species id for each individual
@@ -578,13 +587,20 @@ matrix[NS, 2] mu_sp;                // mean species wing chord (SY/ASY)
 matrix<lower = 0>[NS, 2] sigma_sp;  // sd species wing chord (SY/ASY)
 real<lower = 0> nu[NS];             // degrees of freedom for t-dist
 real<lower = 0> mu_nu;
-real<lower = 0> sigma_nu;
-real mu_beta;
-real<lower = 0> sigma_beta;
+real<lower = 0> sigma_nu_raw;
+real mu_beta_raw;
+real<lower = 0> sigma_beta_raw;
 }
 
 transformed parameters {
 real mu_y[N];
+real mu_beta;
+real<lower = 0> sigma_beta;
+real<lower = 0> sigma_nu;
+
+mu_beta = mu_beta_raw * 5;
+sigma_beta = sigma_beta_raw * 5;
+sigma_nu = sigma_nu_raw * 10;
 
 for (i in 1:N)
 {
@@ -619,10 +635,10 @@ for (s in 1:NS)
   }
 }
 
-mu_beta ~ normal(0, 5);
-sigma_beta ~ normal(0, 5);
+mu_beta_raw ~ normal(0, 1);
+sigma_beta_raw ~ normal(0, 1);
 mu_nu ~ gamma(2, 0.1);
-sigma_nu ~ normal(0, 10);
+sigma_nu_raw ~ normal(0, 1);
 }
 
 generated quantities {
@@ -638,7 +654,7 @@ for (s in 1:NS)
 rstan::rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.93
+DELTA <- 0.96
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.05
 CHAINS <- 4
@@ -669,7 +685,12 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 saveRDS(fit, file = 'MAPS-wc-age-BEST-stan-output.rds')
 
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, 
+#                      excl = c('mu_sp_d','alpha', 'beta', 'mu_sp', 'sigma_sp'))
 MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'beta')
-mu_sp_d_post <- MCMCvis::MCMCpstr(fit, params = 'mu_sp_d')[[1]]
+MCMCvis::MCMCplot(fit, params = 'beta')
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'mu_sp_d')
+MCMCvis::MCMCplot(fit, params = 'mu_sp_d')
+
 
 
