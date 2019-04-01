@@ -624,16 +624,25 @@ sigma_beta ~ normal(0, 5);
 mu_nu ~ gamma(2, 0.1);
 sigma_nu ~ normal(0, 10);
 }
+
+generated quantities {
+real mu_sp_d[NS];
+
+for (s in 1:NS)
+{
+  mu_sp_d[s] = mu_sp[s,2] - mu_sp[s,1];
+}
+}
 "
 
 rstan::rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.80
+DELTA <- 0.93
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.05
 CHAINS <- 4
-ITER <- 1000
+ITER <- 3000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel,
@@ -650,7 +659,8 @@ fit <- rstan::stan(model_code = stanmodel,
                              'mu_nu',
                              'sigma_nu',
                              'mu_beta',
-                             'sigma_beta'), 
+                             'sigma_beta',
+                             'mu_sp_d'), 
                     control = list(adapt_delta = DELTA,
                                    max_treedepth = TREE_DEPTH,
                                    stepsize = STEP_SIZE))
@@ -658,5 +668,8 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 saveRDS(fit, file = 'MAPS-wc-age-BEST-stan-output.rds')
+
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'beta')
+mu_sp_d_post <- MCMCvis::MCMCpstr(fit, params = 'mu_sp_d')[[1]]
 
 
