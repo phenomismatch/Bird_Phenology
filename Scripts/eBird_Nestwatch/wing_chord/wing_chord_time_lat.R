@@ -96,39 +96,45 @@ vector<lower=0>[N] lat;
 }
 
 parameters {
-real mu_alpha_raw;
-real mu_beta_raw;
-real mu_gamma_raw;
-real<lower = 0> sigma_raw;
-vector<lower = 0>[3] sigma_sp_raw;                // standard deviations
-cholesky_factor_corr[3] L_Rho;                    // correlation matrix
-matrix[3, Nsp] z;
 // real eta_raw;
-real nu_raw;
+// real mu_alpha_raw;
+// real mu_beta_raw;
+// real mu_gamma_raw;
+// real<lower = 0> sigma_raw;
+// vector<lower = 0>[3] sigma_sp_raw;       // standard deviations
+
+real mu_alpha;
+real mu_beta;
+real mu_gamma;
+real<lower = 0> sigma;
+vector<lower = 0>[3] sigma_sp;             // standard deviations
+
+cholesky_factor_corr[3] L_Rho;             // correlation matrix
+matrix[3, Nsp] z;
 }
 
 transformed parameters {
 vector[N] mu;
 matrix[Nsp, 3] abg;                               // matrix for alpha, beta, and gamma
 matrix[3, 3] Rho;                                 // covariance matrix
-real<lower = 0> sigma;
-// real eta;
 vector[Nsp] alpha;
 vector[Nsp] beta;
 vector[Nsp] gamma;
-vector<lower = 0>[3] sigma_sp;
-real mu_alpha;
-real mu_beta;
-real mu_gamma;
+// real eta;
+// real<lower = 0> sigma;
+// vector<lower = 0>[3] sigma_sp;
+// real mu_alpha;
+// real mu_beta;
+// real mu_gamma;
 
-sigma = sigma_raw * 5;
-sigma_sp[1] = sigma_sp_raw[1] * 20;             // variance alpha
-sigma_sp[2] = sigma_sp_raw[2] * 3;              // variance beta
-sigma_sp[3] = sigma_sp_raw[3] * 3;              // variance gamma
+// sigma = sigma_raw * 5;
+// sigma_sp[1] = sigma_sp_raw[1] * 20;             // variance alpha
+// sigma_sp[2] = sigma_sp_raw[2] * 3;              // variance beta
+// sigma_sp[3] = sigma_sp_raw[3] * 3;              // variance gamma
 // eta = eta_raw * 3;
-mu_alpha = mu_alpha_raw * 10 + 50;
-mu_beta = mu_beta_raw * 3;
-mu_gamma = mu_gamma_raw * 3;
+// mu_alpha = mu_alpha_raw * 10 + 50;
+// mu_beta = mu_beta_raw * 3;
+// mu_gamma = mu_gamma_raw * 3;
 
 
 // cholesky factor of covariance matrix multiplied by z score
@@ -147,15 +153,24 @@ for (i in 1:N)
 }
 
 model {
-sigma_raw ~ normal(0, 1);         // sigma ~ halfnormal(0, 5)
 // eta_raw ~ normal(0, 1);           // eta ~ normal(0, 3)
 
+// sigma_raw ~ normal(0, 1);         // sigma ~ halfnormal(0, 5)
+// mu_alpha_raw ~ normal(0, 1);      // mu_alpha ~ normal(50, 10)
+// mu_beta_raw ~ normal(0, 1);       // mu_beta ~ normal(0, 3)
+// mu_gamma_raw ~ normal(0, 1);      // mu_gamma ~ normal(0, 3)
+// sigma_sp_raw ~ normal(0, 1);      // sigma_sp[1] ~ halfnormal(0, 20); sigma_sp[2] ~ halfnormal(0, 3); sigma_sp[3] ~ halfnormal(0, 3); 
+
 to_vector(z) ~ normal(0, 1);
-mu_alpha_raw ~ normal(0, 1);      // mu_alpha ~ normal(50, 10)
-mu_beta_raw ~ normal(0, 1);       // mu_beta ~ normal(0, 3)
-mu_gamma_raw ~ normal(0, 1);      // mu_gamma ~ normal(0, 3)
+sigma ~ normal(0, 5);
+mu_alpha ~ normal(50, 10);
+mu_beta ~ normal(0, 3);
+mu_gamma ~ normal(0, 3);
+sigma_sp[1] ~ normal(0, 20);
+sigma_sp[2] ~ normal(0, 3);
+sigma_sp[3] ~ normal(0, 3);
 L_Rho ~ lkj_corr_cholesky(1);
-sigma_sp_raw ~ normal(0, 1);      // sigma_sp[1] ~ halfnormal(0, 20); sigma_sp[2] ~ halfnormal(0, 3); sigma_sp[3] ~ halfnormal(0, 3); 
+
 
 y ~ normal(mu, sigma);
 }
