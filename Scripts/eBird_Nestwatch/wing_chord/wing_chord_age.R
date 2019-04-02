@@ -34,6 +34,7 @@ library(RPostgreSQL)
 library(DBI)
 library(ggplot2)
 library(rstan)
+library(MCMCvis)
 
 
 # # query DB ----------------------------------------------------------------
@@ -601,8 +602,8 @@ real mu_y[N];
 real mu_beta;
 real<lower = 0> sigma_beta;
 
-mu_beta = mu_beta_raw * 5;
-sigma_beta = sigma_beta_raw * 5;
+mu_beta = mu_beta_raw * 3;
+sigma_beta = sigma_beta_raw * 2;
 
 for (i in 1:N)
 {
@@ -689,9 +690,222 @@ MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'beta')
 MCMCvis::MCMCplot(fit, params = 'beta')
 MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'mu_sp_d')
 MCMCvis::MCMCplot(fit, params = 'mu_sp_d')
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'nu')
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'sigma_sp')
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'sigma')
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'mu_beta')
+MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'sigma_beta')
 
 # library(shinystan)
 # launch_shinystan(fit)
 
+mu_sp_d <- MCMCvis::MCMCpstr(fit, params = 'mu_sp_d')[[1]]
+mu_sp_d_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_sp_d', 
+                                 func = function(x) quantile(x, probs = 0.975))[[1]]
+mu_sp_d_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_sp_d',
+                                 func = function(x) quantile(x, probs = 0.025))[[1]]
+WC_b <- MCMCvis::MCMCpstr(fit, params = 'mu_sp')[[1]]
+
+mu_sp_d_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_d')
+
+sp_df <- data.frame(sp_id = sort(unique(maps_c2$sci_name_f)), 
+                    sci_name = sort(unique(maps_c2$sci_name)),
+                    wing_chord_ASY = WC_b[,2],
+                    mu_sp_d = mu_sp_d,
+                    mu_sp_d_LCI = mu_sp_d_LCI,
+                    mu_sp_d_UCI = mu_sp_d_UCI)
+
+WC_age <- read.csv('WC-age.csv')
+
+wc_b <- dplyr::full_join(sp_df, WC_age, by = c('sci_name' = 'SCINAME'))
+
+wc_b$sdiff <- wc_b$mu_sp_d / wc_b$wing_chord_ASY
+  
+#FROM PETER PYLE
+# JA - outer primaries juvenile in 'all' SYs 
+# JM - outer primaries juvenile in >75% of SYs (eccentric patterns) 
+# JS - outer primaries juvenile in <75% of SYs 
+# (eccentric patterns except for one species, Northern Cardinal) 
+# FE - outer primaries formative in 'all' birds (eccentric patterns) 
+# FC - outer primaries formative in all birds (not eccentric patterns) 
+# 
+# So we will expect to see greater differences 
+# between SY and ASY wing chords for JA, a little 
+# bit less for JM, about half as much for JS, and 
+# less of a difference for the two F categories. 
+# Any difference in these will be noteworthy, 
+# though, and indicate formative primaries are 
+# shorter than basic primaries, which would be a novel thing to report. 
+
+
+
+# MCMCvis plots -----------------------------------------------------------
+
+#order posteriors by PSCORE group
+JA_wc <- dplyr::arrange(dplyr::filter(wc_b, PSCORE == 'JA'), desc(mu_sp_d))
+JM_wc <- dplyr::arrange(dplyr::filter(wc_b, PSCORE == 'JM'), desc(mu_sp_d))
+JS_wc <- dplyr::arrange(dplyr::filter(wc_b, PSCORE == 'JS'), desc(mu_sp_d))
+FE_wc <- dplyr::arrange(dplyr::filter(wc_b, PSCORE == 'FE'), desc(mu_sp_d))
+FC_wc <- dplyr::arrange(dplyr::filter(wc_b, PSCORE == 'FC'), desc(mu_sp_d))
+
+beta_JA <- paste0('beta\\[', JA_wc$sp_id, '\\]')
+beta_JM <- paste0('beta\\[', JM_wc$sp_id, '\\]')
+beta_JS <- paste0('beta\\[', JS_wc$sp_id, '\\]')
+beta_FE <- paste0('beta\\[', FE_wc$sp_id, '\\]')
+beta_FC <- paste0('beta\\[', FC_wc$sp_id, '\\]')
+
+msd_JA <- paste0('mu_sp_d\\[', JA_wc$sp_id, '\\]')
+msd_JM <- paste0('mu_sp_d\\[', JM_wc$sp_id, '\\]')
+msd_JS <- paste0('mu_sp_d\\[', JS_wc$sp_id, '\\]')
+msd_FE <- paste0('mu_sp_d\\[', FE_wc$sp_id, '\\]')
+msd_FC <- paste0('mu_sp_d\\[', FC_wc$sp_id, '\\]')
+
+
+beta_all <- c(beta_JA, beta_JM, beta_JS, beta_FE, beta_FC)
+names <- c(as.character(JA_wc$COMMONNAME), as.character(JM_wc$COMMONNAME), 
+           as.character(JS_wc$COMMONNAME), as.character(FE_wc$COMMONNAME), 
+           as.character(FC_wc$COMMONNAME))
+
+# MCMCvis::MCMCplot(fit, params = beta_all, 
+#                   main = 'Effect of feather wear',
+#                   ISB = FALSE,
+#                   labels = names)
+
+setwd('~/Desktop')
+pdf('Figure_1.pdf', height = 11, width = 9, useDingbats = FALSE)
+MCMCvis::MCMCplot(fit, params = 'beta', 
+                  main = 'Effect of feather wear on wing chord',
+                  rank = TRUE,
+                  labels = wc_b$COMMONNAME,
+                  sz_labels = 0.7)
+dev.off()
+
+
+
+msd_all <- c(msd_JA, msd_JM, msd_JS, msd_FE, msd_FC)
+
+pdf('Figure_2.pdf', height = 11, width = 9, useDingbats = FALSE)
+MCMCvis::MCMCplot(fit, params = msd_all, 
+                  main = 'Difference in wing chord across age classes',
+                  ISB = FALSE,
+                  labels = names,
+                  xlim = c(-3, 5),
+                  sz_labels = 0.7)
+dev.off()
+
+
+NROW(JA_wc)
+NROW(JM_wc)
+NROW(JS_wc)
+NROW(FE_wc)
+NROW(FC_wc)
+
+
+
+
+# mean diff density plots -------------------------------------------------
+
+wc_JA <- dplyr::filter(wc_b, PSCORE == 'JA')
+wc_JM <- dplyr::filter(wc_b, PSCORE == 'JM')
+wc_JS <- dplyr::filter(wc_b, PSCORE == 'JS')
+wc_FE <- dplyr::filter(wc_b, PSCORE == 'FE')
+wc_FC <- dplyr::filter(wc_b, PSCORE == 'FC')
+
+
+# plot(density(wc_JA$mu_sp_d), ylim = c(0, 2), lwd = 2)
+# abline(v = mean(wc_JA$mu_sp_d), lwd = 3, lty = 2)
+# 
+# lines(density(wc_JM$mu_sp_d), col = 'red', lwd = 2)
+# abline(v = mean(wc_JM$mu_sp_d), lwd = 3, col = 'red', lty = 2)
+# 
+# lines(density(wc_JS$mu_sp_d), col = 'green', lwd = 2)
+# abline(v = mean(wc_JS$mu_sp_d), lwd = 3, col = 'green', lty = 2)
+# 
+# lines(density(wc_FE$mu_sp_d), col = 'blue', lwd = 2)
+# abline(v = mean(wc_FE$mu_sp_d), lwd = 3, col = 'blue', lty = 2)
+# 
+# lines(density(wc_FC$mu_sp_d), col = 'pink', lwd = 2)
+# abline(v = mean(wc_FC$mu_sp_d), lwd = 3, col = 'pink', lty = 2)
+
+
+#chains for each PSCORE group
+JA_gr <- mu_sp_d_ch[,wc_JA$sp_id]
+JM_gr <- mu_sp_d_ch[,wc_JM$sp_id]
+JS_gr <- mu_sp_d_ch[,wc_JS$sp_id]
+FE_gr <- mu_sp_d_ch[,wc_FE$sp_id]
+FC_gr <- mu_sp_d_ch[,wc_FC$sp_id][,-1] #remove red-wing blackbird - may be strange things going on here
+
+
+#mean difference for PSCORE group
+mn_JA <- apply(JA_gr, 1, mean)
+mn_JM <- apply(JM_gr, 1, mean)
+mn_JS <- apply(JS_gr, 1, mean)
+mn_FE <- apply(FE_gr, 1, mean)
+mn_FC <- apply(FC_gr, 1, mean)
+
+
+# plot(density(mn_JA), ylim = c(0, 7), 
+#      xlim = c(0.25, 1.75), lwd = 2,
+#      main = 'Mean diff by PSCORE group',
+#      xlab = 'Wing chord difference (mm)',
+#      ylab = '',
+#      yaxt = 'n')
+# abline(v = mean(mn_JA), lwd = 3, lty = 2)
+# 
+# lines(density(mn_JM), col = 'red', lwd = 2)
+# abline(v = mean(mn_JM), lwd = 3, col = 'red', lty = 2)
+# 
+# lines(density(mn_JS), col = 'green', lwd = 2)
+# abline(v = mean(mn_JS), lwd = 3, col = 'green', lty = 2)
+# 
+# lines(density(mn_FE), col = 'blue', lwd = 2)
+# abline(v = mean(mn_FE), lwd = 3, col = 'blue', lty = 2)
+# 
+# lines(density(mn_FC), col = 'brown', lwd = 2)
+# abline(v = mean(mn_FC), lwd = 3, col = 'brown', lty = 2)
+
+den_df <- rbind(data.frame(val = mn_JA, PSCORE = 'JA'), 
+                data.frame(val = mn_JM, PSCORE = 'JM'),
+                data.frame(val = mn_JS, PSCORE = 'JS'),
+                data.frame(val = mn_FE, PSCORE = 'FE'),
+                data.frame(val = mn_FC, PSCORE = 'FC'))
+
+pdf('Figure_3.pdf', height = 5, width = 5, useDingbats = FALSE)
+ggplot(den_df, aes(x = val, fill = PSCORE)) +
+  geom_density(alpha = 0.3) +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        text = element_text(size = 12)) +
+  ylab('') +
+  ggtitle('Mean diff by PSCORE group') +
+  xlab('Wing chord difference (mm)')
+dev.off()
+
+
+
+#scaled by abs wing chord
+mean(wc_JA$sdiff)
+sd(wc_JA$sdiff)
+mean(wc_JM$sdiff)
+sd(wc_JM$sdiff)
+mean(wc_JS$sdiff)
+sd(wc_JS$sdiff)
+mean(wc_FE$sdiff)
+sd(wc_FE$sdiff)
+mean(wc_FC$sdiff)
+sd(wc_FC$sdiff)
+
+
+
+Ap <- dplyr::filter(maps_c2, sci_name == 'Agelaius phoeniceus')
+
+uap <- unique(Ap$band_id)
+for (i in 1:length(uap))
+{
+  #i <- 3
+  temp <- dplyr::filter(Ap, band_id == uap[i])
+  print(sd(temp$wing_chord))
+}
 
 
