@@ -29,9 +29,7 @@ maps_data <- readRDS('MAPS-age-filled.rds')
 # wing chord --------------------------------------------------------------
 
 #QC data - remove zeros
-to.rm <- which(maps_data$weight == 0 | maps_data$wing_chord == 0 | 
-                 is.na(maps_data$weight) | is.na(maps_data$weight) | 
-                 is.na(maps_data$fat_content) | is.na(maps_data$wing_chord))
+to.rm <- which(maps_data$wing_chord == 0 | is.na(maps_data$wing_chord))
 maps_data_qc <- maps_data[-to.rm, ]
 
 #just age 2+ males caught on or before day 200
@@ -66,9 +64,9 @@ d_cnt <- plyr::count(maps_ad_qc, 'sci_name')
 sp_p <- dplyr::filter(d_cnt, freq > 500)[,1]
 
 #subset of species
-set.seed(1)
-sp <- base::sample(sp_p, size = 50)
-#sp <- sp_p
+#set.seed(1)
+#sp <- base::sample(sp_p, size = 50)
+sp <- sp_p
 
 stan_data <- dplyr::filter(maps_ad_qc, sci_name %in% sp)
 
@@ -185,7 +183,7 @@ y_rep = normal_rng(mu, sigma);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.85
+DELTA <- 0.80
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.005
 CHAINS <- 4
@@ -204,7 +202,6 @@ fit3 <- rstan::stan(model_code = stanmodel3,
                              'mu_beta',
                              'mu_gamma',
                              'Rho',
-                             'L_Rho',
                              'sigma_sp',
                              'sigma',
                              #'eta',
@@ -219,13 +216,16 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 saveRDS(fit3, file = 'MAPS-wc-time-lat-chol-stan_output-vary-gamma-50.rds')
 #fit3 <- readRDS('MAPS-wc-time-lat-chol-stan_output-vary-gamma.rds')
 
-MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, excl = 'y_rep')
+MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'alpha')
+#MCMCvis::MCMCplot(fit3, params = c('alpha'))
+MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'beta')
+#MCMCvis::MCMCplot(fit3, params = c('beta'))
+MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'gamma')
+#MCMCvis::MCMCplot(fit3, params = c('gamma'))
 MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'mu', ISB = FALSE)
 #MCMCvis::MCMCplot(fit3, excl = c('eta', 'lp__', 'y_rep'))
-MCMCvis::MCMCplot(fit3, params = c('gamma'))
-MCMCvis::MCMCplot(fit3, params = c('beta'))
-MCMCvis::MCMCplot(fit3, params = c('z'))
-MCMCvis::MCMCplot(fit3, params = c('L_Rho'))
+MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = c('Rho', 'sigma'), ISB = FALSE)
+
 
 # library(shinystan)
 # launch_shinystan(fit3)
