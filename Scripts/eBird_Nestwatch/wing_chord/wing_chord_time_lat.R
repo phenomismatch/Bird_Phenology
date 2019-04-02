@@ -65,8 +65,8 @@ sp_p <- dplyr::filter(d_cnt, freq > 500)[,1]
 
 #subset of species
 #set.seed(1)
-#sp <- base::sample(sp_p, size = 50)
-sp <- sp_p
+sp <- base::sample(sp_p, size = 25)
+#sp <- sp_p
 
 stan_data <- dplyr::filter(maps_ad_qc, sci_name %in% sp)
 
@@ -161,13 +161,13 @@ model {
 
 to_vector(z) ~ normal(0, 1);
 sigma ~ normal(0, 5);
-mu_alpha ~ normal(50, 10);
-mu_beta ~ normal(0, 3);
-mu_gamma ~ normal(0, 3);
+mu_alpha ~ normal(70, 10);
+mu_beta ~ normal(0, 2);
+mu_gamma ~ normal(0, 2);
 sigma_sp[1] ~ normal(0, 20);
-sigma_sp[2] ~ normal(0, 3);
-sigma_sp[3] ~ normal(0, 3);
-L_Rho ~ lkj_corr_cholesky(1);
+sigma_sp[2] ~ normal(0, 2);
+sigma_sp[3] ~ normal(0, 2);
+L_Rho ~ lkj_corr_cholesky(2);
 
 
 y ~ normal(mu, sigma);
@@ -184,10 +184,10 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.80
-TREE_DEPTH <- 16
+TREE_DEPTH <- 13
 STEP_SIZE <- 0.005
 CHAINS <- 4
-ITER <- 1000
+ITER <- 1500
 
 tt <- proc.time()
 fit3 <- rstan::stan(model_code = stanmodel3,
@@ -213,7 +213,7 @@ fit3 <- rstan::stan(model_code = stanmodel3,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit3, file = 'MAPS-wc-time-lat-chol-stan_output-vary-gamma-50.rds')
+saveRDS(fit3, file = 'MAPS-wc-time-lat-chol-stan_output-vary-gamma-25.rds')
 #fit3 <- readRDS('MAPS-wc-time-lat-chol-stan_output-vary-gamma.rds')
 
 MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'alpha')
