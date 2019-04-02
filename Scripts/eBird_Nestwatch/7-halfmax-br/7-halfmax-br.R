@@ -32,7 +32,7 @@ RUN_DATE <- '2019-03-06'
 # model settings ----------------------------------------------------------
 
 #model settings
-ITER <- 2500
+ITER <- 1800
 CHAINS <- 4
 
 # ITER <- 10
