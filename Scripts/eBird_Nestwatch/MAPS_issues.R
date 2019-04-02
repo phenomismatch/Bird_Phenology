@@ -83,6 +83,12 @@ for (i in 1:length(un_bid))
 close(pb)
 
 
+setwd('~/Desktop')
+saveRDS(bad_ids, 'MAPS_bad_ids.rds')
+
+output <- dplyr::select(bad_ids, year, day, band_id, common_name, sci_name, station)
+
+write.csv(output, 'MAPS-bad-ids.csv', row.names = FALSE)
 
 # find sites with lat/lon 0,0 ---------------------------------------------
 
