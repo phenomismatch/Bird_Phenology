@@ -273,7 +273,7 @@ ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', 
        dir.create(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', RUN_DATE)), 
        FALSE)
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
+setwd(paste0(dir, 'Bird_Phenology/Figures/cubic_halfmax/arrival_', RUN_DATE))
 
 
 #loop through each species, year, cell and extract half-max parameter
