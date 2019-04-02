@@ -209,18 +209,18 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 maps_data <- readRDS('MAPS-age-filled.rds')
 
 
-#remove records that have weight 0 and wing chord 0
-to.rm <- which(maps_data$weight == 0 | maps_data$wing_chord == 0 | 
-                 is.na(maps_data$weight) | is.na(maps_data$fat_content) | is.na(maps_data$wing_chord))
+#remove records that have wing chord 0/NA nad feather_wear NA
+to.rm <- which(maps_data$wing_chord == 0 | is.na(maps_data$wing_chord) | is.na(maps_data$feather_wear))
 maps_data_qc <- maps_data[-to.rm, ]
 
-#only known-age adults with feather wear data
-maps_adults_qc <- dplyr::filter(maps_data_qc, true_age > 0, !is.na(feather_wear))
+#only known-age adults
+maps_adults_qc <- dplyr::filter(maps_data_qc, true_age > 0)
 
 
 #remove WC values outside 3 sd of mean
 usp_maps_ad <- unique(maps_adults_qc$sci_name)
 maps_adults_qc2 <- data.frame()
+trm <- 0
 for (i in 1:length(usp_maps_ad))
 {
   #i <- 7
@@ -238,6 +238,7 @@ for (i in 1:length(usp_maps_ad))
     tt <- temp
   }
   
+  trm <- trm + length(to.rm)
   maps_adults_qc2 <- rbind(maps_adults_qc2, tt)
 }
 
@@ -245,8 +246,8 @@ for (i in 1:length(usp_maps_ad))
 #find unique band ids
 bid_cnt <- plyr::count(maps_adults_qc2$band_id)
 
-#individuals that have been captured more than 2 times
-bid_c <- dplyr::filter(bid_cnt, freq > 2)
+#individuals that have been captured at least 2 times
+bid_c <- dplyr::filter(bid_cnt, freq >= 2)
 c_birds <- bid_c[,1]
 
 #only band_ids of interest
@@ -448,41 +449,46 @@ nid <- unique(maps_c$band_id)
 m_band_id <- data.frame()
 for (i in 1:length(nid))
 {
-  #i <- 6428
+  #i <- 21003
   temp <- dplyr::filter(maps_c, band_id == nid[i])
 
-  #only if have at least one year age > 1 and one year age = 1
-  if (sum(temp$true_age > 1) > 0 & sum(temp$true_age == 1) > 0)
+  if (length(unique(temp$sci_name)) == 1)
   {
-    #age 1
-    temp <- data.frame(sp = temp$sci_name[1], 
-                       cn = temp$common_name[1],
-                       band_id = temp$band_id[1])
-    m_band_id <- rbind(m_band_id, temp)
+    #only if have at least one year age > 1 and one year age = 1
+    if (sum(temp$true_age > 1) > 0 & sum(temp$true_age == 1) > 0)
+    {
+      #age 1
+      temp <- data.frame(sp = temp$sci_name[1], 
+                         cn = temp$common_name[1],
+                         band_id = temp$band_id[1])
+      m_band_id <- rbind(m_band_id, temp)
+    }
   }
 }
 
-#remove bandid: 199172930
-#CODED AS BOTH Dumetella carolinensis AND Myiarchus tyrannulus
-#remove bandid: 199172905
-#CODED AS BOTH Dumetella carolinensis AND Melozone crissalis
-# dplyr::filter(maps_data, band_id == '199172930')
-# dplyr::filter(maps_data, band_id == '199172905')
-
-m_band_id2 <- m_band_id[-which(m_band_id$band_id == '199172930' |
-                                 m_band_id$band_id == '199172905'),]
 
 #only species that have > 20 individuals
-csp <- plyr::count(m_band_id2, 'sp')
+csp <- plyr::count(m_band_id, 'sp')
 nsp <- as.character(csp[which(csp$freq > 20), 1])
 
 #filter relevant species
-m_band_id3 <- dplyr::filter(m_band_id2, sp %in% nsp)
+m_band_id2 <- dplyr::filter(m_band_id, sp %in% nsp)
 
-u_bid <- unique(m_band_id3$band_id)
+u_bid <- unique(m_band_id2$band_id)
 
 #filter based on new band_ids
 maps_c2 <- dplyr::filter(maps_c, band_id %in% u_bid)
+
+
+#NROW(maps_data) #1644585 - ALL
+#NROW(maps_data_qc) #1472931 - REMOVE WING CHORD NA/0
+#NROW(maps_adults_qc) #199256 - ONLY KNOWN AGE ADULTS WITH FEATHER WEAR RECORDS
+#NROW(maps_adults_qc2) #198252 - REMOVE RECORDING ERRORS
+#NROW(bid_c) #30649 (number of ind) - ONLY BIRDS CAPTURES > 2 times
+#NROW(maps_c) #88027 - ONLY BAND_IDS OF INTEREST
+#NROW(m_band_id) #13175 (numer of ind) - ONLY BIRDS CAPTURED AS SY AND ASY
+#NROW(m_band_id2) #12416 (number of ind) - ONLY RELEVANT SPECIES
+#NROW(maps_c2) #43733 - data for relevant individuals
 
 
 #age ids
@@ -505,7 +511,7 @@ u_bid2 <- unique(maps_c2$band_id)
 u_bid2_f <- unique(maps_c2$band_id_f)
 
 
-# # #species used in analysis
+# #species used in analysis
 # sp_n <- cbind(sci_name = usp, common_name = ucn)
 # sp_n2 <- sp_n[order(sp_n[,1]),]
 # #setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
@@ -586,8 +592,6 @@ real beta[NS];                      // effect of feather wear on wing chord
 matrix[NS, 2] mu_sp;                // mean species wing chord (SY/ASY)
 matrix<lower = 0>[NS, 2] sigma_sp;  // sd species wing chord (SY/ASY)
 real<lower = 0> nu[NS];             // degrees of freedom for t-dist
-real<lower = 0> mu_nu;
-real<lower = 0> sigma_nu_raw;
 real mu_beta_raw;
 real<lower = 0> sigma_beta_raw;
 }
@@ -596,11 +600,9 @@ transformed parameters {
 real mu_y[N];
 real mu_beta;
 real<lower = 0> sigma_beta;
-real<lower = 0> sigma_nu;
 
 mu_beta = mu_beta_raw * 5;
 sigma_beta = sigma_beta_raw * 5;
-sigma_nu = sigma_nu_raw * 10;
 
 for (i in 1:N)
 {
@@ -626,7 +628,7 @@ for (j in 1:NJ)
 for (s in 1:NS)
 {
   beta[s] ~ normal(mu_beta, sigma_beta);
-  nu[s] ~ normal(mu_nu, sigma_nu);
+  nu[s] ~ gamma(2, 0.1);
   
   for (k in 1:2)
   {
@@ -637,8 +639,6 @@ for (s in 1:NS)
 
 mu_beta_raw ~ normal(0, 1);
 sigma_beta_raw ~ normal(0, 1);
-mu_nu ~ gamma(2, 0.1);
-sigma_nu_raw ~ normal(0, 1);
 }
 
 generated quantities {
@@ -654,7 +654,7 @@ for (s in 1:NS)
 rstan::rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.96
+DELTA <- 0.95
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.05
 CHAINS <- 4
@@ -672,8 +672,6 @@ fit <- rstan::stan(model_code = stanmodel,
                              'mu_sp',
                              'sigma_sp',
                              'nu',
-                             'mu_nu',
-                             'sigma_nu',
                              'mu_beta',
                              'sigma_beta',
                              'mu_sp_d'), 
@@ -685,12 +683,15 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 saveRDS(fit, file = 'MAPS-wc-age-BEST-stan-output.rds')
 
-# MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, 
+# MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2,
 #                      excl = c('mu_sp_d','alpha', 'beta', 'mu_sp', 'sigma_sp'))
 MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'beta')
 MCMCvis::MCMCplot(fit, params = 'beta')
 MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2, params = 'mu_sp_d')
 MCMCvis::MCMCplot(fit, params = 'mu_sp_d')
+
+# library(shinystan)
+# launch_shinystan(fit)
 
 
 
