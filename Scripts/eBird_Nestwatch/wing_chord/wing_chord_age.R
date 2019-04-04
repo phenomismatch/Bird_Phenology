@@ -455,13 +455,14 @@ for (i in 1:length(nid))
 
   if (length(unique(temp$sci_name)) == 1)
   {
-    #only if have at least one year age > 1 and one year age = 1
-    if (sum(temp$true_age > 1) > 0 & sum(temp$true_age == 1) > 0)
+    #only if have at least one year age > 1 and one year age = 1 and known sex
+    if (sum(temp$true_age > 1) > 0 & sum(temp$true_age == 1) > 0 & sum(temp$sex == 'M' | temp$sex == 'F') > 1)
     {
       #age 1
       temp <- data.frame(sp = temp$sci_name[1], 
                          cn = temp$common_name[1],
-                         band_id = temp$band_id[1])
+                         band_id = temp$band_id[1],
+                         sex = temp$sex[1])
       m_band_id <- rbind(m_band_id, temp)
     }
   }
@@ -475,10 +476,15 @@ nsp <- as.character(csp[which(csp$freq > 20), 1])
 #filter relevant species
 m_band_id2 <- dplyr::filter(m_band_id, sp %in% nsp)
 
+#number of each species/sex
+#plyr::count(m_band_id2, c('sp', 'sex'))
+
 u_bid <- unique(m_band_id2$band_id)
 
 #filter based on new band_ids
 maps_c2 <- dplyr::filter(maps_c, band_id %in% u_bid)
+
+
 
 
 #NROW(maps_data) #1644585 - ALL
@@ -498,6 +504,12 @@ maps_c2 <- dplyr::filter(maps_c, band_id %in% u_bid)
 maps_c2$x <- NA
 maps_c2$x[which(maps_c2$true_age == 1)] <- 1
 maps_c2$x[which(maps_c2$true_age > 1)] <- 2
+
+#sex id
+maps_c2$sex_f <- NA
+maps_c2$sex_f[which(maps_c2$sex == 'F')] <- 0
+maps_c2$sex_f[which(maps_c2$sex == 'M')] <- 1
+
 
 #sci names as numbers
 maps_c2$sci_name_f <- as.numeric(factor(maps_c2$sci_name))
@@ -520,27 +532,39 @@ u_bid2_f <- unique(maps_c2$band_id_f)
 # write.csv(sp_n2, 'wing_cord_age_species.csv', row.names = FALSE)
 
 
-#species id for each individual
+#species id and sex id for each individual
 sp_j <- rep(NA, length(u_bid2_f))
+sex_j <- rep(NA, length(u_bid2_f))
 for (i in 1:length(u_bid2_f))
 {
   #i <- 1
   temp <- dplyr::filter(maps_c2, band_id_f == i)
   sp_j[i] <- temp$sci_name_f[1]
+  sex_j[i] <- temp$sex_f[1]
 }
 
-#mean and sd for each species
-mean_sp <- c()
-sd_sp <- c()
+#mean and sd for each species/sex
+mean_sp_female <- c()
+sd_sp_female <- c()
+mean_sp_male <- c()
+sd_sp_male <- c()
 for (i in 1:length(usp_f))
 {
-  #i <- 25
-  temp <- dplyr::filter(maps_c2, sci_name_f == i)
-  temp_mn <- mean(temp$wing_chord)
-  temp_sd <- sd(temp$wing_chord)
+  #i <- 1
+  temp_female <- dplyr::filter(maps_c2, sci_name_f == i, sex == 'F')
+  temp_mn_female <- mean(temp_female$wing_chord)
+  temp_sd_female <- sd(temp_female$wing_chord)
   
-  mean_sp <- c(mean_sp, temp_mn)
-  sd_sp <- c(sd_sp, temp_sd)
+  mean_sp_female <- c(mean_sp_female, temp_mn_female)
+  sd_sp_female <- c(sd_sp_female, temp_sd_female)
+  
+  
+  temp_male <- dplyr::filter(maps_c2, sci_name_f == i, sex == 'M')
+  temp_mn_male <- mean(temp_male$wing_chord)
+  temp_sd_male <- sd(temp_male$wing_chord)
+  
+  mean_sp_male <- c(mean_sp_male, temp_mn_male)
+  sd_sp_male <- c(sd_sp_male, temp_sd_male)
 }
 
 #mean each individual (i) for SY/ASY (k)
@@ -568,31 +592,39 @@ DATA <- list(N = NROW(maps_c2),
              x = maps_c2$x,
              FW = as.numeric(maps_c2$feather_wear) + 1,
              sp_j = sp_j,
-             mu_mu_sp = mean_sp,
-             mu_sigma_sp = sd_sp)
+             mu_mu_sp_female = mean_sp_female,
+             mu_sigma_sp_female = sd_sp_female,
+             mu_mu_sp_male = mean_sp_male,
+             mu_sigma_sp_male = sd_sp_male,
+             sex = sex_j)
 
 stanmodel <- "
 data {
-int<lower=0> N;                     // number of obs
-int<lower=0> NS;                    // number of species
-int<lower=0> NJ;                    // number of individuals
-real<lower=0> y[N];                 // response
-int<lower=0> sp[N];                 // species id
-int<lower=0> ind[N];                // individual id
-int<lower=1> x[N];                  // stage id
-int<lower=1> FW[N];                 // feather wear index
-int<lower=1> sp_j[NJ];              // species id for individual
-real<lower = 0> mu_mu_sp[NS];       // mean species wing chord (both stages)
-real<lower = 0> mu_sigma_sp[NS];    // sd species wing chord (both stages)
+int<lower=0> N;                           // number of obs
+int<lower=0> NS;                          // number of species
+int<lower=0> NJ;                          // number of individuals
+real<lower=0> y[N];                       // response
+int<lower=0> sp[N];                       // species id
+int<lower=0> ind[N];                      // individual id
+int<lower=1> x[N];                        // stage id
+int<lower=1> FW[N];                       // feather wear index
+int<lower=1> sp_j[NJ];                    // species id for individual
+int<lower=0> sex[NJ];                     // sex if for each species
+real<lower = 0> mu_mu_sp_female[NS];      // mean species wing chord (both stages) female
+real<lower = 0> mu_sigma_sp_female[NS];   // sd species wing chord (both stages) female
+real<lower = 0> mu_mu_sp_male[NS];        // mean species wing chord (both stages) male
+real<lower = 0> mu_sigma_sp_male[NS];     // sd species wing chord (both stages) male
 }
 
 parameters {
 real<lower = 0> sigma[NS];
-matrix[NJ, 2] alpha;                // individual mean wing chord
-real beta[NS];                      // effect of feather wear on wing chord
-matrix[NS, 2] mu_sp;                // mean species wing chord (SY/ASY)
-matrix<lower = 0>[NS, 2] sigma_sp;  // sd species wing chord (SY/ASY)
-real<lower = 0> nu[NS];             // degrees of freedom for t-dist
+matrix[NJ, 2] alpha;                      // individual mean wing chord
+real beta[NS];                            // effect of feather wear on wing chord
+matrix[NS, 2] mu_sp_female;               // mean species wing chord (SY/ASY) female
+matrix<lower = 0>[NS, 2] sigma_sp_female; // sd species wing chord (SY/ASY) female
+matrix[NS, 2] mu_sp_male;                 // mean species wing chord (SY/ASY) male
+matrix<lower = 0>[NS, 2] sigma_sp_male;   // sd species wing chord (SY/ASY) male
+real<lower = 0> nu[NS];                   // degrees of freedom for t-dist
 real mu_beta_raw;
 real<lower = 0> sigma_beta_raw;
 }
@@ -620,34 +652,39 @@ for (i in 1:N)
 
 for (j in 1:NJ)
 {
-  for (k in 1:2)
+  // if male
+  if (sex[j] == 1)
   {
-    alpha[j,k] ~ student_t(nu[sp_j[j]], mu_sp[sp_j[j], k], sigma_sp[sp_j[j], k]);
+    alpha[j,] ~ student_t(nu[sp_j[j]], mu_sp_male[sp_j[j], ], sigma_sp_male[sp_j[j], ]);
+  } else {
+    // if female
+    alpha[j,] ~ student_t(nu[sp_j[j]], mu_sp_female[sp_j[j], ], sigma_sp_female[sp_j[j], ]);
   }
 }
 
-for (s in 1:NS)
-{
-  beta[s] ~ normal(mu_beta, sigma_beta);
-  nu[s] ~ gamma(2, 0.1);
-  
-  for (k in 1:2)
-  {
-    mu_sp[s,k] ~ normal(mu_mu_sp[s], 100);
-    sigma_sp[s,k] ~ normal(mu_sigma_sp[s], 100);
-  }
-}
-
+beta ~ normal(mu_beta, sigma_beta);
+nu ~ gamma(2, 0.1);
 mu_beta_raw ~ normal(0, 1);
 sigma_beta_raw ~ normal(0, 1);
+
+for (k in 1:2)
+{
+  mu_sp_female[,k] ~ normal(mu_mu_sp_female, 100);
+  sigma_sp_female[,k] ~ normal(mu_sigma_sp_female, 100);
+
+  mu_sp_male[,k] ~ normal(mu_mu_sp_male, 100);
+  sigma_sp_male[,k] ~ normal(mu_sigma_sp_male, 100);
+}
 }
 
 generated quantities {
-real mu_sp_d[NS];
+real mu_sp_d_female[NS];
+real mu_sp_d_male[NS];
 
 for (s in 1:NS)
 {
-  mu_sp_d[s] = mu_sp[s,2] - mu_sp[s,1];
+  mu_sp_d_female[s] = mu_sp_female[s,2] - mu_sp_female[s,1];
+  mu_sp_d_male[s] = mu_sp_male[s,2] - mu_sp_male[s,1];
 }
 }
 "
@@ -670,19 +707,24 @@ fit <- rstan::stan(model_code = stanmodel,
                     pars = c('sigma',
                              'alpha',
                              'beta',
-                             'mu_sp',
-                             'sigma_sp',
+                             'mu_sp_female',
+                             'mu_sp_male',
+                             'sigma_sp_female',
+                             'sigma_sp_male',
                              'nu',
                              'mu_beta',
                              'sigma_beta',
-                             'mu_sp_d'), 
+                             'mu_sp_d_female',
+                             'mu_sp_d_male'), 
                     control = list(adapt_delta = DELTA,
                                    max_treedepth = TREE_DEPTH,
                                    stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-saveRDS(fit, file = 'MAPS-wc-age-BEST-stan-output.rds')
+saveRDS(fit, file = 'MAPS-wc-age-sex-BEST-stan-output.rds')
+
+
 
 # MCMCvis::MCMCsummary(fit, n.eff = TRUE, round = 2,
 #                      excl = c('mu_sp_d','alpha', 'beta', 'mu_sp', 'sigma_sp'))
@@ -909,3 +951,22 @@ for (i in 1:length(uap))
 }
 
 
+
+
+
+
+# output df to csv --------------------------------------------------------
+
+out_df<- dplyr::select(wc_b, sci_name, COMMONNAME, SSN, 
+                       PSCORE, mu_sp_d, mu_sp_d_LCI, 
+                       mu_sp_d_UCI, wing_chord_ASY)
+
+out_df2 <- out_df %>% mutate_if(is.numeric, round, 3)
+
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/wing_chord'))
+
+colnames(out_df2)[5] <- 'wc_diff'
+colnames(out_df2)[6] <- 'wc_diff_LCI'
+colnames(out_df2)[7] <- 'wc_diff_UCI'
+write.csv(out_df2, 'wc_age_model_output.csv', row.names = FALSE)
