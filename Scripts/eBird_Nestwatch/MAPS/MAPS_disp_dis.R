@@ -1,13 +1,18 @@
 #####################
 #Dispersal distance of birds (caught in more than one site)
 #
+# Take away: substantial dispersal is VERY RARE
 #####################
 
 
 library(dplyr)
 library(geosphere)
 
-setwd(paste0(dir, '../'))
+dir <- '~/Google_Drive/R/'
+
+#setwd(paste0(dir, '../'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+
 maps_data <- readRDS('MAPS-age-filled.rds')
 
 #find unique band ids
@@ -24,7 +29,7 @@ maps_c <- dplyr::filter(maps_data, band_id %in% c_birds)
 nid <- unique(maps_c$band_id)
 
 N <- length(nid)
-N <- 500
+#N <- 500
 
 mdf <- data.frame(common_name = rep(NA, N), 
                   sci_name = NA,
@@ -91,5 +96,45 @@ for (i in 1:N)
 #only birds caught in more than one year
 mdf_g1 <- dplyr::filter(mdf, nyrs > 1)
 
-range(mdf_g1$dis, na.rm = TRUE)
+#remove problematic band string (according to Dani)
+ndf <- mdf_g1[-which(mdf_g1$band_id >= 199172901, mdf_g1$band_id <= 199173000),]
+range(ndf$dis, na.rm = TRUE)
 
+ndf2 <- ndf[-which(ndf$dis == 0),]
+hist(ndf2$dis)
+
+#only species with more than 20 ind
+sp_cnt <- plyr::count(ndf, 'sci_name')
+sp20 <- sp_cnt[which(sp_cnt$freq >= 20), 1]
+ndf3 <- dplyr::filter(ndf, sci_name %in% sp20)
+
+mn_agg <- stats::aggregate(ndf3[, c('dis', 'del', 'wing_chord', 'weight')], list(ndf3$sci_name), mean)
+colnames(mn_agg) <- c('sci_name', 'mn_dis', 'mn_del', 'mn_wing_chord', 'mn_weight')
+med_agg <- stats::aggregate(ndf3[, c('dis', 'del', 'wing_chord', 'weight')], list(ndf3$sci_name), median)
+colnames(med_agg) <- c('sci_name', 'med_dis', 'med_del', 'med_wing_chord', 'med_weight')
+sd_agg <- stats::aggregate(ndf3[, c('dis', 'del', 'wing_chord', 'weight')], list(ndf3$sci_name), sd)
+colnames(sd_agg) <- c('sci_name', 'sd_dis', 'sd_del', 'sd_wing_chord', 'sd_weight')
+max_agg <- stats::aggregate(ndf3[, c('dis', 'del', 'wing_chord', 'weight')], list(ndf3$sci_name), max)
+colnames(max_agg) <- c('sci_name', 'max_dis', 'max_del', 'max_wing_chord', 'max_weight')
+
+
+j1 <- dplyr::left_join(mn_agg, med_agg, by = 'sci_name')
+j2 <- dplyr::left_join(j1, sd_agg, by = 'sci_name')
+j3 <- dplyr::left_join(j2, max_agg, by = 'sci_name')
+
+plot(j3$mn_wing_chord, j3$max_dis)
+plot(j3$mn_wing_chord, j3$sd_dis)
+plot(j3$mn_weight, j3$max_dis)
+plot(j3$mn_weight, j3$sd_dis)
+
+
+hist(dplyr::filter(ndf3, ka == TRUE)$dis)
+hist(dplyr::filter(ndf3, ka == FALSE)$dis)
+
+par(mfrow = c(3,3))
+for (i in 1:length(sp20))
+{
+  #i <- 1
+  temp <- dplyr::filter(ndf3, sci_name == sp20[i])
+  hist(temp$dis, main = sp20[i])
+}

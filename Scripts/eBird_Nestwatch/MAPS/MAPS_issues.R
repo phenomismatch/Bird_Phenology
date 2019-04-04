@@ -2,6 +2,7 @@
 # Find issues in MAPS database
 #
 # ids that have multiple species names
+# Sting from 199172901 - 199173000 shoudl not be used
 ###############################
 
 
@@ -83,8 +84,16 @@ for (i in 1:length(un_bid))
 close(pb)
 
 
-setwd('~/Desktop')
-saveRDS(bad_ids, 'MAPS_bad_ids.rds')
+#setwd('~/Desktop')
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+# saveRDS(bad_ids, 'MAPS_bad_ids.rds')
+bad_ids <- readRDS('MAPS-bad-ids.rds')
+
+head(bad_ids)
+bad_ids2 <- dplyr::filter(bad_ids, standard_effort == '?', band_id < 199172901, band_id > 199173000)
+NROW(bad_ids2)
+
 
 output <- dplyr::select(bad_ids, year, day, band_id, common_name, sci_name, station)
 
@@ -94,6 +103,9 @@ write.csv(output, 'MAPS-bad-ids.csv', row.names = FALSE)
 
 
 #EASA has lat/lon 0,0
-unique(maps_data_full[which(maps_data_full$lat == 0),]$station)
-unique(maps_data_full[which(maps_data_full$lng == 0),]$station)
+llz <- dplyr::filter(maps_data_full, lat == 0, lng == 0)
+colnames(llz)[24] <- 'N'
+
+setwd('~/Desktop')
+write.csv(llz, 'MAPS-EASA.csv', row.names = FALSE)
 
