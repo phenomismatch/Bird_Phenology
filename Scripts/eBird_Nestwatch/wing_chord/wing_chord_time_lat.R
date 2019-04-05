@@ -99,16 +99,16 @@ parameters {
 // real mu_beta_raw;
 // real mu_gamma_raw;
 // real<lower = 0> sigma_raw;
-// vector<lower = 0>[3] sigma_sp_raw;
+// vector<lower = 0>[3] sigma_sp_raw;       // standard deviations
 
 real mu_alpha;
 real mu_beta;
 real mu_gamma;
-real<lower = 0>[Nsp] sigma;                // unexplained sd in wing chord for each species
-vector<lower = 0>[3] sigma_sp;             // sd among species for alpha, beta, gamma
+real<lower = 0> sigma;
+vector<lower = 0>[3] sigma_sp;             // standard deviations
 
 cholesky_factor_corr[3] L_Rho;             // correlation matrix
-matrix[3, Nsp] z;                          // z-scores
+matrix[3, Nsp] z;
 }
 
 transformed parameters {
@@ -170,13 +170,13 @@ sigma_sp[3] ~ normal(0, 2);
 L_Rho ~ lkj_corr_cholesky(2);
 
 
-y ~ normal(mu, sigma[sp]);
+y ~ normal(mu, sigma);
 }
 
 generated quantities {
 real y_rep[N];
 
-y_rep = normal_rng(mu, sigma[sp]);
+y_rep = normal_rng(mu, sigma);
 }
 "
 
@@ -187,7 +187,7 @@ DELTA <- 0.80
 TREE_DEPTH <- 13
 STEP_SIZE <- 0.005
 CHAINS <- 4
-ITER <- 1000
+ITER <- 1500
 
 tt <- proc.time()
 fit3 <- rstan::stan(model_code = stanmodel3,
@@ -212,16 +212,16 @@ fit3 <- rstan::stan(model_code = stanmodel3,
                                    stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/wing_chord'))
-saveRDS(fit3, file = 'MAPS-wc-time-lat-chol-stan_output-vary-gamma-full.rds')
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+saveRDS(fit3, file = 'MAPS-wc-time-lat-chol-stan_output-vary-gamma-25.rds')
 #fit3 <- readRDS('MAPS-wc-time-lat-chol-stan_output-vary-gamma.rds')
 
 MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'alpha')
-#MCMCvis::MCMCplot(fit3, params = c('alpha'), labels = usp, main = 'alpha')
+#MCMCvis::MCMCplot(fit3, params = c('alpha'))
 MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'beta')
-#MCMCvis::MCMCplot(fit3, params = c('beta'), labels = usp, main = 'beta')
+#MCMCvis::MCMCplot(fit3, params = c('beta'))
 MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'gamma')
-#MCMCvis::MCMCplot(fit3, params = c('gamma'), labels = usp, main = 'gamma')
+#MCMCvis::MCMCplot(fit3, params = c('gamma'))
 MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = 'mu', ISB = FALSE)
 #MCMCvis::MCMCplot(fit3, excl = c('eta', 'lp__', 'y_rep'))
 MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = c('Rho', 'sigma'), ISB = FALSE)
@@ -230,7 +230,6 @@ MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = c('Rho', 'sigma'), 
 # library(shinystan)
 # launch_shinystan(fit3)
 
-#y_val <- DATA$y
 # y_rep <- MCMCvis::MCMCchains(fit3, params = 'y_rep')
 # bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:25,])
 # plot(DATA$y, y_rep[1,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
@@ -240,41 +239,43 @@ MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = c('Rho', 'sigma'), 
 
 # PPO ---------------------------------------------------------------------
 
+# 
+# 
+# sigma_raw ~ normal(0, 1);         // sigma ~ halfnormal(0, 5)
+# eta_raw ~ normal(0, 1);           // eta ~ normal(0, 3)
+# 
 # to_vector(z) ~ normal(0, 1);
-# sigma ~ normal(0, 5);
-# mu_alpha ~ normal(70, 10);
-# mu_beta ~ normal(0, 2);
-# mu_gamma ~ normal(0, 2);
-# sigma_sp[1] ~ normal(0, 20);
-# sigma_sp[2] ~ normal(0, 2);
-# sigma_sp[3] ~ normal(0, 2);
-# L_Rho ~ lkj_corr_cholesky(2);
+# mu_alpha_raw ~ normal(0, 1);      // mu_alpha ~ normal(30, 10)
+# mu_beta_raw ~ normal(0, 1);       // mu_beta ~ normal(0, 3)
+# mu_gamma_raw ~ normal(0, 1);      // mu_gamma ~ normal(0, 3)
+# L_Rho ~ lkj_corr_cholesky(3);
+# sigma_sp_raw ~ normal(0, 1);      // sigma_sp[1] ~ halfnormal(0, 10); sigma_sp[2] ~ halfnormal(0, 3); sigma_sp[3] ~ halfnormal(0, 3); 
 
 
 
-#mu_alpha ~ N(70, 10)
-PR <- rnorm(10000, 70, 10)
+#mu_alpha ~ N(50, 10)
+PR <- rnorm(10000, 50, 10)
 MCMCvis::MCMCtrace(fit3,
                    params = 'mu_alpha',
                    priors = PR,
                    pdf = FALSE)
 
-#mu_beta ~ N(0, 2)
-PR <- rnorm(10000, 0, 2)
+#mu_beta ~ N(0, 3)
+PR <- rnorm(10000, 0, 1)
 MCMCvis::MCMCtrace(fit3,
                    params = 'mu_beta',
                    priors = PR,
                    pdf = FALSE)
 
-#mu_gamma ~ N(0, 2)
-PR <- rnorm(10000, 0, 2)
+#mu_gamma ~ N(0, 3)
+PR <- rnorm(10000, 0, 3)
 MCMCvis::MCMCtrace(fit3,
                    params = 'mu_gamma',
                    priors = PR,
                    pdf = FALSE)
 
-#sigma_sp[1] ~ HN(0, 20)
-PR_p <- rnorm(10000, 0, 20)
+#sigma_sp[1] ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit3,
                    params = 'sigma_sp\\[1',
@@ -282,8 +283,8 @@ MCMCvis::MCMCtrace(fit3,
                    priors = PR,
                    pdf = FALSE)
 
-#sigma_sp[2] ~ HN(0, 2)
-PR_p <- rnorm(10000, 0, 2)
+#sigma_sp[2] ~ HN(0, 3)
+PR_p <- rnorm(10000, 0, 3)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit3,
                    params = 'sigma_sp\\[2',
@@ -291,8 +292,8 @@ MCMCvis::MCMCtrace(fit3,
                    priors = PR,
                    pdf = FALSE)
 
-#sigma_sp[3] ~ HN(0, 2)
-PR_p <- rnorm(10000, 0, 2)
+#sigma_sp[3] ~ HN(0, 3)
+PR_p <- rnorm(10000, 0, 3)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit3,
                    params = 'sigma_sp\\[3',
@@ -300,12 +301,12 @@ MCMCvis::MCMCtrace(fit3,
                    priors = PR,
                    pdf = FALSE)
 
-# #eta ~ N(0, 5)
-# PR <- rnorm(10000, 0, 3)
-# MCMCvis::MCMCtrace(fit3,
-#                    params = 'eta',
-#                    priors = PR,
-#                    pdf = FALSE)
+#eta ~ N(0, 5)
+PR <- rnorm(10000, 0, 3)
+MCMCvis::MCMCtrace(fit3,
+                   params = 'eta',
+                   priors = PR,
+                   pdf = FALSE)
 
 #sigma ~ HN(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -313,6 +314,11 @@ PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit3,
                    params = 'sigma',
                    priors = PR,
-                   pdf = FALSE)
+                   pdf = FALSE, 
+                   post_zm = FALSE)
 
 
+head(stan_data)
+head(usp)
+
+plyr::count(stan_data, 'sci_name')
