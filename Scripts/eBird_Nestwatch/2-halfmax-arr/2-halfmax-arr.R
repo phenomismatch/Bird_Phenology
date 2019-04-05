@@ -345,7 +345,7 @@ for (j in 1:nyr)
       num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
       #rerun model if things didn't go well
-      while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
+      while (sum(c(num_diverge, num_BFMI)) > 0 & DELTA <= 0.98)
       {
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
