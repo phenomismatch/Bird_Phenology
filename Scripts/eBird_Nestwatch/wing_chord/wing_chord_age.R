@@ -736,7 +736,7 @@ options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.95
 TREE_DEPTH <- 16
-STEP_SIZE <- 0.05
+STEP_SIZE <- 0.005
 CHAINS <- 4
 ITER <- 5000
 # CHAINS <- 1
@@ -823,14 +823,14 @@ mu_sp_d_male_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_d_male')
 
 #now in derived QTY block as 'd_ASY'
 #find diff between ASY wing chord by sex
-wc_ASY_female_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_female\\[([1-9]|[1-9][0-9]),[2]', ISB = FALSE)
-wc_ASY_male_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_male\\[([1-9]|[1-9][0-9]),[2]', ISB = FALSE)
-wc_ASY_female_mn <- apply(wc_ASY_female, 2, mean)
-wc_ASY_male_mn <- apply(wc_ASY_male, 2, mean)
-d_ASY_ch <- wc_ASY_male_ch - wc_ASY_female_ch
-d_ASY_mn <- apply(d_ASY_ch, 2, mean)
-d_ASY_UCI <- apply(d_ASY_ch, 2, function(x) quantile(x, probs = 0.975))
-d_ASY_LCI <- apply(d_ASY_ch, 2, function(x) quantile(x, probs = 0.025))
+# wc_ASY_female_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_female\\[([1-9]|[1-9][0-9]),[2]', ISB = FALSE)
+# wc_ASY_male_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_male\\[([1-9]|[1-9][0-9]),[2]', ISB = FALSE)
+# wc_ASY_female_mn <- apply(wc_ASY_female, 2, mean)
+# wc_ASY_male_mn <- apply(wc_ASY_male, 2, mean)
+# d_ASY_ch <- wc_ASY_male_ch - wc_ASY_female_ch
+# d_ASY_mn <- apply(d_ASY_ch, 2, mean)
+# d_ASY_UCI <- apply(d_ASY_ch, 2, function(x) quantile(x, probs = 0.975))
+# d_ASY_LCI <- apply(d_ASY_ch, 2, function(x) quantile(x, probs = 0.025))
 
 
 sp_df <- data.frame(sp_id = sort(unique(maps_c2$sci_name_f)), 
@@ -956,8 +956,6 @@ MCMCvis::MCMCplot(fit, params = 'beta',
 dev.off()
 
 
-
-
 pdf('Figure_2a.pdf', height = 11, width = 9, useDingbats = FALSE)
 MCMCvis::MCMCplot(fit, params = msd_male_all, 
                   main = 'Diff wing chord across age classes (male)',
@@ -969,9 +967,10 @@ dev.off()
 
 
 pdf('Figure_2b.pdf', height = 11, width = 9, useDingbats = FALSE)
-MCMCvis::MCMCplot(fit, params = msd_female_all, 
+MCMCvis::MCMCplot(fit, params = msd_female_all, #params = 'mu_sp_d_female', 
                   main = 'Diff wing chord across age classes (female)',
                   ISB = FALSE,
+                  #rank = TRUE,
                   labels = names,
                   xlim = c(-6, 10),
                   sz_labels = 0.7)
@@ -987,6 +986,14 @@ MCMCvis::MCMCplot(fit, params = d_mu_sp_d_all,
                   sz_labels = 0.7)
 dev.off()
 
+# #post model derived qty
+# MCMCvis::MCMCplot(d_mu_sp_d,
+#                   rank = TRUE,
+#                   main = 'Diff in wc change between sexes',
+#                   ISB = FALSE,
+#                   labels = names,
+#                   xlim = c(-6, 10),
+#                   sz_labels = 0.7)
 
 
 
