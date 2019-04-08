@@ -192,9 +192,9 @@ options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.80
 TREE_DEPTH <- 14
-STEP_SIZE <- 0.005
+STEP_SIZE <- 0.0025
 CHAINS <- 4
-ITER <- 3000
+ITER <- 2500
 
 tt <- proc.time()
 fit3 <- rstan::stan(model_code = stanmodel3,
@@ -215,7 +215,7 @@ fit3 <- rstan::stan(model_code = stanmodel3,
                              'sigma_sp',
                              'sigma',
                              #'eta',
-                             'z',
+                             #'z',
                              'y_rep'), 
                     control = list(adapt_delta = DELTA,
                                    max_treedepth = TREE_DEPTH,
@@ -241,6 +241,10 @@ MCMCvis::MCMCsummary(fit3, n.eff = TRUE, round = 2, params = c('Rho', 'sigma'), 
 
 # library(shinystan)
 # launch_shinystan(fit3)
+
+
+
+# PPC ---------------------------------------------------------------------
 
 #y_val <- DATA$y
 # y_rep <- MCMCvis::MCMCchains(fit3, params = 'y_rep')
