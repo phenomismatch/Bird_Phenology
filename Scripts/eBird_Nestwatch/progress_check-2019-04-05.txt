@@ -1,0 +1,89 @@
+2019-04-05 11:00
+Over 85 hours == 2500, under 1800
+
+
+[1] "species: Cardellina_canadensis, year: 14, cell: 66"
+R 110:1
+[1] "species: Catharus_fuscescens, year: 14, cell: 48"
+R 142:0
+[1] "species: Contopus_virens, year: 13, cell: 42"
+R 142:0
+[1] "species: Dumetella_carolinensis, year: 17, cell: 34"
+R 142:0
+[1] "species: Empidonax_alnorum, year: 15, cell: 74"
+R 99:25
+[1] "species: Empidonax_minimus, year: 14, cell: 57"
+R 92:06
+[1] "species: Empidonax_traillii, year: 14, cell: 12"
+R 99:25
+[1] "species: Empidonax_virescens, year: 15, cell: 21"
+R 142:0
+[1] "species: Geothlypis_formosa, year: 17, cell: 54"
+[1] "species: Hirundo_rustica, year: 13, cell: 45"
+R 66:45
+[1] "species: Icterus_galbula, year: 13, cell: 43"
+R 105:3
+[1] "species: Limnothlypis_swainsonii, year: 17, cell: 36"
+[1] "species: Mniotilta_varia, year: 17, cell: 60"
+R 117:1
+[1] "species: Myiarchus_crinitus, year: 13, cell: 61"
+R 142:0
+[1] "species: Oreothlypis_ruficapilla, year: 12, cell: 50"
+R 23:09
+[1] "species: Parkesia_motacilla, year: 16, cell: 46"
+R 117:2
+[1] "species: Parkesia_noveboracensis, year: 15, cell: 84"
+R 117:2
+[1] "species: Petrochelidon_pyrrhonota, year: 17, cell: 69"
+R 59:42
+[1] "species: Pheucticus_ludovicianus, year: 13, cell: 41"
+R 105:3
+[1] "species: Piranga_olivacea, year: 13, cell: 25"
+R 110:1
+[1] "species: Piranga_rubra, year: 17, cell: 49"
+C 109:4
+[1] "species: Progne_subis, year: 12, cell: 48"
+R 40:12
+[1] "species: Protonotaria_citrea, year: 17, cell: 17"
+R 110:5
+[1] "species: Riparia_riparia, year: 14, cell: 56"
+R 60:48
+[1] "species: Seiurus_aurocapilla, year: 13, cell: 54"
+R 110:1
+[1] "species: Setophaga_americana, year: 15, cell: 30"
+R 115:2
+[1] "species: Setophaga_caerulescens, year: 16, cell: 31"
+R 113:4
+[1] "species: Setophaga_cerulea, year: 17, cell: 30"
+R 110:5
+[1] "species: Setophaga_citrina, year: 17, cell: 51"
+[1] "species: Setophaga_dominica, year: 17, cell: 37"
+[1] "species: Setophaga_pensylvanica, year: 11, cell: 54"
+R 23:09
+[1] "species: Setophaga_petechia, year: 4, cell: 70"
+R 00:35
+[1] "species: Setophaga_ruticilla, year: 14, cell: 59"
+R 115:2
+[1] "species: Setophaga_virens, year: 16, cell: 72"
+R 113:4
+[1] "species: Stelgidopteryx_serripennis, year: 14, cell: 30"
+R 71:16
+[1] "species: Tachycineta_bicolor, year: 16, cell: 85"
+R 81:51
+[1] "species: Tyrannus_tyrannus, year: 13, cell: 47"
+R 92:06
+[1] "species: Vermivora_chrysoptera, year: 16, cell: 20"
+R 35:20
+[1] "species: Vermivora_cyanoptera, year: 12, cell: 21"
+R 35:20
+[1] "species: Vireo_bellii, year: 17, cell: 27"
+[1] "species: Vireo_flavifrons, year: 14, cell: 60"
+R 142:0
+[1] "species: Vireo_gilvus, year: 13, cell: 37"
+R 142:0
+[1] "species: Vireo_griseus, year: 17, cell: 15"
+R 82:50
+[1] "species: Vireo_olivaceus, year: 13, cell: 55"
+R 142:0
+[1] "species: Vireo_solitarius, year: 15, cell: 61"
+R 142:0
