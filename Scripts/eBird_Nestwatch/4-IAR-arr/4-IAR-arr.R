@@ -379,19 +379,19 @@ for (j in 1:J)
 model {
 
 // priors
-alpha_gamma_raw ~ normal(0, 1);
-beta_gamma_raw ~ normal(0, 1);
-sigma_gamma_raw ~ normal(0, 1);
-sigma_nu_raw ~ normal(0, 1);
+alpha_gamma_raw ~ std_normal();       // faster than normal(0, 1)
+beta_gamma_raw ~ std_normal();
+sigma_gamma_raw ~ std_normal();
+sigma_nu_raw ~ std_normal();
 rho ~ beta(0.5, 0.5);
-gamma_raw ~ normal(0, 1);
-beta0_raw ~ normal(0, 1);
-mu_sn_raw ~ normal(0, 1);
-sigma_beta0_raw ~ normal(0, 1);
+gamma_raw ~ std_normal();
+beta0_raw ~ std_normal();
+mu_sn_raw ~ std_normal();
+sigma_beta0_raw ~ std_normal();
 
 for (j in 1:J)
 {
-  theta[,j] ~ normal(0, 1);
+  theta[,j] ~ std_normal();
   target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
   sum(phi[,j]) ~ normal(0, 0.001 * N);
   
