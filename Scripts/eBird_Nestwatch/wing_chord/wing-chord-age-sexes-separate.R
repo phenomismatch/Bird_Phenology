@@ -1,5 +1,5 @@
 ####################
-# Investigate changes in wing_chord over age
+# Investigate changes in wing_chord over age - males and females separately
 #
 # Database query:
 # ---------------
