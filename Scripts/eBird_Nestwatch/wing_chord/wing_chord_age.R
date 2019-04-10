@@ -1286,6 +1286,89 @@ bayesplot::ppc_dens_overlay(DATA$mn_d_ASY, x_rep[1:100,])
 
 
 
+
+# plot results ------------------------------------------------------------
+
+#mean and 95% CI
+mu_rep_mn <- MCMCvis::MCMCpstr(fit2, params = 'mu_rep', func = mean)[[1]]
+mu_rep_LCI <- MCMCvis::MCMCpstr(fit2, params = 'mu_rep', func = function(x) quantile(x, probs = 0.025))[[1]]
+mu_rep_UCI <- MCMCvis::MCMCpstr(fit2, params = 'mu_rep', func = function(x) quantile(x, probs = 0.975))[[1]]
+
+FIT_PLOT <- data.frame(x_sim = seq(from = (rng_mn_ASY[1] - 2), 
+                                   to = (rng_mn_ASY[2] + 2), length.out = 100),
+                       mu_rep_mn, 
+                       mu_rep_LCI, 
+                       mu_rep_UCI)
+
+#mean and +- 1 sd
+y_true_mn <- MCMCvis::MCMCpstr(fit2, params = 'y_true', func = mean)[[1]]
+y_true_sd <- MCMCvis::MCMCpstr(fit2, params = 'y_true', func = sd)[[1]]
+y_true_LCI <- y_true_mn - y_true_sd
+y_true_UCI <- y_true_mn + y_true_sd
+
+x_true_mn <- MCMCvis::MCMCpstr(fit2, params = 'x_true', func = mean)[[1]]
+x_true_sd <- MCMCvis::MCMCpstr(fit2, params = 'x_true', func = sd)[[1]]
+x_true_LCI <- x_true_mn - x_true_sd
+x_true_UCI <- x_true_mn + x_true_sd
+
+msd_mn <- mn_msd
+msd_LCI <- mn_msd - sd_msd
+msd_UCI <- mn_msd + sd_msd
+
+d_ASY_mn <- mn_d_ASY
+d_ASY_LCI <- mn_d_ASY - sd_d_ASY
+d_ASY_UCI <- mn_d_ASY + sd_d_ASY
+
+DATA_PLOT <- data.frame(y_true_mn, y_true_LCI, y_true_UCI,
+                        x_true_mn, x_true_LCI, x_true_UCI,
+                        msd_mn, msd_LCI, msd_UCI,
+                        d_ASY_mn, d_ASY_LCI, d_ASY_UCI)
+
+
+
+pdf('Figure_6.pdf', height = 11, width = 9, useDingbats = FALSE)
+ggplot(data = DATA_PLOT, aes(x_true_mn, y_true_mn), color = 'black', alpha = 0.6) +
+  geom_ribbon(data = FIT_PLOT, 
+              aes(x = x_sim, ymin = mu_rep_LCI, ymax = mu_rep_UCI),
+              fill = 'grey', alpha = 0.6,
+              inherit.aes = FALSE) +
+  geom_line(data = FIT_PLOT, aes(x_sim, mu_rep_mn), color = 'red',
+            alpha = 0.9,
+            inherit.aes = FALSE,
+            size = 1.4) +
+  geom_point(data = DATA_PLOT,
+             aes(d_ASY_mn, msd_mn), color = 'red',
+             inherit.aes = FALSE, size = 3, alpha = 0.2) +
+  geom_errorbar(data = DATA_PLOT, 
+                aes(x = d_ASY_mn, ymin = msd_LCI, ymax = msd_UCI), width = 0.3,
+                color = 'red', alpha = 0.2) +
+  geom_errorbarh(data = DATA_PLOT, 
+                 aes(y = msd_mn, xmin = d_ASY_LCI, xmax = d_ASY_UCI), height = 0.3,
+                 color = 'red', alpha = 0.2) +
+  geom_point(data = DATA_PLOT,
+             aes(x_true_mn, y_true_mn), color = 'black',
+             inherit.aes = FALSE, size = 3, alpha = 0.4) +
+  geom_errorbar(data = DATA_PLOT,
+                aes(ymin = y_true_LCI, ymax = y_true_UCI), width = 0.3,
+                color = 'black', alpha = 0.2) +
+  geom_errorbarh(data = DATA_PLOT,
+                aes(xmin = x_true_LCI, xmax = x_true_UCI), height = 0.3,
+                color = 'black', alpha = 0.2) +
+  theme_bw() +
+  xlab('Diff ASY wing chord between sexes') +
+  ylab('Diff between sexes in age class wing chord diff') +
+  theme(
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 18),
+    axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+    axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
+    axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
+dev.off()
+
+
+
+
+
 # output df to csv --------------------------------------------------------
 
 out_df <- dplyr::select(wc_b, sci_name, COMMONNAME, SSN, PSCORE, 
