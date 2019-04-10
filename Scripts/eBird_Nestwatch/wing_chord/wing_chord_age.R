@@ -237,8 +237,8 @@ for (i in 1:length(usp_maps_ad))
   sd_wc <- sd(temp$wing_chord)
   mn_wc <- mean(temp$wing_chord)
   #outside 3 sds
-  low <- mn_wc - 3*sd_wc
-  high <-  mn_wc + 3*sd_wc
+  low <- mn_wc - (3*sd_wc)
+  high <-  mn_wc + (3*sd_wc)
   to.rm <- which(temp$wing_chord < low | temp$wing_chord > high)
   if (length(to.rm) > 0)
   {
@@ -446,7 +446,7 @@ nid <- unique(maps_c$band_id)
 
 
 
-# stan model --------------------------------------------------------------
+# stan data processing --------------------------------------------------------------
 
 #// nu prior
 #// https://statmodeling.stat.columbia.edu/2015/05/17/do-we-have-any-recommendations-for-priors-for-student_ts-degrees-of-freedom-parameter/
@@ -458,7 +458,7 @@ nid <- unique(maps_c$band_id)
 m_band_id <- data.frame()
 for (i in 1:length(nid))
 {
-  #i <- 21003
+  #i <- 1
   temp <- dplyr::filter(maps_c, band_id == nid[i])
 
   if (length(unique(temp$sci_name)) == 1)
@@ -476,10 +476,17 @@ for (i in 1:length(nid))
   }
 }
 
+  
+#only species that have at least 10 males, and at least 10 females
+#OLD
+# csp <- plyr::count(m_band_id, c('sp'))
+# nsp <- as.character(csp[which(csp$freq > 20), 1])
 
-#only species that have > 20 individuals
-csp <- plyr::count(m_band_id, 'sp')
-nsp <- as.character(csp[which(csp$freq > 20), 1])
+#NEW
+csp <- plyr::count(m_band_id, c('sp', 'sex'))
+tnsp <- as.character(csp[which(csp$freq >= 10), 1])
+nsp <- as.character(csp[which(plyr::count(tnsp)$freq == 2), 1])
+
 
 #filter relevant species
 m_band_id2 <- dplyr::filter(m_band_id, sp %in% nsp)
@@ -814,20 +821,22 @@ mu_sp_d_male_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_sp_d_male',
                                         func = function(x) quantile(x, probs = 0.025))[[1]]
 mu_sp_d_male_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_d_male')
 
-#now in derived QTY block as 'd_mu_sp_d'
-#find diff between male diff and female diff
+# #now in derived QTY block as 'd_mu_sp_d'
+# #find diff between male diff and female diff
 # d_mu_sp_d <- mu_sp_d_male_ch - mu_sp_d_female_ch
+# colnames(d_mu_sp_d) <- paste0('d_mu_sp_d[', 1:length(nsp), ']')
 # d_mu_sp_d_mn <- apply(d_mu_sp_d, 2, mean)
 # d_mu_sp_d_UCI <- apply(d_mu_sp_d, 2, function(x) quantile(x, probs = 0.975))
 # d_mu_sp_d_LCI <- apply(d_mu_sp_d, 2, function(x) quantile(x, probs = 0.025))
 
-#now in derived QTY block as 'd_ASY'
-#find diff between ASY wing chord by sex
+# #now in derived QTY block as 'd_ASY'
+# #find diff between ASY wing chord by sex
 # wc_ASY_female_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_female\\[([1-9]|[1-9][0-9]),[2]', ISB = FALSE)
 # wc_ASY_male_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_male\\[([1-9]|[1-9][0-9]),[2]', ISB = FALSE)
-# wc_ASY_female_mn <- apply(wc_ASY_female, 2, mean)
-# wc_ASY_male_mn <- apply(wc_ASY_male, 2, mean)
+# wc_ASY_female_mn <- apply(wc_ASY_female_ch, 2, mean)
+# wc_ASY_male_mn <- apply(wc_ASY_male_ch, 2, mean)
 # d_ASY_ch <- wc_ASY_male_ch - wc_ASY_female_ch
+# colnames(d_ASY_ch) <- paste0('d_ASY[', 1:length(nsp), ']')
 # d_ASY_mn <- apply(d_ASY_ch, 2, mean)
 # d_ASY_UCI <- apply(d_ASY_ch, 2, function(x) quantile(x, probs = 0.975))
 # d_ASY_LCI <- apply(d_ASY_ch, 2, function(x) quantile(x, probs = 0.025))
@@ -835,22 +844,21 @@ mu_sp_d_male_ch <- MCMCvis::MCMCchains(fit, params = 'mu_sp_d_male')
 
 sp_df <- data.frame(sp_id = sort(unique(maps_c2$sci_name_f)), 
                     sci_name = sort(unique(maps_c2$sci_name)),
-                    wing_chord_ASY_female = wc_ASY_female_mn,
-                    wing_chord_ASY_male = wc_ASY_male_mn,
-                    wc_diff_ASY_mn = d_ASY_mn,
+                    wing_chord_ASY_female = wc_ASY_female_mn, #ASY wing chord female
+                    wing_chord_ASY_male = wc_ASY_male_mn, #ASY wing chord male
+                    wc_diff_ASY_mn = d_ASY_mn, #difference in ASY wing chord between sexes
                     wc_diff_ASY_LCI = d_ASY_LCI,
                     wc_diff_ASY_UCI = d_ASY_UCI,
-                    mu_sp_d_female_mn = mu_sp_d_female_mn,
+                    mu_sp_d_female_mn = mu_sp_d_female_mn, #difference wc between SY/ASY female
                     mu_sp_d_female_LCI = mu_sp_d_female_LCI,
                     mu_sp_d_female_UCI = mu_sp_d_female_UCI,
-                    mu_sp_d_male_mn = mu_sp_d_male_mn,
+                    mu_sp_d_male_mn = mu_sp_d_male_mn, #difference wc between SY/ASY male
                     mu_sp_d_male_LCI = mu_sp_d_male_LCI,
                     mu_sp_d_male_UCI = mu_sp_d_male_UCI,
-                    d_mu_sp_d_mn = d_mu_sp_d_mn,
+                    d_mu_sp_d_mn = d_mu_sp_d_mn, #difference in wc SY/ASY between sexes
                     d_mu_sp_d_UCI = d_mu_sp_d_UCI,
                     d_mu_sp_d_LCI = d_mu_sp_d_LCI)
 
-setwd('wing_chord')
 WC_age <- read.csv('WC-AGE.csv')
 wc_b_p <- dplyr::full_join(sp_df, WC_age, by = c('sci_name' = 'SCINAME'))
 
@@ -931,11 +939,19 @@ d_mu_sp_d_JS <- paste0('d_mu_sp_d\\[', JS_wc$sp_id, '\\]')
 d_mu_sp_d_FE <- paste0('d_mu_sp_d\\[', FE_wc$sp_id, '\\]')
 d_mu_sp_d_FC <- paste0('d_mu_sp_d\\[', FC_wc$sp_id, '\\]')
 
+#difference in ASY wing chord between sex
+d_ASY_JA <- paste0('d_ASY\\[', JA_wc$sp_id, '\\]')
+d_ASY_JM <- paste0('d_ASY\\[', JM_wc$sp_id, '\\]')
+d_ASY_JS <- paste0('d_ASY\\[', JS_wc$sp_id, '\\]')
+d_ASY_FE <- paste0('d_ASY\\[', FE_wc$sp_id, '\\]')
+d_ASY_FC <- paste0('d_ASY\\[', FC_wc$sp_id, '\\]')
+
 
 beta_all <- c(beta_JA, beta_JM, beta_JS, beta_FE, beta_FC)
 msd_male_all <- c(msd_male_JA, msd_male_JM, msd_male_JS, msd_male_FE, msd_male_FC)
 msd_female_all <- c(msd_female_JA, msd_female_JM, msd_female_JS, msd_female_FE, msd_female_FC)
 d_mu_sp_d_all <- c(d_mu_sp_d_JA, d_mu_sp_d_JM, d_mu_sp_d_JS, d_mu_sp_d_FE, d_mu_sp_d_FC)
+d_ASY_all <- c(d_ASY_JA, d_ASY_JM, d_ASY_JS, d_ASY_FE, d_ASY_FC)
 
 names <- c(as.character(JA_wc$COMMONNAME), as.character(JM_wc$COMMONNAME), 
            as.character(JS_wc$COMMONNAME), as.character(FE_wc$COMMONNAME), 
@@ -971,7 +987,7 @@ MCMCvis::MCMCplot(fit, params = msd_female_all, #params = 'mu_sp_d_female',
                   main = 'Diff wing chord across age classes (female)',
                   ISB = FALSE,
                   #rank = TRUE,
-                  labels = names,
+                  #labels = names,
                   xlim = c(-6, 10),
                   sz_labels = 0.7)
 dev.off()
@@ -987,15 +1003,24 @@ MCMCvis::MCMCplot(fit, params = d_mu_sp_d_all,
 dev.off()
 
 # #post model derived qty
-# MCMCvis::MCMCplot(d_mu_sp_d,
-#                   rank = TRUE,
-#                   main = 'Diff in wc change between sexes',
+# pdf('Figure_3.pdf', height = 11, width = 9, useDingbats = FALSE)
+# MCMCvis::MCMCplot(d_mu_sp_d, params = d_mu_sp_d_all, 
+#                   main = 'Diff wing chord change between sexes',
 #                   ISB = FALSE,
 #                   labels = names,
 #                   xlim = c(-6, 10),
 #                   sz_labels = 0.7)
+# dev.off()
 
 
+pdf('Figure_4.pdf', height = 11, width = 9, useDingbats = FALSE)
+MCMCvis::MCMCplot(d_ASY_ch, params = d_ASY_all,
+                 main = 'Diff in ASY wing chord between sexes',
+                 ISB = FALSE,
+                 labels = names,
+                 xlim = c(-5, 25),
+                 sz_labels = 0.7)
+dev.off()
 
 NROW(JA_wc)
 NROW(JM_wc)
@@ -1047,7 +1072,7 @@ FE_gr_female <- mu_sp_d_female_ch[,wc_FE$sp_id]
 FC_gr_female <- mu_sp_d_female_ch[,wc_FC$sp_id][,-1]
 
 
-#mean difference for PSCORE group
+#mean difference between age classes for PSCORE group
 #male
 mn_JA_male <- apply(JA_gr_male, 1, mean)
 mn_JM_male <- apply(JM_gr_male, 1, mean)
@@ -1096,7 +1121,7 @@ den_df_female <- rbind(data.frame(val = mn_JA_female, PSCORE = 'JA'),
                        data.frame(val = mn_FC_female, PSCORE = 'FC'))
 
 
-pdf('Figure_4a.pdf', height = 5, width = 5, useDingbats = FALSE)
+pdf('Figure_5a.pdf', height = 5, width = 5, useDingbats = FALSE)
 ggplot(den_df_male, aes(x = val, fill = PSCORE)) +
   geom_density(alpha = 0.3) +
   theme_bw() +
@@ -1109,7 +1134,7 @@ ggplot(den_df_male, aes(x = val, fill = PSCORE)) +
   xlim(c(-1, 2.5))
 dev.off()
 
-pdf('Figure_4b.pdf', height = 5, width = 5, useDingbats = FALSE)
+pdf('Figure_5b.pdf', height = 5, width = 5, useDingbats = FALSE)
 ggplot(den_df_female, aes(x = val, fill = PSCORE)) +
   geom_density(alpha = 0.3) +
   theme_bw() +
@@ -1125,23 +1150,160 @@ dev.off()
 
 
 
+# model diff ~ sexual dimporhism ------------------------------------------
+
+# mn_msd[i] ~ N(y_true[i], sd_msd[i])
+# mn_d_ASY[i] ~ N(x_true[i], sd_d_asy[i])
+# 
+# y_true[i] ~ N(mu[i], sigma)
+# mu[i] = alpha + beta * x_true[i]
+
+mn_msd <- apply(d_mu_sp_d, 2, mean)
+sd_msd <- apply(d_mu_sp_d, 2, sd)
+mn_d_ASY <- apply(d_ASY_ch, 2, mean)
+sd_d_ASY <- apply(d_ASY_ch, 2, sd)
+
+#range of predictor variable for sim
+rng_mn_ASY <- range(mn_d_ASY)
+
+#data for stan model
+DATA <- list(N = length(mn_msd),
+             mn_msd = mn_msd,
+             sd_msd = sd_msd,
+             mn_d_ASY = mn_d_ASY,
+             sd_d_ASY = sd_d_ASY,
+             x_sim =  seq(from = (rng_mn_ASY[1] - 2), to = (rng_mn_ASY[2] + 2), length.out = 100),
+             N_x_sim = 100)
+
+stanmodel <- "
+data {
+int<lower=0> N;                              // number of data points (species)
+vector[N] mn_msd;                            // mean difference between sex in age class wc diff
+vector<lower=0>[N] sd_msd;                   // sd difference between sex in age class wc diff
+vector[N] mn_d_ASY;                          // mean difference in ASY wing chord
+vector<lower=0>[N] sd_d_ASY;                 // sd difference in ASY wing chord
+int<lower=0> N_x_sim;                        // length x_sim
+vector[N_x_sim] x_sim;                       // simulated x vals to plot model fit
+}
+
+parameters {
+vector[N] y_true_raw;                       // true difference between sex in age class wc diff
+vector[N] x_true_raw;                       // true difference ASY wing chord
+real<lower = 0> sigma_raw;
+real alpha_raw;                             // intercept
+real beta_raw;                              // slope
+}
+
+transformed parameters {
+vector[N] mu;
+vector[N_x_sim] mu_rep;
+real<lower = 0> sigma;
+real alpha;
+real beta;
+vector[N] x_true;
+vector[N] y_true;
+
+sigma = sigma_raw;
+alpha = alpha_raw * 5 - 4;
+beta = beta_raw * 4;
+x_true = x_true_raw * 10 + 5;
+
+mu = alpha + beta * x_true;
+mu_rep = alpha + beta * x_sim;
+
+y_true = y_true_raw * sigma + mu;
+}
+
+model {
+
+alpha_raw ~ std_normal();
+beta_raw ~ std_normal();
+sigma_raw ~ std_normal();
+x_true_raw ~ std_normal();
+
+// account for observation error in diff between sex in age class wc
+mn_msd ~ normal(y_true, sd_msd);
+
+// account for observation error in ASY wc
+mn_d_ASY ~ normal(x_true, sd_d_ASY);
+
+y_true_raw ~ std_normal();      // implies y_true ~ normal(mu, sigma);
+}
+
+generated quantities {
+real y_rep[N];
+real x_rep[N];
+
+y_rep = normal_rng(y_true, sd_msd);
+x_rep = normal_rng(x_true, sd_d_ASY);
+}
+"
+
+rstan::rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+DELTA <- 0.95
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.05
+CHAINS <- 4
+ITER <- 1000
+
+tt <- proc.time()
+fit2 <- rstan::stan(model_code = stanmodel,
+                   data = DATA,
+                   chains = CHAINS,
+                   iter = ITER,
+                   cores = CHAINS,
+                   pars = c('alpha',
+                            'beta',
+                            'sigma',
+                            'y_true',
+                            'x_true',
+                            'y_rep',
+                            'x_rep',
+                            'mu_rep'),
+                   control = list(adapt_delta = DELTA,
+                                  max_treedepth = TREE_DEPTH,
+                                  stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/wing_chord'))
+saveRDS(fit2, file = 'MAPS-wc-age-sex-ASY-diff-stan-output.rds')
+
+
+MCMCvis::MCMCsummary(fit2, n.eff = TRUE, round = 2)
+
+
+# PPC ---------------------------------------------------------------------
+
+y_rep <- MCMCvis::MCMCchains(fit2, params = 'y_rep')
+x_rep <- MCMCvis::MCMCchains(fit2, params = 'x_rep')
+bayesplot::ppc_dens_overlay(DATA$mn_msd, y_rep[1:100,])
+bayesplot::ppc_dens_overlay(DATA$mn_d_ASY, x_rep[1:100,])
+
+# library(shinystan)
+# launch_shinystan(fit2)
+
 
 
 # output df to csv --------------------------------------------------------
 
-# out_df <- dplyr::select(wc_b, sci_name, COMMONNAME, SSN, 
-#                         PSCORE, mu_sp_d, mu_sp_d_LCI, 
-#                         mu_sp_d_UCI, wing_chord_ASY)
-# 
-# out_df2 <- out_df %>% mutate_if(is.numeric, round, 3)
-# 
-# 
+out_df <- dplyr::select(wc_b, sci_name, COMMONNAME, SSN, PSCORE, 
+                        mu_sp_d_male_mn, mu_sp_d_female_mn, 
+                        wing_chord_ASY_male, wing_chord_ASY_female)
+
+colnames(out_df) <- c('sci_name', 'common_name', 'SSN', 'pscore', 
+                      'diff_age_male', 'diff_age_female', 
+                      'wing_chord_ASY_male', 'wing_chord_ASY_female')
+
+out_df2 <- out_df %>% mutate_if(is.numeric, round, 3)
+
+
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/wing_chord'))
-# 
-# colnames(out_df2)[5] <- 'wc_diff'
-# colnames(out_df2)[6] <- 'wc_diff_LCI'
-# colnames(out_df2)[7] <- 'wc_diff_UCI'
 # write.csv(out_df2, 'wc_age_model_output.csv', row.names = FALSE)
+
+
+
 
 
 
