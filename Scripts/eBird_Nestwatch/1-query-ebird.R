@@ -223,7 +223,7 @@ doParallel::registerDoParallel(cores = 4)
 tt <- proc.time()
 foreach::foreach(i = 1:nsp) %dopar%
 {
-  #i <- 1
+  #i <- 106
   print(i)
   
   pg <- DBI::dbDriver("PostgreSQL")
