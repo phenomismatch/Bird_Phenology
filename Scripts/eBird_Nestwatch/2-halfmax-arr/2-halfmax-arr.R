@@ -67,6 +67,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Mimus_polyglottos'
 #args <- 'Agelaius_phoeniceus'
 #args <- 'Vireo_olivaceus'
+#args <- 'Catharus_fuscescens'
 
 
 # import processed data ---------------------------------------------------
@@ -280,12 +281,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 1
+  #j <- 15
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
   {
-    #k <- 37
+    #k <- 33
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
