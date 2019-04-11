@@ -68,7 +68,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Agelaius_phoeniceus'
 #args <- 'Vireo_olivaceus'
 #args <- 'Catharus_fuscescens'
-#args <- 'Ammodramus_nelsoni'
+#args <- 'Ammospiza_nelsoni'
 
 
 # import processed data ---------------------------------------------------
