@@ -543,31 +543,31 @@ cxn <- DBI::dbConnect(pg,
                       dbname = "sightings")
 
 maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name, event_id, started, ended,
-                                      (count_json ->> 'ANET') AS anet,
-                                      (event_json ->> 'STATION') AS station,
-                                      (place_json ->> 'HABITAT') AS habitat,
-                                      (place_json ->> 'ELEV')::int AS elev,
-                                      (count_json ->> 'C') capture_code,
-                                      (count_json ->> 'BAND') AS band_id,
-                                      (count_json ->> 'AGE')::int AS age,
-                                      (count_json ->> 'SEX') AS sex,
-                                      (count_json ->> 'CP')::int AS cloacal_pro,
-                                      (count_json ->> 'BP')::int AS brood_patch,
-                                      (count_json ->> 'F')::int AS fat_content,
-                                      (count_json ->> 'WNG')::float AS wing_chord,
-                                      (count_json ->> 'WEIGHT')::float AS weight,
-                                      (count_json ->> 'N') AS standard_effort
-                                      FROM places
-                                      JOIN events USING (place_id)
-                                      JOIN counts USING (event_id)
-                                      JOIN taxa USING (taxon_id)
-                                      WHERE events.dataset_id = 'maps'
-                                      AND day < 300
-                                      AND lng BETWEEN -95 AND -50
-                                      AND lat > 26
-                                      AND (count_json ->> 'C') in ('N', 'R', 'U')
-                                      AND (count_json ->> 'N') in ('-', 'D', 'S', 'T', 'O', '+');
-                                      "))
+                                         (count_json ->> 'ANET') AS anet,
+                                         (event_json ->> 'STATION') AS station,
+                                         (place_json ->> 'HABITAT') AS habitat,
+                                         (place_json ->> 'ELEV')::int AS elev,
+                                         (count_json ->> 'C') capture_code,
+                                         (count_json ->> 'BAND') AS band_id,
+                                         (count_json ->> 'AGE')::int AS age,
+                                         (count_json ->> 'SEX') AS sex,
+                                         (count_json ->> 'CP')::int AS cloacal_pro,
+                                         (count_json ->> 'BP')::int AS brood_patch,
+                                         (count_json ->> 'F')::int AS fat_content,
+                                         (count_json ->> 'WNG')::float AS wing_chord,
+                                         (count_json ->> 'WEIGHT')::float AS weight,
+                                         (count_json ->> 'N') AS standard_effort
+                                         FROM places
+                                         JOIN events USING (place_id)
+                                         JOIN counts USING (event_id)
+                                         JOIN taxa USING (taxon_id)
+                                         WHERE events.dataset_id = 'maps'
+                                         AND day < 300
+                                         AND lng BETWEEN -95 AND -50
+                                         AND lat > 26
+                                         AND (count_json ->> 'C') in ('N', 'R', 'U')
+                                         AND (count_json ->> 'N') in ('-', 'D', 'S', 'T', 'O', '+');
+                                         "))
 
 #C (Capture code): Only codes N,R,U are used for analyses according to MAPS docs
 #N = newly banded bird
@@ -630,8 +630,8 @@ head(maps_data)
 
 hexgrid6 <- dggridR::dgconstruct(res = 6) 
 maps_data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                          in_lon_deg = maps_data$lng, 
-                                          in_lat_deg = maps_data$lat)[[1]]
+                                           in_lon_deg = maps_data$lng, 
+                                           in_lat_deg = maps_data$lat)[[1]]
 
 
 
@@ -747,7 +747,8 @@ nestwatch_data <- DBI::dbGetQuery(cxn, paste0("SELECT *,
                                               (event_json ->> 'HATCH_DT') AS hatch,
                                               (event_json ->> 'FLEDGE_DT') AS fledge,
                                               (event_json ->> 'event_type') AS event_type,
-                                              (count_json ->> 'count_type') AS count_type
+                                              (count_json ->> 'count_type') AS count_type,
+                                              (place_json ->> 'LOC_ID') AS loc_id
                                               FROM places
                                               JOIN events USING (place_id)
                                               JOIN counts USING (event_id)
@@ -758,9 +759,25 @@ nestwatch_data <- DBI::dbGetQuery(cxn, paste0("SELECT *,
                                               "))
 
 
-head(nestwatch_data)
+head(nestwatch_data, n = 25)
+unique(nestwatch_data$event_type)
+unique(nestwatch_data$count_type)
+
+str(nestwatch_data)
+t_nw <- nestwatch_data[, c('event_id', 'count_id', 'year', 'lng', 'lat', 'loc_id',
+                           'day', 'sci_name', 'count', 'lay', 'hatch', 'fledge', 
+                           'event_type', 'count_type')]
+
 
 NROW(nestwatch_data)
+cnt <- plyr::count(nestwatch_data, 'event_id')
+cid <- cnt[which(cnt[,2] > 1),1]
+dplyr::filter(t_nw, event_id == cid[1])
+
+dplyr::filter(t_nw, loc_id == 'L232632', year == 2006)
+
+
+
 length(unique(nestwatch_data$count_id))
 length(unique(nestwatch_data$event_id))
 length(!is.na(nestwatch_data$lay))
