@@ -103,7 +103,7 @@
 "Melospiza_georgiana"
 "Quiscalus_quiscula"
 "Passerculus_sandwichensis"
-"Ammospiza_caudacutus"
+"Ammospiza_caudacuta"
 "Spizella_passerina"
 "Pipilo_erythrophthalmus"
 "Troglodytes_aedon"
