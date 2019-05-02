@@ -120,7 +120,7 @@ if (length(g_ind) == 0)
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
 sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
 #crop to area of interest
-sp_rng2 <- raster::crop(sp_rng, raster::extent(-100, -50, 26, 90))
+sp_rng2 <- raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
 
 #filter by breeding (2) and migration (4) range - need to convert spdf to sp
 nrng <- sp_rng2[which(sp_rng2$SEASONAL == 2 | sp_rng2$SEASONAL == 4),]
@@ -194,7 +194,7 @@ if (NROW(nrng@data) > 0)
   rm(overlap_cells)
   
   #cells only within the range that ebird surveys were filtered to
-  n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
+  n_cc_df <- cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),]
   cells <- n_cc_df$cell
   
   #retain rows that match selected cells
