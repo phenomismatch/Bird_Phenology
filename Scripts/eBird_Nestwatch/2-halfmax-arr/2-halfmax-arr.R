@@ -69,6 +69,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
 #args <- 'Catharus_fuscescens'
 #args <- 'Ammospiza_nelsoni'
+#args <- 'Bombycilla_cedrorum'
 
 
 # import processed data ---------------------------------------------------
@@ -140,40 +141,41 @@ if (NROW(nrng@data) > 0)
   #good cells
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
   sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
-  ptsreg <- sp::spsample(nrng, 50000, type = "regular")
-  br_mig_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
+  poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
+  tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
+  br_mig_cells <- as.numeric(tpoly[!duplicated(tpoly)])
   
-  #bad cells
+  #bad cells - also exclude cells 812, 813, and 841 (Bahamas)
   if (length(nrng_rm) > 0)
   {
     nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
     sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-    ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
-    res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
-
+    poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
+    tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
+    res_ovr_cells <- as.numeric(tpoly_rm[!duplicated(tpoly_rm)])
+    
     #remove cells that appear in resident and overwinter range that also appear in breeding range
     cell_mrg <- c(br_mig_cells, res_ovr_cells)
-    to_rm <- cell_mrg[duplicated(cell_mrg)]
-      
+    to_rm <- c(cell_mrg[duplicated(cell_mrg)], 812, 813, 841)
+    
     rm(nrng_rm)
-    rm(nrng_rm_sp)  
-    rm(ptsreg_rm)
+    rm(nrng_rm_sp)
     rm(res_ovr_cells)
     
   } else {
     cell_mrg <- br_mig_cells
-    to_rm <- NULL
+    to_rm <- c(812, 813, 841)
   }
   
   #remove unneeded objects
   rm(hge)
   rm(nrng)
   rm(nrng_sp)
-  rm(ptsreg)
   
-  if (length(to_rm) > 0)
+  c_rm <- which(br_mig_cells %in% to_rm)
+  if (length(c_rm) > 0)
   {
-    overlap_cells <- br_mig_cells[-which(br_mig_cells %in% to_rm)]
+    overlap_cells <- br_mig_cells[-c_rm]  
   } else {
     overlap_cells <- br_mig_cells
   }
