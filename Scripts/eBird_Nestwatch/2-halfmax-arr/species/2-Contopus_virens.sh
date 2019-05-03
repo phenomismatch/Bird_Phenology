@@ -6,11 +6,11 @@
 #SBATCH -c 4 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=50G #memory requested
+#SBATCH --mem=25G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-03-29/hm-arr-Contopus_virens.out #STDOUT
-#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-03-29/hm-arr-Contopus_virens.err #STDERR
+#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-05-03/hm-arr-Contopus_virens.out #STDOUT
+#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_2019-05-03/hm-arr-Contopus_virens.err #STDERR
 
 #echos name of node
 echo `hostname`
@@ -18,9 +18,6 @@ echo `hostname`
 #load singularity and run R script using singularity
 module load singularity/3.0.2
 singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/2-halfmax-arr/2-halfmax-arr.R Contopus_virens
-
-#module load R/3.5.2
-#Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/2-halfmax-arr/2-halfmax-arr.R Contopus_virens
 
 #displays amount of memory used
 sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
