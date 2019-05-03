@@ -4,6 +4,12 @@
 ##############
 
 
+# Load packages -----------------------------------------------------------
+
+library(dplyr)
+library(ggplot2)
+library(maps)
+
 
 # load maps ---------------------------------------------------------------
 
@@ -15,7 +21,10 @@ canada_m <- maps::map('world', regions = 'Canada', plot = FALSE, fill = TRUE)
 IDs <- sapply(strsplit(canada_m$names, ":"), function(x) x[1])
 canada <- maptools::map2SpatialPolygons(canada_m, IDs = IDs, proj4string = sp::CRS('+init=epsg:4326'))
 
-
+#load maps
+usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
+canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
+mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
 
 # distribute points uniformly on sphere -----------------------------------
 
@@ -47,17 +56,34 @@ nn <- which(!is.na(sp::over(pts, usa)) | !is.na(sp::over(pts, canada)))
 npts <- pts[nn]
 ndf <- df[nn,]
 
-ndf2 <- dplyr::filter(ndf, lat > 26 & lon < -50 & lon > -95)
+ndf2 <- dplyr::filter(ndf, lat > 24 & lon < -50 & lon > -95)
+#ndf2 <- df[which(df$lat > 24 & df$lat < 90 & df$lon < -50 & df$lon > -95),]
 
 # construct hex cells using points in US ----------------------------------
 
 hexgrid6 <- dggridR::dgconstruct(res = 6)
 cells <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
                                   in_lon_deg = ndf2$lon, in_lat_deg = ndf2$lat)[[1]]
-cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells)
+#get cell centers
+cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
+cc_df <- data.frame(cell = cells, lon = cell_centers$lon_deg, 
+                    lat = cell_centers$lat_deg)
 
-cell_3673 <- dplyr::filter(cell_grid, cell == 3673)
-cell_676 <- dplyr::filter(cell_grid, cell == 676)
+#cells only within the range that ebird surveys were filtered to
+n_cc_df <- unique(cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),])
+cells2 <- n_cc_df$cell
+
+#from near top of 2-halfmax script
+#cells2 <- cells
+
+#cells to grid
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells2)
+
+# cell_3673 <- dplyr::filter(cell_grid, cell == 3673)
+# cell_676 <- dplyr::filter(cell_grid, cell == 676)
+
+
+
 
 # ggplot ------------------------------------------------------------------
 
@@ -72,8 +98,13 @@ p <- ggplot() +
             xlim = c(-105, -55), ylim = c(20, 66)) +
   geom_polygon(data = cell_grid, aes(x = long, y = lat, group = group),
                alpha = 0.2) +
+  # #highlight cell of interest
   # geom_polygon(data = cell_676, aes(x = long, y = lat, group = group),
   #              alpha = 0.5, fill = 'red') +
+  #add cell number on plot
+  annotate('text', x = n_cc_df$lon, y = n_cc_df$lat,
+           label = n_cc_df$cell, col = 'blue', alpha = 0.8,
+           size = 3) +
   geom_path(data = cell_grid, aes(x = long, y = lat, group = group),
             alpha = 0.4, color = 'black') +
   theme_bw() +
@@ -83,5 +114,5 @@ p <- ggplot() +
 
 setwd('~/Desktop/')
 ggsave(plot = p,
-       filename = 'cell_map_676.pdf')
+       filename = 'cell_map.pdf')
   
