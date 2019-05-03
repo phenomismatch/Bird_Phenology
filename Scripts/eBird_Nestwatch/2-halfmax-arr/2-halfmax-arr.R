@@ -8,6 +8,10 @@
 #
 # Halfmax is derived from model fit
 #
+# Additional code for supplemental run to model cells that were missed (and keep only cells of interest) is noted with the following (remove from code before rerunning from the start) vvvvvvvv
+# #################################################
+# ################################################# 
+#
 # Species name should be given as an arg to this script. The model will then be fit to that species only.
 # Runtime: Up to 7 days on Xanadu
 ######################  
@@ -23,9 +27,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2019-03-29'
-RUN_DATE <- '2019-03-29'
-
+db_dir <- 'eBird_query_2019-05-03'
+RUN_DATE <- '2019-03-29-SUPP'
 
 
 # model settings ----------------------------------------------------------
@@ -141,6 +144,7 @@ if (NROW(nrng@data) > 0)
   #good cells
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
   sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+  #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
   poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
   tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
   br_mig_cells <- as.numeric(tpoly[!duplicated(tpoly)])
@@ -199,6 +203,37 @@ if (NROW(nrng@data) > 0)
   n_cc_df <- cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),]
   cells <- n_cc_df$cell
   
+  #################################################
+  #################################################
+  #read in previous run to get which cells were run
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_2019-03-29/'))
+  initial <- readRDS(paste0('halfmax_df_arrival_', args, '.rds'))
+  initial_cells <- unique(initial$cell)
+  
+  #get number of ITER for initial run so supplemental run will match
+  cn <- colnames(initial)
+  ITER <- length(cn[grep('iter', cn)])
+  
+  #which of the initally modeled cells are in the updated list
+  trans_cells <- initial_cells[initial_cells %in% cells]
+  #sort initial results by just these cells - will append other cells to this
+  halfmax_df_initial <- dplyr::filter(initial, cell %in% trans_cells)
+  #which additional cells need to be modeled
+  new_cells <- cells[which(cells %ni% initial_cells)]
+  cells <- new_cells
+  
+  #stop script and write rds (relevant cells from initial run) if there aren't any new cells to add
+  if (length(cells) == 0)
+  {
+    #save to rds object
+    setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
+    saveRDS(halfmax_df_initial, file = paste0('halfmax_df_arrival_', args, '.rds'))
+  
+    stop('No new cells to model!')
+  }
+  #################################################
+  #################################################
+  
   #retain rows that match selected cells
   spdata2 <- spdata[which(spdata$cell %in% cells),]
   
@@ -231,7 +266,7 @@ if (NROW(nrng@data) > 0)
                            t_mat)
 
   #save to rds object
-  setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
   saveRDS(halfmax_df, file = paste0('halfmax_df_arrival_', args, '.rds'))
   
   stop('Range not suitable for modeling!')
@@ -243,7 +278,13 @@ if (NROW(nrng@data) > 0)
 
 ncell <- length(cells)
 
-years <- min(spdata2$year):max(spdata2$year)
+#################################################
+#################################################
+years <- range(halfmax_df_initial$year)
+#years <- min(spdata2$year):max(spdata2$year)
+#################################################
+#################################################
+
 nyr <- length(years)
 
 
@@ -430,9 +471,20 @@ for (j in 1:nyr)
 } #j
 
 
+#################################################
+#################################################
+#combine initial and new
+TOUT <- rbind(halfmax_df_initial, halfmax_df)
+#order by year then cell
+OUT <- TOUT[order(TOUT[,'year'], TOUT[,'cell']),]
+#OUT <- halfmax_df
+#################################################
+#################################################
+
+
 #save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
-saveRDS(halfmax_df, file = paste0('halfmax_df_arrival_', args, '.rds'))
+saveRDS(OUT, file = paste0('halfmax_df_arrival_', args, '.rds'))
 
 
 
