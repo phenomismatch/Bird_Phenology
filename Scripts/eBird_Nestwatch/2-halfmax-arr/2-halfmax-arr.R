@@ -28,7 +28,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # db query dir ------------------------------------------------------------
 
 db_dir <- 'eBird_query_2019-05-03'
-RUN_DATE <- '2019-03-29-SUPP'
+RUN_DATE <- '2019-05-03'
 
 
 # model settings ----------------------------------------------------------
