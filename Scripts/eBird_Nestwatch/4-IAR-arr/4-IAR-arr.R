@@ -36,8 +36,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db/hm query dir ------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2019-02-02'
-IAR_out_dir <- 'IAR_output_2019-02-24'
+IAR_in_dir <- 'IAR_input_2019-03-29'
+IAR_out_dir <- 'IAR_output_2019-05-07'
 
 
 
@@ -315,7 +315,7 @@ real<lower = 0> sigma_y[N, J];                        // observed sd of data (ob
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
-real<lower = 26, upper = 90> lat[N];
+real<lower = 24, upper = 90> lat[N];
 }
 
 parameters {
@@ -327,7 +327,7 @@ vector[N] gamma_raw;
 matrix[N, J] phi;                                     // spatial error component (scaled to N(0,1))
 matrix[N, J] theta;                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
-vector<lower = 0>[J] sigma_nu_raw;
+vector[J] sigma_nu_raw;
 real beta0_raw[J];
 real mu_sn_raw;
 real<lower = 0> sigma_beta0_raw;
@@ -350,8 +350,8 @@ real beta0[J];
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_gamma = sigma_gamma_raw * 5;
-mu_sn = mu_sn_raw * 1.5;
 sigma_beta0 = sigma_beta0_raw * 5;
+mu_sn = mu_sn_raw * 1.5;
 
 for (i in 1:N)
 {
