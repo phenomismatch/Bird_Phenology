@@ -208,31 +208,16 @@ to.NA <- which(diagnostics_frame2$num_diverge > 0 |
                  diagnostics_frame2$num_BFMI > 0 |
                  diagnostics_frame2$HM_sd > 20)
 
+# #1.4% of cells are bad
+# length(to.NA)/sum(!is.na(diagnostics_frame2$HM_mean))
+# diagnostics_frame2[to.NA,c('species', 'cell', 'year', 
+#                            'HM_mean', 'HM_sd', 'min_neff', 'num_diverge')]
+
 if (length(to.NA) > 0)
 {
   diagnostics_frame2[to.NA,'HM_mean'] <- NA
   diagnostics_frame2[to.NA,'HM_sd'] <- NA
 }
-
-
-# #Look at plots that have a number of nphen_bad...why is this hapenning
-# range(diagnostics_frame2$nphen_bad, na.rm = TRUE)
-# hist(diagnostics_frame2$nphen_bad)
-# diagnostics_frame2[which(diagnostics_frame2$nphen_bad > 10),]
-# 
-# 
-# #remove if sd is greater than 15? That should filter out higih nphen_bad values
-# NROW(diagnostics_frame2[which(diagnostics_frame2$nphen_bad > 10),])
-# NROW(diagnostics_frame2[which(diagnostics_frame2$nphen_bad > 0),])
-# hist(diagnostics_frame2$nphen_bad[-(which(diagnostics_frame2$nphen_bad > 5))])
-# 
-# NROW(dplyr::filter(diagnostics_frame2, HM_sd > 20))
-# hist(diagnostics_frame2$HM_sd, breaks = 20)
-
-#NROW(diagnostics_frame2[which(diagnostics_frame2$HM_sd > 20),])
-
-#dplyr::filter(diagnostics_frame2, species == 'Agelaius_phoeniceus', year == 2014)
-
 
 
 
@@ -349,73 +334,73 @@ write.table(species_tm, file = paste0('IAR_species_list.txt'), row.names = FALSE
 
 
 
-# create dfs that show # cells with data in each year/species, and # years with data in each cell/species -----------------
-
-#create df with species/cells/n_yrs per sp_cell
-cells_frame <- data.frame(species = rep(NA, cell_years), 
-                          cell = rep(NA, cell_years), 
-                          n_yrs = rep(NA, cell_years))
-
-yrs_frame <- data.frame(species = rep(NA, cell_years), 
-                        year = rep(NA, cell_years), 
-                        n_cells = rep(NA, cell_years))
-
-counter_cell <- 1
-counter_year <- 1
-#fill cells_frame and yrs_frame
-for (i in 1:nsp)
-{
-  #i <- 101
-  print(i)
-  
-  tspf <- dplyr::filter(df_master, species == species_list[i])
-  tcells <- unique(tspf$cell)
-  tyears <- unique(tspf$year)
-  
-  if (NROW(tspf) > 0)
-  {
-    for (k in 1:length(tcells))
-    {
-      #k <- 1
-      t_cell <- dplyr::filter(tspf, cell == tcells[k])
-    
-      cells_frame[counter_cell, 'species'] <- species_list[i]
-      cells_frame[counter_cell, 'cell'] <- tcells[k]
-
-      #insert number of yrs with data
-      yrs_d <- t_cell$year[which(!is.na(t_cell$HM_mean))]
-      cells_frame[counter_cell,'n_yrs'] <- length(yrs_d)
-      counter_cell <- counter_cell + 1
-    }
-  
-    for (j in 1:length(tyears))
-    {
-      #j <- 1
-      t_year <- dplyr::filter(tspf, year == tyears[j])
-    
-      yrs_frame[counter_year, 'species'] <- species_list[i]
-      yrs_frame[counter_year, 'year'] <- tyears[j]
-    
-      #insert number of yrs with data
-      yrs_d <- t_cell$year[which(!is.na(t_year$HM_mean))]
-      yrs_frame[counter_year,'n_cells'] <- length(yrs_d)
-      counter_year <- counter_year + 1
-    }
-  }
-}
-
-
-#remove NA from end of df
-to.rm.cell <- min(which(is.na(cells_frame$species))):NROW(cells_frame)
-to.rm.year <- min(which(is.na(yrs_frame$species))):NROW(yrs_frame)
-
-cells_frame2 <- cells_frame[-to.rm.cell,]
-yrs_frame2 <- yrs_frame[-to.rm.year,]
-
-#write to RDS
-setwd(IAR_dir_path)
-saveRDS(cells_frame2, paste0('cells_frame-', hm_date, '.rds'))
-saveRDS(yrs_frame2, paste0('yrs_frame-', hm_date, '.rds'))
+# # create dfs that show # cells with data in each year/species, and # years with data in each cell/species -----------------
+# 
+# #create df with species/cells/n_yrs per sp_cell
+# cells_frame <- data.frame(species = rep(NA, cell_years), 
+#                           cell = rep(NA, cell_years), 
+#                           n_yrs = rep(NA, cell_years))
+# 
+# yrs_frame <- data.frame(species = rep(NA, cell_years), 
+#                         year = rep(NA, cell_years), 
+#                         n_cells = rep(NA, cell_years))
+# 
+# counter_cell <- 1
+# counter_year <- 1
+# #fill cells_frame and yrs_frame
+# for (i in 1:nsp)
+# {
+#   #i <- 101
+#   print(i)
+#   
+#   tspf <- dplyr::filter(df_master, species == species_list[i])
+#   tcells <- unique(tspf$cell)
+#   tyears <- unique(tspf$year)
+#   
+#   if (NROW(tspf) > 0)
+#   {
+#     for (k in 1:length(tcells))
+#     {
+#       #k <- 1
+#       t_cell <- dplyr::filter(tspf, cell == tcells[k])
+#     
+#       cells_frame[counter_cell, 'species'] <- species_list[i]
+#       cells_frame[counter_cell, 'cell'] <- tcells[k]
+# 
+#       #insert number of yrs with data
+#       yrs_d <- t_cell$year[which(!is.na(t_cell$HM_mean))]
+#       cells_frame[counter_cell,'n_yrs'] <- length(yrs_d)
+#       counter_cell <- counter_cell + 1
+#     }
+#   
+#     for (j in 1:length(tyears))
+#     {
+#       #j <- 1
+#       t_year <- dplyr::filter(tspf, year == tyears[j])
+#     
+#       yrs_frame[counter_year, 'species'] <- species_list[i]
+#       yrs_frame[counter_year, 'year'] <- tyears[j]
+#     
+#       #insert number of yrs with data
+#       yrs_d <- t_cell$year[which(!is.na(t_year$HM_mean))]
+#       yrs_frame[counter_year,'n_cells'] <- length(yrs_d)
+#       counter_year <- counter_year + 1
+#     }
+#   }
+# }
+# 
+# 
+# #remove NA from end of df
+# to.rm.cell <- min(which(is.na(cells_frame$species))):NROW(cells_frame)
+# to.rm.year <- min(which(is.na(yrs_frame$species))):NROW(yrs_frame)
+# 
+# cells_frame2 <- cells_frame[-to.rm.cell,]
+# yrs_frame2 <- yrs_frame[-to.rm.year,]
+# 
+# #write to RDS
+# setwd(IAR_dir_path)
+# saveRDS(cells_frame2, paste0('cells_frame-', hm_date, '.rds'))
+# saveRDS(yrs_frame2, paste0('yrs_frame-', hm_date, '.rds'))
 
 
 
