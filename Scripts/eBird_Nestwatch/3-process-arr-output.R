@@ -49,7 +49,7 @@ species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 
 #temporary filter out these species
-# rm_sp <- which(species_list %in% c('Empidonax_virescens', 
+# rm_sp <- which(species_list %in% c('Empidonax_virescens',
 #                                    'Empidonax_alnorum', 'Setophaga_americana'))
 # species_list <- species_list[-rm_sp]
 nsp <- length(species_list)
@@ -83,7 +83,7 @@ for (i in 1:nsp)
   #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
-  #setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
   temp_halfmax <- readRDS(paste0('halfmax_df_arrival_', species_list[i], '.rds'))
   
   if (i == 1)
@@ -202,6 +202,12 @@ diagnostics_frame2 <- diagnostics_frame
 #min_neff < 250
 #num_BFMI > 0
 
+# sum(diagnostics_frame2$num_diverge > 0, na.rm = TRUE)
+# sum(diagnostics_frame2$max_Rhat >= 1.1, na.rm = TRUE)
+# sum(diagnostics_frame2$min_neff < 200, na.rm = TRUE)
+# sum(diagnostics_frame2$num_BFMI > 0, na.rm = TRUE)
+# sum(diagnostics_frame2$HM_sd > 20, na.rm = TRUE)
+
 to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
                  diagnostics_frame2$max_Rhat >= 1.1 |
                  diagnostics_frame2$min_neff < 200 |
@@ -210,7 +216,7 @@ to.NA <- which(diagnostics_frame2$num_diverge > 0 |
 
 # #1.4% of cells are bad
 # length(to.NA)/sum(!is.na(diagnostics_frame2$HM_mean))
-# diagnostics_frame2[to.NA,c('species', 'cell', 'year', 
+# diagnostics_frame2[to.NA,c('species', 'cell', 'year',
 #                            'HM_mean', 'HM_sd', 'min_neff', 'num_diverge')]
 
 if (length(to.NA) > 0)
