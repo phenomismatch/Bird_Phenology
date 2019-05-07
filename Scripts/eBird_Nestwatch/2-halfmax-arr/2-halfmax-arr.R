@@ -8,6 +8,10 @@
 #
 # Halfmax is derived from model fit
 #
+# Additional code for supplemental run to model cells that were missed (and keep only cells of interest) is noted with the following (remove from code before rerunning from the start) vvvvvvvv
+# #################################################
+# ################################################# 
+#
 # Species name should be given as an arg to this script. The model will then be fit to that species only.
 # Runtime: Up to 7 days on Xanadu
 ######################  
@@ -23,9 +27,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2019-03-29'
-RUN_DATE <- '2019-03-29'
-
+db_dir <- 'eBird_query_2019-05-03'
+RUN_DATE <- '2019-05-03'
 
 
 # model settings ----------------------------------------------------------
@@ -68,7 +71,8 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Agelaius_phoeniceus'
 #args <- 'Vireo_olivaceus'
 #args <- 'Catharus_fuscescens'
-#args <- 'Ammodramus_nelsoni'
+#args <- 'Ammospiza_nelsoni'
+#args <- 'Bombycilla_cedrorum'
 
 
 # import processed data ---------------------------------------------------
@@ -120,7 +124,7 @@ if (length(g_ind) == 0)
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
 sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
 #crop to area of interest
-sp_rng2 <- raster::crop(sp_rng, raster::extent(-100, -50, 26, 90))
+sp_rng2 <- raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
 
 #filter by breeding (2) and migration (4) range - need to convert spdf to sp
 nrng <- sp_rng2[which(sp_rng2$SEASONAL == 2 | sp_rng2$SEASONAL == 4),]
@@ -140,40 +144,42 @@ if (NROW(nrng@data) > 0)
   #good cells
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
   sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
-  ptsreg <- sp::spsample(nrng, 50000, type = "regular")
-  br_mig_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg))))
+  #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
+  poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
+  tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
+  br_mig_cells <- as.numeric(tpoly[!duplicated(tpoly)])
   
-  #bad cells
+  #bad cells - also exclude cells 812, 813, and 841 (Bahamas)
   if (length(nrng_rm) > 0)
   {
     nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
     sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-    ptsreg_rm <- sp::spsample(nrng_rm_sp, 50000, type = "regular")
-    res_ovr_cells <- as.numeric(which(!is.na(sp::over(hge, ptsreg_rm))))
-
+    poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
+    tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
+    res_ovr_cells <- as.numeric(tpoly_rm[!duplicated(tpoly_rm)])
+    
     #remove cells that appear in resident and overwinter range that also appear in breeding range
     cell_mrg <- c(br_mig_cells, res_ovr_cells)
-    to_rm <- cell_mrg[duplicated(cell_mrg)]
-      
+    to_rm <- c(cell_mrg[duplicated(cell_mrg)], 812, 813, 841)
+    
     rm(nrng_rm)
-    rm(nrng_rm_sp)  
-    rm(ptsreg_rm)
+    rm(nrng_rm_sp)
     rm(res_ovr_cells)
     
   } else {
     cell_mrg <- br_mig_cells
-    to_rm <- NULL
+    to_rm <- c(812, 813, 841)
   }
   
   #remove unneeded objects
   rm(hge)
   rm(nrng)
   rm(nrng_sp)
-  rm(ptsreg)
   
-  if (length(to_rm) > 0)
+  c_rm <- which(br_mig_cells %in% to_rm)
+  if (length(c_rm) > 0)
   {
-    overlap_cells <- br_mig_cells[-which(br_mig_cells %in% to_rm)]
+    overlap_cells <- br_mig_cells[-c_rm]  
   } else {
     overlap_cells <- br_mig_cells
   }
@@ -194,8 +200,39 @@ if (NROW(nrng@data) > 0)
   rm(overlap_cells)
   
   #cells only within the range that ebird surveys were filtered to
-  n_cc_df <- cc_df[which(cc_df$lon > -100 & cc_df$lon < -50 & cc_df$lat > 26),]
+  n_cc_df <- cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),]
   cells <- n_cc_df$cell
+  
+  #################################################
+  #################################################
+  #read in previous run to get which cells were run
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_2019-03-29/'))
+  initial <- readRDS(paste0('halfmax_df_arrival_', args, '.rds'))
+  initial_cells <- unique(initial$cell)
+  
+  #get number of ITER for initial run so supplemental run will match
+  cn <- colnames(initial)
+  ITER <- length(cn[grep('iter', cn)])
+  
+  #which of the initally modeled cells are in the updated list
+  trans_cells <- initial_cells[initial_cells %in% cells]
+  #sort initial results by just these cells - will append other cells to this
+  halfmax_df_initial <- dplyr::filter(initial, cell %in% trans_cells)
+  #which additional cells need to be modeled
+  new_cells <- cells[which(cells %ni% initial_cells)]
+  cells <- new_cells
+  
+  #stop script and write rds (relevant cells from initial run) if there aren't any new cells to add
+  if (length(cells) == 0)
+  {
+    #save to rds object
+    setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
+    saveRDS(halfmax_df_initial, file = paste0('halfmax_df_arrival_', args, '.rds'))
+  
+    stop('No new cells to model!')
+  }
+  #################################################
+  #################################################
   
   #retain rows that match selected cells
   spdata2 <- spdata[which(spdata$cell %in% cells),]
@@ -229,7 +266,7 @@ if (NROW(nrng@data) > 0)
                            t_mat)
 
   #save to rds object
-  setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
   saveRDS(halfmax_df, file = paste0('halfmax_df_arrival_', args, '.rds'))
   
   stop('Range not suitable for modeling!')
@@ -241,7 +278,13 @@ if (NROW(nrng@data) > 0)
 
 ncell <- length(cells)
 
-years <- min(spdata2$year):max(spdata2$year)
+#################################################
+#################################################
+years <- range(halfmax_df_initial$year)
+#years <- min(spdata2$year):max(spdata2$year)
+#################################################
+#################################################
+
 nyr <- length(years)
 
 
@@ -412,7 +455,7 @@ for (j in 1:nyr)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       legend('topleft',
-             legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
+             legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
@@ -428,9 +471,20 @@ for (j in 1:nyr)
 } #j
 
 
+#################################################
+#################################################
+#combine initial and new
+TOUT <- rbind(halfmax_df_initial, halfmax_df)
+#order by year then cell
+OUT <- TOUT[order(TOUT[,'year'], TOUT[,'cell']),]
+#OUT <- halfmax_df
+#################################################
+#################################################
+
+
 #save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
-saveRDS(halfmax_df, file = paste0('halfmax_df_arrival_', args, '.rds'))
+saveRDS(OUT, file = paste0('halfmax_df_arrival_', args, '.rds'))
 
 
 

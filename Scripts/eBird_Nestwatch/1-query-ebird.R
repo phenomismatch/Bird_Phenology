@@ -171,7 +171,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND year > 2001
                                     AND day < 200
                                     AND lng BETWEEN -95 AND -50
-                                    AND lat > 26
+                                    AND lat > 24
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
                                     AND LEFT(started, 2)::int < 18
                                     AND radius < 100000;
@@ -244,7 +244,7 @@ foreach::foreach(i = 1:nsp) %dopar%
                                       AND year > 2001
                                       AND day < 200
                                       AND lng BETWEEN -95 AND -50
-                                      AND lat > 26
+                                      AND lat > 24
                                       AND (sci_name IN ('", species_list_i2[i],"'));
                                       "))
   
@@ -315,7 +315,7 @@ if (length(m_sp2) > 0)
                                         AND year > 2001
                                         AND day < 200
                                         AND lng BETWEEN -95 AND -50
-                                        AND lat > 26
+                                        AND lat > 24
                                         AND (sci_name IN ('", m_sp2[i],"'));
                                         "))
     
