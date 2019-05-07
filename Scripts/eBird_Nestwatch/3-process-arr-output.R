@@ -20,7 +20,7 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-hm_dir <- 'halfmax_species_2019-03-11'
+hm_dir <- 'halfmax_species_2019-03-29'
 hm_date <- substr(hm_dir, start = 17, stop = 26)
 
 
@@ -47,53 +47,16 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
+
+#temporary filter out these species
+# rm_sp <- which(species_list %in% c('Empidonax_virescens', 
+#                                    'Empidonax_alnorum', 'Setophaga_americana'))
+# species_list <- species_list[-rm_sp]
 nsp <- length(species_list)
-
-
 
 years <- 2002:2018
 nyr <- length(years)
 
-
-# get all potentially relevant cells --------------------------------------
-
-#generate points over relevant coordinates
-set.seed(1)
-
-N <- 100000
-u     <- runif(N)
-v     <- runif(N)
-theta <- 2*pi*u      * 180/pi
-phi   <- acos(2*v-1) * 180/pi
-lon   <- theta-180
-lat   <- phi-90
-sdf    <- data.frame(lat = lat, lon = lon)
-
-sdf2 <- dplyr::filter(sdf , lat > 26 & lon > -100 & lon < -50)
-
-
-#construct hex cells using points in US
-hexgrid6 <- dggridR::dgconstruct(res = 6)
-tcells <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                  in_lon_deg = sdf2$lon, in_lat_deg = sdf2$lat)[[1]]
-cell_grid <- dggridR::dgcellstogrid(hexgrid6, tcells)
-
-
-#plot of cells in relevant region
-# ggplot() +
-#   geom_path(data = usamap,
-#             aes(x = x, y = y), color = 'black') +
-#   geom_path(data = canadamap,
-#             aes(x = x, y = y), color = 'black') +
-#   geom_path(data = mexicomap,
-#             aes(x = x, y = y), color = 'black') +
-#   coord_map("ortho", orientation = c(35, -80, 0),
-#             xlim = c(-100, -50), ylim = c(25, 90)) +
-#   geom_path(data = cell_grid, aes(x = long, y = lat, group = group),
-#             alpha = 0.5, color = 'red') +
-#   xlab('Longitude') +
-#   ylab('Latitude') +
-#   theme_bw()
 
 
 # Proces halfmax results -----------------------------------------------------------------
@@ -102,7 +65,7 @@ cell_grid <- dggridR::dgcellstogrid(hexgrid6, tcells)
 cell_years <- 0
 for (i in 1:nsp)
 {
-  #i <- 113
+  #i <- 110
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
@@ -117,10 +80,10 @@ for (i in 1:nsp)
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 113
+  #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
+  #setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
   temp_halfmax <- readRDS(paste0('halfmax_df_arrival_', species_list[i], '.rds'))
   
   if (i == 1)
@@ -226,10 +189,11 @@ for (i in 1:nsp)
 diagnostics_frame$MODEL <- NA
 diagnostics_frame$shp_fname <- NA
 
-#remove rows that were unfilled - happens due to species not having sufficient range
-to.rm <- which(is.na(diagnostics_frame$n1))
-diagnostics_frame2 <- diagnostics_frame[-to.rm,]
-
+#no longer happens?
+# #remove rows that were unfilled - happens due to species not having sufficient range
+# to.rm <- which(is.na(diagnostics_frame$n1))
+# diagnostics_frame2 <- diagnostics_frame[-to.rm,]
+diagnostics_frame2 <- diagnostics_frame
 
 
 ### add NA for both HM_mean and HM_sd if any of the following conditions are met
@@ -241,7 +205,8 @@ diagnostics_frame2 <- diagnostics_frame[-to.rm,]
 to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
                  diagnostics_frame2$max_Rhat >= 1.1 |
                  diagnostics_frame2$min_neff < 200 |
-                 diagnostics_frame2$num_BFMI > 0)
+                 diagnostics_frame2$num_BFMI > 0 |
+                 diagnostics_frame2$HM_sd > 20)
 
 if (length(to.NA) > 0)
 {
@@ -251,20 +216,22 @@ if (length(to.NA) > 0)
 
 
 # #Look at plots that have a number of nphen_bad...why is this hapenning
-# range(df_out$nphen_bad, na.rm = TRUE)
-# hist(df_out$nphen_bad)
-# df_out[which(df_out$nphen_bad > 10),]
+# range(diagnostics_frame2$nphen_bad, na.rm = TRUE)
+# hist(diagnostics_frame2$nphen_bad)
+# diagnostics_frame2[which(diagnostics_frame2$nphen_bad > 10),]
 # 
 # 
 # #remove if sd is greater than 15? That should filter out higih nphen_bad values
-# NROW(df_out[which(df_out$nphen_bad > 10),])
-# NROW(df_out[which(df_out$nphen_bad > 0),])
-# hist(df_out$nphen_bad[-(which(df_out$nphen_bad > 5))])
+# NROW(diagnostics_frame2[which(diagnostics_frame2$nphen_bad > 10),])
+# NROW(diagnostics_frame2[which(diagnostics_frame2$nphen_bad > 0),])
+# hist(diagnostics_frame2$nphen_bad[-(which(diagnostics_frame2$nphen_bad > 5))])
 # 
-# NROW(dplyr::filter(df_out, HM_sd > 15))
-# hist(df_out$HM_sd, breaks = 20)
+# NROW(dplyr::filter(diagnostics_frame2, HM_sd > 20))
+# hist(diagnostics_frame2$HM_sd, breaks = 20)
 
-#dplyr::filter(df_out, species == 'Agelaius_phoeniceus', year == 2014)
+#NROW(diagnostics_frame2[which(diagnostics_frame2$HM_sd > 20),])
+
+#dplyr::filter(diagnostics_frame2, species == 'Agelaius_phoeniceus', year == 2014)
 
 
 
