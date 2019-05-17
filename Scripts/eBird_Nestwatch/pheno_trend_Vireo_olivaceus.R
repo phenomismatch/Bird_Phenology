@@ -76,7 +76,8 @@ parameters {
 vector[NC] alpha_raw;
 vector[NC] beta_raw;
 vector[N] y_true_raw;
-real<lower = 0> sigma;
+// vector<lower = 0>[NC] sigma_raw;
+real<lower = 0> sigma_raw;
 real<lower = 0> sigma_beta_raw;
 real mu_beta_raw;
 real<lower = 0> sigma_alpha_raw;
@@ -88,6 +89,8 @@ vector[N] mu;
 vector[N] y_true;
 vector[NC] alpha;
 vector[NC] beta;
+// vector<lower = 0>[NC] sigma;
+real<lower = 0> sigma;
 real<lower = 0> sigma_beta;
 real mu_beta;
 real<lower = 0> sigma_alpha;
@@ -100,14 +103,17 @@ mu_alpha = mu_alpha_raw * 10 + 120;
 
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 beta = beta_raw * sigma_beta + mu_beta;
+sigma = sigma_raw * 20;
 // mu_beta = alpha_beta + beta_beta * lat;
 
 for (i in 1:N)
 {
   mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
+  // y_true[i] = y_true_raw[i] * sigma[cn_id[i]] + mu[i];
 }
 
 y_true = y_true_raw * sigma + mu;
+
 }
 
 model {
@@ -115,7 +121,7 @@ model {
 y_true_raw ~ std_normal();
 alpha_raw ~ std_normal();
 beta_raw ~ std_normal();
-sigma ~ normal(0, 20);
+sigma_raw ~ std_normal();
 sigma_alpha_raw ~ std_normal();
 mu_alpha_raw ~ std_normal();
 sigma_beta_raw ~ std_normal();
@@ -163,6 +169,7 @@ bayesplot::ppc_dens_overlay(DATA$y_obs, y_rep[1:50,])
 
 MCMCvis::MCMCsummary(fit, excl = c('y_true', 'y_rep'), round = 2)
 MCMCvis::MCMCplot(fit, params = 'beta', rank = TRUE)
+#MCMCvis::MCMCplot(fit, params = 'sigma', rank = TRUE)
 
 
 
@@ -209,7 +216,8 @@ y_true_UCI <- y_true_mn + y_true_sd
 DATA_PLOT <- data.frame(y_true_mn, y_true_LCI, y_true_UCI,
                         cell = DATA$cn_id,
                         year = DATA$year,
-                        y_obs = DATA$y_obs)
+                        y_obs = DATA$y_obs,
+                        lat = data_f2$cell_lat)
 
 
 
@@ -265,8 +273,10 @@ for (i in 1:DATA$NC)
   out <- rbind(out, temp)
 }
 
-pdf('Vireo_olivaceus_anomaly_obs.pdf', height = 5, width = 7, useDingbats = FALSE)
-ggplot(data = out, aes(year, y_obs_sc), color = 'black', alpha = 0.6) +
+
+
+pdf('Vireo_olivaceus_anomaly.pdf', height = 5, width = 7, useDingbats = FALSE)
+ggplot(data = out, aes(year, y_true_sc), color = 'black', alpha = 0.6) +
   # geom_ribbon(data = FIT_PLOT,
   #             aes(x = x_sim, ymin = mu_rep_LCI, ymax = mu_rep_UCI),
   #             fill = 'grey',
@@ -281,8 +291,9 @@ ggplot(data = out, aes(year, y_obs_sc), color = 'black', alpha = 0.6) +
   #            aes(year, y_true_sc), color = 'black',
   #            inherit.aes = FALSE, size = 2, alpha = 0.7) +
   geom_point(data = out,
-             aes(year, y_obs_sc, color = factor(cell)),
-             inherit.aes = FALSE, size = 3, alpha = 0.5) +
+             aes(year, y_true_sc, color = lat), #color = factor(cell)),
+             inherit.aes = FALSE, size = 3, alpha = 0.7) +
+  scale_color_gradient(low = 'red', high = 'white') +
   # geom_point(data = DATA_PLOT,
   #            aes(year, y_obs), color = 'black',
   #            inherit.aes = FALSE, size = 1.5, alpha = 0.5) +
@@ -290,7 +301,7 @@ ggplot(data = out, aes(year, y_obs_sc), color = 'black', alpha = 0.6) +
   #               aes(ymin = y_true_LCI, ymax = y_true_UCI), width = 0.4,
   #               color = 'black', alpha = 0.4) +
   theme_bw() +
-  theme(legend.position='none') +
+  #theme(legend.position='none') +
   xlab('Year') +
   ylab('Arrival anomaly') +
   ylim(c(-5, 5)) +
