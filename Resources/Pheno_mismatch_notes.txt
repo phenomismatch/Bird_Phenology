@@ -46,7 +46,7 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Run wing chord ~ age analysis/make figs - send to Morgan
 *[DONE] Wing chord ~ age
 *[DONE] Run 2 (GAM)
-*[IN PROGRESS] 2 remaining species (Empidonax_alnorum, Empidonax_virescens, Setophaga_americana)
+*[IN PROGRESS] 3 remaining species (Empidonax_alnorum, Empidonax_virescens, Setophaga_americana)
 
 *Run 4 - initial
 
