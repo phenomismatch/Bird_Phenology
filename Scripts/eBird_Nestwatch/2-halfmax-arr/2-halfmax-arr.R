@@ -206,7 +206,7 @@ if (NROW(nrng@data) > 0)
   #################################################
   #################################################
   #read in previous run to get which cells were run
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_2019-03-29-test/'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_2019-03-29/'))
   initial <- readRDS(paste0('halfmax_df_arrival_', args, '.rds'))
   initial_cells <- unique(initial$cell)
 
