@@ -27,8 +27,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2019-03-29'
-RUN_DATE <- '2019-03-29'
+db_dir <- 'eBird_query_2019-05-03'
+RUN_DATE <- '2019-05-03'
 
 
 # model settings ----------------------------------------------------------
@@ -205,32 +205,32 @@ if (NROW(nrng@data) > 0)
   
   #################################################
   #################################################
-  # #read in previous run to get which cells were run
-  # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_2019-03-29/'))
-  # initial <- readRDS(paste0('halfmax_df_arrival_', args, '.rds'))
-  # initial_cells <- unique(initial$cell)
-  # 
-  # #get number of ITER for initial run so supplemental run will match
-  # cn <- colnames(initial)
-  # ITER <- length(cn[grep('iter', cn)])
-  # 
-  # #which of the initally modeled cells are in the updated list
-  # trans_cells <- initial_cells[initial_cells %in% cells]
-  # #sort initial results by just these cells - will append other cells to this
-  # halfmax_df_initial <- dplyr::filter(initial, cell %in% trans_cells)
-  # #which additional cells need to be modeled
-  # new_cells <- cells[which(cells %ni% initial_cells)]
-  # cells <- new_cells
-  # 
-  # #stop script and write rds (relevant cells from initial run) if there aren't any new cells to add
-  # if (length(cells) == 0)
-  # {
-  #   #save to rds object
-  #   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
-  #   saveRDS(halfmax_df_initial, file = paste0('halfmax_df_arrival_', args, '.rds'))
-  # 
-  #   stop('No new cells to model!')
-  # }
+  #read in previous run to get which cells were run
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_2019-03-29-test/'))
+  initial <- readRDS(paste0('halfmax_df_arrival_', args, '.rds'))
+  initial_cells <- unique(initial$cell)
+
+  #get number of ITER for initial run so supplemental run will match
+  cn <- colnames(initial)
+  ITER <- (length(cn[grep('iter', cn)])/2)
+
+  #which of the initally modeled cells are in the updated list
+  trans_cells <- initial_cells[initial_cells %in% cells]
+  #sort initial results by just these cells - will append other cells to this
+  halfmax_df_initial <- dplyr::filter(initial, cell %in% trans_cells)
+  #which additional cells need to be modeled
+  new_cells <- cells[which(cells %ni% initial_cells)]
+  cells <- new_cells
+
+  #stop script and write rds (relevant cells from initial run) if there aren't any new cells to add
+  if (length(cells) == 0)
+  {
+    #save to rds object
+    setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
+    saveRDS(halfmax_df_initial, file = paste0('halfmax_df_arrival_', args, '.rds'))
+
+    stop('No new cells to model!')
+  }
   #################################################
   #################################################
   
@@ -280,8 +280,8 @@ ncell <- length(cells)
 
 #################################################
 #################################################
-#years <- range(halfmax_df_initial$year)
-years <- min(spdata2$year):max(spdata2$year)
+years <- min(halfmax_df_initial$year):max(halfmax_df_initial$year)
+#years <- min(spdata2$year):max(spdata2$year)
 #################################################
 #################################################
 
@@ -325,7 +325,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 1
+  #j <- 17
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
@@ -463,8 +463,8 @@ for (j in 1:nyr)
       
       iter_ind <- grep('iter', colnames(halfmax_df))
       halfmax_df[counter,iter_ind] <- halfmax_fit
-      halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
-      halfmax_df$min_neff[counter] <- min(summary(fit2)[, "n_eff"])
+      halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, 'Rhat']), 2)
+      halfmax_df$min_neff[counter] <- min(summary(fit2)[, 'n_eff'])
     }
     counter <- counter + 1
   } #k
@@ -474,10 +474,10 @@ for (j in 1:nyr)
 #################################################
 #################################################
 #combine initial and new
-#TOUT <- rbind(halfmax_df_initial, halfmax_df)
+TOUT <- rbind(halfmax_df_initial, halfmax_df)
 #order by year then cell
-#OUT <- TOUT[order(TOUT[,'year'], TOUT[,'cell']),]
-OUT <- halfmax_df
+OUT <- TOUT[order(TOUT[,'year'], TOUT[,'cell']),]
+#OUT <- halfmax_df
 #################################################
 #################################################
 
