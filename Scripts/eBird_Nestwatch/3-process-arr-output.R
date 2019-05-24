@@ -20,7 +20,7 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-hm_dir <- 'halfmax_species_2019-03-29'
+hm_dir <- 'halfmax_species_2019-05-03'
 hm_date <- substr(hm_dir, start = 17, stop = 26)
 
 
@@ -212,7 +212,7 @@ to.NA <- which(diagnostics_frame2$num_diverge > 0 |
                  diagnostics_frame2$max_Rhat >= 1.1 |
                  diagnostics_frame2$min_neff < 200 |
                  diagnostics_frame2$num_BFMI > 0 |
-                 diagnostics_frame2$HM_sd > 20)
+                 diagnostics_frame2$HM_sd > 10)
 
 # #1.4% of cells are bad
 # length(to.NA)/sum(!is.na(diagnostics_frame2$HM_mean))
