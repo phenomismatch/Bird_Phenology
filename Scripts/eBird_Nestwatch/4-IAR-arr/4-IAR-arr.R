@@ -331,6 +331,7 @@ vector[J] sigma_nu_raw;
 real beta0_raw[J];
 real mu_sn_raw;
 real<lower = 0> sigma_beta0_raw;
+real<lower = 0> sigma_sigma_nu;
 }
 
 transformed parameters {
@@ -362,7 +363,7 @@ for (i in 1:N)
 for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
-  sigma_nu[j] = exp(sigma_nu_raw[j] * 0.7 + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, 0.7) 
+  sigma_nu[j] = exp(sigma_nu_raw[j] * sigma_sigma_nu + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, sigma_sigma_nu) 
   beta0[j] = beta0_raw[j] * sigma_beta0;
   y_true[,j] = beta0[j] + gamma + nu[,j] * sigma_nu[j];
   
@@ -388,6 +389,7 @@ gamma_raw ~ std_normal();
 beta0_raw ~ std_normal();
 mu_sn_raw ~ std_normal();
 sigma_beta0_raw ~ std_normal();
+sigma_sigma_nu ~ std_normal();
 
 for (j in 1:J)
 {
@@ -425,10 +427,10 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.97
-TREE_DEPTH <- 19
+TREE_DEPTH <- 18
 STEP_SIZE <- 0.0005
-CHAINS <- 4
-ITER <- 6000
+CHAINS <- 6
+ITER <- 10000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -542,13 +544,13 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'mean')
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'max')
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'min')
-
+bayesplot::ppc_dens_overlay(n_y_PPC, n_t_y_rep[1:500,])
 
 
 # write model results to file ---------------------------------------------
 
 
-options(max.print = 50000)
+options(max.print = 5e6)
 sink(paste0(args, '-', IAR_out_date, '-iar-stan_results.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
@@ -595,8 +597,8 @@ mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
 #MAX <- round(max(f_rng))
 
 #min/max for plotting using output data
-MIN <- round(min(med_fit))
-MAX <- round(max(med_fit))
+MIN <- (round(min(med_fit)) - 1)
+MAX <- (round(max(med_fit)) + 1)
 
 #read in breeding/migration range shp file
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
@@ -655,7 +657,7 @@ for (i in 1:length(years))
     # geom_polygon(data = nrng_rm.df,
     #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) +
     coord_map("ortho", orientation = c(35, -80, 0),
-              xlim = c(-100, -55), ylim = c(25, 66)) +
+              xlim = c(-100, -55), ylim = c(23, 66)) +
     geom_polygon(data = to_plt2, aes(x = long, y = lat.y, group = group, fill = HM_mean),
                  alpha = 0.4) +
     geom_path(data = to_plt2, aes(x = long, y = lat.y, group = group),
@@ -703,7 +705,7 @@ for (i in 1:length(years))
     # geom_polygon(data = nrng_rm.df,
     #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) +
     coord_map("ortho", orientation = c(35, -80, 0),
-              xlim = c(-100, -55), ylim = c(25, 66)) +
+              xlim = c(-100, -55), ylim = c(23, 66)) +
     geom_polygon(data = to_plt2_post, aes(x = long, y = lat, group = group, fill = med_mu),
                  alpha = 0.4) +
     geom_path(data = to_plt2_post, aes(x = long, y = lat, group = group),
