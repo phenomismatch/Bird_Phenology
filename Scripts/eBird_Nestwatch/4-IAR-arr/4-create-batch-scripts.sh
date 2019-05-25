@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-05-07"
+DATE="2019-05-24"
 
 while read name
 do
@@ -11,10 +11,10 @@ do
 #SBATCH --job-name=iar-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
-#SBATCH -c 4 #cpus
+#SBATCH -c 6 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=8G #memory requested
+#SBATCH --mem=10G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
 #SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_$DATE/$temp-iar.out #STDOUT
