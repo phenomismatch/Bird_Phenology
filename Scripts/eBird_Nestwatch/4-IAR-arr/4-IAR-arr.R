@@ -36,8 +36,8 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 # db/hm query dir ------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2019-03-29'
-IAR_out_dir <- 'IAR_output_2019-05-07'
+IAR_in_dir <- 'IAR_input_2019-05-03'
+IAR_out_dir <- 'IAR_output_2019-05-26'
 
 
 
@@ -366,12 +366,8 @@ for (j in 1:J)
   sigma_nu[j] = exp(sigma_nu_raw[j] * sigma_sigma_nu + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, sigma_sigma_nu) 
   beta0[j] = beta0_raw[j] * sigma_beta0;
   y_true[,j] = beta0[j] + gamma + nu[,j] * sigma_nu[j];
-  
-}
 
-// indexing to avoid NAs
-for (j in 1:J)
-{
+  // indexing to avoid NAs  
   y[ii_obs[1:N_obs[j], j], j] = y_obs[1:N_obs[j], j];
   y[ii_mis[1:N_mis[j], j], j] = y_mis[1:N_mis[j], j];
 }
@@ -430,7 +426,7 @@ DELTA <- 0.97
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.0005
 CHAINS <- 6
-ITER <- 10000
+ITER <- 8000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -544,7 +540,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'mean')
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'max')
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'min')
-bayesplot::ppc_dens_overlay(n_y_PPC, n_t_y_rep[1:500,])
+# bayesplot::ppc_dens_overlay(n_y_PPC, n_t_y_rep[1:500,])
 
 
 # write model results to file ---------------------------------------------
