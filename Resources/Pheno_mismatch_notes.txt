@@ -48,15 +48,12 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Run 2 (GAM)
 *[IN PROGRESS] 3 remaining species (Empidonax_alnorum, Empidonax_virescens, Setophaga_americana)
 
-*Run 4 - initial
-
 *Run 2 - clean up cells 
 
 
 
 *Run 6 (query breeding) - need IAR species list from 3
 *Run 7 (GAM)
-*Change lat to 25 degrees
 
 
 #AFTER 7
