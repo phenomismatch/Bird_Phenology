@@ -3,14 +3,14 @@
 #SBATCH --job-name=iar-Geothlypis_trichas
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
-#SBATCH -c 4 #cpus
+#SBATCH -c 6 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=8G #memory requested
+#SBATCH --mem=10G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-05-07/Geothlypis_trichas-iar.out #STDOUT
-#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-05-07/Geothlypis_trichas-iar.err #STDERR
+#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-05-26/Geothlypis_trichas-iar.out #STDOUT
+#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2019-05-26/Geothlypis_trichas-iar.err #STDERR
 
 #echos name of node
 echo `hostname`
