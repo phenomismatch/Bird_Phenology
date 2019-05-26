@@ -364,11 +364,8 @@ for (j in 1:J)
   beta0[j] = beta0_raw[j] * sigma_beta0;
   mu[,j] = beta0[j] + gamma + phi[,j] * sigma_phi[j];
   y_true[,j] = y_true_raw[,j] * sigma_y_true + mu[,j];
-}
 
-// indexing to avoid NAs
-for (j in 1:J)
-{
+  // indexing to avoid NAs  
   y[ii_obs[1:N_obs[j], j], j] = y_obs[1:N_obs[j], j];
   y[ii_mis[1:N_mis[j], j], j] = y_mis[1:N_mis[j], j];
 }
@@ -423,9 +420,9 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
+DELTA <- 0.92
 TREE_DEPTH <- 18
-STEP_SIZE <- 0.0005
+STEP_SIZE <- 0.0001
 CHAINS <- 4
 ITER <- 4000
 
