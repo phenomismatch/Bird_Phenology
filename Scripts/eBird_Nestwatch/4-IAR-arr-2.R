@@ -287,7 +287,7 @@ real y_obs[N, J];             // observed response data (add NAs to end)
 real<lower = 0> sigma_y[N, J];                        // observed sd of data (observation error)
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
-real<lower = 24, upper = 90> lat[N];
+vector<lower = 24, upper = 90>[N] lat;
 }
 
 parameters {
@@ -297,13 +297,13 @@ real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
 vector[N] gamma_raw;
 matrix[N, J] phi;                                     // spatial error component 
-real sigma_phi_raw[J];
-real beta0_raw[J];
+vector[J] sigma_phi_raw;
+vector[J] beta0_raw;
 real mu_sp_raw;
 real<lower = 0> sigma_sp_raw;
 real<lower = 0> sigma_beta0_raw;
 matrix[N, J] y_true_raw;
-real<lower = 0> sigma_y_true_raw[J];
+vector<lower = 0>[J] sigma_y_true_raw;
 real mu_syt_raw;
 real<lower = 0> sigma_syt_raw;
 }
@@ -314,15 +314,15 @@ vector[N] gamma;
 real alpha_gamma;
 real beta_gamma;
 real<lower = 0> sigma_gamma;
-real mu_gamma[N];
+vector[N] mu_gamma;
 matrix[N, J] y_true;
 matrix[N, J] mu;
 real mu_sp;
 real<lower = 0> sigma_sp;
 real<lower = 0> sigma_beta0;
-real<lower = 0> sigma_phi[J];
-real beta0[J];
-real<lower = 0> sigma_y_true[J];
+vector<lower = 0>[J] sigma_phi;
+vector[J] beta0;
+vector<lower = 0>[J] sigma_y_true;
 real mu_syt;
 real<lower = 0> sigma_syt;
 
@@ -406,7 +406,7 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.85
+DELTA <- 0.80
 TREE_DEPTH <- 17
 STEP_SIZE <- 0.0001
 CHAINS <- 4
