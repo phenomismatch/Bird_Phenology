@@ -162,28 +162,6 @@ if (length(to.rm.ind) > 0)
 }
 
 
-
-# Estimate scaling factor for BYM2 model with INLA ------------------------
-
-# #Build the adjacency matrix using INLA library functions
-# adj.matrix <- Matrix::sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
-# 
-# #The IAR precision matrix (note! This is singular)
-# Q <- Matrix::Diagonal(ncell, Matrix::rowSums(adj.matrix)) - adj.matrix
-# #Add a small jitter to the diagonal for numerical stability (optional but recommended)
-# Q_pert <- Q + Matrix::Diagonal(ncell) * max(diag(Q)) * sqrt(.Machine$double.eps)
-# 
-# # Compute the diagonal elements of the covariance matrix subject to the 
-# # constraint that the entries of the ICAR sum to zero.
-# # See the inla.qinv function help for further details.
-# Q_inv <- INLA::inla.qinv(Q_pert, 
-#                          constr = list(A = matrix(1, 1, ncell), e = 0))
-# 
-# #Compute the geometric mean of the variances, which are on the diagonal of Q.inv
-# scaling_factor <- exp(mean(log(diag(Q_inv))))
-
-
-
 # create Stan data object -------------------------------------------------
 
 #create and fill sds, obs, data for PPC, and temp
@@ -319,13 +297,15 @@ real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
 vector[N] gamma_raw;
 matrix[N, J] phi;                                     // spatial error component 
+real sigma_phi_raw[J];
 real beta0_raw[J];
 real mu_sp_raw;
 real<lower = 0> sigma_sp_raw;
 real<lower = 0> sigma_beta0_raw;
 matrix[N, J] y_true_raw;
-real<lower = 0> sigma_y_true_raw;
-real sigma_phi_raw[J];
+real<lower = 0> sigma_y_true_raw[J];
+real mu_syt_raw;
+real<lower = 0> sigma_syt_raw;
 }
 
 transformed parameters {
@@ -342,28 +322,32 @@ real<lower = 0> sigma_sp;
 real<lower = 0> sigma_beta0;
 real<lower = 0> sigma_phi[J];
 real beta0[J];
-real<lower = 0> sigma_y_true;
+real<lower = 0> sigma_y_true[J];
+real mu_syt;
+real<lower = 0> sigma_syt;
 
-alpha_gamma = alpha_gamma_raw * 30;
+
+alpha_gamma = alpha_gamma_raw * 50;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_gamma = sigma_gamma_raw * 5;
 sigma_beta0 = sigma_beta0_raw * 5;
 mu_sp = mu_sp_raw * 1.5;
-sigma_y_true = sigma_y_true_raw * 5;
 sigma_sp = sigma_sp_raw * 1;
+mu_syt = mu_syt_raw * 1.5;
+sigma_syt = sigma_syt_raw * 1;
 
-for (i in 1:N)
-{
-  mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
-  gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
-}
+mu_gamma = alpha_gamma + beta_gamma * lat;
+gamma = gamma_raw * sigma_gamma + mu_gamma;
+
+sigma_phi = exp(sigma_phi_raw * sigma_sp + mu_sp);    //implies sigma_phi[j] ~ lnorm(mu_sp, sigma_sp) 
+beta0 = beta0_raw * sigma_beta0;
+
+sigma_y_true = exp(sigma_y_true_raw * sigma_syt + mu_syt);  //implies sigma_y_true[j] ~ lnorm(mu_syt, sigma_syt) 
 
 for (j in 1:J)
 {
-  sigma_phi[j] = exp(sigma_phi_raw[j] * sigma_sp + mu_sp);               //implies sigma_phi[j] ~ lognormal(mu_sp, sigma_sp) 
-  beta0[j] = beta0_raw[j] * sigma_beta0;
   mu[,j] = beta0[j] + gamma + phi[,j] * sigma_phi[j];
-  y_true[,j] = y_true_raw[,j] * sigma_y_true + mu[,j];
+  y_true[,j] = y_true_raw[,j] * sigma_y_true[j] + mu[,j];
 
   // indexing to avoid NAs  
   y[ii_obs[1:N_obs[j], j], j] = y_obs[1:N_obs[j], j];
@@ -384,6 +368,8 @@ sigma_sp_raw ~ std_normal();
 sigma_beta0_raw ~ std_normal();
 sigma_phi_raw ~ std_normal();
 sigma_y_true_raw ~ std_normal();
+mu_syt_raw ~ std_normal();
+sigma_syt_raw ~ std_normal();
 
 for (j in 1:J)
 {
@@ -435,7 +421,7 @@ fit <- rstan::stan(model_code = IAR_2,
                    pars = c('sigma_beta0', 'beta0',
                             'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
                             'sigma_phi', 'mu_sp', 'sigma_sp', 'phi', 'sigma_y_true',
-                            'y_true', 'y_rep'),
+                            'mu_syt', 'sigma_syt', 'y_true', 'y_rep'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
@@ -446,10 +432,10 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 #setwd("~/Google_Drive/R/Bird_Phenology/Data/Processed/Empidonax_virescens_test_no_slope/Ev_ns_ye")
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output-new.rds'))
 
 #save data to RDS (has which cells are modeled)
-saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
+saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input-new.rds'))
 
 
 
