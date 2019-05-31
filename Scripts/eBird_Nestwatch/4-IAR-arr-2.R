@@ -37,14 +37,13 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'IAR_output_2019-05-25'
+IAR_out_dir <- 'IAR_output_2019-05-30'
 
 
 
 # Load packages -----------------------------------------------------------
 
 library(rstan)
-library(INLA)
 library(geosphere)
 library(ggplot2)
 library(maps)
@@ -68,8 +67,10 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 #args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
-args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
+#args <- as.character('Empidonax_virescens')
+#args <- as.character('Vireo_bellii')
+#args <- as.character('Cardellina_pusilla')
 
 
 #species for which one cell had to be dropped, bc it did not border any others
@@ -79,6 +80,7 @@ args <- as.character('Empidonax_virescens')
 #args <- as.character('Zonotrichia_leucophrys')
 #args <- as.character('Bombycilla_cedrorum')
 #args <- as.character('Coccyzus_americanus')
+
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -297,15 +299,11 @@ real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
 vector[N] gamma_raw;
 matrix[N, J] phi;                                     // spatial error component 
-vector[J] sigma_phi_raw;
+real<lower = 0> sigma_phi_raw;
 vector[J] beta0_raw;
-real mu_sp_raw;
-real<lower = 0> sigma_sp_raw;
 real<lower = 0> sigma_beta0_raw;
 matrix[N, J] y_true_raw;
-vector<lower = 0>[J] sigma_y_true_raw;
-real mu_syt_raw;
-real<lower = 0> sigma_syt_raw;
+real<lower = 0> sigma_y_true_raw;
 }
 
 transformed parameters {
@@ -317,37 +315,27 @@ real<lower = 0> sigma_gamma;
 vector[N] mu_gamma;
 matrix[N, J] y_true;
 matrix[N, J] mu;
-real mu_sp;
-real<lower = 0> sigma_sp;
 real<lower = 0> sigma_beta0;
-vector<lower = 0>[J] sigma_phi;
+real<lower = 0> sigma_phi;
 vector[J] beta0;
-vector<lower = 0>[J] sigma_y_true;
-real mu_syt;
-real<lower = 0> sigma_syt;
+real<lower = 0> sigma_y_true;
 
 
 alpha_gamma = alpha_gamma_raw * 50;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_gamma = sigma_gamma_raw * 5;
 sigma_beta0 = sigma_beta0_raw * 5;
-mu_sp = mu_sp_raw * 1.5;
-sigma_sp = sigma_sp_raw * 1;
-mu_syt = mu_syt_raw * 1.5;
-sigma_syt = sigma_syt_raw * 1;
+sigma_y_true = sigma_y_true_raw * 5;
+sigma_phi = sigma_phi_raw * 5;
 
 mu_gamma = alpha_gamma + beta_gamma * lat;
 gamma = gamma_raw * sigma_gamma + mu_gamma;
-
-sigma_phi = exp(sigma_phi_raw * sigma_sp + mu_sp);    //implies sigma_phi[j] ~ lnorm(mu_sp, sigma_sp) 
 beta0 = beta0_raw * sigma_beta0;
-
-sigma_y_true = exp(sigma_y_true_raw * sigma_syt + mu_syt);  //implies sigma_y_true[j] ~ lnorm(mu_syt, sigma_syt) 
 
 for (j in 1:J)
 {
-  mu[,j] = beta0[j] + gamma + phi[,j] * sigma_phi[j];
-  y_true[,j] = y_true_raw[,j] * sigma_y_true[j] + mu[,j];
+  mu[,j] = beta0[j] + gamma + phi[,j] * sigma_phi;
+  y_true[,j] = y_true_raw[,j] * sigma_y_true + mu[,j];
 
   // indexing to avoid NAs  
   y[ii_obs[1:N_obs[j], j], j] = y_obs[1:N_obs[j], j];
@@ -363,13 +351,9 @@ beta_gamma_raw ~ std_normal();
 sigma_gamma_raw ~ std_normal();
 gamma_raw ~ std_normal();
 beta0_raw ~ std_normal();
-mu_sp_raw ~ std_normal();
-sigma_sp_raw ~ std_normal();
 sigma_beta0_raw ~ std_normal();
 sigma_phi_raw ~ std_normal();
 sigma_y_true_raw ~ std_normal();
-mu_syt_raw ~ std_normal();
-sigma_syt_raw ~ std_normal();
 
 for (j in 1:J)
 {
@@ -408,9 +392,9 @@ options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.80
 TREE_DEPTH <- 17
-STEP_SIZE <- 0.0001
+STEP_SIZE <- 0.0004
 CHAINS <- 4
-ITER <- 4000
+ITER <- 2000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -418,10 +402,10 @@ fit <- rstan::stan(model_code = IAR_2,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('sigma_beta0', 'beta0',
-                            'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-                            'sigma_phi', 'mu_sp', 'sigma_sp', 'phi', 'sigma_y_true',
-                            'mu_syt', 'sigma_syt', 'y_true', 'y_rep'),
+                   pars = c('sigma_beta0', 'beta0', 
+                            'alpha_gamma', 'beta_gamma', 'sigma_gamma',
+                            'sigma_phi', 'sigma_y_true', 'gamma', 'phi', 
+                            'y_true', 'y_rep'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
@@ -482,7 +466,7 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 # setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 # fit <- readRDS('Catharus_minimus-2019-02-24-iar-stan_output.rds')
-# fit <- readRDS('Empidonax_virescens-2019-02-21-iar-stan_output.rds')
+# fit <- readRDS('Empidonax_virescens-2019-05-25-iar-stan_output-new.rds')
 # fit <- readRDS('Vireo_olivaceus-2019-02-13-IAR_stan-test-3.rds')
 
 # for PPC extract y_rep and transpose (so iter are rows as required by shiny stan)
@@ -524,7 +508,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'mean')
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'max')
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'min')
-# bayesplot::ppc_dens_overlay(n_y_PPC, n_t_y_rep[1:500,])
+# bayesplot::ppc_dens_overlay(n_y_PPC, n_t_y_rep[1:100,])
 
 
 # write model results to file ---------------------------------------------
@@ -714,8 +698,8 @@ for (i in 1:length(years))
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
-#alpha_gamma ~ normal(0, 30)
-PR <- rnorm(10000, 0, 30)
+#alpha_gamma ~ normal(0, 50)
+PR <- rnorm(10000, 0, 50)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
@@ -777,16 +761,27 @@ MCMCvis::MCMCtrace(fit,
                    n.eff = TRUE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta0.pdf'))
 
-#sigma_y_true ~ HN(0, 5)
-PR_p <- rnorm(10000, 0, 5)
-PR <- PR_p[which(PR_p > 0)]
+#mu_syt ~ N(0, 1.5)
+PR <- rnorm(10000, 0, 1.5)
 MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_y_true',
+                   params = 'mu_syt',
                    priors = PR,
                    open_pdf = FALSE,
                    Rhat = TRUE, 
                    n.eff = TRUE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_y_true.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_syt.pdf'))
+
+#sigma_syt ~ HN(0, 1)
+PR_p <- rnorm(10000, 0, 1)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_syt',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   Rhat = TRUE, 
+                   n.eff = TRUE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_syt.pdf'))
+
 
 if ('Rplots.pdf' %in% list.files())
 {
