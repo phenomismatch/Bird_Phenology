@@ -151,7 +151,18 @@ Diff_arr_br ~ alpha_j + beta1_j * year + beta2_j * arr #where j is species
 
 
 
-*eBird Status and Trends report for info?
+Demographics
+============
+*Spatially explicit integrated population model
+    -look at how trends differ across species range
+    -look at fluctuations in pop dynamics across species range
+        -particularly as they pertain to range edges (recent paper about deforestation and range edges) -> larger fluctuations = less stable population
+    -links to phenological dynamics
+    -links to fat content/body mass from MAPS
+    
+    
+    
+
 
 *Look at MAPS BAND data for model - can look at age and phenology with these data as well
 
