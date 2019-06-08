@@ -31,17 +31,17 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'IAR_output_2019-05-30'
+IAR_out_dir <- 'IAR_output_2019-06-07'
 
 
 
@@ -73,8 +73,8 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Empidonax_virescens')
-args <- as.character('Empidonax_traillii')
-#args <- as.character('Vireo_bellii')
+#args <- as.character('Empidonax_traillii')
+args <- as.character('Vireo_bellii')
 #args <- as.character('Vireo_griseus')
 #args <- as.character('Cardellina_pusilla')
 
@@ -287,7 +287,7 @@ real alpha_gamma_raw;
 real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
 vector[N] gamma_raw;
-matrix[N] phi;                                             // spatial error component 
+vector[N] phi;                                             // spatial error component 
 real<lower = 0> sigma_phi_raw;
 vector[J] beta0_raw;
 real<lower = 0> sigma_beta0_raw;
@@ -323,7 +323,7 @@ beta0 = beta0_raw * sigma_beta0;
 
 for (j in 1:J)
 {
-  mu[,j] = beta0[j] + gamma
+  mu[,j] = beta0[j] + gamma;
   y_true[,j] = y_true_raw[,j] * sigma_y_true + mu[,j];
 
   // indexing to avoid NAs  
@@ -379,8 +379,8 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
-TREE_DEPTH <- 18
+DELTA <- 0.90
+TREE_DEPTH <- 16
 STEP_SIZE <- 0.0003
 CHAINS <- 4
 ITER <- 3000
@@ -405,7 +405,7 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 #setwd("~/Google_Drive/R/Bird_Phenology/Data/Processed/Empidonax_virescens_test_no_slope/Ev_ns_ye")
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output-new.rds'))
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output-new-new.rds'))
 
 #save data to RDS (has which cells are modeled)
 saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input-new.rds'))
