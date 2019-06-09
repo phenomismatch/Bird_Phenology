@@ -17,7 +17,7 @@ y_PPC_fun <- function(species, IAR_in_dir)
   
   #Set wd
   setwd(IAR_in_dir)
-  s1 <- strsplit(IAR_IN, split = '/')[[1]][7]
+  s1 <- strsplit(IAR_in_dir, split = '/')[[1]][7]
   IAR_in_date <- strsplit(s1, split = '_')[[1]][3]
   
   #species arg
@@ -161,8 +161,13 @@ resid_ind_fun <- function(y_PPC, y_rep)
 # master function -------------------------------------------------------------------
 
 #species (with underscore), dir with IAR input, dir with IAR output, and dir for fig out 
-PPC_fig_fun <- function(SPECIES, IAR_IN, IAR_OUT, FIG_OUT)
+PPC_fig_fun <- function(SPECIES, IAR_IN, IAR_OUT, OUT_DATE, FIG_OUT)
 {
+  # SPECIES <- 'Vireo_olivaceus'
+  # IAR_IN <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/IAR_input_2019-05-03'
+  # IAR_OUT <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
+  # FIG_OUT <- '~/Desktop/Bird_Phenology_Offline/Figures/PPC_figs'
+  
   #get y_PPC
   y_PPC <- y_PPC_fun(species = SPECIES, IAR_in_dir = IAR_IN) 
 
@@ -170,12 +175,9 @@ PPC_fig_fun <- function(SPECIES, IAR_IN, IAR_OUT, FIG_OUT)
   na.y.rm <- which(is.na(y_PPC))
   n_y_PPC <- y_PPC[-na.y.rm]
 
-  #get out date
-  td <- strsplit(IAR_OUT, split = '/')[[1]][6]
-  OUT_DATE <- strsplit(td, split = '_')[[1]][3]
   
   #read in RDS obj
-  RDS_OBJ <- readRDS(paste0(OUT_DIR, '/', SPECIES, '-', OUT_DATE, '-iar-stan_output.rds'))
+  RDS_OBJ <- readRDS(paste0(IAR_OUT, '/', SPECIES, '-', OUT_DATE, '-iar-stan_output.rds'))
   
   #get y_rep
   y_rep <- y_rep_fun(obj = RDS_OBJ, na.vec = na.y.rm)
@@ -187,10 +189,10 @@ PPC_fig_fun <- function(SPECIES, IAR_IN, IAR_OUT, FIG_OUT)
   #PPC stats
   #mean
   PPC_mn <- round(PPC_p_fun(n_y_PPC, y_rep, mean), 2)
+  mn_bias <- round(mean(ind_resid), 2)
   #sd
-  PPC_sd <- round(PPC_p_fun(n_y_PPC, y_rep, sd), 2)
-  #discrepency
-  PPC_dis <- round(sum(ind_resid > 0) / length(ind_resid), 2)
+  # PPC_sd <- round(PPC_p_fun(n_y_PPC, y_rep, sd), 2)
+  # sd_bias <- round(sd(ind_resid), 2)
   
   #additional diagnostics
   num_diverge <- rstan::get_num_divergent(RDS_OBJ)
@@ -203,16 +205,15 @@ PPC_fig_fun <- function(SPECIES, IAR_IN, IAR_OUT, FIG_OUT)
   #modified bayesplot::ppc_dens_overlay function
   tdata <- bayesplot::ppc_data(n_y_PPC, y_rep[1:100,])
   
-  annotations <- data.frame(xpos = c(-Inf, -Inf, -Inf),
-                            ypos = c(Inf, Inf, Inf),
+  annotations <- data.frame(xpos = c(-Inf, -Inf, -Inf, -Inf, -Inf),
+                            ypos = c(Inf, Inf, Inf, Inf, Inf),
                             annotateText = c(paste0('PPC mean: ', PPC_mn),
-                                             paste0('PPC sd: ', PPC_sd),
-                                             paste0('PPC dis: ', PPC_dis),
+                                             paste0('Mean bias: ', mn_bias),
                                              paste0('# divergences: ', num_diverge),
                                              paste0('Max Rhat: ', max(rhat_output)),
                                              paste0('Min n.eff: ', min(neff_output))),
-                            hjustvar = c(0, 0, 0, 0, 0, 0),
-                            vjustvar = c(8, 10, 12, 14, 16, 18))
+                            hjustvar = c(0, 0, 0, 0, 0),
+                            vjustvar = c(4, 6, 8, 10, 12))
   
   p <- ggplot(tdata) + 
     aes_(x = ~value) + 
@@ -236,7 +237,7 @@ PPC_fig_fun <- function(SPECIES, IAR_IN, IAR_OUT, FIG_OUT)
     geom_text(data = annotations, aes(x = xpos, y = ypos,
                                       hjust = hjustvar, vjust = vjustvar,
                                       label = annotateText),
-              size = 5, col = 'black')
+              size = 3, col = 'black')
   
   setwd(FIG_OUT)
   ggsave(paste0(SPECIES, '_PPC.pdf'), p)
@@ -260,10 +261,11 @@ PPC_fig_fun <- function(SPECIES, IAR_IN, IAR_OUT, FIG_OUT)
 # run function ------------------------------------------------------------
 
 #test
-PPC_fig_fun(SPECIES = 'Ammospiza_nelsoni',
+PPC_fig_fun(SPECIES = 'Vireo_bellii',
             IAR_IN = '~/Google_Drive/R/Bird_Phenology/Data/Processed/IAR_input_2019-05-03',
-            IAR_OUT = '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26',
-            FIG_OUT = '~/Desktop/Bird_Phenology_Offline/Figures/PPC_figs')
+            IAR_OUT = '~/Desktop/',
+            OUT_DATE = '2019-06-07',
+            FIG_OUT = '~/Desktop/')
 
 
 setwd('~/Google_Drive/R/Bird_Phenology/Data/')
