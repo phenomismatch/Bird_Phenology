@@ -51,6 +51,7 @@ library(maps)
 library(dplyr)
 library(dggridR)
 library(MCMCvis)
+library(Matrix)
 #Also need to be installed, but not loaded: rgeos, maptools, mapproj
 
 
@@ -331,7 +332,7 @@ vector[J] sigma_nu_raw;
 real beta0_raw[J];
 real mu_sn_raw;
 real<lower = 0> sigma_beta0_raw;
-real<lower = 0> sigma_sigma_nu;
+real<lower = 0> sigma_sigma_nu_raw;
 }
 
 transformed parameters {
@@ -347,12 +348,14 @@ matrix[N, J] nu;                            // spatial and non-spatial component
 real mu_sn;
 real<lower = 0> sigma_beta0;
 real beta0[J];
+real<lower = 0> sigma_sigma_nu;
 
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_gamma = sigma_gamma_raw * 5;
 sigma_beta0 = sigma_beta0_raw * 5;
 mu_sn = mu_sn_raw * 1.5;
+sigma_sigma_nu = sigma_sigma_nu_raw * 0.5;
 
 for (i in 1:N)
 {
@@ -385,7 +388,7 @@ gamma_raw ~ std_normal();
 beta0_raw ~ std_normal();
 mu_sn_raw ~ std_normal();
 sigma_beta0_raw ~ std_normal();
-sigma_sigma_nu ~ std_normal();
+sigma_sigma_nu_raw ~ std_normal();
 
 for (j in 1:J)
 {
