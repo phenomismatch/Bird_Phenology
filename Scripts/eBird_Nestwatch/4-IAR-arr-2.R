@@ -69,7 +69,9 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Empidonax_virescens')
+args <- as.character('Empidonax_traillii')
 #args <- as.character('Vireo_bellii')
+#args <- as.character('Vireo_griseus')
 #args <- as.character('Cardellina_pusilla')
 
 
@@ -390,11 +392,11 @@ for (j in 1:J)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.80
-TREE_DEPTH <- 17
-STEP_SIZE <- 0.0004
+DELTA <- 0.95
+TREE_DEPTH <- 18
+STEP_SIZE <- 0.0003
 CHAINS <- 4
-ITER <- 2000
+ITER <- 3000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -474,17 +476,21 @@ y_rep_ch <- MCMCvis::MCMCpstr(fit, params = 'y_rep', type = 'chains')[[1]]
 t_y_rep <- t(y_rep_ch)
 
 #for each iter see if y_rep value is greater or less than true value
+t_y_rep[,which(is.na(y_PPC))] <- NA
 tsum <- 0
 for (i in 1:NROW(t_y_rep))
 {
   #i <- 1
-  temp <- sum(t_y_rep[i,] > y_PPC, na.rm = TRUE)
+  #temp <- sum(t_y_rep[i,] > y_PPC, na.rm = TRUE)
+  temp <- sum(mean(t_y_rep[i,], na.rm = TRUE) > 
+                mean(y_PPC, na.rm = TRUE))
   tsum <- tsum + temp
 }
 
 #number of true y values that are not NA
 l_PPC <- sum(!is.na(y_PPC))
-PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
+#PPC mean
+PPC_p <- tsum / l_PPC
 
 
 #get summary of model output
@@ -729,26 +735,48 @@ MCMCvis::MCMCtrace(fit,
                    n.eff = TRUE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma.pdf'))
 
-#mu_sp ~ halfnormal(0, 1.5)
-PR <- rnorm(10000, 0, 1.5)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_sp',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   Rhat = TRUE, 
-                   n.eff = TRUE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_sp.pdf'))
-
-#sigma_sp ~ halfnormal(0, 1)
-PR_p <- rnorm(10000, 0, 1)
+#sigma_phi ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_sp',
+                   params = 'sigma_phi',
                    priors = PR,
                    open_pdf = FALSE,
-                   Rhat = TRUE, 
+                   Rhat = TRUE,
                    n.eff = TRUE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_sp.pdf'))
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_phi.pdf'))
+
+#sigma_y_true ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_y_true',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   Rhat = TRUE,
+                   n.eff = TRUE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_y_true.pdf'))
+
+# #mu_sp ~ halfnormal(0, 1.5)
+# PR <- rnorm(10000, 0, 1.5)
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'mu_sp',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    Rhat = TRUE,
+#                    n.eff = TRUE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_sp.pdf'))
+# 
+# #sigma_sp ~ halfnormal(0, 1)
+# PR_p <- rnorm(10000, 0, 1)
+# PR <- PR_p[which(PR_p > 0)]
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'sigma_sp',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    Rhat = TRUE,
+#                    n.eff = TRUE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_sp.pdf'))
 
 #sigma_beta0 ~ HN(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -761,26 +789,26 @@ MCMCvis::MCMCtrace(fit,
                    n.eff = TRUE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta0.pdf'))
 
-#mu_syt ~ N(0, 1.5)
-PR <- rnorm(10000, 0, 1.5)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_syt',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   Rhat = TRUE, 
-                   n.eff = TRUE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_syt.pdf'))
-
-#sigma_syt ~ HN(0, 1)
-PR_p <- rnorm(10000, 0, 1)
-PR <- PR_p[which(PR_p > 0)]
-MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_syt',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   Rhat = TRUE, 
-                   n.eff = TRUE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_syt.pdf'))
+# #mu_syt ~ N(0, 1.5)
+# PR <- rnorm(10000, 0, 1.5)
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'mu_syt',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    Rhat = TRUE,
+#                    n.eff = TRUE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_syt.pdf'))
+# 
+# #sigma_syt ~ HN(0, 1)
+# PR_p <- rnorm(10000, 0, 1)
+# PR <- PR_p[which(PR_p > 0)]
+# MCMCvis::MCMCtrace(fit,
+#                    params = 'sigma_syt',
+#                    priors = PR,
+#                    open_pdf = FALSE,
+#                    Rhat = TRUE,
+#                    n.eff = TRUE,
+#                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_syt.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
