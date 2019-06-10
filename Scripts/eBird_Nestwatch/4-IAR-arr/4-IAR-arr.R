@@ -12,8 +12,14 @@
 # \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
 # \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
 # \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
-# \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
-#
+# \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, \sigma_{\sigma_{\nu}})
+# \alpha_{\gamma} \sim N(0, 50)
+# \beta_{\gamma} \sim N(2, 3)
+# \sigma_{\gamma} \sim HN(0, 5)
+# \mu_{\sigma_{\nu}} \sim N(0, 1.5)
+# \sigma_{\sigma_{\nu}} \sim N(0, 0.5)
+# \phi_{[i,j]} \sim N(0, [D - W]^{-1})
+# \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
 ######################
 
 #Stan resources:
@@ -37,7 +43,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'IAR_output_2019-05-26'
+IAR_out_dir <- 'IAR_output_2019-06-10'
 
 
 
@@ -80,6 +86,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Zonotrichia_leucophrys')
 #args <- as.character('Bombycilla_cedrorum')
 #args <- as.character('Coccyzus_americanus')
+#args <- as.character('Vireo_bellii')
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -271,32 +278,12 @@ DATA <- list(J = nyr,
              scaling_factor = scaling_factor,
              ii_obs = ii_obs_in,
              ii_mis = ii_mis_in,
-             lat = cellcenters$lat_deg)
+             lat = cellcenters$lat_deg,
+             y_PPC = y_PPC)
 
 
 
 # Stan model --------------------------------------------------------------
-
-
-# Model in latex
-# ==============
-# y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
-# y_{true[i,j]} = \beta_{0[j]} + \gamma_{[i]} + \nu_{[i,j]} * \sigma_{\nu[j]}
-# \beta_{0[j]} \sim N(0, \sigma_{\beta_{0}})
-# \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
-# \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
-# \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
-# \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, 0.7)
-# \rho \sim Beta(0.5, 0.5)
-# \theta \sim N(0, 1)
-# \sigma_{\beta_{0}} \ sim HN(0, 5)
-# \alpha_{\gamma} \sim N(0, 30)
-# \beta_{\gamma} \sim N(2, 3)
-# \sigma_{\gamma} \sim HN(0, 5)
-# \mu_{\sigma_{\nu}} \sim N(0, 1.5)
-# \phi_{[i,j]} \sim N(0, [D - W]^{-1})
-# \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
-
 
 #cells in rows
 #years in columns
@@ -332,7 +319,7 @@ vector[J] sigma_nu_raw;
 vector[J] beta0_raw;
 real mu_sn_raw;
 real<lower = 0> sigma_beta0_raw;
-real<lower = 0> sigma_sigma_nu_raw;
+real<lower = 0> sigma_sn_raw;
 }
 
 transformed parameters {
@@ -348,25 +335,23 @@ matrix[N, J] nu;                            // spatial and non-spatial component
 real mu_sn;
 real<lower = 0> sigma_beta0;
 vector[J] beta0;
-real<lower = 0> sigma_sigma_nu;
+real<lower = 0> sigma_sn;
 
-alpha_gamma = alpha_gamma_raw * 30;
+alpha_gamma = alpha_gamma_raw * 60;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_gamma = sigma_gamma_raw * 5;
 sigma_beta0 = sigma_beta0_raw * 5;
 mu_sn = mu_sn_raw * 1.5;
-sigma_sigma_nu = sigma_sigma_nu_raw * 0.5;
-
+sigma_sn = sigma_sn_raw * 0.5;
 
 mu_gamma = alpha_gamma + beta_gamma * lat;
 gamma = gamma_raw * sigma_gamma + mu_gamma;
-
 beta0 = beta0_raw * sigma_beta0;
+sigma_nu = exp(sigma_nu_raw * sigma_sn + mu_sn);    //implies sigma_nu[j] ~ lognormal(mu_sn, sigma_sn) 
 
 for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
-  sigma_nu[j] = exp(sigma_nu_raw[j] * sigma_sn + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, sigma_sigma_nu) 
   
   y_true[,j] = beta0[j] + gamma + nu[,j] * sigma_nu[j];
 
@@ -382,13 +367,14 @@ model {
 alpha_gamma_raw ~ std_normal();       // faster than normal(0, 1)
 beta_gamma_raw ~ std_normal();
 sigma_gamma_raw ~ std_normal();
-sigma_nu_raw ~ std_normal();
-rho ~ beta(0.5, 0.5);
 gamma_raw ~ std_normal();
 beta0_raw ~ std_normal();
-mu_sn_raw ~ std_normal();
 sigma_beta0_raw ~ std_normal();
-sigma_sigma_nu_raw ~ std_normal();
+rho ~ beta(0.5, 0.5);
+sigma_nu_raw ~ std_normal();
+mu_sn_raw ~ std_normal();
+sigma_sn_raw ~ std_normal();
+
 
 for (j in 1:J)
 {
@@ -427,9 +413,9 @@ options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.97
 TREE_DEPTH <- 18
-STEP_SIZE <- 0.0005
-CHAINS <- 6
-ITER <- 8000
+STEP_SIZE <- 0.0003
+CHAINS <- 4
+ITER <- 10000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -439,7 +425,7 @@ fit <- rstan::stan(model_code = IAR_2,
             cores = CHAINS,
             pars = c('sigma_beta0', 'beta0',
                      'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-                     'sigma_nu', 'sigma_sn', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
+                     'sigma_nu', 'mu_sn', 'sigma_sn', 'rho', 'nu', 'theta', 'phi', 
                      'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
@@ -458,86 +444,110 @@ saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
 
 
 
-# Calc diagnostics and rerun if needed ------------------------------------
+# Calc diagnostics ---------------------------------------------------
+
+# library(shinystan)
+# launch_shinystan(fit)
 
 num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
 num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
-
-# #rerun model if things didn't go well
-# while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.99)
-# {
-#   DELTA <- DELTA + 0.01
-#   TREE_DEPTH <- TREE_DEPTH + 1
-#   STEP_SIZE <- STEP_SIZE * 0.75
-# 
-#   tt <- proc.time()
-#   fit <- rstan::stan(model_code = IAR_2,
-#                      data = DATA,
-#                      chains = CHAINS,
-#                      iter = ITER,
-#                      cores = CHAINS,
-#                      pars = c('sigma_beta0', 'beta0',
-#                               'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-#                               'sigma_nu', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
-#                               'y_true', 'y_rep'),
-#                      control = list(adapt_delta = DELTA,
-#                                     max_treedepth = TREE_DEPTH,
-#                                     stepsize = STEP_SIZE))
-#   run_time <- (proc.time()[3] - tt[3]) / 60
-# 
-#   num_diverge <- rstan::get_num_divergent(fit)
-#   num_tree <- rstan::get_num_max_treedepth(fit)
-#   num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
-# }
+sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
+mn_stepsize <- round(sapply(sampler_params, 
+                            function(x) mean(x[, 'stepsize__'])), 5)
+mn_treedepth <- round(sapply(sampler_params, 
+                             function(x) mean(x[, 'treedepth__'])), 1)
+accept_stat <- round(sapply(sampler_params, 
+                            function(x) mean(x[, 'accept_stat__'])), 2)
 
 
-
-
-
-
-# Checks -------------------------------------------------------------
-
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-# fit <- readRDS('Catharus_minimus-2019-02-24-iar-stan_output.rds')
-# fit <- readRDS('Empidonax_virescens-2019-02-21-iar-stan_output.rds')
-# fit <- readRDS('Vireo_olivaceus-2019-02-13-IAR_stan-test-3.rds')
-
-# for PPC extract y_rep and transpose (so iter are rows as required by shiny stan)
-y_rep_ch <- MCMCvis::MCMCpstr(fit, params = 'y_rep', type = 'chains')[[1]]
-t_y_rep <- t(y_rep_ch)
-
-#for each iter see if y_rep value is greater or less than true value
-tsum <- 0
-for (i in 1:NROW(t_y_rep))
-{
-  #i <- 1
-  temp <- sum(t_y_rep[i,] > y_PPC, na.rm = TRUE)
-  tsum <- tsum + temp
-}
-
-#number of true y values that are not NA
-l_PPC <- sum(!is.na(y_PPC))
-PPC_p <- tsum / (l_PPC * NROW(t_y_rep))
-
+# Summaries ---------------------------------------------------------------
 
 #get summary of model output
-model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2)
+model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2, excl = 'y_rep')
 
 #extract Rhat and neff values
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
 neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
 
 
-# #shiny stan
-#for shiny stan PPC
-# na.y.rm <- which(is.na(y_PPC))
-# n_y_PPC <- y_PPC[-na.y.rm]
-# n_t_y_rep <- t_y_rep[,-na.y.rm]
 
-# library(shinystan)
-# launch_shinystan(fit)
+# Checks -------------------------------------------------------------
+
+# for PPC extract y_rep and transpose (so iter are rows as required by shiny stan)
+y_rep_ch <- MCMCvis::MCMCpstr(fit, params = 'y_rep', type = 'chains')[[1]]
+t_y_rep <- t(y_rep_ch)
+
+#remove NA vals
+na.y.rm <- which(is.na(y_PPC))
+n_y_PPC <- y_PPC[-na.y.rm]
+n_y_rep <- t_y_rep[, -na.y.rm]
+
+#mean resid (pred - actual) for each datapoint
+ind_resid <- rep(NA, length(n_y_PPC))
+for (i in 1:length(n_y_PPC))
+{
+  #i <- 1
+  ind_resid[i] <- mean(n_y_rep[,i] - n_y_PPC[i])
+}
+
+#density overlay plot - first 100 iter
+#modified bayesplot::ppc_dens_overlay function
+tdata <- bayesplot::ppc_data(n_y_PPC, n_y_rep[1:100,])
+
+annotations <- data.frame(xpos = c(-Inf, -Inf),
+                          ypos = c(Inf, Inf),
+                          annotateText = c(paste0('Max Rhat: ', max(rhat_output)),
+                                           paste0('Min n.eff: ', min(neff_output))),
+                          hjustvar = c(0, 0),
+                          vjustvar = c(4, 6))
+
+p <- ggplot(tdata) + 
+  aes_(x = ~value) + 
+  stat_density(aes_(group = ~rep_id, color = "yrep"), 
+               data = function(x) dplyr::filter(x, !tdata$is_y), 
+               geom = "line", position = "identity", size = 0.25, 
+               alpha = 0.3, trim = FALSE, bw = 'nrd0', adjust = 1, 
+               kernel = 'gaussian', n = 1024) + 
+  stat_density(aes_(color = "y"), data = function(x) dplyr::filter(x, tdata$is_y), 
+               geom = "line", position = "identity", lineend = "round", size = 1, trim = FALSE, 
+               bw = 'nrd0', adjust = 1, kernel = 'gaussian', n = 1024) + 
+  theme_classic() + 
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        plot.title = element_text(size = 24)) +
+  labs(colour = '') +
+  scale_color_manual(values = c('red', 'black')) +
+  ggtitle(paste0(args)) +
+  geom_text(data = annotations, aes(x = xpos, y = ypos,
+                                    hjust = hjustvar, vjust = vjustvar,
+                                    label = annotateText),
+            size = 3, col = 'black')
+
+ggsave(paste0(args, '_dens_overlay.pdf'), p)
+
+#bayesplot::ppc_intervals(n_y_PPC, y_rep[1:200,])
+#bayesplot::ppc_ribbon(n_y_PPC, y_rep[1:200,])
+
+#average yrep for each pnt
+yrm <- apply(n_y_rep, 2, mean)
+pdf(paste0(args, '_pred_true.pdf'))
+plot(n_y_PPC, yrm, pch = 19, col = rgb(0,0,0,0.4), 
+     xlim = range(n_y_PPC, yrm), ylim = range(n_y_PPC, yrm),
+     xlab = 'y', ylab = 'y_rep', main = paste0(args))
+abline(a = 0, b = 1, lty = 2, lwd = 2, col = 'red')
+dev.off()
+
+
+#histrogram of residuals
+pdf(paste0(args, '_hist_resid.pdf'))
+hist(ind_resid, main = paste0(args),
+     xlab = 'Residuals (predicted - true)')
+abline(v = 0, lty = 2, lwd = 3, col = 'red')
+dev.off()
 
 #PPC
 # bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'mean')
@@ -547,7 +557,6 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 
 
 # write model results to file ---------------------------------------------
-
 
 options(max.print = 5e6)
 sink(paste0(args, '-', IAR_out_date, '-iar-stan_results.txt'))
@@ -559,7 +568,9 @@ cat(paste0('Step size: ', STEP_SIZE, ' \n'))
 cat(paste0('Number of divergences: ', num_diverge, ' \n'))
 cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
-cat(paste0('PPC p-val: ', round(PPC_p, 3), ' \n'))
+cat(paste0('Mean stepsize: ', mn_stepsize, ' \n'))
+cat(paste0('Mean treedepth: ', mn_treedepth, ' \n'))
+cat(paste0('Mean accept stat: ', accept_stat, ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
 cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
 cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
@@ -623,7 +634,6 @@ nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 
 #create output image dir if it doesn't exist
-
 ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
        dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
        FALSE)
@@ -734,8 +744,8 @@ for (i in 1:length(years))
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
 
-#alpha_gamma ~ normal(0, 30)
-PR <- rnorm(10000, 0, 30)
+#alpha_gamma ~ normal(0, 60)
+PR <- rnorm(10000, 0, 60)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
@@ -766,6 +776,14 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_sn.pdf'))
+
+#sigma_sn ~ halfnormal(0, 1.5)
+PR <- rnorm(10000, 0, 05)
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_sn',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_sn.pdf'))
 
 #rho ~ beta(0.5, 0.5)
 PR <- rbeta(10000, 0.5, 0.5)
