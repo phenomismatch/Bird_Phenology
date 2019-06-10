@@ -81,7 +81,8 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 #args <- as.character('Bombycilla_cedrorum')
 #args <- as.character('Coccyzus_americanus')
 #args <- as.character('Vireo_bellii')
-args <- as.character('Vireo_griseus')
+#args <- as.character('Vireo_griseus')
+args <- as.character('Empidonax_traillii')
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -311,8 +312,10 @@ real<lower = 0, upper = 1> rho;                       // proportion unstructured
 real<lower = 0> sigma_nu_raw;
 vector[J] beta0_raw;
 real<lower = 0> sigma_beta0_raw;
-real<lower = 0> sigma_y_true_raw;
+vector[J] sigma_y_true_raw;
 matrix[N, J] y_true_raw;
+real mu_syt_raw;
+real<lower = 0> sigma_syt_raw;
 }
 
 transformed parameters {
@@ -326,13 +329,18 @@ matrix[N, J] mu;
 vector[N] nu;                            // spatial and non-spatial component
 real<lower = 0> sigma_beta0;
 vector[J] beta0;
-real<lower = 0> sigma_y_true;
+vector<lower = 0>[J] sigma_y_true;
+real mu_syt;
+real<lower = 0> sigma_syt;
 
 alpha_gamma = alpha_gamma_raw * 30;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_beta0 = sigma_beta0_raw * 5;
-sigma_y_true = sigma_y_true_raw * 5;
 sigma_nu = sigma_nu_raw * 5;
+mu_syt = mu_syt_raw * 1.5;
+sigma_syt = sigma_syt_raw * 1;
+
+sigma_y_true = exp(sigma_y_true_raw * sigma_syt + mu_syt); // implies sigma_y_true ~ LN(mu_syt, sigma_syt)
 
 nu = sqrt(1 - rho) * theta + sqrt(rho / scaling_factor) * phi; // combined spatial/non-spatial
 
@@ -342,7 +350,7 @@ beta0 = beta0_raw * sigma_beta0;
 for (j in 1:J)
 {
   mu[,j] = beta0[j] + gamma;
-  y_true[,j] = y_true_raw[,j] * sigma_y_true + mu[,j];
+  y_true[,j] = y_true_raw[,j] * sigma_y_true[j] + mu[,j];
 
   // indexing to avoid NAs  
   y[ii_obs[1:N_obs[j], j], j] = y_obs[1:N_obs[j], j];
@@ -360,6 +368,8 @@ rho ~ beta(0.5, 0.5);
 beta0_raw ~ std_normal();
 sigma_beta0_raw ~ std_normal();
 sigma_y_true_raw ~ std_normal();
+mu_syt_raw ~ std_normal();
+sigma_syt_raw ~ std_normal();
 
 theta ~ std_normal();
 target += -0.5 * dot_self(phi[node1] - phi[node2]);
