@@ -316,7 +316,7 @@ real<lower = 0> sigma_y[N, J];                        // observed sd of data (ob
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
-real<lower = 24, upper = 90> lat[N];
+vector<lower = 24, upper = 90>[N] lat;
 }
 
 parameters {
@@ -329,7 +329,7 @@ matrix[N, J] phi;                                     // spatial error component
 matrix[N, J] theta;                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
 vector[J] sigma_nu_raw;
-real beta0_raw[J];
+vector[J] beta0_raw;
 real mu_sn_raw;
 real<lower = 0> sigma_beta0_raw;
 real<lower = 0> sigma_sigma_nu_raw;
@@ -341,13 +341,13 @@ vector[N] gamma;
 real alpha_gamma;
 real beta_gamma;
 real<lower = 0> sigma_gamma;
-real mu_gamma[N];
+vector[N] mu_gamma;
 vector<lower = 0>[J] sigma_nu;
 matrix[N, J] y_true;
 matrix[N, J] nu;                            // spatial and non-spatial component
 real mu_sn;
 real<lower = 0> sigma_beta0;
-real beta0[J];
+vector[J] beta0;
 real<lower = 0> sigma_sigma_nu;
 
 alpha_gamma = alpha_gamma_raw * 30;
@@ -357,17 +357,17 @@ sigma_beta0 = sigma_beta0_raw * 5;
 mu_sn = mu_sn_raw * 1.5;
 sigma_sigma_nu = sigma_sigma_nu_raw * 0.5;
 
-for (i in 1:N)
-{
-  mu_gamma[i] = alpha_gamma + beta_gamma * lat[i];
-  gamma[i] = gamma_raw[i] * sigma_gamma + mu_gamma[i];
-}
+
+mu_gamma = alpha_gamma + beta_gamma * lat;
+gamma = gamma_raw * sigma_gamma + mu_gamma;
+
+beta0 = beta0_raw * sigma_beta0;
 
 for (j in 1:J)
 {
   nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
-  sigma_nu[j] = exp(sigma_nu_raw[j] * sigma_sigma_nu + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, sigma_sigma_nu) 
-  beta0[j] = beta0_raw[j] * sigma_beta0;
+  sigma_nu[j] = exp(sigma_nu_raw[j] * sigma_sn + mu_sn);               //implies sigma_nu[j] ~ lognormal(mu_sn, sigma_sigma_nu) 
+  
   y_true[,j] = beta0[j] + gamma + nu[,j] * sigma_nu[j];
 
   // indexing to avoid NAs  
@@ -439,7 +439,7 @@ fit <- rstan::stan(model_code = IAR_2,
             cores = CHAINS,
             pars = c('sigma_beta0', 'beta0',
                      'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-                     'sigma_nu', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
+                     'sigma_nu', 'sigma_sn', 'mu_sn', 'rho', 'nu', 'theta', 'phi', 
                      'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
