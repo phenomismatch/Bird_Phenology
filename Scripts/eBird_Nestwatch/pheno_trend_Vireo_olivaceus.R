@@ -75,8 +75,7 @@ parameters {
 vector[NC] alpha_raw;
 vector[NC] beta_raw;
 vector[N] y_true_raw;
-vector<lower = 0>[NC] sigma;
-// real<lower = 0> sigma_raw;
+real<lower = 0> sigma_raw;
 real<lower = 0> sigma_beta_raw;
 real mu_beta_raw;
 real<lower = 0> sigma_alpha_raw;
@@ -84,8 +83,6 @@ real mu_alpha_raw;
 real<lower = 0> sigma_sigma_raw;
 real alpha_beta;
 real beta_beta;
-real<lower = 0> alpha_sigma;
-real beta_sigma;
 }
 
 transformed parameters {
@@ -93,34 +90,29 @@ vector[N] mu;
 vector[N] y_true;
 vector[NC] alpha;
 vector[NC] beta;
-// vector<lower = 0>[NC] sigma;
-// real<lower = 0> sigma;
+real<lower = 0> sigma;
 real<lower = 0> sigma_beta;
 // real mu_beta;
 vector[NC] mu_beta;
 real<lower = 0> sigma_alpha;
 real mu_alpha;
-vector<lower = 0>[NC] mu_sigma;
-real<lower = 0> sigma_sigma;
 
-sigma_beta = sigma_beta_raw * 3;
-sigma_sigma = sigma_sigma_raw * 3;
-// mu_beta = mu_beta_raw * 3;
 sigma_alpha = sigma_alpha_raw * 20;
+sigma_beta = sigma_beta_raw * 3;
+// mu_beta = mu_beta_raw * 3;
 mu_alpha = mu_alpha_raw * 10 + 120;
+sigma = sigma_raw * 3;
 
 mu_beta = alpha_beta + beta_beta * lat;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 beta = beta_raw * sigma_beta + mu_beta;
 
-mu_sigma = alpha_sigma + beta_sigma * lat;
-// sigma = sigma_raw * sigma_sigma + mu_sigma;
-
 for (i in 1:N)
 {
   mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
-  y_true[i] = y_true_raw[i] * sigma[cn_id[i]] + mu[i];
 }
+
+y_true = y_true_raw * sigma + mu;
 }
 
 model {
@@ -128,20 +120,15 @@ model {
 y_true_raw ~ std_normal();
 alpha_raw ~ std_normal();
 beta_raw ~ std_normal();
-// sigma_raw ~ std_normal();
+sigma_raw ~ std_normal();
 sigma_alpha_raw ~ std_normal();
 mu_alpha_raw ~ std_normal();
 sigma_beta_raw ~ std_normal();
 mu_beta_raw ~ std_normal();
 
-sigma_sigma_raw ~ std_normal();
-alpha_sigma ~ normal(0, 3);
-beta_sigma ~ normal(0, 3);
-
 alpha_beta ~ normal(0, 3);
 beta_beta ~ normal(0, 3);
 
-sigma ~ normal(mu_sigma, sigma_sigma);
 y_obs ~ normal(y_true, y_sd);
 }
 
@@ -158,9 +145,9 @@ y_rep = normal_rng(y_true, y_sd);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.80
+DELTA <- 0.90
 TREE_DEPTH <- 15
-STEP_SIZE <- 0.01
+STEP_SIZE <- 0.001
 CHAINS <- 4
 ITER <- 2000
 
@@ -173,12 +160,40 @@ fit <- rstan::stan(model_code = model,
                    pars = c('alpha', 'mu_alpha', 'sigma_alpha', 
                             'beta', 'mu_beta', 'sigma_beta',
                             'alpha_beta', 'beta_beta',
-                            'sigma', 'sigma_sigma', 'alpha_sigma', 'beta_sigma', 
-                            'y_true', 'y_rep'),
+                            'sigma', 'y_true', 'y_rep'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time() - tt[3]) / 60
+
+
+
+#did not fit with both beta_sigma and beta_beta
+
+
+# Calc diagnostics ---------------------------------------------------
+
+# library(shinystan)
+# launch_shinystan(fit)
+
+num_diverge <- rstan::get_num_divergent(fit)
+num_tree <- rstan::get_num_max_treedepth(fit)
+num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
+
+sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
+mn_stepsize <- round(sapply(sampler_params, 
+                            function(x) mean(x[, 'stepsize__'])), 5)
+mn_treedepth <- round(sapply(sampler_params, 
+                             function(x) mean(x[, 'treedepth__'])), 1)
+accept_stat <- round(sapply(sampler_params, 
+                            function(x) mean(x[, 'accept_stat__'])), 2)
+
+
+
+
+
+
+# old ---------------------------------------------------------------------
 
 
 y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
