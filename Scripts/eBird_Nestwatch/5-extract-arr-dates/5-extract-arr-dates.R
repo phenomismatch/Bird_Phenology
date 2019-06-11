@@ -17,8 +17,8 @@ dir <- '~/Google_Drive/R/'
 
 # other dir ---------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2019-02-02'
-IAR_out_dir <- 'IAR_output_2019-02-24'
+IAR_in_dir <- 'IAR_input_2019-05-03'
+IAR_out_dir <- 'IAR_output_2019-05-26'
 
 
 
@@ -47,15 +47,14 @@ species <- as.character(read.table('../../IAR_species_list.txt')[,1])
 
 #switch to out dir
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-#setwd(paste0('~/Desktop/Bird_Phenology_Offline/Bird_Phenology/Data/Processed/', IAR_out_dir))
+#setwd(paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/', IAR_out_dir))
 
 
 #combine pre and post IAR data for every year/cell that was modeled (including cell lat/lon)
 out <- data.frame()
 for (i in 1:length(species))
 {
-  #i <- 96 #Vireo olivaceus
-  #i <- 24 #Empidonax virescens
+  #i <- 94 #Vireo olivaceus
   #i <- 13
   
   #filter by species
@@ -83,9 +82,9 @@ for (i in 1:length(species))
     cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
   
     #extract median and sd for IAR arrival dates
-    mean_fit <- round(MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]], digits = 2)
-    med_fit <- round(MCMCpstr(t_fit, params = 'y_true', func = median)[[1]], digits = 2)
-    sd_fit <- round(MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]], digits = 2)
+    mean_fit <- MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
+    med_fit <- MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
+    sd_fit <- MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
     
     #loop through years
     for (j in 1:length(t_years))
@@ -104,8 +103,8 @@ for (i in 1:length(species))
       
       colnames(t_full)[6:7] <- c('mean_pre_IAR', 'sd_pre_IAR')
       
-      t_full$mean_pre_IAR <- round(t_full$mean_pre_IAR, digits = 2)
-      t_full$sd_pre_IAR <- round(t_full$sd_pre_IAR, digits = 2)
+      t_full$mean_pre_IAR <- t_full$mean_pre_IAR
+      t_full$sd_pre_IAR <- t_full$sd_pre_IAR
      
       out <- rbind(out, t_full)
     } #end year loop
