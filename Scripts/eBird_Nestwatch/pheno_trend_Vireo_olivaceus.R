@@ -24,7 +24,7 @@ library(dggridR)
 
 # read in data produced by 5 ----------------------------------------------------
 
-setwd('~/Desktop/Vireo_olivaceus/')
+setwd('~/Desktop/')
 
 data <- readRDS('Vireo_olivaceus_pro_IAR.rds')
 
@@ -35,15 +35,14 @@ data <- readRDS('Vireo_olivaceus_pro_IAR.rds')
 #cell years with input data
 data_f <- data[which(!is.na(data$mean_pre_IAR)),]
 
+#cells with more than three years of data
 cnts <- plyr::count(data_f, 'cell')
 u_cells <- cnts[which(cnts[,2] > 3),1]
 
 data_f2 <- dplyr::filter(data_f, cell %in% u_cells)
 
-
 t_cl <- unique(data_f2[,c('cell', 'cell_lat')])
-t_cl$cell <- as.numeric(factor(t_cl$cell))
-
+ot_cl <- t_cl[order(t_cl[,1]),]
 
 #create data list for Stan
 DATA <- list(N = NROW(data_f2),
@@ -52,7 +51,7 @@ DATA <- list(N = NROW(data_f2),
              cn_id = as.numeric(factor(data_f2$cell)),
              NC = length(u_cells),
              year = (data_f2$year - 2001),
-             lat = t_cl$cell_lat)
+             lat = ot_cl$cell_lat)
 
 
 # ggplot(data_f2, aes(x = year, y = mean_post_IAR, col = factor(cell))) + 
@@ -76,12 +75,17 @@ parameters {
 vector[NC] alpha_raw;
 vector[NC] beta_raw;
 vector[N] y_true_raw;
-// vector<lower = 0>[NC] sigma_raw;
-real<lower = 0> sigma_raw;
+vector<lower = 0>[NC] sigma;
+// real<lower = 0> sigma_raw;
 real<lower = 0> sigma_beta_raw;
 real mu_beta_raw;
 real<lower = 0> sigma_alpha_raw;
 real mu_alpha_raw;
+real<lower = 0> sigma_sigma_raw;
+real alpha_beta;
+real beta_beta;
+real<lower = 0> alpha_sigma;
+real beta_sigma;
 }
 
 transformed parameters {
@@ -90,30 +94,33 @@ vector[N] y_true;
 vector[NC] alpha;
 vector[NC] beta;
 // vector<lower = 0>[NC] sigma;
-real<lower = 0> sigma;
+// real<lower = 0> sigma;
 real<lower = 0> sigma_beta;
-real mu_beta;
+// real mu_beta;
+vector[NC] mu_beta;
 real<lower = 0> sigma_alpha;
 real mu_alpha;
+vector<lower = 0>[NC] mu_sigma;
+real<lower = 0> sigma_sigma;
 
 sigma_beta = sigma_beta_raw * 3;
-mu_beta = mu_beta_raw * 3;
+sigma_sigma = sigma_sigma_raw * 3;
+// mu_beta = mu_beta_raw * 3;
 sigma_alpha = sigma_alpha_raw * 20;
 mu_alpha = mu_alpha_raw * 10 + 120;
 
+mu_beta = alpha_beta + beta_beta * lat;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 beta = beta_raw * sigma_beta + mu_beta;
-sigma = sigma_raw * 20;
-// mu_beta = alpha_beta + beta_beta * lat;
+
+mu_sigma = alpha_sigma + beta_sigma * lat;
+// sigma = sigma_raw * sigma_sigma + mu_sigma;
 
 for (i in 1:N)
 {
   mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
-  // y_true[i] = y_true_raw[i] * sigma[cn_id[i]] + mu[i];
+  y_true[i] = y_true_raw[i] * sigma[cn_id[i]] + mu[i];
 }
-
-y_true = y_true_raw * sigma + mu;
-
 }
 
 model {
@@ -121,12 +128,20 @@ model {
 y_true_raw ~ std_normal();
 alpha_raw ~ std_normal();
 beta_raw ~ std_normal();
-sigma_raw ~ std_normal();
+// sigma_raw ~ std_normal();
 sigma_alpha_raw ~ std_normal();
 mu_alpha_raw ~ std_normal();
 sigma_beta_raw ~ std_normal();
 mu_beta_raw ~ std_normal();
 
+sigma_sigma_raw ~ std_normal();
+alpha_sigma ~ normal(0, 3);
+beta_sigma ~ normal(0, 3);
+
+alpha_beta ~ normal(0, 3);
+beta_beta ~ normal(0, 3);
+
+sigma ~ normal(mu_sigma, sigma_sigma);
 y_obs ~ normal(y_true, y_sd);
 }
 
@@ -146,7 +161,7 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.80
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.01
-CHAINS <- 3
+CHAINS <- 4
 ITER <- 2000
 
 tt <- proc.time()
@@ -157,7 +172,9 @@ fit <- rstan::stan(model_code = model,
                    cores = CHAINS,
                    pars = c('alpha', 'mu_alpha', 'sigma_alpha', 
                             'beta', 'mu_beta', 'sigma_beta',
-                            'sigma', 'y_true', 'y_rep'),
+                            'alpha_beta', 'beta_beta',
+                            'sigma', 'sigma_sigma', 'alpha_sigma', 'beta_sigma', 
+                            'y_true', 'y_rep'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
