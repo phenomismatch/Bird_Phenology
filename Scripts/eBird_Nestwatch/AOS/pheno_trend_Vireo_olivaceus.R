@@ -85,8 +85,8 @@ real<lower = 0> sigma_sigma_raw;
 real alpha_sigma_raw;
 real beta_sigma_raw;
 vector<lower = 0> [NC] sigma;
-// real mu_alpha_raw;
-// real<lower = 0> sigma_alpha_raw;
+real mu_alpha_raw;
+real<lower = 0> sigma_alpha_raw;
 }
 
 transformed parameters {
@@ -103,8 +103,8 @@ real alpha_beta;
 real beta_beta;
 real<lower = 0> alpha_sigma;
 real<lower = 0> beta_sigma;
-// real mu_alpha;
-// real<lower = 0> sigma_alpha;
+real mu_alpha;
+real<lower = 0> sigma_alpha;
 
 // sigma = sigma_raw * 3;
 alpha_sigma = alpha_sigma_raw * 3;
@@ -112,10 +112,10 @@ beta_sigma = beta_sigma_raw * 1;
 mu_sigma = alpha_sigma + beta_sigma * lat;
 sigma_sigma = sigma_sigma_raw * 1;
 
-// alpha = alpha_raw * sigma_alpha + mu_alpha;
-// mu_alpha = mu_alpha_raw * 1;
-// sigma_alpha = sigma_alpha_raw * 1;
-alpha = alpha_raw * 30 + 120;
+mu_alpha = mu_alpha_raw * 1;
+sigma_alpha = sigma_alpha_raw * 1;
+alpha = alpha_raw * sigma_alpha + mu_alpha;
+// alpha = alpha_raw * 30 + 120;
 
 alpha_beta = alpha_beta_raw * 3;
 beta_beta = beta_beta_raw * 3;
@@ -126,7 +126,6 @@ beta = beta_raw * sigma_beta + mu_beta;
 for (i in 1:N)
 {
   mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
-  // mu[i] = alpha[cn_id[i]] + beta * year[i]; // varying intercept, one slope
   y_true[i] = y_true_raw[i] * sigma[cn_id[i]] + mu[i];
 }
 }
@@ -140,8 +139,8 @@ beta_raw ~ std_normal();
 mu_beta_raw ~ std_normal();
 sigma_beta_raw ~ std_normal();
 
-// mu_alpha_raw ~ std_normal();
-// sigma_alpha_raw ~ std_normal();
+mu_alpha_raw ~ std_normal();
+sigma_alpha_raw ~ std_normal();
 
 alpha_beta_raw ~ std_normal();
 beta_beta_raw ~ std_normal();
@@ -179,7 +178,7 @@ fit <- rstan::stan(model_code = model,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 'beta', 'mu_beta', 
+                   pars = c('alpha', 'mu_alpha', 'mu_beta', 'beta', 'mu_beta', 
                             'sigma_beta', 'alpha_beta', 'beta_beta',
                             'sigma', 'sigma_sigma', 'alpha_sigma',
                             'beta_sigma', 'y_true', 'y_rep'),
