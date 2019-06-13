@@ -1,6 +1,5 @@
 #######
 # phenology ~ time using post IAR
-# Vireo olivaceus
 #######
 
 
