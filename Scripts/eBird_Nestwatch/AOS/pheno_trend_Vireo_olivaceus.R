@@ -126,6 +126,9 @@ data_f2 <- dplyr::filter(data_f, cell %in% u_cells)
 t_cl <- unique(data_f2[,c('cell', 'cell_lat')])
 ot_cl <- t_cl[order(t_cl[,1]),]
 
+#years to generate low, mid, high lat phenology
+sim_year <- min(data_f2$year - 2001):max(data_f2$year - 2001)
+
 #create data list for Stan
 DATA <- list(N = NROW(data_f2),
              y_obs = data_f2$mean_post_IAR,
@@ -133,7 +136,12 @@ DATA <- list(N = NROW(data_f2),
              cn_id = as.numeric(factor(data_f2$cell)),
              NC = length(u_cells),
              year = (data_f2$year - 2001),
-             lat = ot_cl$cell_lat)
+             lat = ot_cl$cell_lat,
+             low_lat = min(ot_cl$cell_lat),
+             middle_lat = mean(ot_cl$cell_lat),
+             high_lat = max(ot_cl$cell_lat),
+             sim_year = sim_year,
+             NSY = length(sim_year))
 
 
 # ggplot(data_f2, aes(x = year, y = mean_post_IAR, col = factor(cell))) +
@@ -151,6 +159,11 @@ int<lower = 1> cn_id[N];                  // species ids
 int<lower = 0> NC;                                    // number of cells
 vector<lower = 1, upper = 17>[N] year;
 vector[NC] lat;
+real low_lat;
+real middle_lat;
+real high_lat;
+int<lower = 0> NSY;
+vector<lower = 1, upper = 17>[NSY] sim_year;
 }
 
 parameters {
@@ -230,9 +243,63 @@ y_obs ~ normal(y_true, y_sd);
 }
 
 generated quantities {
+
 real y_rep[N];
 
+real alpha_low;
+real mu_beta_low;
+real beta_low;
+vector[NSY] mu_low;
+vector[NSY] sim_low;
+
+real alpha_middle;
+real mu_beta_middle;
+real beta_middle;
+vector[NSY] mu_middle;
+vector[NSY] sim_middle;
+
+real alpha_high;
+real mu_beta_high;
+real beta_high;
+vector[NSY] mu_high;
+vector[NSY] sim_high;
+
+// PPC
 y_rep = normal_rng(y_true, y_sd);
+
+// to simulate low lat phenology
+alpha_low = normal_rng(mu_alpha, sigma_alpha);
+mu_beta_low = alpha_beta + beta_beta * low_lat;
+beta_low = normal_rng(mu_beta_low, sigma_beta);
+ 
+for (i in 1:NSY)
+{
+  mu_low[i] = alpha_low + beta_low * sim_year[i];
+  sim_low[i] = normal_rng(mu_low[i], sigma);
+}
+
+// to simulate middle lat phenology
+alpha_middle = normal_rng(mu_alpha, sigma_alpha);
+mu_beta_middle = alpha_beta + beta_beta * middle_lat;
+beta_middle = normal_rng(mu_beta_middle, sigma_beta);
+ 
+for (i in 1:NSY)
+{
+  mu_middle[i] = alpha_middle + beta_middle * sim_year[i];
+  sim_middle[i] = normal_rng(mu_middle[i], sigma);
+}
+
+// to simulate high lat phenology
+alpha_high = normal_rng(mu_alpha, sigma_alpha);
+mu_beta_high = alpha_beta + beta_beta * high_lat;
+beta_high = normal_rng(mu_beta_high, sigma_beta);
+
+for (i in 1:NSY)
+{
+  mu_high[i] = alpha_high + beta_high * sim_year[i];
+  sim_high[i] = normal_rng(mu_high[i], sigma);
+}
+
 }
 "
 
@@ -256,7 +323,8 @@ fit <- rstan::stan(model_code = model,
                    cores = CHAINS,
                    pars = c('alpha', 'mu_alpha', 'mu_beta', 'beta', 'mu_beta', 
                             'sigma_beta', 'alpha_beta', 'beta_beta',
-                            'sigma', 'y_true', 'y_rep'),
+                            'sigma', 'y_true', 'y_rep', 
+                            'sim_low', 'sim_middle', 'sim_high'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
