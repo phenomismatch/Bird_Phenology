@@ -82,9 +82,9 @@ for (i in 1:length(species))
     cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
   
     #extract median and sd for IAR arrival dates
-    mean_fit <- MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
-    med_fit <- MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
-    sd_fit <- MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
+    mean_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
+    med_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
+    sd_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
     
     #loop through years
     for (j in 1:length(t_years))
