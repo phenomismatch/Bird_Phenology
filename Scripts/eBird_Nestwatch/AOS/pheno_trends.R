@@ -107,7 +107,7 @@ if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.fi
     pro_data <- rbind(pro_data, t_full)
   } #end year loop
 } else {
-  stop(paste0('.rds file for ', sp, ' not found in directory'))
+  stop(paste0('.rds file for ', args, ' not found in directory'))
 }
 
 
