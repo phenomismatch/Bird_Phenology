@@ -25,7 +25,7 @@ args <- as.character('Vireo_olivaceus')
 IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
 #IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_2019-05-26')
 IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-05-26'
+trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-05-26_2'
 
 
 # Load packages -----------------------------------------------------------
@@ -114,7 +114,8 @@ if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.fi
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
+#data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
+data_f <- pro_data
 
 #cells with more than three years of data
 cnts <- plyr::count(data_f, 'cell')
@@ -306,7 +307,9 @@ y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
 # bayesplot::ppc_dens_overlay(DATA$y_obs, y_rep[1:500,])
 
 
-#density overlay plot - first 100 iter
+
+# density overlay plot ----------------------------------------------------
+
 #modified bayesplot::ppc_dens_overlay function
 tdata <- bayesplot::ppc_data(DATA$y_obs, y_rep[1:100,])
 
@@ -332,6 +335,104 @@ p <- ggplot(tdata) +
 
 ggsave(paste0(args, '_dens_overlay.pdf'), p)
 
+
+
+
+# Map of trends ------------------------------------------
+
+#estimated slope in grey, sd in white
+
+#extract median and sd estimates for mu params
+med_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = median)[[1]]
+sd_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = sd)[[1]]
+
+#transform cells to grid
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, u_cells)
+cell_grid$cell <- as.numeric(cell_grid$cell)
+cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, u_cells)
+ll_df <- data.frame(cell = u_cells,
+                    lon_deg = cell_centers$lon_deg,
+                    lat_deg = cell_centers$lat_deg)
+
+#load maps
+usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
+canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
+mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
+
+#min/max for plotting using output data
+MIN <- min(med_fit)
+MAX <- max(med_fit)
+
+# #read in breeding/migration range shp file
+# setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+# sp_rng <- rgdal::readOGR(f_out$shp_fname[1], verbose = FALSE)
+# 
+# #filter by breeding (2) and migration (4) range - need to convert spdf to sp
+# nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
+# nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+# 
+# #filter by resident (1) and over winter (3) range - need to convert spdf to sp
+# nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
+# nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
+# 
+# #plotting species range
+# nrng@data$id <- rownames(nrng@data)
+# nrng.points <- ggplot2::fortify(nrng, region = "id")
+# nrng.df <- plyr::join(nrng.points, nrng@data, by = "id")
+# 
+# nrng_rm@data$id <- rownames(nrng_rm@data)
+# nrng_rm.points <- ggplot2::fortify(nrng_rm, region = "id")
+# nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
+
+setwd(trends_out_dir)
+
+
+#merge hex spatial data with HM data
+to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
+to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
+
+#median of mu and sd of mu
+m_fit <- data.frame(med_beta = med_fit, sd_beta = sd_fit, cell = u_cells)
+
+#merge hex spatial data with HM data
+to_plt <- dplyr::inner_join(m_fit, cell_grid, by = 'cell')
+to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
+
+
+#plot
+p_beta <- ggplot() +
+  geom_path(data = usamap,
+            aes(x = x, y = y), color = 'black') +
+  geom_path(data = canadamap,
+            aes(x = x, y = y), color = 'black') +
+  geom_path(data = mexicomap,
+            aes(x = x, y = y), color = 'black') +
+  # geom_polygon(data = nrng.df,
+  #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) +
+  # geom_polygon(data = nrng_rm.df,
+  #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) +
+  coord_map("ortho", orientation = c(35, -80, 0),
+            xlim = c(-100, -55), ylim = c(23, 66)) +
+  geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = med_beta),
+               alpha = 0.4) +
+  geom_path(data = to_plt2, aes(x = long, y = lat, group = group),
+            alpha = 0.4, color = 'black') +
+  scale_fill_gradientn(colors = c('red', 'blue'),
+                       limits = c(MIN, MAX)) +
+  labs(fill = 'Slope') +
+  annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5,
+           label = round(to_plt2$med_beta, digits = 2), col = 'black', alpha = 0.2,
+           size = 3) +
+  annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5,
+           label = round(to_plt2$sd_beta, digits = 2), col = 'white', alpha = 0.3,
+           size = 2.5) +
+  ggtitle(paste0(args, ' - Arrival ~ time')) +
+  theme_bw() +
+  xlab('Longitude') +
+  ylab('Latitude')
+
+ggsave(plot = p_beta,
+       filename = paste0(args, '-pheno_trends_map.pdf'))
 
 
 # write model results to file ---------------------------------------------
