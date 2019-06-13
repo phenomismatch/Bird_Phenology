@@ -12,6 +12,23 @@ dir <- '~/Google_Drive/R/'
 #dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
+# species -----------------------------------------------------------------
+
+#args <- commandArgs(trailingOnly = TRUE)
+#args <- as.character('Catharus_minimus')
+#args <- as.character('Empidonax_virescens')
+args <- as.character('Vireo_olivaceus')
+
+
+
+# other dir ---------------------------------------------------------------
+
+IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
+#IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_2019-05-26')
+IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
+trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-05-26'
+
+
 # Load packages -----------------------------------------------------------
 
 library(dplyr)
@@ -22,18 +39,83 @@ library(dggridR)
 
 
 
-# read in data produced by 5 ----------------------------------------------------
+# setwd -------------------------------------------------------------------
 
-setwd('~/Desktop/')
+setwd(IAR_in_dir)
 
-data <- readRDS('Vireo_olivaceus_pro_IAR.rds')
+#CHANGE
+nc_in_dir <- nchar(IAR_in_dir)
+nc_out_dir <- nchar(IAR_out_dir)
+IAR_in_date <- substr(IAR_in_dir, start = (nc_in_dir - 9), stop = nc_in_dir)
+IAR_out_date <- substr(IAR_out_dir, start = (nc_out_dir - 9), stop = nc_out_dir)
+
+
+
+# Filter data by species/years ------------------------------------------------------
+
+#read in master df
+df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
+
+#switch to out dir
+setwd(IAR_out_dir)
+
+
+#if that species RDS object exists in dir
+pro_data <- data.frame()
+if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.files())) > 0)
+{
+  f_in_p <- dplyr::filter(df_master, species == args & MODEL == TRUE)
+  
+  #read in IAR model output and input
+  t_fit <- readRDS(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
+  t_data <- readRDS(paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
+  
+  #only cells and years that were modeled (to account for any lone cells that were dropped in 4-IAR-arr.R)
+  f_in <- dplyr::filter(f_in_p, cell %in% t_data$cells)
+  
+  t_cells <- unique(f_in$cell)
+  t_years <- unique(f_in$year)
+  
+  #make hexgrid
+  hexgrid6 <- dggridR::dgconstruct(res = 6)
+  
+  #get hexgrid cell centers
+  cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
+  
+  #extract median and sd for IAR arrival dates
+  mean_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
+  med_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
+  sd_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
+  
+  #loop through years
+  for (j in 1:length(t_years))
+  {
+    #j <- 1
+    print(paste0('species: ', args, ', ', 
+                 'year: ', t_years[j]))
+    
+    t_f_in <- dplyr::filter(f_in, year == t_years[j])
+    
+    t_full <- data.frame(t_f_in[,c('species','cell')], 
+                         cell_lat = round(cellcenters$lat_deg, digits = 2), 
+                         cell_lon = round(cellcenters$lon_deg, digits = 2),
+                         t_f_in[,c('year', 'HM_mean', 'HM_sd')],
+                         mean_post_IAR = mean_fit[,j], sd_post_IAR = sd_fit[,j])
+    
+    colnames(t_full)[6:7] <- c('mean_pre_IAR', 'sd_pre_IAR')
+    
+    pro_data <- rbind(pro_data, t_full)
+  } #end year loop
+} else {
+  stop(paste0('.rds file for ', sp, ' not found in directory'))
+}
 
 
 
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-data_f <- data[which(!is.na(data$mean_pre_IAR)),]
+data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
 
 #cells with more than three years of data
 cnts <- plyr::count(data_f, 'cell')
@@ -54,7 +136,7 @@ DATA <- list(N = NROW(data_f2),
              lat = ot_cl$cell_lat)
 
 
-# ggplot(data_f2, aes(x = year, y = mean_post_IAR, col = factor(cell))) + 
+# ggplot(data_f2, aes(x = year, y = mean_post_IAR, col = factor(cell))) +
 #   geom_point() +
 #   stat_smooth(method = 'lm')
 
@@ -79,11 +161,12 @@ real<lower = 0> sigma_beta_raw;
 real mu_beta_raw;
 real alpha_beta_raw;
 real beta_beta_raw;
-real mu_sigma_raw;
-real<lower = 0> sigma_sigma_raw;
-vector[NC] sigma_raw;
 real mu_alpha_raw;
 real<lower = 0> sigma_alpha_raw;
+// real mu_sigma_raw;
+// real<lower = 0> sigma_sigma_raw;
+// vector[NC] sigma_raw;
+real<lower = 0> sigma_raw;
 }
 
 transformed parameters {
@@ -97,19 +180,19 @@ real alpha_beta;
 real beta_beta;
 real mu_alpha;
 real<lower = 0> sigma_alpha;
-vector<lower = 0>[NC] sigma;
-real mu_sigma;
-real<lower = 0> sigma_sigma;
+// vector<lower = 0>[NC] sigma;
+real<lower = 0> sigma;
+// real mu_sigma;
+// real<lower = 0> sigma_sigma;
 
-// sigma = sigma_raw * 3;
-mu_sigma = mu_sigma_raw * 1.5;
-sigma_sigma = sigma_sigma_raw * 0.5;
-sigma = exp(sigma_raw * sigma_sigma + mu_sigma);
+sigma = sigma_raw * 3;
+// mu_sigma = mu_sigma_raw * 1.5;
+// sigma_sigma = sigma_sigma_raw * 0.5;
+// sigma = exp(sigma_raw * sigma_sigma + mu_sigma);
 
 mu_alpha = mu_alpha_raw * 10 + 120;
 sigma_alpha = sigma_alpha_raw * 5;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
-// alpha = alpha_raw * 30 + 120;
 
 alpha_beta = alpha_beta_raw * 3;
 beta_beta = beta_beta_raw * 3;
@@ -120,7 +203,8 @@ beta = beta_raw * sigma_beta + mu_beta;
 for (i in 1:N)
 {
   mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
-  y_true[i] = y_true_raw[i] * sigma[cn_id[i]] + mu[i];
+  //y_true[i] = y_true_raw[i] * sigma[cn_id[i]] + mu[i];
+  y_true[i] = y_true_raw[i] * sigma + mu[i];
 }
 }
 
@@ -139,8 +223,8 @@ sigma_alpha_raw ~ std_normal();
 alpha_beta_raw ~ std_normal();
 beta_beta_raw ~ std_normal();
 sigma_raw ~ std_normal();
-mu_sigma_raw ~ std_normal();
-sigma_sigma_raw ~ std_normal();
+// mu_sigma_raw ~ std_normal();
+// sigma_sigma_raw ~ std_normal();
 
 y_obs ~ normal(y_true, y_sd);
 }
@@ -158,11 +242,11 @@ y_rep = normal_rng(y_true, y_sd);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
+DELTA <- 0.95
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 4000
+ITER <- 6000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = model,
@@ -172,12 +256,15 @@ fit <- rstan::stan(model_code = model,
                    cores = CHAINS,
                    pars = c('alpha', 'mu_alpha', 'mu_beta', 'beta', 'mu_beta', 
                             'sigma_beta', 'alpha_beta', 'beta_beta',
-                            'sigma', 'mu_sigma', 'sigma_sigma', 'y_true', 'y_rep'),
+                            'sigma', 'y_true', 'y_rep'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
-run_time <- (proc.time() - tt[3]) / 60
+run_time <- (proc.time()[3] - tt[3]) / 60
 
+#save to RDS
+setwd(trends_out_dir)
+saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-pheno_trends_stan_output.rds'))
 
 
 
@@ -201,28 +288,77 @@ accept_stat <- round(sapply(sampler_params,
 
 
 
+# Summaries ---------------------------------------------------------------
 
+#get summary of model output
+model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2, excl = 'y_rep')
 
-
-# old ---------------------------------------------------------------------
-
+#extract Rhat and neff values
+rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
+neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
 
 y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-bayesplot::ppc_dens_overlay(DATA$y_obs, y_rep[1:50,])
 
-MCMCvis::MCMCsummary(fit, excl = c('y_true', 'y_rep'), round = 2)
-MCMCvis::MCMCplot(fit, params = 'beta', rank = TRUE)
-#MCMCvis::MCMCplot(fit, params = 'sigma', rank = TRUE)
+# bayesplot::ppc_stat(DATA$y_obs, y_rep, stat = 'mean')
+# bayesplot::ppc_dens_overlay(DATA$y_obs, y_rep[1:500,])
 
 
+#density overlay plot - first 100 iter
+#modified bayesplot::ppc_dens_overlay function
+tdata <- bayesplot::ppc_data(DATA$y_obs, y_rep[1:100,])
+
+p <- ggplot(tdata) + 
+  aes_(x = ~value) + 
+  stat_density(aes_(group = ~rep_id, color = "yrep"), 
+               data = function(x) dplyr::filter(x, !tdata$is_y), 
+               geom = "line", position = "identity", size = 0.25, 
+               alpha = 0.3, trim = FALSE, bw = 'nrd0', adjust = 1, 
+               kernel = 'gaussian', n = 1024) + 
+  stat_density(aes_(color = "y"), data = function(x) dplyr::filter(x, tdata$is_y), 
+               geom = "line", position = "identity", lineend = "round", size = 1, trim = FALSE, 
+               bw = 'nrd0', adjust = 1, kernel = 'gaussian', n = 1024) + 
+  theme_classic() + 
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        plot.title = element_text(size = 24)) +
+  labs(colour = '') +
+  scale_color_manual(values = c('red', 'black')) +
+  ggtitle(paste0(args))
+
+ggsave(paste0(args, '_dens_overlay.pdf'), p)
 
 
-# plot results ------------------------------------------------------------
+
+# write model results to file ---------------------------------------------
+
+options(max.print = 5e6)
+sink(paste0(args, '-', IAR_out_date, '-pheno_trends_results.txt'))
+cat(paste0('Pheno trends results ', args, ' \n'))
+cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Adapt delta: ', DELTA, ' \n'))
+cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
+cat(paste0('Step size: ', STEP_SIZE, ' \n'))
+cat(paste0('Number of divergences: ', num_diverge, ' \n'))
+cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
+cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
+cat(paste0('Mean stepsize: ', mn_stepsize, ' \n'))
+cat(paste0('Mean treedepth: ', mn_treedepth, ' \n'))
+cat(paste0('Mean accept stat: ', accept_stat, ' \n'))
+cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
+cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
+print(model_summary)
+sink()
+
+
+
+# plot trends ------------------------------------------------------------
 
 alpha_ch <- MCMCvis::MCMCchains(fit, params = 'alpha')
 beta_ch <- MCMCvis::MCMCchains(fit, params = 'beta')
 
-x_sim <- seq(0, 18, length = 50)
+x_sim <- seq(0, 18, length = 500)
 
 FIT_PLOT <- data.frame(cell = rep(1:DATA$NC, each = length(x_sim)), 
                        x_sim = rep(x_sim, times = DATA$NC),
@@ -234,23 +370,33 @@ counter <- 1
 for (i in 1:NCOL(alpha_ch))
 {
   #i <- 1
+  min_yr <- min(dplyr::filter(data_f2, cell == u_cells[i])$year) - 2001
+  max_yr <- max(dplyr::filter(data_f2, cell == u_cells[i])$year) - 2001
+  
   for (j in 1:length(x_sim))
   {
-    #j <- 1
-    temp <- alpha_ch[,i] + beta_ch[,i] * x_sim[j]
-    tmn <- mean(temp)
-    tsd <- sd(temp)
-    tLCI <- tmn - tsd
-    tUCI <- tmn + tsd
-    FIT_PLOT$mu_rep_mn[counter] <- tmn
-    FIT_PLOT$mu_rep_LCI[counter] <- tLCI
-    FIT_PLOT$mu_rep_UCI[counter] <- tUCI
+    #j <- 29
+    if (x_sim[j] >= (min_yr - 1) & x_sim[j] <= (max_yr + 1))
+    {
+      temp <- alpha_ch[,i] + beta_ch[,i] * x_sim[j]
+      tmn <- mean(temp)
+      tsd <- sd(temp)
+      tLCI <- tmn - tsd
+      tUCI <- tmn + tsd
+      FIT_PLOT$mu_rep_mn[counter] <- tmn
+      FIT_PLOT$mu_rep_LCI[counter] <- tLCI
+      FIT_PLOT$mu_rep_UCI[counter] <- tUCI
+    } else {
+      FIT_PLOT$mu_rep_mn[counter] <- NA
+      FIT_PLOT$mu_rep_LCI[counter] <- NA
+      FIT_PLOT$mu_rep_UCI[counter] <- NA
+    }
     counter <- counter + 1
   }
 }
 
 
-#mean and +- 1 sd
+#mean and +- 1 sd - y_out
 y_true_mn <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = mean)[[1]]
 y_true_sd <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = sd)[[1]]
 y_true_LCI <- y_true_mn - y_true_sd
@@ -260,33 +406,38 @@ DATA_PLOT <- data.frame(y_true_mn, y_true_LCI, y_true_UCI,
                         cell = DATA$cn_id,
                         year = DATA$year,
                         y_obs = DATA$y_obs,
+                        y_obs_LCI = DATA$y_obs - DATA$y_sd,
+                        y_obs_UCI = DATA$y_obs + DATA$y_sd,
                         lat = data_f2$cell_lat)
 
-
-
-#pdf('Figure_6.pdf', height = 11, width = 9, useDingbats = FALSE)
+pdf(paste0(args, '-', IAR_out_date, '-pheno_trends_fig.pdf'), 
+    height = 11, width = 9, useDingbats = FALSE)
 ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6) +
   # geom_ribbon(data = FIT_PLOT,
-  #             aes(x = x_sim, ymin = mu_rep_LCI, ymax = mu_rep_UCI, 
+  #             inherit.aes = FALSE,
+  #             aes(x = x_sim, ymin = mu_rep_LCI, ymax = mu_rep_UCI,
   #                 group = cell),#, fill = cell),
   #             #fill = 'grey',
   #             alpha = 0.6) +
-  # geom_line(data = FIT_PLOT, aes(x_sim, mu_rep_mn, group = cell, col = factor(cell)),
-  #           alpha = 0.9,
-  #           inherit.aes = FALSE,
-  #           size = 0.8) +
-  geom_point(data = DATA_PLOT,
-             aes(year, y_true_mn), color = 'black',
-             inherit.aes = FALSE, size = 2, alpha = 0.7) +
-  geom_point(data = DATA_PLOT,
-             aes(year, y_true_mn, color = factor(cell)),
-             inherit.aes = FALSE, size = 1.5, alpha = 1) +
+  geom_line(data = FIT_PLOT, aes(x_sim, mu_rep_mn, group = cell, col = factor(cell)),
+            alpha = 0.9,
+            inherit.aes = FALSE,
+            size = 0.8) +
   # geom_point(data = DATA_PLOT,
-  #            aes(year, y_obs), color = 'black',
-  #            inherit.aes = FALSE, size = 1.5, alpha = 0.5) +
-  # geom_errorbar(data = DATA_PLOT,
-  #               aes(ymin = y_true_LCI, ymax = y_true_UCI), width = 0.4,
-  #               color = 'black', alpha = 0.4) +
+  #            aes(year, y_true_mn), color = 'black',
+  #            inherit.aes = FALSE, size = 2, alpha = 0.7) +x
+  # geom_point(data = DATA_PLOT,
+  #            aes(year, y_true_mn, color = factor(cell)),
+  #            inherit.aes = FALSE, size = 1.5, alpha = 1) +
+  geom_point(data = DATA_PLOT,
+             aes(year, y_obs), col = 'black',
+             inherit.aes = FALSE, size = 2, alpha = 0.8) +
+  geom_point(data = DATA_PLOT,
+             aes(year, y_obs, col = factor(cell)),
+             inherit.aes = FALSE, size = 1.5, alpha = 0.8) +
+  geom_errorbar(data = DATA_PLOT,
+                aes(ymin = y_obs_LCI, ymax = y_obs_UCI), width = 0.2,
+                color = 'black', alpha = 0.4) +
   theme_bw() +
   theme(legend.position='none') +
   xlab('Year') +
@@ -297,63 +448,129 @@ ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6
     axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
     axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
     axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
-#dev.off()
+dev.off()
+
+
+pdf(paste0(args, '-', IAR_out_date, '-betas.pdf'), 
+    height = 11, width = 9, useDingbats = FALSE)
+MCMCvis::MCMCplot(fit, params = 'beta', main = args)
+dev.off()
 
 
 
 # plot anomalies ----------------------------------------------------------
 
-out <- data.frame()
-for (i in 1:DATA$NC)
+# out <- data.frame()
+# for (i in 1:DATA$NC)
+# {
+#   #i <- 1
+#   temp <- dplyr::filter(DATA_PLOT, cell == i)
+#   tsc <- scale(temp$y_true_mn, scale = FALSE)
+#   tsc_obs <- scale(temp$y_obs, scale = FALSE)
+#   temp$y_true_sc <- tsc
+#   temp$y_obs_sc <- tsc_obs
+#   temp$year <- temp$year + 2001
+#   out <- rbind(out, temp)
+# }
+# 
+# pdf('Vireo_olivaceus_anomaly.pdf', height = 5, width = 7, useDingbats = FALSE)
+# ggplot(data = out, aes(year, y_true_sc), color = 'black', alpha = 0.6) +
+#   # geom_ribbon(data = FIT_PLOT,
+#   #             aes(x = x_sim, ymin = mu_rep_LCI, ymax = mu_rep_UCI),
+#   #             fill = 'grey',
+#   #             inherit.aes = FALSE,
+#   #             alpha = 0.6) +
+#   # geom_line(data = FIT_PLOT, aes(x_sim, mu_rep_mn),
+#   #           col = 'red',
+#   #           alpha = 0.9,
+#   #           inherit.aes = FALSE,
+#   #           size = 0.8) +
+#   # geom_point(data = out,
+# #            aes(year, y_true_sc), color = 'black',
+# #            inherit.aes = FALSE, size = 2, alpha = 0.7) +
+# geom_point(data = out,
+#            aes(year, y_true_sc, color = lat), #color = factor(cell)),
+#            inherit.aes = FALSE, size = 3, alpha = 0.7) +
+#   scale_color_gradient(low = 'red', high = 'white') +
+#   # geom_point(data = DATA_PLOT,
+#   #            aes(year, y_obs), color = 'black',
+#   #            inherit.aes = FALSE, size = 1.5, alpha = 0.5) +
+#   # geom_errorbar(data = DATA_PLOT,
+#   #               aes(ymin = y_true_LCI, ymax = y_true_UCI), width = 0.4,
+#   #               color = 'black', alpha = 0.4) +
+#   theme_bw() +
+#   #theme(legend.position='none') +
+#   xlab('Year') +
+#   ylab('Arrival anomaly') +
+#   ylim(c(-5, 5)) +
+#   theme(
+#     axis.text = element_text(size = 16),
+#     axis.title = element_text(size = 18),
+#     axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+#     axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
+#     axis.ticks.length= unit(0.2, 'cm'),) #length of axis tick
+# dev.off()
+
+
+
+# Trace plots with PPO ----------------------------------------------------
+
+#mu_alpha ~ normal(120, 10)
+PR <- rnorm(10000, 120, 10)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_alpha',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_alpha.pdf'))
+
+#sigma_alpha ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_alpha',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_alpha.pdf'))
+
+#sigma ~ halfnormal(0, 3)
+PR_p <- rnorm(10000, 0, 3)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma.pdf'))
+
+#alpha_beta ~ normal(0, 3)
+PR <- rnorm(10000, 0, 3)
+MCMCvis::MCMCtrace(fit,
+                   params = 'alpha_beta',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_alpha_beta.pdf'))
+
+#beta_beta ~ normal(0, 3)
+PR <- rnorm(10000, 0, 3)
+MCMCvis::MCMCtrace(fit,
+                   params = 'beta_beta',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_beta_beta.pdf'))
+
+#sigma_beta ~ halfnormal(0, 3)
+PR_p <- rnorm(10000, 0, 3)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_beta',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta.pdf'))
+
+
+if ('Rplots.pdf' %in% list.files())
 {
-  #i <- 1
-  temp <- dplyr::filter(DATA_PLOT, cell == i)
-  tsc <- scale(temp$y_true_mn, scale = FALSE)
-  tsc_obs <- scale(temp$y_obs, scale = FALSE)
-  temp$y_true_sc <- tsc
-  temp$y_obs_sc <- tsc_obs
-  temp$year <- temp$year + 2001
-  out <- rbind(out, temp)
+  file.remove('Rplots.pdf')
 }
 
 
-
-pdf('Vireo_olivaceus_anomaly.pdf', height = 5, width = 7, useDingbats = FALSE)
-ggplot(data = out, aes(year, y_true_sc), color = 'black', alpha = 0.6) +
-  # geom_ribbon(data = FIT_PLOT,
-  #             aes(x = x_sim, ymin = mu_rep_LCI, ymax = mu_rep_UCI),
-  #             fill = 'grey',
-  #             inherit.aes = FALSE,
-  #             alpha = 0.6) +
-  # geom_line(data = FIT_PLOT, aes(x_sim, mu_rep_mn),
-  #           col = 'red',
-  #           alpha = 0.9,
-  #           inherit.aes = FALSE,
-  #           size = 0.8) +
-  # geom_point(data = out,
-  #            aes(year, y_true_sc), color = 'black',
-  #            inherit.aes = FALSE, size = 2, alpha = 0.7) +
-  geom_point(data = out,
-             aes(year, y_true_sc, color = lat), #color = factor(cell)),
-             inherit.aes = FALSE, size = 3, alpha = 0.7) +
-  scale_color_gradient(low = 'red', high = 'white') +
-  # geom_point(data = DATA_PLOT,
-  #            aes(year, y_obs), color = 'black',
-  #            inherit.aes = FALSE, size = 1.5, alpha = 0.5) +
-  # geom_errorbar(data = DATA_PLOT,
-  #               aes(ymin = y_true_LCI, ymax = y_true_UCI), width = 0.4,
-  #               color = 'black', alpha = 0.4) +
-  theme_bw() +
-  #theme(legend.position='none') +
-  xlab('Year') +
-  ylab('Arrival anomaly') +
-  ylim(c(-5, 5)) +
-  theme(
-    axis.text = element_text(size = 16),
-    axis.title = element_text(size = 18),
-    axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
-    axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
-    axis.ticks.length= unit(0.2, 'cm'),) #length of axis tick
-dev.off()
-
-
+print('I completed!')
