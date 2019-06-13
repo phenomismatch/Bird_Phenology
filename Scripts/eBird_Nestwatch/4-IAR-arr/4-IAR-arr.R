@@ -454,12 +454,12 @@ num_tree <- rstan::get_num_max_treedepth(fit)
 num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
-mn_stepsize <- round(sapply(sampler_params, 
-                            function(x) mean(x[, 'stepsize__'])), 5)
-mn_treedepth <- round(sapply(sampler_params, 
-                             function(x) mean(x[, 'treedepth__'])), 1)
-accept_stat <- round(sapply(sampler_params, 
-                            function(x) mean(x[, 'accept_stat__'])), 2)
+mn_stepsize <- sapply(sampler_params, 
+                      function(x) mean(x[, 'stepsize__']))
+mn_treedepth <- sapply(sampler_params, 
+                       function(x) mean(x[, 'treedepth__']))
+accept_stat <- sapply(sampler_params, 
+                      function(x) mean(x[, 'accept_stat__']))
 
 
 # Summaries ---------------------------------------------------------------
@@ -568,9 +568,9 @@ cat(paste0('Step size: ', STEP_SIZE, ' \n'))
 cat(paste0('Number of divergences: ', num_diverge, ' \n'))
 cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
 cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
-cat(paste0('Mean stepsize: ', mn_stepsize, ' \n'))
-cat(paste0('Mean treedepth: ', mn_treedepth, ' \n'))
-cat(paste0('Mean accept stat: ', accept_stat, ' \n'))
+cat(paste0('Mean stepsize: ', round(mean(mn_stepsize), 5), ' \n'))
+cat(paste0('Mean treedepth: ', round(mean(mn_treedepth), 1), ' \n'))
+cat(paste0('Mean accept stat: ', round(mean(accept_stat), 2), ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
 cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
 cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
@@ -582,7 +582,7 @@ sink()
 
 # Plot pre-IAR/post_IAR halfmax estimates ------------------------------------------
 
-#estimated half-max in grey, sd in white (derived from logit cubic)
+#estimated half-max in grey, sd in white (derived from GAM)
 
 #extract median and sd estimates for mu params
 med_fit <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = median)[[1]]
