@@ -75,16 +75,13 @@ parameters {
 vector[NC] alpha_raw;
 vector[NC] beta_raw;
 vector[N] y_true_raw;
-// real<lower = 0> sigma_raw;
-// vector<lower = 0>[NC] sigma_raw;
 real<lower = 0> sigma_beta_raw;
 real mu_beta_raw;
 real alpha_beta_raw;
 real beta_beta_raw;
+real mu_sigma_raw;
 real<lower = 0> sigma_sigma_raw;
-real alpha_sigma_raw;
-real beta_sigma_raw;
-vector<lower = 0> [NC] sigma;
+vector[NC] sigma_raw;
 real mu_alpha_raw;
 real<lower = 0> sigma_alpha_raw;
 }
@@ -94,26 +91,23 @@ vector[N] mu;
 vector[N] y_true;
 vector[NC] alpha;
 vector[NC] beta;
-// real<lower = 0> sigma;
-vector<lower = 0>[NC] mu_sigma;
-real<lower = 0> sigma_sigma;
 real<lower = 0> sigma_beta;
 vector[NC] mu_beta;
 real alpha_beta;
 real beta_beta;
-real<lower = 0> alpha_sigma;
-real<lower = 0> beta_sigma;
 real mu_alpha;
 real<lower = 0> sigma_alpha;
+vector<lower = 0>[NC] sigma;
+real mu_sigma;
+real<lower = 0> sigma_sigma;
 
 // sigma = sigma_raw * 3;
-alpha_sigma = alpha_sigma_raw * 3;
-beta_sigma = beta_sigma_raw * 1;
-mu_sigma = alpha_sigma + beta_sigma * lat;
-sigma_sigma = sigma_sigma_raw * 1;
+mu_sigma = mu_sigma_raw * 1.5;
+sigma_sigma = sigma_sigma_raw * 0.5;
+sigma = exp(sigma_raw * sigma_sigma + mu_sigma);
 
-mu_alpha = mu_alpha_raw * 1;
-sigma_alpha = sigma_alpha_raw * 1;
+mu_alpha = mu_alpha_raw * 10 + 120;
+sigma_alpha = sigma_alpha_raw * 5;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 // alpha = alpha_raw * 30 + 120;
 
@@ -144,12 +138,10 @@ sigma_alpha_raw ~ std_normal();
 
 alpha_beta_raw ~ std_normal();
 beta_beta_raw ~ std_normal();
-alpha_sigma_raw ~ std_normal();
-beta_sigma_raw ~ std_normal();
+sigma_raw ~ std_normal();
+mu_sigma_raw ~ std_normal();
+sigma_sigma_raw ~ std_normal();
 
-// sigma_raw ~ std_normal();
-
-sigma ~ normal(mu_sigma, sigma_sigma);
 y_obs ~ normal(y_true, y_sd);
 }
 
@@ -170,7 +162,7 @@ DELTA <- 0.97
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 6000
+ITER <- 4000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = model,
@@ -180,8 +172,7 @@ fit <- rstan::stan(model_code = model,
                    cores = CHAINS,
                    pars = c('alpha', 'mu_alpha', 'mu_beta', 'beta', 'mu_beta', 
                             'sigma_beta', 'alpha_beta', 'beta_beta',
-                            'sigma', 'sigma_sigma', 'alpha_sigma',
-                            'beta_sigma', 'y_true', 'y_rep'),
+                            'sigma', 'mu_sigma', 'sigma_sigma', 'y_true', 'y_rep'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
