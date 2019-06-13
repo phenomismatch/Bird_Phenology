@@ -114,8 +114,8 @@ if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.fi
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-#data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
-data_f <- pro_data
+data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
+#data_f <- pro_data
 
 #cells with more than three years of data
 cnts <- plyr::count(data_f, 'cell')
@@ -247,11 +247,11 @@ y_rep = normal_rng(y_true, y_sd);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.96
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 6000
+ITER <- 8000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = model,
@@ -414,18 +414,23 @@ p_beta <- ggplot() +
   coord_map("ortho", orientation = c(35, -80, 0),
             xlim = c(-100, -55), ylim = c(23, 66)) +
   geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = med_beta),
-               alpha = 0.4) +
+               alpha = 0.5) +
   geom_path(data = to_plt2, aes(x = long, y = lat, group = group),
             alpha = 0.4, color = 'black') +
-  scale_fill_gradientn(colors = c('red', 'blue'),
-                       limits = c(MIN, MAX)) +
+  scale_fill_gradient2(low = 'indianred', high = 'royalblue', mid = 'lightgoldenrod',
+                       limits = c(MIN, MAX), midpoint = 0) +
+  # scale_fill_gradientn(colors = c('orange', 'grey', 'light blue'),
+  #                        #c(hcl(h = 240, c = 35, l = 35), hcl(h = 180, c = 15, l = 92)),
+  #                      limits = c(MIN, MAX)) +
+  # scale_fill_gradient2(low = 'indianred2', mid = 'grey60', high = 'lightblue2', 
+  #                      limits = c(MIN, MAX), midpoint = 0) +
   labs(fill = 'Slope') +
   annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5,
            label = round(to_plt2$med_beta, digits = 2), col = 'black', alpha = 0.2,
            size = 3) +
   annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5,
-           label = round(to_plt2$sd_beta, digits = 2), col = 'white', alpha = 0.3,
-           size = 2.5) +
+           label = round(to_plt2$sd_beta, digits = 2), col = 'white', alpha = 1,
+           size = 2) +
   ggtitle(paste0(args, ' - Arrival ~ time')) +
   theme_bw() +
   xlab('Longitude') +
