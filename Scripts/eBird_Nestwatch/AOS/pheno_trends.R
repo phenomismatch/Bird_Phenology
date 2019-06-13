@@ -5,27 +5,28 @@
 
 # top-level dir --------------------------------------------------------------
 
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 # species -----------------------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
-args <- as.character('Vireo_olivaceus')
+#args <- as.character('Vireo_olivaceus')
 
 
 
 # other dir ---------------------------------------------------------------
 
 IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
-#IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_2019-05-26')
-IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-05-26_2'
+IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_2019-05-26')
+trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
+#IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-06-13'
+#trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-13_2'
 
 
 # Load packages -----------------------------------------------------------
@@ -307,6 +308,27 @@ y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
 # bayesplot::ppc_dens_overlay(DATA$y_obs, y_rep[1:500,])
 
 
+# write model results to file ---------------------------------------------
+
+options(max.print = 5e6)
+sink(paste0(args, '-', IAR_out_date, '-pheno_trends_results.txt'))
+cat(paste0('Pheno trends results ', args, ' \n'))
+cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Adapt delta: ', DELTA, ' \n'))
+cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
+cat(paste0('Step size: ', STEP_SIZE, ' \n'))
+cat(paste0('Number of divergences: ', num_diverge, ' \n'))
+cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
+cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
+cat(paste0('Mean stepsize: ', round(mean(mn_stepsize), 5), ' \n'))
+cat(paste0('Mean treedepth: ', round(mean(mn_treedepth), 1), ' \n'))
+cat(paste0('Mean accept stat: ', round(mean(accept_stat), 2), ' \n'))
+cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
+cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
+print(model_summary)
+sink()
+
+
 
 # density overlay plot ----------------------------------------------------
 
@@ -439,26 +461,6 @@ p_beta <- ggplot() +
 ggsave(plot = p_beta,
        filename = paste0(args, '-pheno_trends_map.pdf'))
 
-
-# write model results to file ---------------------------------------------
-
-options(max.print = 5e6)
-sink(paste0(args, '-', IAR_out_date, '-pheno_trends_results.txt'))
-cat(paste0('Pheno trends results ', args, ' \n'))
-cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
-cat(paste0('Adapt delta: ', DELTA, ' \n'))
-cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
-cat(paste0('Step size: ', STEP_SIZE, ' \n'))
-cat(paste0('Number of divergences: ', num_diverge, ' \n'))
-cat(paste0('Number of tree exceeds: ', num_tree, ' \n'))
-cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
-cat(paste0('Mean stepsize: ', round(mean(mn_stepsize), 5), ' \n'))
-cat(paste0('Mean treedepth: ', round(mean(mn_treedepth), 1), ' \n'))
-cat(paste0('Mean accept stat: ', round(mean(accept_stat), 2), ' \n'))
-cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
-cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
-print(model_summary)
-sink()
 
 
 
