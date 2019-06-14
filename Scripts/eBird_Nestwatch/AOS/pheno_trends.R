@@ -18,7 +18,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Ammospiza_nelsoni')
-
+#args <- as.character('Agelaius_phoeniceus')
 
 # other dir ---------------------------------------------------------------
 
@@ -27,7 +27,7 @@ IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
 #trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
 
 IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-13'
+trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-14'
 
 # Load packages -----------------------------------------------------------
 
@@ -115,8 +115,8 @@ if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.fi
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
-#data_f <- pro_data
+#data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
+data_f <- pro_data
 
 #cells with more than three years of data
 cnts <- plyr::count(data_f, 'cell')
@@ -194,11 +194,11 @@ sigma = sigma_raw * 5;
 // sigma_sigma = sigma_sigma_raw * 0.5;
 // sigma = exp(sigma_raw * sigma_sigma + mu_sigma);
 
-mu_alpha = mu_alpha_raw * 40 + 120;
-sigma_alpha = sigma_alpha_raw * 5;
+mu_alpha = mu_alpha_raw * 50 + 120;
+sigma_alpha = sigma_alpha_raw * 10;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 
-alpha_beta = alpha_beta_raw * 3;
+alpha_beta = alpha_beta_raw * 10;
 beta_beta = beta_beta_raw * 1;
 mu_beta = alpha_beta + beta_beta * lat;
 sigma_beta = sigma_beta_raw * 3;
@@ -522,28 +522,28 @@ ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6
   # geom_ribbon(data = FIT_PLOT,
   #             inherit.aes = FALSE,
   #             aes(x = x_sim, ymin = mu_rep_LCI, ymax = mu_rep_UCI,
-  #                 group = cell),#, fill = cell),
-  #             #fill = 'grey',
-  #             alpha = 0.6) +
+  #                 group = cell),# color = cell),
+  #             #fill = cell,
+  #             alpha = 0.1) +
   geom_line(data = FIT_PLOT, aes(x_sim, mu_rep_mn, group = cell, col = factor(cell)),
             alpha = 0.9,
             inherit.aes = FALSE,
             size = 0.8) +
-  # geom_point(data = DATA_PLOT,
-  #            aes(year, y_true_mn), color = 'black',
-  #            inherit.aes = FALSE, size = 2, alpha = 0.7) +x
-  # geom_point(data = DATA_PLOT,
-  #            aes(year, y_true_mn, color = factor(cell)),
-  #            inherit.aes = FALSE, size = 1.5, alpha = 1) +
   geom_point(data = DATA_PLOT,
-             aes(year, y_obs), col = 'black',
-             inherit.aes = FALSE, size = 2, alpha = 0.8) +
-  geom_point(data = DATA_PLOT,
-             aes(year, y_obs, col = factor(cell)),
+             aes(year, y_true_mn, col = factor(cell)),
              inherit.aes = FALSE, size = 1.5, alpha = 0.8) +
   geom_errorbar(data = DATA_PLOT,
-                aes(ymin = y_obs_LCI, ymax = y_obs_UCI), width = 0.2,
+                aes(ymin = y_true_LCI, ymax = y_true_UCI), width = 0.2,
                 color = 'black', alpha = 0.4) +
+  # geom_point(data = DATA_PLOT,
+  #            aes(year, y_obs), col = 'black',
+  #            inherit.aes = FALSE, size = 2, alpha = 0.8) +
+  # geom_point(data = DATA_PLOT,
+  #            aes(year, y_obs, col = factor(cell)),
+  #            inherit.aes = FALSE, size = 1.5, alpha = 0.8) +
+  # geom_errorbar(data = DATA_PLOT,
+  #               aes(ymin = y_obs_LCI, ymax = y_obs_UCI), width = 0.2,
+  #               color = 'black', alpha = 0.4) +
   theme_bw() +
   theme(legend.position='none') +
   xlab('Year') +
@@ -621,16 +621,16 @@ dev.off()
 
 # Trace plots with PPO ----------------------------------------------------
 
-#mu_alpha ~ normal(120, 10)
-PR <- rnorm(10000, 120, 10)
+#mu_alpha ~ normal(120, 50)
+PR <- rnorm(10000, 120, 50)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_mu_alpha.pdf'))
 
-#sigma_alpha ~ halfnormal(0, 5)
-PR_p <- rnorm(10000, 0, 5)
+#sigma_alpha ~ halfnormal(0, 10)
+PR_p <- rnorm(10000, 0, 10)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_alpha',
@@ -638,8 +638,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma_alpha.pdf'))
 
-#sigma ~ halfnormal(0, 3)
-PR_p <- rnorm(10000, 0, 3)
+#sigma ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma',
@@ -647,16 +647,16 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_sigma.pdf'))
 
-#alpha_beta ~ normal(0, 3)
-PR <- rnorm(10000, 0, 3)
+#alpha_beta ~ normal(0, 10)
+PR <- rnorm(10000, 0, 10)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha_beta',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', IAR_out_date, '-trace_alpha_beta.pdf'))
 
-#beta_beta ~ normal(0, 3)
-PR <- rnorm(10000, 0, 3)
+#beta_beta ~ normal(0, 1)
+PR <- rnorm(10000, 0, 1)
 MCMCvis::MCMCtrace(fit,
                    params = 'beta_beta',
                    priors = PR,
