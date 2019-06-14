@@ -5,10 +5,10 @@
 
 # top-level dir --------------------------------------------------------------
 
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 # species -----------------------------------------------------------------
@@ -25,8 +25,7 @@ args <- commandArgs(trailingOnly = TRUE)
 IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
 IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_2019-05-26')
 trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
-#IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-06-13'
-#trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-13_2'
+#trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-13'
 
 
 # Load packages -----------------------------------------------------------
@@ -248,7 +247,7 @@ y_rep = normal_rng(y_true, y_sd);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.96
+DELTA <- 0.98
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.001
 CHAINS <- 4
@@ -407,11 +406,6 @@ MAX <- max(med_fit)
 # nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 setwd(trends_out_dir)
-
-
-#merge hex spatial data with HM data
-to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
-to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
 
 #median of mu and sd of mu
 m_fit <- data.frame(med_beta = med_fit, sd_beta = sd_fit, cell = u_cells)
