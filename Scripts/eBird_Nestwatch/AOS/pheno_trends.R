@@ -17,16 +17,17 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
-
+#args <- as.character('Ammospiza_nelsoni')
 
 
 # other dir ---------------------------------------------------------------
 
 IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
-IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_2019-05-26')
-trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
-#trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-13'
+#IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_2019-05-26')
+#trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
 
+IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
+trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-13'
 
 # Load packages -----------------------------------------------------------
 
@@ -188,17 +189,17 @@ real<lower = 0> sigma;
 // real mu_sigma;
 // real<lower = 0> sigma_sigma;
 
-sigma = sigma_raw * 3;
+sigma = sigma_raw * 5;
 // mu_sigma = mu_sigma_raw * 1.5;
 // sigma_sigma = sigma_sigma_raw * 0.5;
 // sigma = exp(sigma_raw * sigma_sigma + mu_sigma);
 
-mu_alpha = mu_alpha_raw * 10 + 120;
+mu_alpha = mu_alpha_raw * 40 + 120;
 sigma_alpha = sigma_alpha_raw * 5;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 
 alpha_beta = alpha_beta_raw * 3;
-beta_beta = beta_beta_raw * 3;
+beta_beta = beta_beta_raw * 1;
 mu_beta = alpha_beta + beta_beta * lat;
 sigma_beta = sigma_beta_raw * 3;
 beta = beta_raw * sigma_beta + mu_beta;
@@ -259,7 +260,7 @@ fit <- rstan::stan(model_code = model,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 'mu_alpha', 'mu_beta', 'beta', 'mu_beta', 
+                   pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
                             'sigma_beta', 'alpha_beta', 'beta_beta',
                             'sigma', 'y_true', 'y_rep'),
                    control = list(adapt_delta = DELTA,
