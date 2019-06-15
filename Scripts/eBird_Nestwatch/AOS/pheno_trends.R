@@ -27,7 +27,7 @@ IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
 #trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
 
 IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-14'
+trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-15'
 
 # Load packages -----------------------------------------------------------
 
@@ -115,8 +115,9 @@ if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.fi
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-#data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
-data_f <- pro_data
+data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
+#asll cell years
+#data_f <- pro_data
 
 #cells with more than three years of data
 cnts <- plyr::count(data_f, 'cell')
