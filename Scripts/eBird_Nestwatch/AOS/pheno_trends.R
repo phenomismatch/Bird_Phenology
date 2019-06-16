@@ -138,7 +138,7 @@ DATA <- list(N = NROW(data_f2),
              cn_id = as.numeric(factor(data_f2$cell)),
              NC = length(u_cells),
              year = (data_f2$year - 2001),
-             lat = ot_cl$cell_lat)
+             lat = scale(ot_cl$cell_lat, scale = FALSE)[,1])
 
 
 # ggplot(data_f2, aes(x = year, y = mean_post_IAR, col = factor(cell))) +
@@ -356,7 +356,7 @@ p <- ggplot(tdata) +
   scale_color_manual(values = c('red', 'black')) +
   ggtitle(paste0(args))
 
-ggsave(paste0(args, '_dens_overlay.pdf'), p)
+ggsave(paste0(args, '-', IAR_out_date, '-dens_overlay.pdf'), p)
 
 
 
@@ -455,7 +455,7 @@ p_beta <- ggplot() +
   ylab('Latitude')
 
 ggsave(plot = p_beta,
-       filename = paste0(args, '-pheno_trends_map.pdf'))
+       filename = paste0(args, '-', IAR_out_date, '-pheno_trends_map.pdf'))
 
 
 
