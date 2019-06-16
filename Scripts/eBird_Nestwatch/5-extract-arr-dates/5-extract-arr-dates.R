@@ -8,17 +8,17 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
 # other dir ---------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'IAR_output_2019-05-26'
+IAR_out_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
 
 
 
@@ -36,6 +36,8 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_in_dir))
 IAR_in_date <- substr(IAR_in_dir, start = 11, stop = 20)
 IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
+nc_out_dir <- nchar(IAR_out_dir)
+IAR_out_date <- substr(IAR_out_dir, start = (nc_out_dir - 9), stop = nc_out_dir)
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -46,7 +48,7 @@ df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 species <- as.character(read.table('../../IAR_species_list.txt')[,1])
 
 #switch to out dir
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
+setwd(IAR_out_dir)
 #setwd(paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/', IAR_out_dir))
 
 
@@ -86,6 +88,20 @@ for (i in 1:length(species))
     med_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
     sd_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
     
+    #extract cell random effect (gamma)
+    mean_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = mean)[[1]]
+    sd_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = sd)[[1]]
+    
+    #extract year effect (beta0)
+    mean_beta0 <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = mean)[[1]]
+    sd_beta0 <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = sd)[[1]]
+    
+    #diagnostics
+    num_diverge <- rstan::get_num_divergent(t_fit)
+    model_summary <- MCMCvis::MCMCsummary(t_fit, excl = 'y_rep', round = 2)
+    max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
+    min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
+    
     #loop through years
     for (j in 1:length(t_years))
     {
@@ -99,12 +115,17 @@ for (i in 1:length(species))
                          cell_lat = round(cellcenters$lat_deg, digits = 2), 
                          cell_lon = round(cellcenters$lon_deg, digits = 2),
                          t_f_in[,c('year', 'HM_mean', 'HM_sd')],
-                         mean_post_IAR = mean_fit[,j], sd_post_IAR = sd_fit[,j])
+                         mean_post_IAR = mean_fit[,j], 
+                         sd_post_IAR = sd_fit[,j],
+                         mean_gamma,
+                         sd_gamma,
+                         mean_beta0[j],
+                         sd_beta0[j],
+                         num_diverge,
+                         max_rhat,
+                         min_neff)
       
-      colnames(t_full)[6:7] <- c('mean_pre_IAR', 'sd_pre_IAR')
-      
-      t_full$mean_pre_IAR <- t_full$mean_pre_IAR
-      t_full$sd_pre_IAR <- t_full$sd_pre_IAR
+      colnames(t_full)[c(6,7,12,13)] <- c('mean_pre_IAR', 'sd_pre_IAR', 'mean_beta0', 'sd_beta0')
      
       out <- rbind(out, t_full)
     } #end year loop
