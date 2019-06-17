@@ -19,6 +19,8 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Ammospiza_nelsoni')
 #args <- as.character('Agelaius_phoeniceus')
+#args <- as.character('Turdus_migratorius')
+
 
 # other dir ---------------------------------------------------------------
 
@@ -29,6 +31,7 @@ IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
 IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
 trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-16'
 run_date <- '2019-06-17'
+
 
 # Load packages -----------------------------------------------------------
 
@@ -122,7 +125,7 @@ data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
 
 #cells with more than three years of data
 cnts <- plyr::count(data_f, 'cell')
-u_cells <- cnts[which(cnts[,2] > 3),1]
+u_cells <- cnts[which(cnts[,2] >= 3),1]
 
 data_f2 <- dplyr::filter(data_f, cell %in% u_cells)
 
@@ -250,7 +253,7 @@ y_rep = normal_rng(y_true, y_sd);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.98
+DELTA <- 0.99
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.001
 CHAINS <- 4
@@ -270,20 +273,47 @@ fit <- rstan::stan(model_code = model,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
+num_diverge <- rstan::get_num_divergent(fit)
+num_tree <- rstan::get_num_max_treedepth(fit)
+num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
+
+
+#rerun model with higher target acceptance if divergences exist
+if (num_diverge > 0)
+{
+  DELTA <- 0.9999
+  
+  tt <- proc.time()
+  fit <- rstan::stan(model_code = model,
+                     data = DATA,
+                     chains = CHAINS,
+                     iter = ITER,
+                     cores = CHAINS,
+                     pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
+                              'sigma_beta', 'alpha_beta', 'beta_beta',
+                              'sigma', 'y_true', 'y_rep'),
+                     control = list(adapt_delta = DELTA,
+                                    max_treedepth = TREE_DEPTH,
+                                    stepsize = STEP_SIZE))
+  run_time <- (proc.time()[3] - tt[3]) / 60
+  
+  num_diverge <- rstan::get_num_divergent(fit)
+  num_tree <- rstan::get_num_max_treedepth(fit)
+  num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
+}
+
+
 #save to RDS
 setwd(trends_out_dir)
 saveRDS(fit, file = paste0(args, '-', run_date, '-pheno_trends_stan_output.rds'))
-
+saveRDS(DATA, file = paste0(args, '-', run_date, '-pheno_trends_stan_input.rds'))
 
 
 # Calc diagnostics ---------------------------------------------------
 
+#fit <- readRDS('Ictinia_mississippiensis-2019-05-26-pheno_trends_stan_output.rds')
 # library(shinystan)
 # launch_shinystan(fit)
-
-num_diverge <- rstan::get_num_divergent(fit)
-num_tree <- rstan::get_num_max_treedepth(fit)
-num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
 mn_stepsize <- sapply(sampler_params, 
