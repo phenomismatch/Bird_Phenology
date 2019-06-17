@@ -27,7 +27,8 @@ IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
 #trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
 
 IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-15'
+trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-16'
+run_date <- '2019-06-17'
 
 # Load packages -----------------------------------------------------------
 
@@ -271,7 +272,7 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 #save to RDS
 setwd(trends_out_dir)
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-pheno_trends_stan_output.rds'))
+saveRDS(fit, file = paste0(args, '-', run_date, '-pheno_trends_stan_output.rds'))
 
 
 
@@ -312,7 +313,7 @@ y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
 # write model results to file ---------------------------------------------
 
 options(max.print = 5e6)
-sink(paste0(args, '-', IAR_out_date, '-pheno_trends_results.txt'))
+sink(paste0(args, '-', run_date, '-pheno_trends_results.txt'))
 cat(paste0('Pheno trends results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -356,7 +357,7 @@ p <- ggplot(tdata) +
   scale_color_manual(values = c('red', 'black')) +
   ggtitle(paste0(args))
 
-ggsave(paste0(args, '-', IAR_out_date, '-dens_overlay.pdf'), p)
+ggsave(paste0(args, '-', run_date, '-dens_overlay.pdf'), p)
 
 
 
@@ -455,7 +456,7 @@ p_beta <- ggplot() +
   ylab('Latitude')
 
 ggsave(plot = p_beta,
-       filename = paste0(args, '-', IAR_out_date, '-pheno_trends_map.pdf'))
+       filename = paste0(args, '-', run_date, '-pheno_trends_map.pdf'))
 
 
 
@@ -517,7 +518,7 @@ DATA_PLOT <- data.frame(y_true_mn, y_true_LCI, y_true_UCI,
                         y_obs_UCI = DATA$y_obs + DATA$y_sd,
                         lat = data_f2$cell_lat)
 
-pdf(paste0(args, '-', IAR_out_date, '-pheno_trends_fig.pdf'), 
+pdf(paste0(args, '-', run_date, '-pheno_trends_fig.pdf'), 
     height = 11, width = 9, useDingbats = FALSE)
 ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6) +
   # geom_ribbon(data = FIT_PLOT,
@@ -628,7 +629,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_alpha.pdf'))
+                   filename = paste0(args, '-', run_date, '-trace_mu_alpha.pdf'))
 
 #sigma_alpha ~ halfnormal(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -637,7 +638,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_alpha',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_alpha.pdf'))
+                   filename = paste0(args, '-', run_date, '-trace_sigma_alpha.pdf'))
 
 #sigma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -646,7 +647,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma.pdf'))
+                   filename = paste0(args, '-', run_date, '-trace_sigma.pdf'))
 
 #alpha_beta ~ normal(0, 10)
 PR <- rnorm(10000, 0, 10)
@@ -654,7 +655,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'alpha_beta',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_alpha_beta.pdf'))
+                   filename = paste0(args, '-', run_date, '-trace_alpha_beta.pdf'))
 
 #beta_beta ~ normal(0, 1)
 PR <- rnorm(10000, 0, 1)
@@ -662,7 +663,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'beta_beta',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_beta_beta.pdf'))
+                   filename = paste0(args, '-', run_date, '-trace_beta_beta.pdf'))
 
 #sigma_beta ~ halfnormal(0, 3)
 PR_p <- rnorm(10000, 0, 3)
@@ -671,7 +672,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta.pdf'))
+                   filename = paste0(args, '-', run_date, '-trace_sigma_beta.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
