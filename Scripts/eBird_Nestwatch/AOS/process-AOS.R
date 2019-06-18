@@ -91,7 +91,7 @@ for (i in 1:length(species))
       n_cells <- t_in$NC
       n_years <- length(unique(t_in$year))
       rng_lat <- range(t_in$lat)[2] - range(t_in$lat)[1]
-      #mn_lat <- mean(t_in$lat_sc)
+      #mn_lat <- mean(t_in$lat_usc)
       
       #diagnostics
       num_diverge <- rstan::get_num_divergent(t_fit)

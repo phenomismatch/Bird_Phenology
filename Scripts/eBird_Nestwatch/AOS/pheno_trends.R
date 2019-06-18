@@ -143,7 +143,8 @@ DATA <- list(N = NROW(data_f2),
              cn_id = as.numeric(factor(data_f2$cell)),
              NC = length(u_cells),
              year = (data_f2$year - 2001),
-             lat = scale(ot_cl$cell_lat, scale = FALSE)[,1])
+             lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
+             lat_usc = ot_cl$cell_lat)
 
 
 # ggplot(data_f2, aes(x = year, y = mean_post_IAR, col = factor(cell))) +
