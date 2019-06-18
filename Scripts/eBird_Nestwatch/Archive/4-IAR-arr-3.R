@@ -74,8 +74,8 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Empidonax_traillii')
-args <- as.character('Vireo_bellii')
-#args <- as.character('Vireo_griseus')
+#args <- as.character('Vireo_bellii')
+args <- as.character('Vireo_griseus')
 #args <- as.character('Cardellina_pusilla')
 
 
