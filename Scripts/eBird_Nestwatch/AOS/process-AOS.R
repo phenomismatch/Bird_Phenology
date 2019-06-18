@@ -20,8 +20,8 @@ dir <- '~/Google_Drive/R/'
 
 # other dir ---------------------------------------------------------------
 
-in_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-16'
-out_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/'
+in_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-17'
+out_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_2019-06-17'
 
 # Load packages -----------------------------------------------------------
 
@@ -53,13 +53,14 @@ for (i in 1:length(species))
   print(sp)
   
   #if that species RDS object exists in dir
-  #if (length(grep(paste0(sp, '-', in_date, '-pheno_trends_stan_output.rds'), list.files())) > 0)
-  if (length(grep(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'), list.files())) > 0)
+  if (length(grep(paste0(sp, '-', in_date, '-pheno_trends_stan_output.rds'), list.files())) > 0)
+  # if (length(grep(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'), list.files())) > 0)
   {
     #read in model output
-    #t_fit <- readRDS(paste0(sp, '-', in_date, '-pheno_trends_stan_output.rds'))
-    #t_in <- readRDS(paste0(sp, '-', in_date, ' -pheno_trends_stan_input.rds'))
-    t_fit <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'))
+    t_fit <- readRDS(paste0(sp, '-', in_date, '-pheno_trends_stan_output.rds'))
+    t_in <- readRDS(paste0(sp, '-', in_date, '-pheno_trends_stan_input.rds'))
+    
+    #t_fit <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'))
     #t_in <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_input.rds'))
     
     #make sure there are samples
@@ -87,9 +88,10 @@ for (i in 1:length(species))
       beta_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_beta')
       colnames(beta_beta_ch) <- sp
       
-      #n_cells <- length(t_in$NC)
-      #n_years <- length(t_in$years)
-      #rng_lat <- range(t_in$lat)[2] - range(t_in$lat)[1]
+      n_cells <- t_in$NC
+      n_years <- length(unique(t_in$year))
+      rng_lat <- range(t_in$lat)[2] - range(t_in$lat)[1]
+      #mn_lat <- mean(t_in$lat_sc)
       
       #diagnostics
       num_diverge <- rstan::get_num_divergent(t_fit)
@@ -106,9 +108,10 @@ for (i in 1:length(species))
                            sd_alpha_beta,
                            mn_beta_beta,
                            sd_beta_beta,
-                           #n_cells,
-                           #n_years,
-                           #rng_lat,
+                           n_cells,
+                           n_years,
+                           rng_lat,
+                           #mn_lat,
                            num_diverge,
                            max_rhat,
                            min_neff)
@@ -138,10 +141,10 @@ for (i in 1:length(species))
 
 setwd(out_dir)
 
-#saveRDS(out, file = paste0('pheno_trends_master_', in_date, '.rds'))
-#saveRDS(mu_alpha_post, file = paste0('pheno_trends_mu_alpha_post_', in_date, '.rds'))
-#saveRDS(sigma_post, file = paste0('pheno_trends_sigma_post_', in_date, '.rds'))
-#saveRDS(alpha_beta_post, file = paste0('pheno_trends_alpha_beta_post_', in_date, '.rds'))
-#saveRDS(beta_beta_post, file = paste0('pheno_trends_beta_beta_post_', in_date, '.rds'))
+saveRDS(out, file = paste0('pheno_trends_master_', in_date, '.rds'))
+saveRDS(mu_alpha_post, file = paste0('pheno_trends_mu_alpha_post_', in_date, '.rds'))
+saveRDS(sigma_post, file = paste0('pheno_trends_sigma_post_', in_date, '.rds'))
+saveRDS(alpha_beta_post, file = paste0('pheno_trends_alpha_beta_post_', in_date, '.rds'))
+saveRDS(beta_beta_post, file = paste0('pheno_trends_beta_beta_post_', in_date, '.rds'))
 
 print('I completed!')
