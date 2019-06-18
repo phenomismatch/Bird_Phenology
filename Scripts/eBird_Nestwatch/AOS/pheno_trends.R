@@ -29,8 +29,8 @@ IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
 #trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
 
 IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-16'
-run_date <- '2019-06-17'
+trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-17'
+
 
 
 # Load packages -----------------------------------------------------------
@@ -53,7 +53,8 @@ nc_out_dir <- nchar(IAR_out_dir)
 IAR_in_date <- substr(IAR_in_dir, start = (nc_in_dir - 9), stop = nc_in_dir)
 IAR_out_date <- substr(IAR_out_dir, start = (nc_out_dir - 9), stop = nc_out_dir)
 
-
+nc_to_dir <- nchar(trends_out_dir)
+run_date <- substr(trends_out_dir, start = (nc_to_dir - 9), stop = nc_to_dir)
 
 # Filter data by species/years ------------------------------------------------------
 
