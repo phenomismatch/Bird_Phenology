@@ -4,7 +4,7 @@
 #Requires ~ 185GB RAM and 7 cores on cluster; ~ 2 hours runtime; eventually run on desktop
 ################################
 
-#mean min temp for Feb-April, following Hurlbert and Liang 2012
+#mean daily min temp for Feb-April, following Hurlbert and Liang 2012
 
 #resources:
 #http://rpubs.com/boyerag/297592
@@ -26,46 +26,74 @@ library(doParallel)
 # top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
 #dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
+setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
 
 
 # read in data -----------------------------------------------------------
 
 tt <- proc.time()
 
-#only through 2017 at the moment
-YEARS <- 2002:2017
+YEARS <- 2002:2018
 
-#for (k in 1:length(YEARS))
+
 
 doParallel::registerDoParallel(cores = 4)
 OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
 {
   #k <- 1
-
-  daymet_url <- paste0('https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1345/daymet_v3_tmax_monavg_', YEARS[k], '_na.nc4')
-
-  daymet_data <- ncdf4::nc_open(daymet_url)
+  
+  daymet_data_tmax <- ncdf4::nc_open(paste0('daymet_v3_tmax_', YEARS[k], '_na.nc4'))
+  daymet_data_tmin <- ncdf4::nc_open(paste0('daymet_v3_tmin_', YEARS[k], '_na.nc4'))
+  daymet_data_precip <- ncdf4::nc_open(paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'))
 
   #get lat/lons
-  daymet_lats <- ncdf4::ncvar_get(daymet_data, "lat")
-  daymet_lons <- ncdf4::ncvar_get(daymet_data, "lon")
+  daymet_lats <- ncdf4::ncvar_get(daymet_data_tmax, "lat")
+  daymet_lons <- ncdf4::ncvar_get(daymet_data_tmax, "lon")
 
   #get temp data
-  daymet_tmax <- ncdf4::ncvar_get(daymet_data, 'tmax')
+  d_tmax <- ncdf4::ncvar_get(daymet_data_tmax, 'tmax')
+  d_tmin <- ncdf4::ncvar_get(daymet_data_tmin, 'tmin')
+  d_precip <- ncdf4::ncvar_get(daymet_data_precip, 'prcp')
 
   #Feb, Mar, Apr, and FMA
-  Feb_tmax <- daymet_tmax[,,2]
-  Mar_tmax <- daymet_tmax[,,3]
-  Apr_tmax <- daymet_tmax[,,4]
-  FMA_array <- abind::abind(Feb_tmax, Mar_tmax, Apr_tmax, along = 3)
-  FMA_tmax <- apply(FMA_array, c(1,2), mean)
+  #calc julian day
+  feb_start <- julian(as.Date(paste0(YEARS[k], '-02-01')), 
+         origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
+  feb_end <- julian(as.Date(paste0(YEARS[k], '-02-28')), 
+                origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
+  mar_start <- julian(as.Date(paste0(YEARS[k], '-03-01')), 
+                      origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
+  mar_end <- julian(as.Date(paste0(YEARS[k], '-03-31')), 
+                    origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
+  apr_start <- julian(as.Date(paste0(YEARS[k], '-04-01')), 
+                      origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
+  apr_end <- julian(as.Date(paste0(YEARS[k], '-04-30')), 
+                    origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
+  
+  Feb_tmax <- apply(d_tmax[,,feb_start:feb_end], c(1,2), mean)
+  Mar_tmax <- apply(d_tmax[,,mar_start:mar_end], c(1,2), mean)
+  Apr_tmax <- apply(d_tmax[,,apr_start:apr_end], c(1,2), mean)
+  FMA_tmax_array <- abind::abind(Feb_tmax, Mar_tmax, Apr_tmax, along = 3)
+  FMA_tmax <- apply(FMA_tmax_array, c(1,2), mean)
 
-
+  Feb_tmin <- apply(d_tmin[,,feb_start:feb_end], c(1,2), mean)
+  Mar_tmin <- apply(d_tmin[,,mar_start:mar_end], c(1,2), mean)
+  Apr_tmin <- apply(d_tmin[,,apr_start:apr_end], c(1,2), mean)
+  FMA_tmin_array <- abind::abind(Feb_tmin, Mar_tmin, Apr_tmin, along = 3)
+  FMA_tmin <- apply(FMA_tmin_array, c(1,2), mean)
+  
+  Feb_precip <- apply(d_precip[,,feb_start:feb_end], c(1,2), mean)
+  Mar_precip <- apply(d_precip[,,mar_start:mar_end], c(1,2), mean)
+  Apr_precip <- apply(d_precip[,,apr_start:apr_end], c(1,2), mean)
+  FMA_precip_array <- abind::abind(Feb_precip, Mar_precip, Apr_precip, along = 3)
+  FMA_precip <- apply(FMA_precip_array, c(1,2), mean)
+  
+  
   #lat/lons, temps in data.frame
   LL_daymet <- data.frame(LATS = as.vector(daymet_lats), 
                           LONS = as.vector(daymet_lons),
@@ -74,11 +102,19 @@ OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
                           F_tmax = as.vector(Feb_tmax), 
                           M_tmax = as.vector(Mar_tmax), 
                           A_tmax = as.vector(Apr_tmax), 
-                          FMA_tmax = as.vector(FMA_tmax))
+                          FMA_tmax = as.vector(FMA_tmax),
+                          F_tmin = as.vector(Feb_tmin), 
+                          M_tmin = as.vector(Mar_tmin), 
+                          A_tmin = as.vector(Apr_tmin), 
+                          FMA_tmin = as.vector(FMA_tmin),
+                          F_precip = as.vector(Feb_precip), 
+                          M_precip = as.vector(Mar_precip), 
+                          A_precip = as.vector(Apr_precip), 
+                          FMA_precip = as.vector(FMA_precip))
 
   #filter by relevant location
   f_LL_daymet <- dplyr::filter(LL_daymet, 
-                               LONS > -100 & LONS < -50 & LATS > 26)
+                               LONS > -100 & LONS < -50 & LATS > 24)
 
   #create grid
   hexgrid6 <- dggridR::dgconstruct(res = 6)
@@ -98,10 +134,18 @@ OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
   #average over daymet cells for each hexcell - 
   HEX_daymet <- data.frame(cell = hex_cells,
                            year = YEARS[k],
-                           HC_F_tmax = NA,
-                           HC_M_tmax = NA,
-                           HC_A_tmax = NA,
-                           HC_FMA_tmax = NA)
+                           F_tmax = NA,
+                           M_tmax = NA,
+                           A_tmax = NA,
+                           FMA_tmax = NA,
+                           F_tmin = NA,
+                           M_tmin = NA,
+                           A_tmin = NA,
+                           FMA_tmin = NA,
+                           F_precip = NA,
+                           M_precip = NA,
+                           A_precip = NA,
+                           FMA_precip = NA)
 
   
   pb <- txtProgressBar(min = 0, max = length(hex_cells), style = 3)
@@ -110,11 +154,21 @@ OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
   {
     #i <- 1
     t_daymet <- dplyr::filter(f_LL_daymet, hex_cell == hex_cells[i])
-    HEX_daymet$HC_F_tmax[i] <- mean(t_daymet$F_tmax, na.rm = TRUE)
-    HEX_daymet$HC_M_tmax[i] <- mean(t_daymet$M_tmax, na.rm = TRUE)
-    HEX_daymet$HC_A_tmax[i] <- mean(t_daymet$A_tmax, na.rm = TRUE)
-    HEX_daymet$HC_FMA_tmax[i] <- mean(t_daymet$FMA_tmax, na.rm = TRUE)
-
+    HEX_daymet$F_tmax[i] <- mean(t_daymet$F_tmax, na.rm = TRUE)
+    HEX_daymet$M_tmax[i] <- mean(t_daymet$M_tmax, na.rm = TRUE)
+    HEX_daymet$A_tmax[i] <- mean(t_daymet$A_tmax, na.rm = TRUE)
+    HEX_daymet$FMA_tmax[i] <- mean(t_daymet$FMA_tmax, na.rm = TRUE)
+    
+    HEX_daymet$F_tmin[i] <- mean(t_daymet$F_tmin, na.rm = TRUE)
+    HEX_daymet$M_tmin[i] <- mean(t_daymet$M_tmin, na.rm = TRUE)
+    HEX_daymet$A_tmin[i] <- mean(t_daymet$A_tmin, na.rm = TRUE)
+    HEX_daymet$FMA_tmin[i] <- mean(t_daymet$FMA_tmin, na.rm = TRUE)
+    
+    HEX_daymet$F_precip[i] <- mean(t_daymet$F_precip, na.rm = TRUE)
+    HEX_daymet$M_precip[i] <- mean(t_daymet$M_precip, na.rm = TRUE)
+    HEX_daymet$A_precip[i] <- mean(t_daymet$A_precip, na.rm = TRUE)
+    HEX_daymet$FMA_precip[i] <- mean(t_daymet$FMA_precip, na.rm = TRUE)
+    
     print(paste0(YEARS[k]))
     setTxtProgressBar(pb, i)
   }
@@ -123,8 +177,6 @@ OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
 }
 proc.time() - tt
 
-  
-  
 
 # write to rds file -------------------------------------------------------
 
