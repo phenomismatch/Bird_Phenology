@@ -96,6 +96,18 @@ for (i in 1:length(species))
     mean_beta0 <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = mean)[[1]]
     sd_beta0 <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = sd)[[1]]
     
+    #extract arrival date of species at lat 0 (alpha_gamma)
+    mean_alpha_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
+                                          func = mean)[[1]]
+    sd_alpha_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
+                                        func = sd)[[1]]
+    
+    #extract migration speed (beta_gamma)
+    mean_beta_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
+                                          func = mean)[[1]]
+    sd_beta_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
+                                        func = sd)[[1]]
+    
     #diagnostics
     num_diverge <- rstan::get_num_divergent(t_fit)
     model_summary <- MCMCvis::MCMCsummary(t_fit, excl = 'y_rep', round = 2)
@@ -121,6 +133,10 @@ for (i in 1:length(species))
                          sd_gamma,
                          mean_beta0[j],
                          sd_beta0[j],
+                         mean_alpha_gamma,
+                         sd_alpha_gamma,
+                         mean_beta_gamma,
+                         sd_beta_gamma,
                          num_diverge,
                          max_rhat,
                          min_neff)
