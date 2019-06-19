@@ -182,5 +182,5 @@ proc.time() - tt
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 
-saveRDS(OUT, 'daymet_hex_tmax.rds')
+saveRDS(OUT, 'daymet_hex.rds')
 
