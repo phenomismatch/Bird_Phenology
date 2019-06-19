@@ -17,7 +17,7 @@ echo `hostname`
 
 #load singularity and run R script using singularity
 module load singularity/3.0.2
-singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/3b-extract-temps/3b-test.R
+singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/3b-extract-temps/3b-extract-temps.R
 
 #displays amount of memory used
 sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch
