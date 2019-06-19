@@ -31,165 +31,144 @@ library(doParallel)
 #Xanadu
 dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
-setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
+
+# define function -----------------------------------------------------------
+
+#input ncdf file for each year
+#returns dataframe of hex sorted 
+daymet_fun <- function(input, var = 'tmax', YEAR)
+{
+  setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
+  
+  daymet_data_temp <- ncdf4::nc_open(input)
+  
+  #get lat/lons
+  daymet_lats <- ncdf4::ncvar_get(daymet_data_temp, "lat")
+  daymet_lons <- ncdf4::ncvar_get(daymet_data_temp, "lon")
+  
+  #Feb, Mar, Apr, and FMA
+  #calc julian day
+  feb_start <- julian(as.Date(paste0(YEARS[k], '-02-01')), 
+                      origin = as.Date(paste0(YEAR, '-01-01')))[1]
+  mar_start <- julian(as.Date(paste0(YEARS[k], '-03-01')), 
+                      origin = as.Date(paste0(YEAR, '-01-01')))[1]
+  apr_start <- julian(as.Date(paste0(YEARS[k], '-04-01')), 
+                      origin = as.Date(paste0(YEAR, '-01-01')))[1]
+  
+  #get data
+  feb_d_temp <- ncdf4::ncvar_get(daymet_data_temp, var, start = c(1, 1, feb_start), 
+                                 count = c(7814, 8075, 28))
+  mar_d_temp <- ncdf4::ncvar_get(daymet_data_temp, var, start = c(1, 1, mar_start), 
+                                 count = c(7814, 8075, 31))
+  apr_d_temp <- ncdf4::ncvar_get(daymet_data_temp, var, start = c(1, 1, apr_start), 
+                                 count = c(7814, 8075, 30))
+  
+  ncdf4::nc_close(daymet_data_temp)
+  
+  Feb_temp <- apply(feb_d_temp[,,], c(1,2), mean)
+  rm(feb_d_temp)
+  Mar_temp <- apply(mar_d_temp[,,], c(1,2), mean)
+  rm(mar_d_temp)
+  Apr_temp <- apply(apr_d_temp[,,], c(1,2), mean)
+  rm(apr_d_temp)
+  FMA_temp_array <- abind::abind(Feb_temp, Mar_temp, Apr_temp, along = 3)
+  FMA_temp <- apply(FMA_temp_array, c(1,2), mean)
+  rm(FMA_temp_array)
+  
+  LL_daymet <- data.frame(LATS = as.vector(daymet_lats), 
+                          LONS = as.vector(daymet_lons),
+                          ROW_IND = rep(1:NROW(daymet_lats), times = NCOL(daymet_lats)),
+                          COL_IND = rep(1:NCOL(daymet_lats), each = NROW(daymet_lats)),
+                          F_temp = as.vector(Feb_temp), 
+                          M_temp = as.vector(Mar_temp), 
+                          A_temp = as.vector(Apr_temp), 
+                          FMA_temp = as.vector(FMA_temp))
+  
+  rm(daymet_lats)
+  rm(daymet_lons)
+  rm(Feb_temp)
+  rm(Mar_temp)
+  rm(Apr_temp)
+  rm(FMA_temp)
+  
+  #filter by relevant location
+  f_LL_daymet <- dplyr::filter(LL_daymet, 
+                               LONS > -100 & LONS < -50 & LATS > 24)
+  
+  rm(LL_daymet)
+  
+  #create grid
+  hexgrid6 <- dggridR::dgconstruct(res = 6)
+  
+  #see which cells the lat/lons are associated with
+  f_LL_daymet$hex_cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+                                                   in_lon_deg = f_LL_daymet$LONS, 
+                                                   in_lat_deg = f_LL_daymet$LATS)[[1]]
+  hex_cells <- sort(unique(f_LL_daymet$hex_cell))
+  
+  #average over daymet cells for each hexcell - 
+  HEX_daymet <- data.frame(cell = hex_cells,
+                           year = YEAR,
+                           F_temp = NA,
+                           M_temp = NA,
+                           A_temp = NA,
+                           FMA_temp = NA)
+  colnames(HEX_daymet)[3:6] <- c(paste0('F_', var), paste0('M_', var),
+                                 paste0('A_', var), paste0('FMA_', var))
+  
+  pb <- txtProgressBar(min = 0, max = length(hex_cells), style = 3)
+  #fill df
+  for (i in 1:length(hex_cells))
+  {
+    #i <- 1
+    t_daymet <- dplyr::filter(f_LL_daymet, hex_cell == hex_cells[i])
+    HEX_daymet[i,2] <- mean(t_daymet$F_temp, na.rm = TRUE)
+    HEX_daymet[i,3] <- mean(t_daymet$M_temp, na.rm = TRUE)
+    HEX_daymet[i,4] <- mean(t_daymet$A_temp, na.rm = TRUE)
+    HEX_daymet[i,5] <- mean(t_daymet$FMA_temp, na.rm = TRUE)
+    
+    setTxtProgressBar(pb, i)
+  }
+  
+  return(HEX_daymet)
+}
 
 
-# read in data -----------------------------------------------------------
 
-tt <- proc.time()
+# run function ------------------------------------------------------------
 
-YEARS <- 2002:2018
+#YEARS <- 2002:2018
+YEARS <- 2002
 
+doParallel::registerDoParallel(cores = 4)
+OUT_tmax <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
+  {
+    tt_tmax <- daymet_fun(input = paste0('daymet_v3_tmax_', YEARS[k], '_na.nc4'), 
+                          var = 'tmax', YEAR = YEARS[k])
+    return(tt_tmax)
+  }
 
-
-#doParallel::registerDoParallel(cores = 4)
-#OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
-#  {
-    k <- 1
-    
-    daymet_data_tmax <- ncdf4::nc_open(paste0('daymet_v3_tmax_', YEARS[k], '_na.nc4'))
-    daymet_data_tmin <- ncdf4::nc_open(paste0('daymet_v3_tmin_', YEARS[k], '_na.nc4'))
-    daymet_data_precip <- ncdf4::nc_open(paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'))
-    
-    #get lat/lons
-    daymet_lats <- ncdf4::ncvar_get(daymet_data_tmax, "lat")
-    daymet_lons <- ncdf4::ncvar_get(daymet_data_tmax, "lon")
-    
-    #Feb, Mar, Apr, and FMA
-    #calc julian day
-    feb_start <- julian(as.Date(paste0(YEARS[k], '-02-01')), 
-                        origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
-    feb_end <- julian(as.Date(paste0(YEARS[k], '-02-28')), 
-                      origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
-    mar_start <- julian(as.Date(paste0(YEARS[k], '-03-01')), 
-                        origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
-    mar_end <- julian(as.Date(paste0(YEARS[k], '-03-31')), 
-                      origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
-    apr_start <- julian(as.Date(paste0(YEARS[k], '-04-01')), 
-                        origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
-    apr_end <- julian(as.Date(paste0(YEARS[k], '-04-30')), 
-                      origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
-    
-    #get data
-    feb_d_tmax <- ncdf4::ncvar_get(daymet_data_tmax, 'tmax', start = c(1, 1, feb_start), count =c(7814, 8075, 28))
-    feb_d_tmin <- ncdf4::ncvar_get(daymet_data_tmin, 'tmin', start = c(1, 1, feb_start), count =c(7814, 8075, 28))
-    feb_d_precip <- ncdf4::ncvar_get(daymet_data_precip, 'prcp', start = c(1, 1, feb_start), count =c(7814, 8075, 28))
-    
-    mar_d_tmax <- ncdf4::ncvar_get(daymet_data_tmax, 'tmax', start = c(1, 1, mar_start), count =c(7814, 8075, 31))
-    mar_d_tmin <- ncdf4::ncvar_get(daymet_data_tmin, 'tmin', start = c(1, 1, mar_start), count =c(7814, 8075, 31))
-    mar_d_precip <- ncdf4::ncvar_get(daymet_data_precip, 'prcp', start = c(1, 1, mar_start), count =c(7814, 8075, 31))
-    
-    apr_d_tmax <- ncdf4::ncvar_get(daymet_data_tmax, 'tmax', start = c(1, 1, apr_start), count =c(7814, 8075, 30))
-    apr_d_tmin <- ncdf4::ncvar_get(daymet_data_tmin, 'tmin', start = c(1, 1, apr_start), count =c(7814, 8075, 30))
-    apr_d_precip <- ncdf4::ncvar_get(daymet_data_precip, 'prcp', start = c(1, 1, apr_start), count =c(7814, 8075, 30))
-    
-    Feb_tmax <- apply(feb_d_tmax[,,], c(1,2), mean)
-    Mar_tmax <- apply(mar_d_tmax[,,], c(1,2), mean)
-    Apr_tmax <- apply(apr_d_tmax[,,], c(1,2), mean)
-    FMA_tmax_array <- abind::abind(Feb_tmax, Mar_tmax, Apr_tmax, along = 3)
-    FMA_tmax <- apply(FMA_tmax_array, c(1,2), mean)
-    
-    Feb_tmin <- apply(feb_d_tmin[,,], c(1,2), mean)
-    Mar_tmin <- apply(mar_d_tmin[,,], c(1,2), mean)
-    Apr_tmin <- apply(apr_d_tmin[,,], c(1,2), mean)
-    FMA_tmin_array <- abind::abind(Feb_tmin, Mar_tmin, Apr_tmin, along = 3)
-    FMA_tmin <- apply(FMA_tmin_array, c(1,2), mean)
-    
-    Feb_precip <- apply(feb_d_precip[,,], c(1,2), mean)
-    Mar_precip <- apply(mar_d_precip[,,], c(1,2), mean)
-    Apr_precip <- apply(apr_d_precip[,,], c(1,2), mean)
-    FMA_precip_array <- abind::abind(Feb_precip, Mar_precip, Apr_precip, along = 3)
-    FMA_precip <- apply(FMA_precip_array, c(1,2), mean)
-    
-    
-    #lat/lons, temps in data.frame
-    LL_daymet <- data.frame(LATS = as.vector(daymet_lats), 
-                            LONS = as.vector(daymet_lons),
-                            ROW_IND = rep(1:NROW(daymet_lats), times = NCOL(daymet_lats)),
-                            COL_IND = rep(1:NCOL(daymet_lats), each = NROW(daymet_lats)),
-                            F_tmax = as.vector(Feb_tmax), 
-                            M_tmax = as.vector(Mar_tmax), 
-                            A_tmax = as.vector(Apr_tmax), 
-                            FMA_tmax = as.vector(FMA_tmax),
-                            F_tmin = as.vector(Feb_tmin), 
-                            M_tmin = as.vector(Mar_tmin), 
-                            A_tmin = as.vector(Apr_tmin), 
-                            FMA_tmin = as.vector(FMA_tmin),
-                            F_precip = as.vector(Feb_precip), 
-                            M_precip = as.vector(Mar_precip), 
-                            A_precip = as.vector(Apr_precip), 
-                            FMA_precip = as.vector(FMA_precip))
-    
-    #filter by relevant location
-    f_LL_daymet <- dplyr::filter(LL_daymet, 
-                                 LONS > -100 & LONS < -50 & LATS > 24)
-    
-    #create grid
-    hexgrid6 <- dggridR::dgconstruct(res = 6)
-    
-    #see which cells the lat/lons are associated with
-    f_LL_daymet$hex_cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                                     in_lon_deg = f_LL_daymet$LONS, 
-                                                     in_lat_deg = f_LL_daymet$LATS)[[1]]
-    
-    #check to make sure things are sorted properly
-    # mylat <- f_LL_daymet$LATS[500000]
-    # mylon <- f_LL_daymet$LONS[500000]
-    # f_LL_daymet[500000,] == which(daymet_lats == mylat & daymet_lons == mylon, arr.ind = TRUE)
-    
-    hex_cells <- sort(unique(f_LL_daymet$hex_cell))
-    
-    #average over daymet cells for each hexcell - 
-    HEX_daymet <- data.frame(cell = hex_cells,
-                             year = YEARS[k],
-                             F_tmax = NA,
-                             M_tmax = NA,
-                             A_tmax = NA,
-                             FMA_tmax = NA,
-                             F_tmin = NA,
-                             M_tmin = NA,
-                             A_tmin = NA,
-                             FMA_tmin = NA,
-                             F_precip = NA,
-                             M_precip = NA,
-                             A_precip = NA,
-                             FMA_precip = NA)
-    
-    
-    pb <- txtProgressBar(min = 0, max = length(hex_cells), style = 3)
-    #fill df
-    for (i in 1:length(hex_cells))
-    {
-      #i <- 1
-      t_daymet <- dplyr::filter(f_LL_daymet, hex_cell == hex_cells[i])
-      HEX_daymet$F_tmax[i] <- mean(t_daymet$F_tmax, na.rm = TRUE)
-      HEX_daymet$M_tmax[i] <- mean(t_daymet$M_tmax, na.rm = TRUE)
-      HEX_daymet$A_tmax[i] <- mean(t_daymet$A_tmax, na.rm = TRUE)
-      HEX_daymet$FMA_tmax[i] <- mean(t_daymet$FMA_tmax, na.rm = TRUE)
-      
-      HEX_daymet$F_tmin[i] <- mean(t_daymet$F_tmin, na.rm = TRUE)
-      HEX_daymet$M_tmin[i] <- mean(t_daymet$M_tmin, na.rm = TRUE)
-      HEX_daymet$A_tmin[i] <- mean(t_daymet$A_tmin, na.rm = TRUE)
-      HEX_daymet$FMA_tmin[i] <- mean(t_daymet$FMA_tmin, na.rm = TRUE)
-      
-      HEX_daymet$F_precip[i] <- mean(t_daymet$F_precip, na.rm = TRUE)
-      HEX_daymet$M_precip[i] <- mean(t_daymet$M_precip, na.rm = TRUE)
-      HEX_daymet$A_precip[i] <- mean(t_daymet$A_precip, na.rm = TRUE)
-      HEX_daymet$FMA_precip[i] <- mean(t_daymet$FMA_precip, na.rm = TRUE)
-      
-      print(paste0(YEARS[k]))
-      setTxtProgressBar(pb, i)
-    }
-    
-#    return(HEX_daymet)
-#  }
-#proc.time() - tt
+# OUT_tmin <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
+#   {
+#     tt_tmin <- daymet_fun(input = paste0('daymet_v3_tmin_', YEARS[k], '_na.nc4'), 
+#                           var = 'tmin', YEAR = YEARS[k])
+#     return(tt_tmin)
+#   }
+# 
+# OUT_precip <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
+#   {
+#     tt <- daymet_fun(input = paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'), 
+#                      var = 'prcp', YEAR = YEARS[k])
+#     return(tt_precip)
+#   }
 
 
 # write to rds file -------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 
-saveRDS(HEX_daymet, 'test_daymet_hex.rds')
+saveRDS(OUT_tmax, 'daymet_hex_tmax.rds')
+# saveRDS(OUT_tmin, 'daymet_hex_tmin.rds')
+# saveRDS(OUT_precip, 'daymet_hex_precip.rds')
 
 print('I completed!')
