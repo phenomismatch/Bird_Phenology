@@ -3,10 +3,10 @@
 #SBATCH --job-name=extract-temps
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
-#SBATCH -c 7 #cpus
+#SBATCH -c 4 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=200G #memory requested
+#SBATCH --mem=500G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
 #SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/daymet/extract-temps.out #STDOUT

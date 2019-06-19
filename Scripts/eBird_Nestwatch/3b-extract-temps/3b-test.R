@@ -1,7 +1,7 @@
 ################################
 #Extract temperature data for NA
 #
-#Requires ~ 185GB RAM and 7 cores on cluster; ~ 2 hours runtime; eventually run on desktop
+#Requires ~ ?GB RAM and 7 cores on cluster; ~ 2 hours runtime; eventually run on desktop
 ################################
 
 #mean daily min temp for Feb-April, following Hurlbert and Liang 2012
@@ -29,7 +29,7 @@ library(doParallel)
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
 
