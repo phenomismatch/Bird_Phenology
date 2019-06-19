@@ -1,7 +1,7 @@
 ################################
 #Extract temperature data for NA
 #
-#Requires ~ 185GB RAM and 7 cores on cluster; ~ 2 hours runtime; eventually run on desktop
+#Requires ~ 185GB RAM and 4 cores on cluster; ~ 2 hours runtime; eventually run on desktop
 ################################
 
 #mean daily min temp for Feb-April, following Hurlbert and Liang 2012
@@ -29,7 +29,7 @@ library(doParallel)
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
 
@@ -39,7 +39,6 @@ setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
 tt <- proc.time()
 
 YEARS <- 2002:2018
-
 
 
 doParallel::registerDoParallel(cores = 4)
@@ -54,11 +53,6 @@ OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
   #get lat/lons
   daymet_lats <- ncdf4::ncvar_get(daymet_data_tmax, "lat")
   daymet_lons <- ncdf4::ncvar_get(daymet_data_tmax, "lon")
-
-  #get temp data
-  d_tmax <- ncdf4::ncvar_get(daymet_data_tmax, 'tmax')
-  d_tmin <- ncdf4::ncvar_get(daymet_data_tmin, 'tmin')
-  d_precip <- ncdf4::ncvar_get(daymet_data_precip, 'prcp')
 
   #Feb, Mar, Apr, and FMA
   #calc julian day
@@ -75,21 +69,34 @@ OUT <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
   apr_end <- julian(as.Date(paste0(YEARS[k], '-04-30')), 
                     origin = as.Date(paste0(YEARS[k], '-01-01')))[1]
   
-  Feb_tmax <- apply(d_tmax[,,feb_start:feb_end], c(1,2), mean)
-  Mar_tmax <- apply(d_tmax[,,mar_start:mar_end], c(1,2), mean)
-  Apr_tmax <- apply(d_tmax[,,apr_start:apr_end], c(1,2), mean)
+  #get data
+  feb_d_tmax <- ncdf4::ncvar_get(daymet_data_tmax, 'tmax', start = c(1, 1, feb_start), count =c(7814, 8075, 28))
+  feb_d_tmin <- ncdf4::ncvar_get(daymet_data_tmin, 'tmin', start = c(1, 1, feb_start), count =c(7814, 8075, 28))
+  feb_d_precip <- ncdf4::ncvar_get(daymet_data_precip, 'prcp', start = c(1, 1, feb_start), count =c(7814, 8075, 28))
+  
+  mar_d_tmax <- ncdf4::ncvar_get(daymet_data_tmax, 'tmax', start = c(1, 1, mar_start), count =c(7814, 8075, 31))
+  mar_d_tmin <- ncdf4::ncvar_get(daymet_data_tmin, 'tmin', start = c(1, 1, mar_start), count =c(7814, 8075, 31))
+  mar_d_precip <- ncdf4::ncvar_get(daymet_data_precip, 'prcp', start = c(1, 1, mar_start), count =c(7814, 8075, 31))
+  
+  apr_d_tmax <- ncdf4::ncvar_get(daymet_data_tmax, 'tmax', start = c(1, 1, apr_start), count =c(7814, 8075, 30))
+  apr_d_tmin <- ncdf4::ncvar_get(daymet_data_tmin, 'tmin', start = c(1, 1, apr_start), count =c(7814, 8075, 30))
+  apr_d_precip <- ncdf4::ncvar_get(daymet_data_precip, 'prcp', start = c(1, 1, apr_start), count =c(7814, 8075, 30))
+  
+  Feb_tmax <- apply(feb_d_tmax[,,], c(1,2), mean)
+  Mar_tmax <- apply(mar_d_tmax[,,], c(1,2), mean)
+  Apr_tmax <- apply(apr_d_tmax[,,], c(1,2), mean)
   FMA_tmax_array <- abind::abind(Feb_tmax, Mar_tmax, Apr_tmax, along = 3)
   FMA_tmax <- apply(FMA_tmax_array, c(1,2), mean)
 
-  Feb_tmin <- apply(d_tmin[,,feb_start:feb_end], c(1,2), mean)
-  Mar_tmin <- apply(d_tmin[,,mar_start:mar_end], c(1,2), mean)
-  Apr_tmin <- apply(d_tmin[,,apr_start:apr_end], c(1,2), mean)
+  Feb_tmin <- apply(feb_d_tmin[,,], c(1,2), mean)
+  Mar_tmin <- apply(mar_d_tmin[,,], c(1,2), mean)
+  Apr_tmin <- apply(apr_d_tmin[,,], c(1,2), mean)
   FMA_tmin_array <- abind::abind(Feb_tmin, Mar_tmin, Apr_tmin, along = 3)
   FMA_tmin <- apply(FMA_tmin_array, c(1,2), mean)
   
-  Feb_precip <- apply(d_precip[,,feb_start:feb_end], c(1,2), mean)
-  Mar_precip <- apply(d_precip[,,mar_start:mar_end], c(1,2), mean)
-  Apr_precip <- apply(d_precip[,,apr_start:apr_end], c(1,2), mean)
+  Feb_precip <- apply(feb_d_precip[,,], c(1,2), mean)
+  Mar_precip <- apply(mar_d_precip[,,], c(1,2), mean)
+  Apr_precip <- apply(apr_d_precip[,,], c(1,2), mean)
   FMA_precip_array <- abind::abind(Feb_precip, Mar_precip, Apr_precip, along = 3)
   FMA_precip <- apply(FMA_precip_array, c(1,2), mean)
   
