@@ -39,6 +39,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 daymet_fun <- function(input, var = 'tmax', YEAR)
 {
   setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
+  #setwd('~/Desktop/Bird_Phenology_Offline/Data/Daymet_data/')
   
   daymet_data_temp <- ncdf4::nc_open(input)
   
@@ -48,11 +49,11 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   
   #Feb, Mar, Apr, and FMA
   #calc julian day
-  feb_start <- julian(as.Date(paste0(YEARS[k], '-02-01')), 
+  feb_start <- julian(as.Date(paste0(YEAR, '-02-01')), 
                       origin = as.Date(paste0(YEAR, '-01-01')))[1]
-  mar_start <- julian(as.Date(paste0(YEARS[k], '-03-01')), 
+  mar_start <- julian(as.Date(paste0(YEAR, '-03-01')), 
                       origin = as.Date(paste0(YEAR, '-01-01')))[1]
-  apr_start <- julian(as.Date(paste0(YEARS[k], '-04-01')), 
+  apr_start <- julian(as.Date(paste0(YEAR, '-04-01')), 
                       origin = as.Date(paste0(YEAR, '-01-01')))[1]
   
   #get data
@@ -116,18 +117,15 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   colnames(HEX_daymet)[3:6] <- c(paste0('F_', var), paste0('M_', var),
                                  paste0('A_', var), paste0('FMA_', var))
   
-  pb <- txtProgressBar(min = 0, max = length(hex_cells), style = 3)
   #fill df
   for (i in 1:length(hex_cells))
   {
     #i <- 1
     t_daymet <- dplyr::filter(f_LL_daymet, hex_cell == hex_cells[i])
-    HEX_daymet[i,2] <- mean(t_daymet$F_temp, na.rm = TRUE)
-    HEX_daymet[i,3] <- mean(t_daymet$M_temp, na.rm = TRUE)
-    HEX_daymet[i,4] <- mean(t_daymet$A_temp, na.rm = TRUE)
-    HEX_daymet[i,5] <- mean(t_daymet$FMA_temp, na.rm = TRUE)
-    
-    setTxtProgressBar(pb, i)
+    HEX_daymet[i,3] <- mean(t_daymet$F_temp, na.rm = TRUE)
+    HEX_daymet[i,4] <- mean(t_daymet$M_temp, na.rm = TRUE)
+    HEX_daymet[i,5] <- mean(t_daymet$A_temp, na.rm = TRUE)
+    HEX_daymet[i,6] <- mean(t_daymet$FMA_temp, na.rm = TRUE)
   }
   
   return(HEX_daymet)
@@ -137,10 +135,10 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
 
 # run function ------------------------------------------------------------
 
-#YEARS <- 2002:2018
-YEARS <- 2002
+YEARS <- 2002:2018
+#YEARS <- 2002:2003
 
-doParallel::registerDoParallel(cores = 4)
+doParallel::registerDoParallel(cores = 2)
 OUT_tmax <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
   {
     tt_tmax <- daymet_fun(input = paste0('daymet_v3_tmax_', YEARS[k], '_na.nc4'), 
@@ -148,27 +146,32 @@ OUT_tmax <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
     return(tt_tmax)
   }
 
-# OUT_tmin <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
-#   {
-#     tt_tmin <- daymet_fun(input = paste0('daymet_v3_tmin_', YEARS[k], '_na.nc4'), 
-#                           var = 'tmin', YEAR = YEARS[k])
-#     return(tt_tmin)
-#   }
-# 
-# OUT_precip <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
-#   {
-#     tt <- daymet_fun(input = paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'), 
-#                      var = 'prcp', YEAR = YEARS[k])
-#     return(tt_precip)
-#   }
+print('Finished tmax')
 
+OUT_tmin <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
+  {
+    tt_tmin <- daymet_fun(input = paste0('daymet_v3_tmin_', YEARS[k], '_na.nc4'),
+                          var = 'tmin', YEAR = YEARS[k])
+    return(tt_tmin)
+  }
+
+print('Finished tmin')
+
+OUT_precip <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
+  {
+    tt <- daymet_fun(input = paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'),
+                     var = 'prcp', YEAR = YEARS[k])
+    return(tt_precip)
+  }
+
+print('Finished precip')
 
 # write to rds file -------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 
 saveRDS(OUT_tmax, 'daymet_hex_tmax.rds')
-# saveRDS(OUT_tmin, 'daymet_hex_tmin.rds')
-# saveRDS(OUT_precip, 'daymet_hex_precip.rds')
+saveRDS(OUT_tmin, 'daymet_hex_tmin.rds')
+saveRDS(OUT_precip, 'daymet_hex_precip.rds')
 
 print('I completed!')
