@@ -138,7 +138,7 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
 YEARS <- 2002:2018
 #YEARS <- 2002:2003
 
-doParallel::registerDoParallel(cores = 2)
+doParallel::registerDoParallel(cores = 4)
 OUT_tmax <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
   {
     tt_tmax <- daymet_fun(input = paste0('daymet_v3_tmax_', YEARS[k], '_na.nc4'), 
@@ -159,12 +159,14 @@ print('Finished tmin')
 
 OUT_precip <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
   {
-    tt <- daymet_fun(input = paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'),
+    tt_precip <- daymet_fun(input = paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'),
                      var = 'prcp', YEAR = YEARS[k])
     return(tt_precip)
   }
 
 print('Finished precip')
+
+
 
 # write to rds file -------------------------------------------------------
 
