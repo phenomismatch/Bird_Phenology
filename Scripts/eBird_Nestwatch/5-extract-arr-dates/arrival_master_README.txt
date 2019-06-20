@@ -40,9 +40,9 @@ mean_beta0 - posterior mean for beta0 parameter (derived from IAR model - 4-IAR-
 
 sd_beta0 - posterior standard deviation for beta0 parameter (derived from IAR model - 4-IAR-arr.R). Beta0 is a year random effect and represents the arrival date intercept for a given year. Each year for a given species will have an associated beta0 parameter.
 
-mean_alpha_gamma - posterior mean for alpha_gamma (derived from IAR model - 4-IAR-arr.R). Alpha_gamma is the intercept for the modeled gamma parameter and represents the cell random effect (estimated mean arrival date at a given cell) at 0 degrees latitude.
+mean_alpha_gamma - posterior mean for alpha_gamma (derived from IAR model - 4-IAR-arr.R). Alpha_gamma is the intercept for the modeled gamma parameter and represents the expected cell random effect (estimated mean arrival date at a given cell) at 0 degrees latitude.
 
-sd_alpha_gamma - posterior standard deviation for alpha_gamma (derived from IAR model - 4-IAR-arr.R). Alpha_gamma is the intercept for the modeled gamma parameter and represents the cell random effect (estimated mean arrival date at a given cell) at 0 degrees latitude.
+sd_alpha_gamma - posterior standard deviation for alpha_gamma (derived from IAR model - 4-IAR-arr.R). Alpha_gamma is the intercept for the modeled gamma parameter and represents the expected cell random effect (estimated mean arrival date at a given cell) at 0 degrees latitude.
 
 mean_beta_gamma - posterior mean for beta_gamma (derived from IAR model - 4-IAR-arr.R). Beta_gamma is the slope (as a function of latitude) for the modeled gamma parameter and represents the degree to which mean arrival changes over latitude (days per degree latitude). This can also be thought of as mean northward migration speed across the modeled range of the species. 
 
