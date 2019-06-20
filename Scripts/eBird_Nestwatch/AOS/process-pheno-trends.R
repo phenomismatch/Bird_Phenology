@@ -22,6 +22,17 @@ dir <- '~/Google_Drive/R/'
 
 in_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-17'
 out_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_2019-06-17'
+am_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/'
+
+
+# readin arrival master ---------------------------------------------------
+
+setwd(am_dir)
+
+am_out <- readRDS('arrival_master_2019-05-26.rds')
+am_out_f <- unique(am_out[,c('species', 'mean_alpha_gamma', 'sd_alpha_gamma', 
+                                'mean_beta_gamma' ,'sd_beta_gamma')])
+
 
 # Load packages -----------------------------------------------------------
 
@@ -99,7 +110,14 @@ for (i in 1:length(species))
       max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
       min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
       
+      #arrival master (for alpha_gamma and beta_gamma)
+      am_t <- dplyr::filter(am_out_f, species == sp)
+      
       t_full <- data.frame(species = sp,
+                           mn_alpha_gamma = am_t$mean_alpha_gamma,
+                           sd_alpha_gamma = am_t$sd_alpha_gamma,
+                           mn_beta_gamma = am_t$mean_beta_gamma,
+                           sd_beta_gamma = am_t$sd_beta_gamma,
                            mn_mu_alpha,
                            sd_mu_alpha,
                            mn_sigma,
