@@ -229,6 +229,11 @@ DATA <- list(N = NROW(pt_out),
              pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
              N_pred_sim = 100)
 
+DELTA <- 0.95
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.005
+CHAINS <- 4
+ITER <- 3000
 
 tt <- proc.time()
 fit2 <- rstan::stan(model_code = stanmodel,
@@ -262,6 +267,8 @@ sd_alpha_beta <- apply(alpha_beta_post, 2, function(x) sd(abs(x)))
 DATA <- list(N = NROW(pt_out),
              y_obs = mn_alpha_beta,
              sd_y = sd_alpha_beta,
+             # y_obs = pt_out$mn_alpha_beta,
+             # sd_y = pt_out$sd_alpha_beta,
              x_obs = pt_out$mn_sigma,
              sd_x = pt_out$sd_sigma,
              pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
@@ -280,20 +287,21 @@ vector[N_pred_sim] pred_sim;
 }
 
 parameters {
-vector[N] y_true_raw;
+// vector[N] y_true_raw;
+vector[N] y_true;
 vector<lower=0>[N] x_true_raw;
 real<lower=0> sigma_raw;
-real alpha_raw;
+real<lower=0> alpha_raw;
 real beta_raw;
 }
 
 transformed parameters {
-vector[N] mu;
-vector[N_pred_sim] mu_rep;
+vector<lower=0>[N] mu;
+vector<lower=0>[N_pred_sim] mu_rep;
 real<lower=0> sigma;
-real alpha;
+real<lower=0> alpha;
 real beta;
-vector<lower=0>[N] y_true;
+// vector<lower=0>[N] y_true;
 vector<lower=0>[N] x_true;
 
 sigma = sigma_raw * 10;
@@ -304,7 +312,7 @@ x_true = x_true_raw * 10;
 mu = alpha + beta * x_true;
 mu_rep = alpha + beta * pred_sim;
 
-y_true = y_true_raw * sigma + mu;
+// y_true = y_true_raw * sigma + mu;
 }
 
 model {
@@ -314,13 +322,17 @@ beta_raw ~ std_normal();
 sigma_raw ~ std_normal();
 x_true_raw ~ std_normal();
 
+y_true ~ normal(mu, sigma);
+// y_true_raw ~ std_normal();      // implies y_true ~ normal(mu, sigma);
+
 // account for observation error in y
 y_obs ~ normal(y_true, sd_y);
+
 
 // account for observation error in x
 x_obs ~ normal(x_true, sd_x);
 
-y_true_raw ~ std_normal();      // implies y_true ~ normal(mu, sigma);
+
 }
 
 generated quantities {
@@ -331,6 +343,12 @@ y_rep = normal_rng(y_true, sd_y);
 x_rep = normal_rng(x_true, sd_x);
 }
 "
+
+DELTA <- 0.99
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.005
+CHAINS <- 4
+ITER <- 3000
 
 tt <- proc.time()
 fit3 <- rstan::stan(model_code = stanmodel2,
@@ -364,11 +382,18 @@ sd_beta_beta <- apply(beta_beta_post, 2, function(x) sd(abs(x)))
 DATA <- list(N = NROW(pt_out),
              y_obs = mn_beta_beta,
              sd_y = sd_beta_beta,
+             # y_obs = pt_out$mn_beta_beta,
+             # sd_y = pt_out$sd_beta_beta,
              x_obs = pt_out$mn_sigma,
              sd_x = pt_out$sd_sigma,
              pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
              N_pred_sim = 100)
 
+DELTA <- 0.95
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.005
+CHAINS <- 4
+ITER <- 3000
 
 tt <- proc.time()
 fit4 <- rstan::stan(model_code = stanmodel2,
@@ -406,6 +431,11 @@ DATA <- list(N = NROW(pt_out),
                              length.out = 100),
              N_pred_sim = 100)
 
+DELTA <- 0.95
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.005
+CHAINS <- 4
+ITER <- 3000
 
 tt <- proc.time()
 fit5 <- rstan::stan(model_code = stanmodel,
@@ -533,31 +563,6 @@ plt_fun(fit5, rng_beta_gamma, MAIN = 'alpha_gamma ~ beta_gamma',
 
 
 
-
-
-
-
-
-
-
-# raw relationship between estimates ------------------------------------------
-
-fit_fun <- function(first, second)
-{
-  tf <- lm(second ~ first)
-  plot(first, second)
-  abline(tf, col = 'red')
-  #hist(residuals(tf))
-  print(summary(tf))
-}
-
-fit_fun(out[, 'mn_sigma'], abs(out[, 'mn_mu_alpha']))
-fit_fun(out[, 'mn_sigma'], abs(out[, 'mn_alpha_beta']))
-fit_fun(out[, 'mn_sigma'], abs(out[, 'mn_beta_beta']))
-
-#more interannual variability = more change over time
-
-
 # plot parameter estimates ------------------------------------------------
 
 
@@ -567,7 +572,12 @@ MCMCvis::MCMCplot(alpha_beta_post, guide_lines = TRUE, params = sp,
                   sz_labels = 0.6, xlim = c(-1, 1.5), main = 'alpha_beta')
 MCMCvis::MCMCplot(beta_beta_post, guide_lines = TRUE, params = sp,
                   sz_labels = 0.6, xlim = c(-0.25, 0.5), main = 'beta_beta')
-
+MCMCvis::MCMCplot(alpha_gamma_post, guide_lines = TRUE, params = sp,
+                  sz_labels = 0.6, #xlim = c(-1, 1.5), 
+                  main = 'alpha_gamma')
+MCMCvis::MCMCplot(beta_gamma_post, guide_lines = TRUE, params = sp,
+                  sz_labels = 0.6, #xlim = c(-0.25, 0.5), 
+                  main = 'beta_gamma')
 
 
 # traits ------------------------------------------------------------------
@@ -598,22 +608,6 @@ pairs(out_jf[,-idx])
 
 
 out_jf2 <- dplyr::filter(out_jf, n_cells > 10, n_years > 10, rng_lat > 10)
-
-
-fit_fun(out_jf$MIGRATION_DISTANCE_LASORTE, out_jf$mn_mu_alpha)
-fit_fun(out_jf$SPRING_MIGRATION_SPEED_LASORTE, out_jf$mn_mu_alpha)
-
-fit_fun(out_jf$MIGRATION_DISTANCE_LASORTE, out_jf$mn_sigma)
-fit_fun(out_jf$SPRING_MIGRATION_SPEED_LASORTE, out_jf$mn_sigma)
-
-fit_fun(out_jf2$MIGRATION_DISTANCE_LASORTE, out_jf2$mn_alpha_beta)
-fit_fun(out_jf2$SPRING_MIGRATION_SPEED_LASORTE, out_jf2$mn_alpha_beta)
-
-fit_fun(out_jf2$MIGRATION_DISTANCE_LASORTE, out_jf2$mn_beta_beta)
-fit_fun(out_jf2$SPRING_MIGRATION_SPEED_LASORTE, out_jf2$mn_beta_beta)
-
-plot(out_jf2$rng_lat, out_jf2$mn_alpha_beta)
-plot(out_jf2$rng_lat, out_jf2$mn_beta_beta)
 
 # fit_fun(out_jf$CLUTCH_SIZE_BONA, out_jf$mn_mu_alpha)
 # fit_fun(out_jf$BROODS_PER_YEAR_BONA, out_jf$mn_mu_alpha)
