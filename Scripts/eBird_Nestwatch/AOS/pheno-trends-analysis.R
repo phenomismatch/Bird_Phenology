@@ -5,23 +5,43 @@
 
 # PARAMETER DESCRIPTIONS
 # ======================
+
 # alpha_gamma - arrival date of that species at 0 degrees lat
 # beta_gamma - speed of migration (days / degrees lat)
-
 # mu_alpha - absolute arrival date for species (intercepts drawn from this mean)
 # sigma - interannual variability in arrival date after accounting for trend
 # alpha_beta - magnitude of phenological change over time
 # beta_beta - effect of lat on magnitude of phenological change over time
 
 
+# set dirs ----------------------------------------------------------------
+
+trends_summary_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_2019-06-17'
+arrival_master_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_2019-05-26'
+
+
+# load packages -----------------------------------------------------------
+
+library(dplyr)
+library(rstan)
+library(MCMCvis)
+
 
 # read in data ------------------------------------------------------------
 
-setwd('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_2019-06-17/')
+setwd(trends_summary_dir)
 
-out <- readRDS('pheno_trends_master_2019-06-17.rds')
-sp <- out$species
+pt_out <- readRDS('pheno_trends_master_2019-06-17.rds')
+sp <- pt_out$species
 
+sigma_post <- readRDS('pheno_trends_sigma_post_2019-06-17.rds')
+alpha_beta_post <- readRDS('pheno_trends_alpha_beta_post_2019-06-17.rds')
+beta_beta_post <- readRDS('pheno_trends_beta_beta_post_2019-06-17.rds')
+
+setwd(arrival_master_dir)
+
+alpha_gamma_post <- readRDS('arrival_alpha_gamma_post_2019-05-26.rds')
+beta_gamma_post <- readRDS('arrival_beta_gamma_post_2019-05-26.rds')
 
 
 # size doesn't matter for halfmax -----------------------------------------
@@ -40,49 +60,481 @@ sp <- out$species
 
 # alpha_beta (and beta_beta) ~ sigma - lm in loop --------------------------------------
 
-oslope <- c()
-for (i in 1:1000)
-{
-  #i <- 1
-  
-  dt <- c()
-  for (j in 1:length(sp))
-  {
-    #j <- 1
-    tmn_sigma <- out[j,'mn_sigma']
-    tsd_sigma <- out[j,'sd_sigma']
-  
-    tvals_sigma <- rnorm(1, tmn_sigma, tsd_sigma)
-    while (tvals_sigma <= 0)
-    {
-      tvals_sigma <- rnorm(1, tmn_sigma, tsd_sigma)
-    }
-  
-    tmn_alpha_beta <- out[j,'mn_alpha_beta']
-    tsd_alpha_beta <- out[j,'sd_alpha_beta']
-    tvals_alpha_beta <- rnorm(1, tmn_alpha_beta, tsd_alpha_beta)
-    
-    # tmn_beta_beta <- out[j,'mn_beta_beta']
-    # tsd_beta_beta <- out[j,'sd_beta_beta']
-    # tvals_beta_beta <- rnorm(1, tmn_beta_beta, tsd_beta_beta)
-    
-    temp <- c(tvals_sigma, tvals_alpha_beta)
-    # temp <- c(tvals_sigma, tvals_beta_beta)
-    dt <- rbind(dt, temp)
-  }
-  colnames(dt) <- c('sigma', 'alpha_beta')
-  #colnames(dt) <- c('sigma', 'beta_beta')
-  
-  tfit <- lm(abs(dt[,'alpha_beta']) ~ dt[,'sigma'])
-  #tfit <- lm(abs(dt[,'beta_beta']) ~ dt[,'sigma'])
-  
-  #slope
-  tslope <- coefficients(tfit)[2]
-  
-  #output
-  oslope <- c(oslope, tslope)
+# oslope <- c()
+# for (i in 1:1000)
+# {
+#   #i <- 1
+#   
+#   dt <- c()
+#   for (j in 1:length(sp))
+#   {
+#     #j <- 1
+#     tmn_sigma <- out[j,'mn_sigma']
+#     tsd_sigma <- out[j,'sd_sigma']
+#   
+#     tvals_sigma <- rnorm(1, tmn_sigma, tsd_sigma)
+#     while (tvals_sigma <= 0)
+#     {
+#       tvals_sigma <- rnorm(1, tmn_sigma, tsd_sigma)
+#     }
+#   
+#     tmn_alpha_beta <- out[j,'mn_alpha_beta']
+#     tsd_alpha_beta <- out[j,'sd_alpha_beta']
+#     tvals_alpha_beta <- rnorm(1, tmn_alpha_beta, tsd_alpha_beta)
+#     
+#     # tmn_beta_beta <- out[j,'mn_beta_beta']
+#     # tsd_beta_beta <- out[j,'sd_beta_beta']
+#     # tvals_beta_beta <- rnorm(1, tmn_beta_beta, tsd_beta_beta)
+#     
+#     temp <- c(tvals_sigma, tvals_alpha_beta)
+#     # temp <- c(tvals_sigma, tvals_beta_beta)
+#     dt <- rbind(dt, temp)
+#   }
+#   colnames(dt) <- c('sigma', 'alpha_beta')
+#   #colnames(dt) <- c('sigma', 'beta_beta')
+#   
+#   tfit <- lm(abs(dt[,'alpha_beta']) ~ dt[,'sigma'])
+#   #tfit <- lm(abs(dt[,'beta_beta']) ~ dt[,'sigma'])
+#   
+#   #slope
+#   tslope <- coefficients(tfit)[2]
+#   
+#   #output
+#   oslope <- c(oslope, tslope)
+# }
+# hist(oslope)
+
+
+
+# alpha_gamma ~ sigma ------------------------------------------------------
+
+rng_sigma <- range(pt_out$mn_sigma)
+
+#data for stan model
+DATA <- list(N = NROW(pt_out),
+             y_obs = pt_out$mn_alpha_gamma,
+             sd_y = pt_out$sd_alpha_gamma,
+             x_obs = pt_out$mn_sigma,
+             sd_x = pt_out$sd_sigma,
+             pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
+             N_pred_sim = 100)
+
+#lower limit is 0 for predictor
+stanmodel <- "
+data {
+int<lower=0> N;
+vector[N] y_obs;
+vector<lower=0>[N] sd_y;
+vector<lower=0>[N] x_obs;
+vector<lower=0>[N] sd_x;
+int<lower=0> N_pred_sim;
+vector[N_pred_sim] pred_sim;
 }
-hist(oslope)
+
+parameters {
+vector[N] y_true_raw;
+vector<lower=0>[N] x_true_raw;
+real<lower=0> sigma_raw;
+real alpha_raw;
+real beta_raw;
+}
+
+transformed parameters {
+vector[N] mu;
+vector[N_pred_sim] mu_rep;
+real<lower=0> sigma;
+real alpha;
+real beta;
+vector[N] y_true;
+vector<lower=0>[N] x_true;
+
+sigma = sigma_raw * 10;
+alpha = alpha_raw * 10;
+beta = beta_raw * 10;
+x_true = x_true_raw * 10;
+
+mu = alpha + beta * x_true;
+mu_rep = alpha + beta * pred_sim;
+
+y_true = y_true_raw * sigma + mu;
+}
+
+model {
+
+alpha_raw ~ std_normal();
+beta_raw ~ std_normal();
+sigma_raw ~ std_normal();
+x_true_raw ~ std_normal();
+
+// account for observation error in y
+y_obs ~ normal(y_true, sd_y);
+
+// account for observation error in x
+x_obs ~ normal(x_true, sd_x);
+
+y_true_raw ~ std_normal();      // implies y_true ~ normal(mu, sigma);
+}
+
+generated quantities {
+real y_rep[N];
+real x_rep[N];
+
+y_rep = normal_rng(y_true, sd_y);
+x_rep = normal_rng(x_true, sd_x);
+}
+"
+
+rstan::rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+DELTA <- 0.95
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.005
+CHAINS <- 4
+ITER <- 3000
+
+
+tt <- proc.time()
+fit1 <- rstan::stan(model_code = stanmodel,
+                    data = DATA,
+                    chains = CHAINS,
+                    iter = ITER,
+                    cores = CHAINS,
+                    pars = c('alpha',
+                             'beta',
+                             'sigma',
+                             'y_true',
+                             'x_true',
+                             'y_rep',
+                             'x_rep',
+                             'mu_rep'),
+                    control = list(adapt_delta = DELTA,
+                                   max_treedepth = TREE_DEPTH,
+                                   stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(trends_summary_dir)
+saveRDS(fit1, file = 'alpha-gamma_sigma.rds')
+
+
+
+
+# beta_gamma ~ sigma ------------------------------------------------------
+
+DATA <- list(N = NROW(pt_out),
+             y_obs = pt_out$mn_beta_gamma,
+             sd_y = pt_out$sd_beta_gamma,
+             x_obs = pt_out$mn_sigma,
+             sd_x = pt_out$sd_sigma,
+             pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
+             N_pred_sim = 100)
+
+
+tt <- proc.time()
+fit2 <- rstan::stan(model_code = stanmodel,
+                    data = DATA,
+                    chains = CHAINS,
+                    iter = ITER,
+                    cores = CHAINS,
+                    pars = c('alpha',
+                             'beta',
+                             'sigma',
+                             'y_true',
+                             'x_true',
+                             'y_rep',
+                             'x_rep',
+                             'mu_rep'),
+                    control = list(adapt_delta = DELTA,
+                                   max_treedepth = TREE_DEPTH,
+                                   stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(trends_summary_dir)
+saveRDS(fit2, file = 'beta-gamma_sigma.rds')
+
+
+
+# alpha_beta ~ sigma ------------------------------------------------------
+
+mn_alpha_beta <- apply(alpha_beta_post, 2, function(x) mean(abs(x)))
+sd_alpha_beta <- apply(alpha_beta_post, 2, function(x) sd(abs(x)))
+
+DATA <- list(N = NROW(pt_out),
+             y_obs = mn_alpha_beta,
+             sd_y = sd_alpha_beta,
+             x_obs = pt_out$mn_sigma,
+             sd_x = pt_out$sd_sigma,
+             pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
+             N_pred_sim = 100)
+
+#lower limit is 0 for both response and predictor
+stanmodel2 <- "
+data {
+int<lower=0> N;
+vector<lower=0>[N] y_obs;
+vector<lower=0>[N] sd_y;
+vector<lower=0>[N] x_obs;
+vector<lower=0>[N] sd_x;
+int<lower=0> N_pred_sim;
+vector[N_pred_sim] pred_sim;
+}
+
+parameters {
+vector[N] y_true_raw;
+vector<lower=0>[N] x_true_raw;
+real<lower=0> sigma_raw;
+real alpha_raw;
+real beta_raw;
+}
+
+transformed parameters {
+vector[N] mu;
+vector[N_pred_sim] mu_rep;
+real<lower=0> sigma;
+real alpha;
+real beta;
+vector<lower=0>[N] y_true;
+vector<lower=0>[N] x_true;
+
+sigma = sigma_raw * 10;
+alpha = alpha_raw * 10;
+beta = beta_raw * 10;
+x_true = x_true_raw * 10;
+
+mu = alpha + beta * x_true;
+mu_rep = alpha + beta * pred_sim;
+
+y_true = y_true_raw * sigma + mu;
+}
+
+model {
+
+alpha_raw ~ std_normal();
+beta_raw ~ std_normal();
+sigma_raw ~ std_normal();
+x_true_raw ~ std_normal();
+
+// account for observation error in y
+y_obs ~ normal(y_true, sd_y);
+
+// account for observation error in x
+x_obs ~ normal(x_true, sd_x);
+
+y_true_raw ~ std_normal();      // implies y_true ~ normal(mu, sigma);
+}
+
+generated quantities {
+real y_rep[N];
+real x_rep[N];
+
+y_rep = normal_rng(y_true, sd_y);
+x_rep = normal_rng(x_true, sd_x);
+}
+"
+
+tt <- proc.time()
+fit3 <- rstan::stan(model_code = stanmodel2,
+                    data = DATA,
+                    chains = CHAINS,
+                    iter = ITER,
+                    cores = CHAINS,
+                    pars = c('alpha',
+                             'beta',
+                             'sigma',
+                             'y_true',
+                             'x_true',
+                             'y_rep',
+                             'x_rep',
+                             'mu_rep'),
+                    control = list(adapt_delta = DELTA,
+                                   max_treedepth = TREE_DEPTH,
+                                   stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(trends_summary_dir)
+saveRDS(fit3, file = 'alpha-beta_sigma.rds')
+
+
+
+# beta_beta ~ sigma -------------------------------------------------------
+
+mn_beta_beta <- apply(beta_beta_post, 2, function(x) mean(abs(x)))
+sd_beta_beta <- apply(beta_beta_post, 2, function(x) sd(abs(x)))
+
+DATA <- list(N = NROW(pt_out),
+             y_obs = mn_beta_beta,
+             sd_y = sd_beta_beta,
+             x_obs = pt_out$mn_sigma,
+             sd_x = pt_out$sd_sigma,
+             pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
+             N_pred_sim = 100)
+
+
+tt <- proc.time()
+fit4 <- rstan::stan(model_code = stanmodel2,
+                    data = DATA,
+                    chains = CHAINS,
+                    iter = ITER,
+                    cores = CHAINS,
+                    pars = c('alpha',
+                             'beta',
+                             'sigma',
+                             'y_true',
+                             'x_true',
+                             'y_rep',
+                             'x_rep',
+                             'mu_rep'),
+                    control = list(adapt_delta = DELTA,
+                                   max_treedepth = TREE_DEPTH,
+                                   stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(trends_summary_dir)
+saveRDS(fit4, file = 'beta-beta_sigma.rds')
+
+
+# alpha_gamma ~ beta_gamma -------------------------------------------------------
+
+rng_beta_gamma <- range(pt_out$mn_beta_gamma)
+
+DATA <- list(N = NROW(pt_out),
+             y_obs = pt_out$mn_alpha_gamma,
+             sd_y = pt_out$sd_alpha_gamma,
+             x_obs = pt_out$mn_beta_gamma,
+             sd_x = pt_out$sd_beta_gamma,
+             pred_sim =  seq(from = rng_beta_gamma[1], to = rng_beta_gamma[2], 
+                             length.out = 100),
+             N_pred_sim = 100)
+
+
+tt <- proc.time()
+fit5 <- rstan::stan(model_code = stanmodel,
+                    data = DATA,
+                    chains = CHAINS,
+                    iter = ITER,
+                    cores = CHAINS,
+                    pars = c('alpha',
+                             'beta',
+                             'sigma',
+                             'y_true',
+                             'x_true',
+                             'y_rep',
+                             'x_rep',
+                             'mu_rep'),
+                    control = list(adapt_delta = DELTA,
+                                   max_treedepth = TREE_DEPTH,
+                                   stepsize = STEP_SIZE))
+run_time <- (proc.time()[3] - tt[3]) / 60
+
+setwd(trends_summary_dir)
+saveRDS(fit5, file = 'alpha-gamma_beta-gamma.rds')
+
+
+
+# plot plasticity ---------------------------------------------------------
+
+
+plt_fun <- function(INPUT, RNG, MAIN, XLAB, YLAB, TITLE)
+{
+  #model fit
+  mu_rep_mn <- MCMCvis::MCMCpstr(INPUT, params = 'mu_rep', 
+                                 func = mean)[[1]]
+  mu_rep_LCI <- MCMCvis::MCMCpstr(INPUT, params = 'mu_rep', 
+                                  func = function(x) quantile(x, probs = 0.025))[[1]]
+  mu_rep_UCI <- MCMCvis::MCMCpstr(INPUT, params = 'mu_rep', 
+                                  func = function(x) quantile(x, probs = 0.975))[[1]]
+  
+  #data to plot model fit
+  FIT_PLOT <- data.frame(x_sim = seq(from = RNG[1], 
+                                     to = RNG[2], length.out = 100), 
+                         mu_rep_mn, mu_rep_LCI, mu_rep_UCI)
+  
+  #mean and +- 1 sd for data
+  y_true_mn <- MCMCvis::MCMCpstr(INPUT, params = 'y_true', func = mean)[[1]]
+  y_true_sd <- MCMCvis::MCMCpstr(INPUT, params = 'y_true', func = sd)[[1]]
+  y_true_LCI <- y_true_mn - y_true_sd
+  y_true_UCI <- y_true_mn + y_true_sd
+  
+  x_true_mn <- MCMCvis::MCMCpstr(INPUT, params = 'x_true', func = mean)[[1]]
+  x_true_sd <- MCMCvis::MCMCpstr(INPUT, params = 'x_true', func = sd)[[1]]
+  x_true_LCI <- x_true_mn - x_true_sd
+  x_true_UCI <- x_true_mn + x_true_sd
+  
+  
+  DATA_PLOT <- data.frame(y_true_mn, y_true_LCI, y_true_UCI,
+                          x_true_mn, x_true_LCI, x_true_UCI)
+  
+  plt <- ggplot(data = DATA_PLOT, aes(x_true_mn, y_true_mn), color = 'black', alpha = 0.6) +
+    geom_ribbon(data = FIT_PLOT, 
+                aes(x = x_sim, ymin = mu_rep_LCI, ymax = mu_rep_UCI),
+                fill = 'grey', alpha = 0.6,
+                inherit.aes = FALSE) +
+    geom_line(data = FIT_PLOT, aes(x_sim, mu_rep_mn), color = 'red',
+              alpha = 0.9,
+              inherit.aes = FALSE,
+              size = 1.4) +
+    geom_point(data = DATA_PLOT,
+               aes(x_true_mn, y_true_mn), color = 'black',
+               inherit.aes = FALSE, size = 3, alpha = 0.4) +
+    geom_errorbar(data = DATA_PLOT,
+                  aes(ymin = y_true_LCI, ymax = y_true_UCI), #width = 0.05,
+                  color = 'black', alpha = 0.2) +
+    geom_errorbarh(data = DATA_PLOT,
+                   aes(xmin = x_true_LCI, xmax = x_true_UCI), #height = 0.05,
+                   color = 'black', alpha = 0.2) +
+    theme_bw() +
+    ggtitle(MAIN) +
+    xlab(XLAB) +
+    ylab(YLAB) +
+    theme(
+      axis.text = element_text(size = 16),
+      axis.title = element_text(size = 18),
+      axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+      axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
+      axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
+  
+  ggsave(paste0(TITLE, '.pdf'), plt)
+}
+
+
+setwd(trends_summary_dir)
+plt_fun(fit1, rng_sigma, MAIN = 'alpha_gamma ~ sigma', 
+        XLAB = 'Interannual variability', 
+        YLAB = 'Relative arrival date',
+        TITLE = 'alpha-gamma_sigma')
+plt_fun(fit2, rng_sigma, MAIN = 'beta_gamma ~ sigma', 
+        XLAB = 'Interannual variability', 
+        YLAB = 'Migration speed (days/degree lat)',
+        TITLE = 'beta-gamma_sigma')
+plt_fun(fit3, rng_sigma, MAIN = 'alpha_beta ~ sigma', 
+        XLAB = 'Interannual variability', 
+        YLAB = '|Overall phenological change|',
+        TITLE = 'alpha-beta_sigma')
+plt_fun(fit4, rng_sigma, MAIN = 'beta_beta ~ sigma', 
+        XLAB = 'Interannual variability', 
+        YLAB = '|Effect of lat on rate of phenological change|',
+        TITLE = 'beta-beta_sigma')
+plt_fun(fit5, rng_beta_gamma, MAIN = 'alpha_gamma ~ beta_gamma', 
+        XLAB = 'Migration speed (days/degree lat)', 
+        YLAB = 'Relative arrival date',
+        TITLE = 'alpha-gamma_beta_gamma')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -108,8 +560,7 @@ fit_fun(out[, 'mn_sigma'], abs(out[, 'mn_beta_beta']))
 
 # plot parameter estimates ------------------------------------------------
 
-MCMCvis::MCMCplot(mu_alpha_post, guide_lines = TRUE, params = sp,
-                  sz_labels = 0.6, xlim = c(50, 175), main = 'mu_alpha')
+
 MCMCvis::MCMCplot(sigma_post, guide_lines = TRUE, params = sp,
                   sz_labels = 0.6, xlim = c(0, 10), main = 'sigma')
 MCMCvis::MCMCplot(alpha_beta_post, guide_lines = TRUE, params = sp,
