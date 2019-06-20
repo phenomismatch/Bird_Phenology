@@ -19,7 +19,7 @@ dir <- '~/Google_Drive/R/'
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
 IAR_out_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-
+master_out_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_2019-05-26'
 
 
 # Load packages -----------------------------------------------------------
@@ -101,18 +101,32 @@ for (i in 1:length(species))
                                           func = mean)[[1]]
     sd_alpha_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
                                         func = sd)[[1]]
+    alpha_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'alpha_gamma')
+    colnames(alpha_gamma_ch) <- sp
     
     #extract migration speed (beta_gamma)
     mean_beta_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
                                           func = mean)[[1]]
     sd_beta_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
                                         func = sd)[[1]]
+    beta_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_gamma')
+    colnames(beta_gamma_ch) <- sp
     
     #diagnostics
     num_diverge <- rstan::get_num_divergent(t_fit)
     model_summary <- MCMCvis::MCMCsummary(t_fit, excl = 'y_rep', round = 2)
     max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
     min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
+    
+    #matrix objects with alpha_gamma and beta_gamma posteriors
+    if (i == 1)
+    {
+      alpha_gamma_post <- alpha_gamma_ch
+      beta_gamma_post <- beta_gamma_ch
+    } else {
+      alpha_gamma_post <- cbind(alpha_gamma_post, alpha_gamma_ch)
+      beta_gamma_post <- cbind(beta_gamma_post, beta_gamma_ch)
+    }
     
     #loop through years
     for (j in 1:length(t_years))
@@ -151,9 +165,15 @@ for (i in 1:length(species))
 } #end species loop
 
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+#create dir if it does not exist
+ifelse(!dir.exists(master_out_dir),
+       dir.create(master_out_dir),
+       FALSE)
+
+setwd(master_out_dir)
 
 saveRDS(out, file = paste0('arrival_master_', IAR_out_date, '.rds'))
+saveRDS(alpha_gamma_post, file = paste0('arrival_alpha_gamma_post_', IAR_out_date, '.rds'))
+saveRDS(beta_gamma_post, file = paste0('arrival_beta_gamma_post_', IAR_out_date, '.rds'))
 
 print('I completed!')
-
