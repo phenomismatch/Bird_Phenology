@@ -26,10 +26,10 @@ library(doParallel)
 # top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 # define function -----------------------------------------------------------
@@ -39,8 +39,8 @@ dir <- '~/Google_Drive/R/'
 daymet_fun <- function(input, var = 'tmax', YEAR)
 {
   st_time <- proc.time()[3]/60
-  #setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
-  setwd('~/Desktop/Bird_Phenology_Offline/Data/Daymet_data/')
+  setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
+  #setwd('~/Desktop/Bird_Phenology_Offline/Data/Daymet_data/')
   
   daymet_data_temp <- ncdf4::nc_open(input)
   
