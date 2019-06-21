@@ -26,10 +26,10 @@ library(doParallel)
 # top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 # define function -----------------------------------------------------------
@@ -38,14 +38,21 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 #returns dataframe of hex sorted 
 daymet_fun <- function(input, var = 'tmax', YEAR)
 {
-  setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
-  #setwd('~/Desktop/Bird_Phenology_Offline/Data/Daymet_data/')
+  st_time <- proc.time()[3]/60
+  #setwd('/home/CAM/cyoungflesh/phenomismatch/Bird_Phenology/Data/Raw/Daymet_data')
+  setwd('~/Desktop/Bird_Phenology_Offline/Data/Daymet_data/')
   
   daymet_data_temp <- ncdf4::nc_open(input)
   
   #get lat/lons
   daymet_lats <- ncdf4::ncvar_get(daymet_data_temp, "lat")
   daymet_lons <- ncdf4::ncvar_get(daymet_data_temp, "lon")
+  
+  t_elapsed_1 <- round((proc.time()[3]/60 - st_time), 1)
+  
+  sink(paste0(dir, 'Bird_Phenology/Data/Processed/daymet/log.txt'), append = TRUE)
+  cat(paste0(var, ' lat/lon read-in complete: ', YEAR, 
+             ' - ', t_elapsed_1, ' min \n'))
   
   #Feb, Mar, Apr, and FMA
   #calc julian day
@@ -64,6 +71,10 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   apr_d_temp <- ncdf4::ncvar_get(daymet_data_temp, var, start = c(1, 1, apr_start), 
                                  count = c(7814, 8075, 30))
   
+  t_elapsed_2 <- round((proc.time()[3]/60 - t_elapsed_1), 1)
+  cat(paste0(var, ' data read-in complete: ', YEAR, 
+             ' - ', t_elapsed_2, ' min \n'))
+  
   ncdf4::nc_close(daymet_data_temp)
   
   Feb_temp <- apply(feb_d_temp[,,], c(1,2), mean)
@@ -75,6 +86,10 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   FMA_temp_array <- abind::abind(Feb_temp, Mar_temp, Apr_temp, along = 3)
   FMA_temp <- apply(FMA_temp_array, c(1,2), mean)
   rm(FMA_temp_array)
+  
+  t_elapsed_3 <- round((proc.time()[3]/60 - t_elapsed_2), 1)
+  cat(paste0(var, ' averaging complete: ', YEAR, 
+             '- ', t_elapsed_3, ' min \n'))
   
   LL_daymet <- data.frame(LATS = as.vector(daymet_lats), 
                           LONS = as.vector(daymet_lons),
@@ -117,6 +132,10 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   colnames(HEX_daymet)[3:6] <- c(paste0('F_', var), paste0('M_', var),
                                  paste0('A_', var), paste0('FMA_', var))
   
+  t_elapsed_4 <- round((proc.time()[3]/60 - t_elapsed_3), 1)
+  cat(paste0(var, ' starting hex loop: ', YEAR, 
+             '- ', t_elapsed_4, ' min \n'))
+  
   #fill df
   for (i in 1:length(hex_cells))
   {
@@ -138,7 +157,7 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
 YEARS <- 2002:2018
 #YEARS <- 2002:2003
 
-doParallel::registerDoParallel(cores = 4)
+doParallel::registerDoParallel(cores = 3)
 OUT_tmax <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
   {
     tt_tmax <- daymet_fun(input = paste0('daymet_v3_tmax_', YEARS[k], '_na.nc4'), 
