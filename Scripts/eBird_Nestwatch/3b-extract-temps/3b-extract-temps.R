@@ -92,7 +92,7 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   
   t_elapsed_3 <- round((proc.time()[3]/60 - t_elapsed_2), 1)
   cat(paste0(var, ' averaging complete: ', YEAR, 
-             '- ', t_elapsed_3, ' min \n'))
+             ' - ', t_elapsed_3, ' min \n'))
   
   LL_daymet <- data.frame(LATS = as.vector(daymet_lats), 
                           LONS = as.vector(daymet_lons),
@@ -139,7 +139,7 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   
   t_elapsed_4 <- round((proc.time()[3]/60 - t_elapsed_3), 1)
   cat(paste0(var, ' starting hex loop: ', YEAR, 
-             '- ', t_elapsed_4, ' min \n'))
+             ' - ', t_elapsed_4, ' min \n'))
   
   #fill df
   for (i in 1:length(hex_cells))
@@ -157,7 +157,8 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
 
 
 
-# run function ------------------------------------------------------------
+
+# run tmax ----------------------------------------------------------------
 
 YEARS <- 2002:2018
 #YEARS <- 2002:2003
@@ -170,7 +171,15 @@ OUT_tmax <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
     return(tt_tmax)
   }
 
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
+saveRDS(OUT_tmax, 'daymet_hex_tmax.rds')
+rm(OUT_tmax)
+gc()
 print('Finished tmax')
+
+
+
+# run tmin ----------------------------------------------------------------
 
 OUT_tmin <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
   {
@@ -179,7 +188,15 @@ OUT_tmin <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
     return(tt_tmin)
   }
 
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
+saveRDS(OUT_tmin, 'daymet_hex_tmin.rds')
+rm(OUT_tmin)
+gc()
 print('Finished tmin')
+
+
+
+# run precip --------------------------------------------------------------
 
 OUT_precip <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
   {
@@ -188,16 +205,7 @@ OUT_precip <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
     return(tt_precip)
   }
 
-print('Finished precip')
-
-
-
-# write to rds file -------------------------------------------------------
-
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
-
-saveRDS(OUT_tmax, 'daymet_hex_tmax.rds')
-saveRDS(OUT_tmin, 'daymet_hex_tmin.rds')
 saveRDS(OUT_precip, 'daymet_hex_precip.rds')
-
+print('Finished precip')
 print('I completed!')
