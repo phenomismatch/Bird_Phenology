@@ -60,49 +60,38 @@ beta_gamma_post <- readRDS('arrival_beta_gamma_post_2019-05-26.rds')
 
 # alpha_beta (and beta_beta) ~ sigma - lm in loop --------------------------------------
 
-# oslope <- c()
-# for (i in 1:1000)
-# {
-#   #i <- 1
-#   
-#   dt <- c()
-#   for (j in 1:length(sp))
-#   {
-#     #j <- 1
-#     tmn_sigma <- out[j,'mn_sigma']
-#     tsd_sigma <- out[j,'sd_sigma']
-#   
-#     tvals_sigma <- rnorm(1, tmn_sigma, tsd_sigma)
-#     while (tvals_sigma <= 0)
-#     {
-#       tvals_sigma <- rnorm(1, tmn_sigma, tsd_sigma)
-#     }
-#   
-#     tmn_alpha_beta <- out[j,'mn_alpha_beta']
-#     tsd_alpha_beta <- out[j,'sd_alpha_beta']
-#     tvals_alpha_beta <- rnorm(1, tmn_alpha_beta, tsd_alpha_beta)
-#     
-#     # tmn_beta_beta <- out[j,'mn_beta_beta']
-#     # tsd_beta_beta <- out[j,'sd_beta_beta']
-#     # tvals_beta_beta <- rnorm(1, tmn_beta_beta, tsd_beta_beta)
-#     
-#     temp <- c(tvals_sigma, tvals_alpha_beta)
-#     # temp <- c(tvals_sigma, tvals_beta_beta)
-#     dt <- rbind(dt, temp)
-#   }
-#   colnames(dt) <- c('sigma', 'alpha_beta')
-#   #colnames(dt) <- c('sigma', 'beta_beta')
-#   
-#   tfit <- lm(abs(dt[,'alpha_beta']) ~ dt[,'sigma'])
-#   #tfit <- lm(abs(dt[,'beta_beta']) ~ dt[,'sigma'])
-#   
-#   #slope
-#   tslope <- coefficients(tfit)[2]
-#   
-#   #output
-#   oslope <- c(oslope, tslope)
-# }
-# hist(oslope)
+ab_slope <- c()
+bb_slope <- c()
+for (i in 1:NROW(sigma_post))
+{
+  #i <- 1
+
+  tv_sigma <- sigma_post[i,]
+  tv_alpha_beta <- alpha_beta_post[i,]
+  tv_beta_beta <- beta_beta_post[i,]
+
+  tfit <- lm(abs(tv_alpha_beta) ~ tv_sigma)
+  tfit2 <- lm(abs(tv_beta_beta) ~ tv_sigma)
+
+  #slope
+  tslope <- coefficients(tfit)[2]
+  tslope2 <- coefficients(tfit2)[2]
+
+  #output
+  ab_slope <- c(ab_slope, tslope)
+  bb_slope <- c(bb_slope, tslope2)
+}
+
+
+setwd(trends_summary_dir)
+pdf('alpha-beta_sigma_hist.pdf')
+hist(ab_slope, xlim = c(0, 0.5), xlab = 'Slope estimate', main = '|alpha_beta| ~ sigma')
+dev.off()
+
+pdf('beta-beta_sigma_hist.pdf')
+hist(bb_slope, xlim = c(0, 0.15), xlab = 'Slope estimate', main = '|beta_beta| ~ sigma')
+dev.off()
+
 
 
 
@@ -261,97 +250,27 @@ saveRDS(fit2, file = 'beta-gamma_sigma.rds')
 
 # alpha_beta ~ sigma ------------------------------------------------------
 
-mn_alpha_beta <- apply(alpha_beta_post, 2, function(x) mean(abs(x)))
-sd_alpha_beta <- apply(alpha_beta_post, 2, function(x) sd(abs(x)))
+# mn_alpha_beta <- apply(alpha_beta_post, 2, function(x) mean(abs(x)))
+# sd_alpha_beta <- apply(alpha_beta_post, 2, function(x) sd(abs(x)))
 
 DATA <- list(N = NROW(pt_out),
-             y_obs = mn_alpha_beta,
-             sd_y = sd_alpha_beta,
-             # y_obs = pt_out$mn_alpha_beta,
-             # sd_y = pt_out$sd_alpha_beta,
+             # y_obs = mn_alpha_beta,
+             # sd_y = sd_alpha_beta,
+             y_obs = pt_out$mn_alpha_beta,
+             sd_y = pt_out$sd_alpha_beta,
              x_obs = pt_out$mn_sigma,
              sd_x = pt_out$sd_sigma,
              pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
              N_pred_sim = 100)
 
-#lower limit is 0 for both response and predictor
-stanmodel2 <- "
-data {
-int<lower=0> N;
-vector<lower=0>[N] y_obs;
-vector<lower=0>[N] sd_y;
-vector<lower=0>[N] x_obs;
-vector<lower=0>[N] sd_x;
-int<lower=0> N_pred_sim;
-vector[N_pred_sim] pred_sim;
-}
-
-parameters {
-// vector[N] y_true_raw;
-vector[N] y_true;
-vector<lower=0>[N] x_true_raw;
-real<lower=0> sigma_raw;
-real<lower=0> alpha_raw;
-real beta_raw;
-}
-
-transformed parameters {
-vector<lower=0>[N] mu;
-vector<lower=0>[N_pred_sim] mu_rep;
-real<lower=0> sigma;
-real<lower=0> alpha;
-real beta;
-// vector<lower=0>[N] y_true;
-vector<lower=0>[N] x_true;
-
-sigma = sigma_raw * 10;
-alpha = alpha_raw * 10;
-beta = beta_raw * 10;
-x_true = x_true_raw * 10;
-
-mu = alpha + beta * x_true;
-mu_rep = alpha + beta * pred_sim;
-
-// y_true = y_true_raw * sigma + mu;
-}
-
-model {
-
-alpha_raw ~ std_normal();
-beta_raw ~ std_normal();
-sigma_raw ~ std_normal();
-x_true_raw ~ std_normal();
-
-y_true ~ normal(mu, sigma);
-// y_true_raw ~ std_normal();      // implies y_true ~ normal(mu, sigma);
-
-// account for observation error in y
-y_obs ~ normal(y_true, sd_y);
-
-
-// account for observation error in x
-x_obs ~ normal(x_true, sd_x);
-
-
-}
-
-generated quantities {
-real y_rep[N];
-real x_rep[N];
-
-y_rep = normal_rng(y_true, sd_y);
-x_rep = normal_rng(x_true, sd_x);
-}
-"
-
-DELTA <- 0.99
+DELTA <- 0.95
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.005
 CHAINS <- 4
 ITER <- 3000
 
 tt <- proc.time()
-fit3 <- rstan::stan(model_code = stanmodel2,
+fit3 <- rstan::stan(model_code = stanmodel,
                     data = DATA,
                     chains = CHAINS,
                     iter = ITER,
@@ -376,14 +295,14 @@ saveRDS(fit3, file = 'alpha-beta_sigma.rds')
 
 # beta_beta ~ sigma -------------------------------------------------------
 
-mn_beta_beta <- apply(beta_beta_post, 2, function(x) mean(abs(x)))
-sd_beta_beta <- apply(beta_beta_post, 2, function(x) sd(abs(x)))
+# mn_beta_beta <- apply(beta_beta_post, 2, function(x) mean(abs(x)))
+# sd_beta_beta <- apply(beta_beta_post, 2, function(x) sd(abs(x)))
 
 DATA <- list(N = NROW(pt_out),
-             y_obs = mn_beta_beta,
-             sd_y = sd_beta_beta,
-             # y_obs = pt_out$mn_beta_beta,
-             # sd_y = pt_out$sd_beta_beta,
+             # y_obs = mn_beta_beta,
+             # sd_y = sd_beta_beta,
+             y_obs = pt_out$mn_beta_beta,
+             sd_y = pt_out$sd_beta_beta,
              x_obs = pt_out$mn_sigma,
              sd_x = pt_out$sd_sigma,
              pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
@@ -396,7 +315,7 @@ CHAINS <- 4
 ITER <- 3000
 
 tt <- proc.time()
-fit4 <- rstan::stan(model_code = stanmodel2,
+fit4 <- rstan::stan(model_code = stanmodel,
                     data = DATA,
                     chains = CHAINS,
                     iter = ITER,
@@ -538,11 +457,11 @@ plt_fun(fit2, rng_sigma, MAIN = 'beta_gamma ~ sigma',
         TITLE = 'beta-gamma_sigma')
 plt_fun(fit3, rng_sigma, MAIN = 'alpha_beta ~ sigma', 
         XLAB = 'Interannual variability', 
-        YLAB = '|Overall phenological change|',
+        YLAB = 'Phenological change',
         TITLE = 'alpha-beta_sigma')
 plt_fun(fit4, rng_sigma, MAIN = 'beta_beta ~ sigma', 
         XLAB = 'Interannual variability', 
-        YLAB = '|Effect of lat on rate of phenological change|',
+        YLAB = 'Effect of lat on rate of phenological change',
         TITLE = 'beta-beta_sigma')
 plt_fun(fit5, rng_beta_gamma, MAIN = 'alpha_gamma ~ beta_gamma', 
         XLAB = 'Migration speed (days/degree lat)', 
@@ -551,8 +470,11 @@ plt_fun(fit5, rng_beta_gamma, MAIN = 'alpha_gamma ~ beta_gamma',
 
 
 
-
-
+MCMCsummary(fit1, round = 2, excl = c('y_true', 'x_true', 'y_rep', 'x_rep', 'mu_rep'))
+MCMCsummary(fit2, round = 2, excl = c('y_true', 'x_true', 'y_rep', 'x_rep', 'mu_rep'))
+MCMCsummary(fit3, round = 2, excl = c('y_true', 'x_true', 'y_rep', 'x_rep', 'mu_rep'))
+MCMCsummary(fit4, round = 2, excl = c('y_true', 'x_true', 'y_rep', 'x_rep', 'mu_rep'))
+MCMCsummary(fit5, round = 2, excl = c('y_true', 'x_true', 'y_rep', 'x_rep', 'mu_rep'))
 
 
 
@@ -582,29 +504,33 @@ MCMCvis::MCMCplot(beta_gamma_post, guide_lines = TRUE, params = sp,
 
 # traits ------------------------------------------------------------------
 
-setwd("~/Google_Drive/R/Bird_Phenology/Data/Traits")
+setwd('~/Google_Drive/R/Bird_Phenology/Data/Traits')
 
 traits <- read.csv('Trait_database-2019-06-17.csv', stringsAsFactors = FALSE)
 #add underscore
 traits$species <- gsub(' ', '_', traits$SCI_NAME)
 
-out_j <- dplyr::left_join(out, traits, by = 'species')
+out_j <- dplyr::left_join(pt_out, traits, by = 'species')
 
-out_jf <- dplyr::select(out_j, species, mn_mu_alpha, sd_mu_alpha, mn_sigma, 
-                        sd_sigma, mn_alpha_beta, sd_alpha_beta, mn_beta_beta,
-                        sd_beta_beta, IUCN_STATUS, BODY_MASS_ELTON, MIGRATION_DISTANCE_LASORTE, 
-                        SPRING_MIGRATION_SPEED_LASORTE, CLUTCH_SIZE_BONA, BROODS_PER_YEAR_BONA, 
-                        EGG_MASS_BONA, MAX_LIFESPAN_BONA, INCUBATION_PERIOD_LENGTH_BONA, 
-                        FLEDGING_AGE_BONA, DIET_INV_ELTON, DIET_VUNK_ELTON, DIET_SCAV_ELTON, 
-                        DIET_FRUIT_ELTON, DIET_SEED_ELTON, rng_lat, n_cells, n_years, num_diverge, max_rhat, min_neff)
+# out_jf <- dplyr::select(out_j, species, mn_mu_alpha, sd_mu_alpha, mn_sigma, 
+#                         sd_sigma, mn_alpha_beta, sd_alpha_beta, mn_beta_beta,
+#                         sd_beta_beta, IUCN_STATUS, BODY_MASS_ELTON, MIGRATION_DISTANCE_LASORTE, 
+#                         SPRING_MIGRATION_SPEED_LASORTE, CLUTCH_SIZE_BONA, BROODS_PER_YEAR_BONA, 
+#                         EGG_MASS_BONA, MAX_LIFESPAN_BONA, INCUBATION_PERIOD_LENGTH_BONA, 
+#                         FLEDGING_AGE_BONA, DIET_INV_ELTON, DIET_VUNK_ELTON, DIET_SCAV_ELTON, 
+#                         DIET_FRUIT_ELTON, DIET_SEED_ELTON, rng_lat, n_cells, n_years, num_diverge, max_rhat, min_neff)
+# 
+# 
+# 
+# idx <- which(colnames(out_jf) %in% c('species', 'IUCN_STATUS', 'sd_mu_alpha', 'sd_sigma', 
+#                                      'sd_alpha_beta', 'sd_beta_beta', 
+#                                      'num_diverge', 'max_rhat', 'min_neff'))
+# 
+# pairs(out_jf[,-idx])
 
-
-
-idx <- which(colnames(out_jf) %in% c('species', 'IUCN_STATUS', 'sd_mu_alpha', 'sd_sigma', 
-                                     'sd_alpha_beta', 'sd_beta_beta', 
-                                     'num_diverge', 'max_rhat', 'min_neff'))
-
-pairs(out_jf[,-idx])
+summary(lm(out_j$mn_beta_gamma ~ out_j$SPRING_MIGRATION_SPEED_LASORTE))
+summary(lm(out_j$SPRING_MIGRATION_SPEED_LASORTE ~ out_j$BODY_MASS_LASORTE))
+summary(lm(out_j$mn_beta_gamma ~ out_j$BODY_MASS_LASORTE))
 
 
 out_jf2 <- dplyr::filter(out_jf, n_cells > 10, n_years > 10, rng_lat > 10)
