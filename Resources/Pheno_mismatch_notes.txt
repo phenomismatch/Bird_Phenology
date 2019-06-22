@@ -46,17 +46,12 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *[DONE] Run wing chord ~ age analysis/make figs - send to Morgan
 *[DONE] Wing chord ~ age
 *[DONE] Run 2 (GAM)
-*[IN PROGRESS] 3 remaining species (Empidonax_alnorum, Empidonax_virescens, Setophaga_americana)
-
-*Run 2 - clean up cells 
+*[DONE] Run 3 and 4
 
 
 
 *Run 6 (query breeding) - need IAR species list from 3
 *Run 7 (GAM)
-
-
-#AFTER 7
 *Run 8 (process 7)
 *Run 9 (breeding IAR)
 
@@ -65,43 +60,12 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *Add correlation structure for gamma in IAR models - what was meant by this? Don't think this needs any correlation structure to be accounted for.
 
 
-*Run fat ~ lat/time
-
 
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
 *Breeding IAR integrating other datasets
   -Query NW from DB
   -Model NW using 5th quantile? Model MAPS using logistic? Or proportion of yearlings hitting nets?
   -If no IAR, integrate other datasets into similar model
-
-
-#4 - NOTES
-SLOW
-Contopus_cooperi **chain 3 30%, March 5, 40% March 7, 50% March 9, 60% March 11 - CANCELED
-Empidonax_minimus **chain 2 40%, March 5, 60% March 7, 80% March 9
-Passerculus_sandwichensis **chain 3 30%, March 5, 50% March 7, 70% March 9, 90% March 11
-Setophaga_palmarum ** chain 3 10%, chain 2 20%, chain 4 30% March 5, unchanged March 7 - CANCELED
-
-DIVERGE (1 transition, except where noted)
-Contopus_virens
-Geothlypis_trichas
-Petrochelidon_pyrrhonota ** 3 
-Setophagea_ruticilla
-Vireo_flavifrons ** 2
-Vireo_olivaceus
-
-TREE
-Ammodramus_nelsoni (502 min) OKAY
-Bombycilla_cedrorum (288 min) OKAY
-Cardellina_pusilla (4310 min) min neff = 180
-Catharus_minimus (3369 min) min neff = 174
-Melospiza_georgiana (10510 min) min neff = 191
-Oreothlypis_celata (4688 min) min neff = 157
-Passerella_iliaca (6929 min) OKAY
-Quiscalus_quiscula (3605 min) OKAY
-Setophaga_fusca (10213 min) OKAY
-Zonotrichia_leucophrys (1678 min) min neff = 82
-
 
 
 ###
@@ -139,6 +103,7 @@ Diff_arr_br ~ alpha_j + beta1_j * year + beta2_j * arr #where j is species
 
 
 *Aggregate MAPS cells and test logit models for MAPS breeding
+*Run fat ~ lat/time
 
 ####
 *lat differences in territory - leapfrogging migratory strategies
