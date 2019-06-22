@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=extract-temps2
+#SBATCH --job-name=extract-temps3
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus

@@ -76,6 +76,8 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
              ' - ', t_elapsed_2, ' min \n'))
   
   ncdf4::nc_close(daymet_data_temp)
+  rm(daymet_data_temp)
+  gc()
   
   Feb_temp <- apply(feb_d_temp[,,], c(1,2), mean)
   rm(feb_d_temp)
@@ -86,6 +88,7 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   FMA_temp_array <- abind::abind(Feb_temp, Mar_temp, Apr_temp, along = 3)
   FMA_temp <- apply(FMA_temp_array, c(1,2), mean)
   rm(FMA_temp_array)
+  gc()
   
   t_elapsed_3 <- round((proc.time()[3]/60 - t_elapsed_2), 1)
   cat(paste0(var, ' averaging complete: ', YEAR, 
@@ -107,11 +110,13 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   rm(Apr_temp)
   rm(FMA_temp)
   
+  
   #filter by relevant location
   f_LL_daymet <- dplyr::filter(LL_daymet, 
                                LONS > -100 & LONS < -50 & LATS > 24)
   
   rm(LL_daymet)
+  gc()
   
   #create grid
   hexgrid6 <- dggridR::dgconstruct(res = 6)
