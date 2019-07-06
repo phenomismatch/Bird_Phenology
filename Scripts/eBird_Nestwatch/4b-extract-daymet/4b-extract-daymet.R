@@ -50,7 +50,7 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   
   t_elapsed_1 <- round((proc.time()[3]/60 - st_time), 1)
   
-  sink(paste0(dir, 'Bird_Phenology/Data/Processed/daymet/log3.txt'), append = TRUE)
+  sink(paste0(dir, 'Bird_Phenology/Data/Processed/daymet/log.txt'), append = TRUE)
   cat(paste0(var, ' lat/lon read-in complete: ', YEAR, 
              ' - ', t_elapsed_1, ' min \n'))
   

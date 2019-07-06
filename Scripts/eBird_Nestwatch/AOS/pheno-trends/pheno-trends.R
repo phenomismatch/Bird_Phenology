@@ -21,6 +21,9 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Agelaius_phoeniceus')
 #args <- as.character('Turdus_migratorius')
 
+#args <- 'Empidonax_virescens'
+#args <- 'Hirundo_rustica'
+args <- 'Icterus_spurius'
 
 # other dir ---------------------------------------------------------------
 
@@ -399,6 +402,9 @@ ggsave(paste0(args, '-', run_date, '-dens_overlay.pdf'), p)
 #estimated slope in grey, sd in white
 
 #extract median and sd estimates for mu params
+setwd('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-17/')
+fit <- readRDS(paste0(args, '-2019-06-17-pheno_trends_stan_output.rds'))
+
 med_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = median)[[1]]
 sd_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = sd)[[1]]
 
@@ -463,7 +469,7 @@ p_beta <- ggplot() +
   # geom_polygon(data = nrng_rm.df,
   #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) +
   coord_map("ortho", orientation = c(35, -80, 0),
-            xlim = c(-100, -55), ylim = c(23, 66)) +
+            xlim = c(-100, -65), ylim = c(23, 55)) +
   geom_polygon(data = to_plt2, aes(x = long, y = lat, group = group, fill = med_beta),
                alpha = 0.5) +
   geom_path(data = to_plt2, aes(x = long, y = lat, group = group),
@@ -476,17 +482,18 @@ p_beta <- ggplot() +
   # scale_fill_gradient2(low = 'indianred2', mid = 'grey60', high = 'lightblue2', 
   #                      limits = c(MIN, MAX), midpoint = 0) +
   labs(fill = 'Slope') +
-  annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5,
-           label = round(to_plt2$med_beta, digits = 2), col = 'black', alpha = 0.2,
-           size = 3) +
-  annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5,
-           label = round(to_plt2$sd_beta, digits = 2), col = 'white', alpha = 1,
-           size = 2) +
+  # annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5,
+  #          label = round(to_plt2$med_beta, digits = 2), col = 'black', alpha = 0.2,
+  #          size = 3) +
+  # annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5,
+  #          label = round(to_plt2$sd_beta, digits = 2), col = 'white', alpha = 1,
+  #          size = 2) +
   ggtitle(paste0(args, ' - Arrival ~ time')) +
   theme_bw() +
   xlab('Longitude') +
   ylab('Latitude')
 
+setwd('~/Desktop')
 ggsave(plot = p_beta,
        filename = paste0(args, '-', run_date, '-pheno_trends_map.pdf'))
 
