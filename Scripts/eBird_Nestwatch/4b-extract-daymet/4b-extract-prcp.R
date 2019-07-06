@@ -1,7 +1,7 @@
 ################################
-#Extract temperature data for NA
+#Extract daymet precip data
 #
-#Requires ~ 200GB RAM and 4 cores on cluster; ~ ? hours runtime
+#Requires ~ 250GB RAM and 2 cores on cluster; ~ ? hours runtime
 ################################
 
 #mean daily min temp for Feb-April, following Hurlbert and Liang 2012
@@ -9,7 +9,7 @@
 #resources:
 #http://rpubs.com/boyerag/297592
 #https://daac.ornl.gov/workshops/NetCDF_webinar_08302017.html
-#used this one vvv
+#data source:
 #https://github.com/ornldaac/thredds_opendap_r_max_temperature/blob/master/opendap_r_v1.Rmd
 
 
@@ -19,8 +19,6 @@ library(ncdf4)
 library(dplyr)
 library(dggridR)
 library(abind)
-library(foreach)
-library(doParallel)
 
 
 # top-level dir -----------------------------------------------------------
@@ -50,7 +48,7 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
   
   t_elapsed_1 <- round((proc.time()[3]/60 - st_time), 1)
   
-  sink(paste0(dir, 'Bird_Phenology/Data/Processed/daymet/log.txt'), append = TRUE)
+  sink(paste0(dir, 'Bird_Phenology/Data/Processed/daymet/log-', var, '.txt'), append = TRUE)
   cat(paste0(var, ' lat/lon read-in complete: ', YEAR, 
              ' - ', t_elapsed_1, ' min \n'))
   
@@ -158,54 +156,21 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
 
 
 
-# run tmax ----------------------------------------------------------------
+# run prcp ----------------------------------------------------------------
 
 YEARS <- 2002:2018
 #YEARS <- 2002:2003
 
-doParallel::registerDoParallel(cores = 3)
-OUT_tmax <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar% 
-  {
-    tt_tmax <- daymet_fun(input = paste0('daymet_v3_tmax_', YEARS[k], '_na.nc4'), 
-                          var = 'tmax', YEAR = YEARS[k])
-    return(tt_tmax)
-  }
+OUT_prcp <- data.frame()
+for (k in 1:length(YEARS))
+{
+  tt_prcp <- daymet_fun(input = paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'), 
+                        var = 'prcp', YEAR = YEARS[k])
+  OUT_prcp <- rbind(OUT_prcp, tt_prcp)
+}
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
-saveRDS(OUT_tmax, 'daymet_hex_tmax.rds')
-rm(OUT_tmax)
+saveRDS(OUT_prcp, 'daymet_hex_prcp.rds')
+rm(OUT_prcp)
 gc()
-print('Finished tmax')
-
-
-
-# run tmin ----------------------------------------------------------------
-
-OUT_tmin <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
-  {
-    tt_tmin <- daymet_fun(input = paste0('daymet_v3_tmin_', YEARS[k], '_na.nc4'),
-                          var = 'tmin', YEAR = YEARS[k])
-    return(tt_tmin)
-  }
-
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
-saveRDS(OUT_tmin, 'daymet_hex_tmin.rds')
-rm(OUT_tmin)
-gc()
-print('Finished tmin')
-
-
-
-# run precip --------------------------------------------------------------
-
-OUT_precip <- foreach::foreach(k = 1:length(YEARS), .combine = 'rbind') %dopar%
-  {
-    tt_precip <- daymet_fun(input = paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'),
-                     var = 'prcp', YEAR = YEARS[k])
-    return(tt_precip)
-  }
-
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
-saveRDS(OUT_precip, 'daymet_hex_precip.rds')
-print('Finished precip')
-print('I completed!')
+print('Finished prcp')
