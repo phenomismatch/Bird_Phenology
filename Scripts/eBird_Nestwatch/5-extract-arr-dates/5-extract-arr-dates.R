@@ -53,7 +53,7 @@ out <- data.frame()
 for (i in 1:length(species))
 {
   #i <- 94 #Vireo olivaceus
-  #i <- 2
+  #i <- 4
   
   #filter by species
   sp <- species[i]
@@ -106,7 +106,7 @@ for (i in 1:length(species))
     #check for synonyms if there are no matches
     if (length(g_ind) == 0)
     {
-      g_ind2 <- grep(args, sp_key$BL_Checklist_name)
+      g_ind2 <- grep(sp, sp_key$BL_Checklist_name)
     } else {
       g_ind2 <- g_ind
     }
