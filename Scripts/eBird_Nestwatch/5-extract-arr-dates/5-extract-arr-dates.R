@@ -45,11 +45,7 @@ IAR_out_date <- substr(IAR_out_dir, start = (nc_out_dir - 9), stop = nc_out_dir)
 #read in master df
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
-species <- as.character(read.table('../../IAR_species_list.txt')[,1])
-
-#switch to out dir
-setwd(IAR_out_dir)
-#setwd(paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/', IAR_out_dir))
+species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_list.txt'))[,1])
 
 
 #combine pre and post IAR data for every year/cell that was modeled (including cell lat/lon)
@@ -57,14 +53,19 @@ out <- data.frame()
 for (i in 1:length(species))
 {
   #i <- 94 #Vireo olivaceus
-  #i <- 13
+  #i <- 2
   
   #filter by species
   sp <- species[i]
   
+  #switch to out dir
+  setwd(IAR_out_dir)
+  
   #if that species RDS object exists in dir
   if (length(grep(paste0(sp, '-', IAR_out_date, '-iar-stan_output.rds'), list.files())) > 0)
   {
+    
+    # filter and read in data -------------------------------------------------
     f_in_p <- dplyr::filter(df_master, species == sp & MODEL == TRUE)
     
     #read in IAR model output and input
@@ -83,6 +84,73 @@ for (i in 1:length(species))
     #get hexgrid cell centers
     cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
   
+  
+    # filter cells ------------------------------------------------------------
+    
+    #from 2-halfmax-arr.R
+    '%ni%' <- Negate('%in%')
+    
+    #reference key for species synonyms
+    setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
+    sp_key <- read.csv('species_filenames_key.csv')
+    
+    #change dir to shp files
+    setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+    
+    hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
+    
+    #filter by breeding/migration cells
+    #match species name to shp file name
+    g_ind <- grep(sp, sp_key$file_names_2016)
+    
+    #check for synonyms if there are no matches
+    if (length(g_ind) == 0)
+    {
+      g_ind2 <- grep(args, sp_key$BL_Checklist_name)
+    } else {
+      g_ind2 <- g_ind
+    }
+    
+    #get filename and read in
+    fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
+    sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+    
+    #filter by breeding (2) range
+    br_rng <- sp_rng[which(sp_rng$SEASONAL == 2),]
+    #filter by migration (4) range
+    mig_rng <- sp_rng[which(sp_rng$SEASONAL == 4),]
+    
+    if (length(br_rng) > 0)
+    {
+      br_rng_sp <- sp::SpatialPolygons(br_rng@polygons)
+      sp::proj4string(br_rng_sp) <- sp::CRS(sp::proj4string(br_rng))
+      #find intersections with code from here: https://gis.stackexchange.com/questions/1504/extracting-intersection-areas-in-r
+      poly_int_br <- rgeos::gIntersects(hge, br_rng_sp, byid = TRUE)
+      tpoly_br <- which(poly_int_br == TRUE, arr.ind = TRUE)[,2]
+      br_cells <- as.numeric(tpoly_br[!duplicated(tpoly_br)])
+      #see which of these cells were actually used in modeling (don't overlap non-migratory/breeding ranges)
+      br_cells_f <- br_cells[which(br_cells %in% t_cells)]
+      #add to master
+      f_in$breed_cell <- f_in$cell %in% br_cells_f
+    } else {
+      f_in$breed_cell <- rep(FALSE, NROW(f_in))
+    }
+    
+    if (length(mig_rng) > 0)
+    {
+      mig_rng_sp <- sp::SpatialPolygons(mig_rng@polygons)
+      sp::proj4string(mig_rng_sp) <- sp::CRS(sp::proj4string(mig_rng))
+      poly_int_mig <- rgeos::gIntersects(hge, mig_rng_sp, byid = TRUE)
+      tpoly_mig <- which(poly_int_mig == TRUE, arr.ind = TRUE)[,2]
+      mig_cells <- as.numeric(tpoly_mig[!duplicated(tpoly_mig)])
+      mig_cells_f <- mig_cells[which(mig_cells %in% t_cells)]
+      f_in$mig_cell <- f_in$cell %in% mig_cells_f
+    } else {
+      f_in$mig_cell <- rep(FALSE, NROW(f_in))
+    }
+    
+    # extract posteriors ------------------------------------------------------
+    
     #extract median and sd for IAR arrival dates
     mean_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
     med_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
@@ -137,7 +205,7 @@ for (i in 1:length(species))
       
       t_f_in <- dplyr::filter(f_in, year == t_years[j])
       
-      t_full <- data.frame(t_f_in[,c('species','cell')], 
+      t_full <- data.frame(t_f_in[,c('species','cell', 'mig_cell', 'breed_cell')], 
                          cell_lat = round(cellcenters$lat_deg, digits = 2), 
                          cell_lon = round(cellcenters$lon_deg, digits = 2),
                          t_f_in[,c('year', 'HM_mean', 'HM_sd')],
@@ -155,7 +223,7 @@ for (i in 1:length(species))
                          max_rhat,
                          min_neff)
       
-      colnames(t_full)[c(6,7,12,13)] <- c('mean_pre_IAR', 'sd_pre_IAR', 'mean_beta0', 'sd_beta0')
+      colnames(t_full)[c(8,9,14,15)] <- c('mean_pre_IAR', 'sd_pre_IAR', 'mean_beta0', 'sd_beta0')
      
       out <- rbind(out, t_full)
     } #end year loop
@@ -163,6 +231,16 @@ for (i in 1:length(species))
     print(paste0('.rds file for ', sp, ' not found in directory'))
   }
 } #end species loop
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
+
+dm_precip <- readRDS('daymet_hex_precip.rds')
+dm_tmax <- readRDS('daymet_hex_tmax.rds')
+dm_tmin <- readRDS('daymet_hex_tmin.rds')
+
+out_m1 <- dplyr::left_join(out, dm_precip, by = c('cell', 'year'))
+out_m2 <- dplyr::left_join(out_m1, dm_tmax, by = c('cell', 'year'))
+out_m3 <- dplyr::left_join(out_m2, dm_tmin, by = c('cell', 'year'))
 
 
 #create dir if it does not exist
@@ -172,7 +250,7 @@ ifelse(!dir.exists(master_out_dir),
 
 setwd(master_out_dir)
 
-saveRDS(out, file = paste0('arrival_master_', IAR_out_date, '.rds'))
+saveRDS(out_m3, file = paste0('arrival_master_', IAR_out_date, '.rds'))
 saveRDS(alpha_gamma_post, file = paste0('arrival_alpha_gamma_post_', IAR_out_date, '.rds'))
 saveRDS(beta_gamma_post, file = paste0('arrival_beta_gamma_post_', IAR_out_date, '.rds'))
 
