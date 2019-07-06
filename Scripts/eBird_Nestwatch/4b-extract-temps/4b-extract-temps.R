@@ -1,7 +1,7 @@
 ################################
 #Extract temperature data for NA
 #
-#Requires ~ ?GB RAM and 7 cores on cluster; ~ 2 hours runtime; eventually run on desktop
+#Requires ~ 200GB RAM and 4 cores on cluster; ~ ? hours runtime
 ################################
 
 #mean daily min temp for Feb-April, following Hurlbert and Liang 2012
