@@ -150,6 +150,12 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
     HEX_daymet[i,6] <- mean(t_daymet$FMA_temp, na.rm = TRUE)
   }
   
+  rm(t_daymet)
+  rm(hexgrid6)
+  rm(hex_cells)
+  rm(f_LL_daymet)
+  gc()
+  
   return(HEX_daymet)
 }
 
@@ -167,10 +173,11 @@ for (k in 1:length(YEARS))
   tt_prcp <- daymet_fun(input = paste0('daymet_v3_prcp_', YEARS[k], '_na.nc4'), 
                         var = 'prcp', YEAR = YEARS[k])
   OUT_prcp <- rbind(OUT_prcp, tt_prcp)
+  
+  rm(tt_prcp)
+  gc()
 }
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 saveRDS(OUT_prcp, 'daymet_hex_prcp.rds')
-rm(OUT_prcp)
-gc()
 print('Finished prcp')

@@ -150,6 +150,12 @@ daymet_fun <- function(input, var = 'tmax', YEAR)
     HEX_daymet[i,6] <- mean(t_daymet$FMA_temp, na.rm = TRUE)
   }
   
+  rm(t_daymet)
+  rm(hexgrid6)
+  rm(hex_cells)
+  rm(f_LL_daymet)
+  gc()
+  
   return(HEX_daymet)
 }
 
@@ -167,11 +173,11 @@ for (k in 1:length(YEARS))
   tt_tmin <- daymet_fun(input = paste0('daymet_v3_tmin_', YEARS[k], '_na.nc4'), 
                         var = 'tmin', YEAR = YEARS[k])
   OUT_tmin <- rbind(OUT_tmin, tt_tmin)
+  
+  rm(tt_tmin)
+  gc()
 }
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 saveRDS(OUT_tmin, 'daymet_hex_tmin.rds')
-rm(OUT_tmin)
-gc()
 print('Finished tmin')
-
