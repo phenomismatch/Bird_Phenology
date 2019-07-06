@@ -339,7 +339,8 @@ saveRDS(fit4, file = 'beta-beta_sigma.rds')
 
 # alpha_gamma ~ beta_gamma -------------------------------------------------------
 
-rng_beta_gamma <- range(pt_out$mn_beta_gamma)
+#rng_beta_gamma <- range(pt_out$mn_beta_gamma)
+rng_beta_gamma <- c(1, 4.5)
 
 DATA <- list(N = NROW(pt_out),
              y_obs = pt_out$mn_alpha_gamma,
@@ -350,6 +351,73 @@ DATA <- list(N = NROW(pt_out),
                              length.out = 100),
              N_pred_sim = 100)
 
+
+#lower limit is 0 for predictor
+stanmodel_agbg <- "
+data {
+int<lower=0> N;
+vector[N] y_obs;
+vector<lower=0>[N] sd_y;
+vector<lower=0>[N] x_obs;
+vector<lower=0>[N] sd_x;
+int<lower=0> N_pred_sim;
+vector[N_pred_sim] pred_sim;
+}
+
+parameters {
+vector[N] y_true_raw;
+vector<lower=0>[N] x_true_raw;
+real<lower=0> sigma_raw;
+real alpha_raw;
+real beta_raw;
+}
+
+transformed parameters {
+vector[N] mu;
+vector[N_pred_sim] mu_rep;
+real<lower=0> sigma;
+real alpha;
+real beta;
+vector[N] y_true;
+vector<lower=0>[N] x_true;
+
+sigma = sigma_raw * 50;
+alpha = alpha_raw * 75;
+beta = beta_raw * 50;
+x_true = x_true_raw * 10;
+
+mu = alpha + beta * x_true;
+mu_rep = alpha + beta * pred_sim;
+
+y_true = y_true_raw * sigma + mu;
+}
+
+model {
+
+alpha_raw ~ std_normal();
+beta_raw ~ std_normal();
+sigma_raw ~ std_normal();
+x_true_raw ~ std_normal();
+
+// account for observation error in y
+y_obs ~ normal(y_true, sd_y);
+
+// account for observation error in x
+x_obs ~ normal(x_true, sd_x);
+
+y_true_raw ~ std_normal();      // implies y_true ~ normal(mu, sigma);
+}
+
+generated quantities {
+real y_rep[N];
+real x_rep[N];
+
+y_rep = normal_rng(y_true, sd_y);
+x_rep = normal_rng(x_true, sd_x);
+}
+"
+
+
 DELTA <- 0.95
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.005
@@ -357,7 +425,7 @@ CHAINS <- 4
 ITER <- 3000
 
 tt <- proc.time()
-fit5 <- rstan::stan(model_code = stanmodel,
+fit5 <- rstan::stan(model_code = stanmodel_agbg,
                     data = DATA,
                     chains = CHAINS,
                     iter = ITER,
