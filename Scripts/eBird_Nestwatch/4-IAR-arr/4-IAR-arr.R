@@ -74,6 +74,7 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 # species arg -----------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
+#args <- as.character('Icterus_spurius')
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
@@ -425,7 +426,7 @@ fit <- rstan::stan(model_code = IAR_2,
             cores = CHAINS,
             pars = c('sigma_beta0', 'beta0',
                      'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-                     'sigma_nu', 'mu_sn', 'sigma_sn', 'rho', 'nu', 'theta', 'phi', 
+                     'sigma_nu', 'mu_sn', 'sigma_sn', 'rho', 'nu', 'theta', 'phi',
                      'y_true', 'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
@@ -436,12 +437,10 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-#setwd("~/Google_Drive/R/Bird_Phenology/Data/Processed/Empidonax_virescens_test_no_slope/Ev_ns_ye")
 saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
 
 #save data to RDS (has which cells are modeled)
 saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
-
 
 
 # Calc diagnostics ---------------------------------------------------
@@ -454,11 +453,11 @@ num_tree <- rstan::get_num_max_treedepth(fit)
 num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
-mn_stepsize <- sapply(sampler_params, 
+mn_stepsize <- sapply(sampler_params,
                       function(x) mean(x[, 'stepsize__']))
-mn_treedepth <- sapply(sampler_params, 
+mn_treedepth <- sapply(sampler_params,
                        function(x) mean(x[, 'treedepth__']))
-accept_stat <- sapply(sampler_params, 
+accept_stat <- sapply(sampler_params,
                       function(x) mean(x[, 'accept_stat__']))
 
 
@@ -503,17 +502,17 @@ annotations <- data.frame(xpos = c(-Inf, -Inf),
                           hjustvar = c(0, 0),
                           vjustvar = c(4, 6))
 
-p <- ggplot(tdata) + 
-  aes_(x = ~value) + 
-  stat_density(aes_(group = ~rep_id, color = "yrep"), 
-               data = function(x) dplyr::filter(x, !tdata$is_y), 
-               geom = "line", position = "identity", size = 0.25, 
-               alpha = 0.3, trim = FALSE, bw = 'nrd0', adjust = 1, 
-               kernel = 'gaussian', n = 1024) + 
-  stat_density(aes_(color = "y"), data = function(x) dplyr::filter(x, tdata$is_y), 
-               geom = "line", position = "identity", lineend = "round", size = 1, trim = FALSE, 
-               bw = 'nrd0', adjust = 1, kernel = 'gaussian', n = 1024) + 
-  theme_classic() + 
+p <- ggplot(tdata) +
+  aes_(x = ~value) +
+  stat_density(aes_(group = ~rep_id, color = "yrep"),
+               data = function(x) dplyr::filter(x, !tdata$is_y),
+               geom = "line", position = "identity", size = 0.25,
+               alpha = 0.3, trim = FALSE, bw = 'nrd0', adjust = 1,
+               kernel = 'gaussian', n = 1024) +
+  stat_density(aes_(color = "y"), data = function(x) dplyr::filter(x, tdata$is_y),
+               geom = "line", position = "identity", lineend = "round", size = 1, trim = FALSE,
+               bw = 'nrd0', adjust = 1, kernel = 'gaussian', n = 1024) +
+  theme_classic() +
   theme(axis.title.y = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
@@ -535,7 +534,7 @@ ggsave(paste0(args, '_dens_overlay.pdf'), p)
 #average yrep for each pnt
 yrm <- apply(n_y_rep, 2, mean)
 pdf(paste0(args, '_pred_true.pdf'))
-plot(n_y_PPC, yrm, pch = 19, col = rgb(0,0,0,0.4), 
+plot(n_y_PPC, yrm, pch = 19, col = rgb(0,0,0,0.4),
      xlim = range(n_y_PPC, yrm), ylim = range(n_y_PPC, yrm),
      xlab = 'y', ylab = 'y_rep', main = paste0(args))
 abline(a = 0, b = 1, lty = 2, lwd = 2, col = 'red')
@@ -810,4 +809,5 @@ if ('Rplots.pdf' %in% list.files())
 
 
 print('I completed!')
+
 

@@ -325,12 +325,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 17
+  #j <- 8
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
   {
-    #k <- 1
+    #k <- 85
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
@@ -434,14 +434,13 @@ for (j in 1:nyr)
       ########################
       #PLOT MODEL FIT AND DATA
 
-      #summary(fit2)
       mn_dfit <- apply(dfit, 2, mean)
       LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
       UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
       mn_hm <- mean(halfmax_fit)
       LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
-
+      
       pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
@@ -459,6 +458,33 @@ for (j in 1:nyr)
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
+      
+      #PLOT CODE FOR PRESENTATION
+      # mn_dfit <- apply(dfit, 2, mean)
+      # LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
+      # UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+      # mn_hm <- mean(halfmax_fit)
+      # LCI_hm <- quantile(halfmax_fit, probs = 0.025)
+      # UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+      # 
+      # pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
+      # plot(predictDays, UCI_dfit, type = 'l', col = 'white', lty = 2, lwd = 5,
+      #      ylim = c(0, max(UCI_dfit)),
+      #      #main = paste0(args, ' - ', years[j], ' - ', cells[k]),
+      #      #xlab = 'Julian Day', ylab = 'Detection Probability',
+      #      tck = 0, ann = FALSE, xaxt = 'n', yaxt = 'n')
+      # # lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 5)
+      # # lines(predictDays, mn_dfit, lwd = 5)
+      # cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
+      # points(cyspdata$jday, cyspdata$detect, col = rgb(0,0,0,0.25), cex = 2)
+      # # abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 5)
+      # # abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
+      # # abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
+      # # legend('topleft',
+      # #        legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
+      # #        col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
+      # #        lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
+      # dev.off()
       ########################
       
       iter_ind <- grep('iter', colnames(halfmax_df))
