@@ -18,6 +18,10 @@ species - scientific name for species
 
 cell - hex cell number (hex cells generated with dggrid package in R)
 
+mig_cell - logical specifying whether any portion of that partical hex cell is classified as in that species' migratory range (according to the BirdLife International range maps)
+
+breed_cell - logical specifying whether any portion of that partical hex cell is classified as in that species' breeding range (according to the BirdLife International range maps)
+
 cell_lat - latitude for center of hex cell
 
 cell_lon - longitude for center of hex cell
@@ -54,26 +58,26 @@ max_rhat - maximum Rhat value for any parameter from the IAR model.
 
 min_neff - minimum number of effective samples for any parameter from the IAR model.
 
-dm_tmax_F - Feb mean daily max temperature for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+F_precp - Feb mean precipitation (derived from daily resolution data) for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
 
-dm_tmax_M - March mean daily max temperature for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+M_precp - March mean daily precipitation for a given hex cell in a given year
 
-dm_tmax_A - April mean daily max temperature for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+A_precp - April mean daily precipitation for a given hex cell in a given year
 
-dm_tmax_FMA - Feb-April mean daily max temperature for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+FMA_precp - Feb-April mean daily precipitation for a given hex cell in a given year
 
-dm_tmin_F - Feb mean daily min temperature for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+F_tmax - Feb mean daily max temperature (derived from daily resolution data) for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
 
-dm_tmin_M - March mean daily min temperature for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391) 
+M_tmax - March mean daily max temperature for a given hex cell in a given year
 
-dm_tmin_A - April mean daily min temperature for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+A_tmax - April mean daily max temperature for a given hex cell in a given year
 
-dm_tmin_FMA - Feb-April mean daily min temperature for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+FMA_tmax - Feb-April mean daily max temperature for a given hex cell in a given year
 
-dm_precip_F - Feb mean daily precipitation for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+F_tmin - Feb mean daily min temperature (derived from daily resolution data) for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
 
-dm_precip_M - March mean daily precipitation for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+M_tmin - March mean daily min temperature for a given hex cell in a given year
 
-dm_precip_A - April mean daily precipitation for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+A_tmin - April mean daily min temperature for a given hex cell in a given year
 
-dm_precip_FMA - Feb-April mean daily precipitation for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
+FMA_tmin - Feb-April mean daily min temperature for a given hex cell in a given year
