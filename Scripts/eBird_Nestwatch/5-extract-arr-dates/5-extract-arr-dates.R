@@ -219,21 +219,21 @@ for (i in 1:length(species))
     max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
     min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
     
-    #extract posteriors for arrival dates
-    yt_ch <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', type = 'chains')[[1]]
-    #colnames for posterior df
-    iter_lab <- paste0('iter_', 1:dim(yt_ch)[3])
+    # #extract posteriors for arrival dates
+    # yt_ch <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', type = 'chains')[[1]]
+    # #colnames for posterior df
+    # iter_lab <- paste0('iter_', 1:dim(yt_ch)[3])
     
-    #matrix objects with alpha_gamma and beta_gamma posteriors
-    if (i == 1)
-    {
-      alpha_gamma_post <- alpha_gamma_ch
-      beta_gamma_post <- beta_gamma_ch
-    } else {
-      alpha_gamma_post <- cbind(alpha_gamma_post, alpha_gamma_ch)
-      beta_gamma_post <- cbind(beta_gamma_post, beta_gamma_ch)
-    }
-    
+    # #matrix objects with alpha_gamma and beta_gamma posteriors
+    # if (i == 1)
+    # {
+    #   alpha_gamma_post <- alpha_gamma_ch
+    #   beta_gamma_post <- beta_gamma_ch
+    # } else {
+    #   alpha_gamma_post <- cbind(alpha_gamma_post, alpha_gamma_ch)
+    #   beta_gamma_post <- cbind(beta_gamma_post, beta_gamma_ch)
+    # }
+    # 
     #loop through years
     for (j in 1:length(t_years))
     {
@@ -319,8 +319,8 @@ ifelse(!dir.exists(master_out_dir),
 setwd(master_out_dir)
 
 saveRDS(out_m3, file = paste0('arrival_master_', IAR_out_date, '.rds'))
-saveRDS(alpha_gamma_post, file = paste0('arrival_alpha_gamma_post_', IAR_out_date, '.rds'))
-saveRDS(beta_gamma_post, file = paste0('arrival_beta_gamma_post_', IAR_out_date, '.rds'))
-saveRDS(arr_post, file = paste0('arrival_post_', IAR_out_date, '.rds'))
+# saveRDS(alpha_gamma_post, file = paste0('arrival_alpha_gamma_post_', IAR_out_date, '.rds'))
+# saveRDS(beta_gamma_post, file = paste0('arrival_beta_gamma_post_', IAR_out_date, '.rds'))
+# saveRDS(arr_post, file = paste0('arrival_post_', IAR_out_date, '.rds'))
 
 print('I completed!')
