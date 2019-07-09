@@ -48,12 +48,44 @@ df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_list.txt'))[,1])
 
 
+
+
+# create empty dataframes to fill -----------------------------------------
+
 #combine pre and post IAR data for every year/cell that was modeled (including cell lat/lon)
-out <- data.frame()
+out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA,
+                                mig_cell = NA, breed_cell = NA,
+                                cell_lat = NA, cell_lon = NA,
+                                year = NA, mean_pre_IAR = NA, sd_pre_IAR = NA,
+                                mean_post_IAR = NA, sd_post_IAR = NA,
+                                mean_gamma = NA, sd_gamma = NA,
+                                mean_beta0 = NA, sd_beta_0 = NA,
+                                mean_alpha_gamma = NA, sd_alpha_gamma = NA,
+                                mean_beta_gamma = NA, sd_beta_gamma = NA,
+                                num_diverge = NA, max_rhat = NA, min_neff = NA)
+
+
+
+# #create NA matrix for posterior iter
+# iter_mat <- matrix(NA, nrow = NROW(df_master), ncol = 24000)
+# colnames(iter_mat) <- paste0('iter_', 1:24000)
+# 
+# #create empty dataframe for posterior
+# arr_post <- cbind(data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
+#                              mig_cell = NA, breed_cell = NA, 
+#                              year = NA, cell_lat = NA, cell_lon = NA), iter_mat)
+# 
+# rm(iter_mat)
+# gc()
+
+
+# run loop to fill empty dfs ----------------------------------------------------------------
+
+counter <- 1
 for (i in 1:length(species))
 {
   #i <- 94 #Vireo olivaceus
-  #i <- 4
+  #i <- 1
   
   #filter by species
   sp <- species[i]
@@ -149,6 +181,7 @@ for (i in 1:length(species))
       f_in$mig_cell <- rep(FALSE, NROW(f_in))
     }
     
+    
     # extract posteriors ------------------------------------------------------
     
     #extract median and sd for IAR arrival dates
@@ -186,6 +219,11 @@ for (i in 1:length(species))
     max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
     min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
     
+    #extract posteriors for arrival dates
+    yt_ch <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', type = 'chains')[[1]]
+    #colnames for posterior df
+    iter_lab <- paste0('iter_', 1:dim(yt_ch)[3])
+    
     #matrix objects with alpha_gamma and beta_gamma posteriors
     if (i == 1)
     {
@@ -199,7 +237,7 @@ for (i in 1:length(species))
     #loop through years
     for (j in 1:length(t_years))
     {
-      #j <- 1
+      #j <- 2
       print(paste0('species: ', sp, ', ', 
                    'year: ', t_years[j]))
       
@@ -225,23 +263,53 @@ for (i in 1:length(species))
       
       colnames(t_full)[c(8,9,14,15)] <- c('mean_pre_IAR', 'sd_pre_IAR', 'mean_beta0', 'sd_beta0')
      
-      out <- rbind(out, t_full)
+      #fill empty df
+      out[counter:(counter + NROW(t_full) - 1),] <- t_full
+      
+      #run time is excessive due to mem constraints on desktop
+      # t_post <- data.frame(t_f_in[,c('species','cell', 'mig_cell', 'breed_cell', 'year')], 
+      #                      cell_lat = round(cellcenters$lat_deg, digits = 2), 
+      #                      cell_lon = round(cellcenters$lon_deg, digits = 2),
+      #                      yt_ch[,j,])
+      # colnames(t_post)[-c(1:7)] <- iter_lab
+      # 
+      # #fill empty df
+      # arr_post[counter:(counter + NROW(t_full) - 1),] <- t_post
+      
+      #advance counter
+      counter <- counter + NROW(t_full)
+      
     } #end year loop
   } else {
     print(paste0('.rds file for ', sp, ' not found in directory'))
   }
 } #end species loop
 
+
+#remove zeros
+
+
+
+
+
+
+# merge daymet ------------------------------------------------------------
+
+#daymet processed with 4b-extract-daymet/
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
 
-dm_precip <- readRDS('daymet_hex_precip.rds')
+dm_prcp <- readRDS('daymet_hex_prcp.rds')
 dm_tmax <- readRDS('daymet_hex_tmax.rds')
 dm_tmin <- readRDS('daymet_hex_tmin.rds')
 
-out_m1 <- dplyr::left_join(out, dm_precip, by = c('cell', 'year'))
+out_m1 <- dplyr::left_join(out, dm_prcp, by = c('cell', 'year'))
 out_m2 <- dplyr::left_join(out_m1, dm_tmax, by = c('cell', 'year'))
 out_m3 <- dplyr::left_join(out_m2, dm_tmin, by = c('cell', 'year'))
 
+
+
+
+# write to file -----------------------------------------------------------
 
 #create dir if it does not exist
 ifelse(!dir.exists(master_out_dir),
@@ -253,5 +321,6 @@ setwd(master_out_dir)
 saveRDS(out_m3, file = paste0('arrival_master_', IAR_out_date, '.rds'))
 saveRDS(alpha_gamma_post, file = paste0('arrival_alpha_gamma_post_', IAR_out_date, '.rds'))
 saveRDS(beta_gamma_post, file = paste0('arrival_beta_gamma_post_', IAR_out_date, '.rds'))
+saveRDS(arr_post, file = paste0('arrival_post_', IAR_out_date, '.rds'))
 
 print('I completed!')
