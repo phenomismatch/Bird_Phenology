@@ -59,7 +59,7 @@ out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA,
                                 year = NA, mean_pre_IAR = NA, sd_pre_IAR = NA,
                                 mean_post_IAR = NA, sd_post_IAR = NA,
                                 mean_gamma = NA, sd_gamma = NA,
-                                mean_beta0 = NA, sd_beta_0 = NA,
+                                mean_beta0 = NA, sd_beta0 = NA,
                                 mean_alpha_gamma = NA, sd_alpha_gamma = NA,
                                 mean_beta_gamma = NA, sd_beta_gamma = NA,
                                 num_diverge = NA, max_rhat = NA, min_neff = NA)
@@ -286,11 +286,6 @@ for (i in 1:length(species))
 } #end species loop
 
 
-#remove zeros
-
-
-
-
 
 
 # merge daymet ------------------------------------------------------------
@@ -306,8 +301,8 @@ out_m1 <- dplyr::left_join(out, dm_prcp, by = c('cell', 'year'))
 out_m2 <- dplyr::left_join(out_m1, dm_tmax, by = c('cell', 'year'))
 out_m3 <- dplyr::left_join(out_m2, dm_tmin, by = c('cell', 'year'))
 
-
-
+#remove zeros
+out_m4 <- out_m3[-c(min(which(is.na(out_m3$species))):NROW(out_m3)),]
 
 # write to file -----------------------------------------------------------
 
