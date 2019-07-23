@@ -192,16 +192,13 @@ diagnostics_frame2 <- diagnostics_frame
 
 
 ### add NA for both HM_mean and HM_sd if any of the following conditions are met
-#num_diverge > 0
-#max_Rhat >= 1.1
-#min_neff < 250
-#num_BFMI > 0
+#these params used for most recent IAR input run (as of 2019-07-23)
 
 to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
                  diagnostics_frame2$max_Rhat >= 1.1 |
-                 diagnostics_frame2$min_neff < 250 |
+                 diagnostics_frame2$min_neff < 200 |
                  diagnostics_frame2$num_BFMI > 0 |
-                 diagnostics_frame2$HM_sd > 8)
+                 diagnostics_frame2$HM_sd > 10)
 
 # #1.4% of cells are bad
 # length(to.NA)/sum(!is.na(diagnostics_frame2$HM_mean))

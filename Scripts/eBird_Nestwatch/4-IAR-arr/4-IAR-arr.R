@@ -415,7 +415,7 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.97
 TREE_DEPTH <- 18
 STEP_SIZE <- 0.0003
-CHAINS <- 4
+CHAINS <- 6
 ITER <- 10000
 
 tt <- proc.time()
