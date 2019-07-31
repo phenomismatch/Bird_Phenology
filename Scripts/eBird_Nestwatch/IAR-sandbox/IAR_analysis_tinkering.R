@@ -1,3 +1,4 @@
+##### Code to run simple models on posteror mean (or median?) parameters from arrival_master_2019-05-26.rds
 setwd("/Users/JacobSocolar/Dropbox/Work/Phenomismatch/IAR_output")
 
 IARout <- readRDS('arrival_master_2019-05-26.rds')
@@ -5,7 +6,7 @@ IARout$SC <- paste(IARout$species, IARout$cell, sep = '_')
 IARout[IARout$species == 'Agelaius_phoeniceus' & IARout$cell == 425, ]
 
 
-migD <- read.csv('migD.csv')
+migD <- read.csv('migD.csv')  # gives whether long or short distance migrant, and a summary habitat code for each species
 migD[is.na(migD)] <- 0
 
 speed.df <- migD[, 1:4]
