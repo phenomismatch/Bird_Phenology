@@ -14,7 +14,10 @@ for(s in 1:length(species.list)){
   counter <- counter + input$J*input$N
 }
 
-P <- 5
+P <- 500
+24000 %% P == 0  # P must evenly divide 24000 or the line that begins "output <-" below will fail.  Can be fixed in that
+# if some other number of posterior iterations is really desired.
+
 frame.list <- list()
 for(i in 1:P){
   frame.list[[i]] <- data.frame(species = as.character(rep(NA, counter)), cell = as.character(rep(NA, counter)), 
@@ -22,18 +25,18 @@ for(i in 1:P){
                                 data.in = as.numeric(rep(NA, counter)), stringsAsFactors = F)
 }
 
-
+# This is horrifically slow.
 counter <- 0
 for(s in 1:length(species.list)){
   species <- species.list[s]
   input <- readRDS(paste0(species, '-2019-05-26-iar-stan_input.rds'))
-  output <- as.data.frame(readRDS(paste0(species, '-2019-05-26-iar-stan_output.rds')))[24*c(1:1000), ]
+  output <- as.data.frame(readRDS(paste0(species, '-2019-05-26-iar-stan_output.rds')))[(24000/P)*c(1:P), ]
   cell_output <- output[,grep("y_true", names(output))]
   for(y in 1:input$J){
-    print(paste0(s, " ", y))
     year <- 2018 - input$J + y
     cols_y <- grep(paste0(',', y, '\\]'), names(cell_output))
     for(c in 1:input$N){
+      print(paste0(s, " ", y, " ", c))
       cell <- input$cells[c]
       data.in <- c %in% input$ii_obs[, y]
       counter <- counter + 1
