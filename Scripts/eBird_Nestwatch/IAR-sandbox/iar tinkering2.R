@@ -25,7 +25,7 @@ for(i in 1:P){
                                 data.in = as.numeric(rep(NA, counter)), stringsAsFactors = F)
 }
 
-# This is horrifically slow.
+# This is horrifically slow, but for now memory pressure on my computer prevents parallelizing.
 counter <- 0
 for(s in 1:length(species.list)){
   species <- species.list[s]
