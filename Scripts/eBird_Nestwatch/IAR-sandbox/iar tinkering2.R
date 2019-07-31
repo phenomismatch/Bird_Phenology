@@ -26,6 +26,7 @@ for(i in 1:P){
 }
 
 # This is horrifically slow, but for now memory pressure on my computer prevents parallelizing.
+# I imagine there's a faster way to do this...
 counter <- 0
 for(s in 1:length(species.list)){
   species <- species.list[s]

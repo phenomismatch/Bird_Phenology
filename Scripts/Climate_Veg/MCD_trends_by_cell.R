@@ -3,16 +3,15 @@ library(ggplot2)
 library(viridis)
 library(gdalUtils)
 library(raster)
-setwd('/Users/Tingleylab/Desktop/useful_datasets/Veg_phenology/MCD12Q2/')
-years <- c(2001:2014)
+user <- 'JacobSocolar'
+setwd(paste0('/Users/', user, '/Desktop/useful_datasets/Veg_phenology/MCD12Q2/'))
+years <- c(2001:2016)
 jdayMap <- 365*c(1:14) + 1 + 1*(c(2000:2013) > 2004) + 1*(c(2000:2013) > 2008) + 1*(c(2000:2013) > 2012)
 
 
-# Get the start of season 1 layer and save as GEOTIFF
-hdfs <- dir(pattern = ".hdf")
-xmls <- dir(pattern = ".xml")
-hdfs <- hdfs[-which(hdfs %in% xmls)]
-
+# # Get the start of season 1 layer and save as GEOTIFF
+# hdfs <- dir(pattern = ".hdf")
+# 
 # for(i in 1:length(hdfs)){
 #   print(i)
 #   sds <- get_subdatasets(hdfs[i])
