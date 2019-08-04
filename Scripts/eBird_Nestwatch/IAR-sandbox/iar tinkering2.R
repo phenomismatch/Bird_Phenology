@@ -1,8 +1,3 @@
-library(rstanarm)
-
-migD <- read.csv('/Users/JacobSocolar/Dropbox/Work/Phenomismatch/IAR_output/migD.csv')  # gives whether long or short distance migrant, and a summary habitat code for each species
-migD[is.na(migD)] <- 0
-
 species.list <- as.character(read.csv('/Users/jacobsocolar/Dropbox/Work/Code/Phenomismatch/Bird_Phenology/Data/IAR_species_list.txt', header = F)[,1])
 
 setwd('/Users/jacobsocolar/Desktop/useful_datasets/Processed/IAR_output_2019-05-26')
@@ -20,7 +15,7 @@ for(s in 1:length(species.list)){
   counter <- counter + input$J*input$N
 }
 
-P <- 5
+P <- 500
 24000 %% P == 0  # P must evenly divide 24000 or the line that begins "output <-" below will fail.  Can be fixed in that
 # if some other number of posterior iterations is really desired.
 
@@ -69,6 +64,11 @@ for(s in 1:length(species.list)){
 }
 
 save(frame.list, file = "framelist.Rdata")
+
+library(rstanarm)
+
+migD <- read.csv('/Users/JacobSocolar/Dropbox/Work/Phenomismatch/IAR_output/migD.csv')  # gives whether long or short distance migrant, and a summary habitat code for each species
+migD[is.na(migD)] <- 0
 
 hex6 <- dggridR::dgconstruct(res = 6)
 
