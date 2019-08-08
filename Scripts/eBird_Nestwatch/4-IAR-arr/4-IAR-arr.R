@@ -20,6 +20,10 @@
 # \sigma_{\sigma_{\nu}} \sim N(0, 0.5)
 # \phi_{[i,j]} \sim N(0, [D - W]^{-1})
 # \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
+
+
+#Joint distribution
+#[\beta_{0_{y}}, \gamma_{c}, \rho, \theta_{cy}, \phi_{cy}, \sigma_{\nu_{y}}, \sigma_{\beta_{0}}, \alpha_{\gamma}, \beta_{\gamma}, \mu_{\sigma_{\nu}}, \sigma_{\sigma_{\nu}} | y_{obs_{cy}}, \sigma_{y_{cy}}] \propto \prod [y_{obs_{cy}}, \sigma_{y_{cy}} | \beta_{0_{y}}, \gamma_{c}, \rho, \theta_{cy}, \phi_{cy}, \sigma_{\nu_{y}}]  [\beta_{0_{y}} | \sigma_{\beta_{0}}] [\gamma_{c} | \alpha_{\gamma}, \beta_{\gamma}] [\sigma_{\nu_{y}} | \mu_{\sigma_{\nu}}, \sigma_{\sigma_{\nu}}][\sigma_{\beta_{0}}] [\alpha_{\gamma}] [\beta_{\gamma}][\rho][\theta_{cy}][\phi_{cy}][\mu_{\sigma_{\nu}}][\sigma_{\sigma_{\nu}}]
 ######################
 
 #Stan resources:
