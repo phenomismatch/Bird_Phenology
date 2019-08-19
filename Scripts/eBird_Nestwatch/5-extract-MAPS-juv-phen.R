@@ -1,6 +1,7 @@
 ######################
 # 5 - process young hitting nets MAPS
 #
+# keep only species/cells/years with at least 3 individuals
 ######################
 
 
@@ -49,7 +50,7 @@ data_a0$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 
 # filter by species/cell/year ---------------------------------------------
 
-ind_out <- data.frame(sci_name = rep(NA, NROW(data_a0)), 
+ind_out <- data.frame(species = rep(NA, NROW(data_a0)), 
                       cell = NA, 
                       year = NA, 
                       band_id = NA, 
@@ -86,7 +87,7 @@ for (s in 1:length(usp))
       #which band_id were captured > 1 time
       mc_id <- dplyr::filter(bid_cnt, freq > 1)[,1]
       
-      if (NROW(mc_id) > 0)
+      if (NROW(mc_id) >= 3)
       {
         #INDIVIDUAL
         for (k in 1:length(mc_id))
@@ -94,7 +95,7 @@ for (s in 1:length(usp))
           #k <- 1
           temp4 <- dplyr::filter(temp3, band_id == mc_id[k])
           
-          ind_out$sci_name[counter] <- usp[s]
+          ind_out$species[counter] <- usp[s]
           ind_out$cell[counter] <- ucell[i]
           ind_out$year[counter] <- uyear[j]
           ind_out$band_id[counter] <- mc_id[k]
@@ -112,7 +113,7 @@ close(pb)
 
 
 #trim NA from end of df
-sn_na <- min(which(is.na(ind_out$sci_name)))
+sn_na <- min(which(is.na(ind_out$species)))
 ind_out2 <- ind_out[-c(sn_na:NROW(ind_out)),]
 
 
