@@ -45,6 +45,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
 #args <- 'Agelaius_phoeniceus'
 #args <- 'Dumetella_carolinensis'
+#args <- 'Petrochelidon_pyrrhonota'
 
 
 
@@ -87,7 +88,7 @@ data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 
 
 # filter data -------------------------------------------------------------
-head(arr_master)
+
 #filter by species, breeding range, and pre-IAR data
 arr_br_range <- dplyr::filter(arr_master, species == args, breed_cell == TRUE, !is.na(mean_pre_IAR))
 
@@ -96,6 +97,12 @@ m_mrg <- dplyr::inner_join(data, arr_br_range, by = c('species', 'cell', 'year')
 m_mf <- dplyr::select(m_mrg, common_name, species, cell, 
                      year, day, age, true_age, mean_pre_IAR, 
                      sd_pre_IAR, mean_post_IAR, sd_post_IAR)
+
+#if no overlap between arrival and MAPS juvs, stop script
+if (NROW(m_mf) == 0)
+{
+  stop('No overlap beteen arrival and MAPS juvs')
+}
 
 #add col for juveniles (1 = juv, 0 = adult)
 m_mf$juv <- NA
