@@ -1,5 +1,5 @@
 ######################
-# 6 - arrival ~ young hitting nets
+# 6 - arrival ~ MAPS young hitting nets
 #
 ######################
 
@@ -48,289 +48,195 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
 arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 
 #filter for cells that we have data for pre-IAR
-arr_master2 <- dplyr::filter(arr_master, !is.na(mean_pre_IAR))
-
+#arr_master2 <- dplyr::filter(arr_master, !is.na(mean_pre_IAR))
+arr_master2 <- arr_master
 
 #save only species/cell/years that match arr_master - to be used for juv
 juv_data <- dplyr::inner_join(juv_MAPS, arr_master2, by = c('species', 'cell', 'year'))
 
-#filter species based on number of cells of data like in AOS analyses?
-#dplyr::filter()
-
 #arrival data for unique species/cells/years - to be used for y and sd_y
-arr_data <- unique(arr_data[,c('species', 'cell', 'year', 'mean_post_IAR', 'sd_post_IAR')])
+arr_data <- unique(juv_data[,c('species', 'cell', 'year', 'mean_post_IAR', 'sd_post_IAR')])
+
+#only species that have more than 3 data points
+cnt_arr <- plyr::count(arr_data, 'species')
+sp_f <- filter(cnt_arr, freq > 3)$species
+
+juv_data2 <- dplyr::filter(juv_data, species %in% sp_f)
+arr_data2 <- dplyr::filter(arr_data, species %in% sp_f)
 
 
 
 # Reformat data -----------------------------------------------------------
 
-#unqiue species in processed data
-usp_f <- unique(arr_data$species)
-nusp_f <- length(usp_f)
-nuyr_f <- length(unique(arr_data$year))
-nuc_f <- length(unique(arr_data$cell))
-nind_f <- length(unique(juv_data$band_id))
-
-#s,i,j
-mn_arr_array <- array(NA, dim = c(nusp_f, nuc_f, nuyr_f))
-sd_arr_array <- array(NA, dim = c(nusp_f, nuc_f, nuyr_f))
-#s,i,j,k
-juv_array <- array(NA, dim = c(nusp_f, nuc_f, nuyr_f, nind_f))
-
-for (s in 1:length(usp_f))
+cnt_juv <- plyr::count(juv_data2, c('species', 'cell', 'year'))
+max_ind <- max(cnt_juv$freq)
+juv_array <- array(NA, dim = c(NROW(arr_data2), max_ind))
+NI <- rep(NA, NROW(cnt_juv))
+for (i in 1:NROW(cnt_juv))
 {
-  #SPECIES
-  #s <- 1
-  temp <- dplyr::filter(juv_data, species == usp_f[s])
-
-  #CELL  
-  uc_t <- unique(temp$cell)
-  for (i in 1:length(uc_t))
+  #i <- 1
+  temp <- dplyr::filter(juv_data2, species == cnt_juv[i,1], cell == cnt_juv[i,2], year == cnt_juv[i,3])
+  
+  NI[i] <- cnt_juv[i,4]
+  for (k in 1:NI[i])
   {
-    #i <- 1
-    temp2 <- dplyr::filter(temp, cell == uc_t[i])
-    
-    cell_counter <- 1
-    #YEAR
-    uyr_t <- unique(temp2$year)
-    for (j in 1:length(uyr_t))
-    {
-      #j <- 1
-      temp3 <- dplyr::filter(temp2, year == uyr_t[j])
-      
-      mn_arr_array[s,cell_counter,j] <- temp3$mean_post_IAR[1]
-      sd_arr_array[s,i,j] <- temp3$sd_post_IAR[1]
-      
-      #INDIVIDUAL
-      uind_t <- unique(temp3$band_id)
-      for (k in 1:length(uind_t))
-      {
-        #k <- 1
-        temp4 <- dplyr::filter(temp3, band_id == uind_t[k])
-        
-        juv_array[s,i,j,k] <- temp4$jday
-      }
-    }
+    juv_array[i,k] <- temp[k,'jday']
   }
 }
 
-arr_data$mean_post_IAR #[s,i,j]
-arr_data$sd_post_IAR #[s,i,j]
+na.vals <- which(is.na(juv_array), arr.ind = TRUE)
+juv_array[na.vals] <- 0
+
+sp_idx <- as.numeric(factor(arr_data2$species))
 
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = arr_data$mean_post_IAR, #[s,i,j]
-             sd_y = arr_data$sd_post_IAR, #[s,i,j]
-             juv = juv_data, #[s,i,j,k]
-             NS = XX,
-             NY = XX, #[s]
-             NJ = XX, #[s,i]
-             NK = XX, #[s,i,j]
-             MY = XX, #max # years
-             MJ = XX, #max # cells
-             MK = XX) #max #ind
-
+DATA <- list(y = arr_data2$mean_post_IAR,
+             sd_y = arr_data2$sd_post_IAR,
+             juv = juv_array,
+             NI = NI,
+             N = NROW(arr_data2),
+             MI = max_ind,
+             sp = sp_idx,
+             Nsp = length(unique(sp_idx)))
 
 stanmodel1 <- "
 data {
-int<lower=0> NS;                      // number of species
-int<lower=0> MY;                      // max # years
-int<lower=0> MJ;                      // max # cells
-int<lower=0> MK;                      // max # ind
-int<lower=0> NY[NS];                  // array - number of years for each species
-int<lower=0> NJ[NS,MY];               // array - number of cells for each species/year
-int<lower=0> NK[NS,MY,MJ];            // array - number of ind for each species/year/cell
-real<lower=0> y[NS, MY, MJ, MK];      // response
-real<lower=0> sd_y[NS, MY, MJ, MK];   // uncertainty in response
-real<lower=0> juv[NS, MY, MJ, MK];    // response
+int<lower=0> N;                      // number of data points
+int<lower=0> MI;                     // max number of individuals
+int<lower=0> NI[N];                     // number of individuals for each species/cell/year
+vector<lower=0>[N] y;                  // response
+vector<lower=0>[N] sd_y;               // uncertainty in response
+real<lower=0> juv[N,MI];            // response
+int<lower=0> sp[N];                    // species
+int<lower=0> Nsp;
 }
 
 parameters {
 real<lower = 0> sigma_raw;
 real<lower = 0> sigma_juv_raw;
-real alpha_raw;
-real beta_raw;
-mu_raw[NS,MY,MJ];
-mu_juv_raw[NS,MY,MJ];
+vector[N] mu_y_raw;
+vector[N] mu_juv_raw;
+real mu_alpha_raw;
+real mu_beta_raw;
+vector<lower = 0>[2] sigma_sp_raw;
+cholesky_factor_corr[2] L_Rho;             // correlation matrix
+matrix[2, Nsp] z;                          // z-scores
 }
 
 transformed parameters {
-real sigma;
-real sigma_juv;
-real alpha;
-real beta;
-real mu[NS,MY,MJ];
-real mu_juv[NS,MY,MJ];
+real<lower = 0> sigma;
+real<lower = 0> sigma_juv;
+vector[N] mu_y;
+vector[N] mu_juv;
+vector[N] gamma;
+matrix[Nsp, 2] ab;                              // matrix for alpha, beta, gamma, and theta
+matrix[2, 2] Rho;                                 // covariance matrix
+vector[Nsp] alpha;
+vector[Nsp] beta;
+vector[Nsp] alpha_c;
+vector[Nsp] beta_c;
+vector<lower = 0>[2] sigma_sp;
+real mu_alpha;
+real mu_beta;
 
 sigma = sigma_raw * 10;
 sigma_juv = sigma_juv_raw * 10;
-alpha = alpha_raw * 10;
-beta = beta_raw * 10;
+mu_juv = mu_juv_raw * 60 + 180;
+mu_alpha = mu_alpha_raw * 50 + 100;
+mu_beta = mu_beta_raw * 5;
+sigma_sp[1] = sigma_sp_raw[1] * 60;             // variance alpha
+sigma_sp[2] = sigma_sp_raw[2] * 1;              // variance beta
 
-for (s in 1:NS)
+// cholesky factor of covariance matrix multiplied by z score
+ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
+alpha = ab[,1];
+beta = ab[,2];
+Rho = L_Rho * L_Rho';
+
+for (i in 1:N)
 {
-  for (i in 1:NY[s])
-  {
-    for (j in 1:NJ[s,i])
-    {
-      // non-centered prior for mu_juv
-      mu_juv[s,i,j] = mu_juv_raw[s,i,j] * 10;
-      
-      // process model
-      mu2[s,i,j] = alpha + beta * mu_juv[s,i,j];
-      
-      // implies mu[s,i,j] ~ normal(mu2[s,i,j], sigma)
-      mu[s,i,j] = mu_raw[s,i,j] * sigma + mu2[s,i,j]; 
-    }
-  }
+  gamma[i] = (mu_alpha + ab[sp[i], 1]) +
+  (mu_beta + ab[sp[i], 2]) * mu_juv[i];
 }
+
+alpha_c = mu_alpha + alpha;
+beta_c = mu_beta + beta;
+
+// implies mu_y[i] ~ normal(gamma[i], sigma)
+mu_y = mu_y_raw * sigma + gamma; 
 
 }
 
 model {
 sigma_raw ~ std_normal();
 sigma_juv_raw ~ std_normal();
-alpha_raw ~ std_normal();
-beta_raw ~ std_normal();
+sigma_sp_raw ~ std_normal();
+mu_alpha_raw ~ std_normal();
+mu_beta_raw ~ std_normal();
+mu_y_raw ~ std_normal();
+mu_juv_raw ~ std_normal();
 
+to_vector(z) ~ std_normal();         // faster than normal(0, 1);
+L_Rho ~ lkj_corr_cholesky(2);
 
-for (s in 1:NS)
+for (i in 1:N)
 {
-  for (i in 1:NY[s])
+  for (k in 1:NI[i])
   {
-    for (j in 1:NJ[s,i])
-    {
-      // non centered for mu_juv
-      mu_juv_raw[s,i,j] ~ std_normal();
-      
-      for (k in 1:NK[s,i,j])
-      {
-        // mean juv date for each species/cell/year
-        juv[s,i,j,k] ~ normal(mu_juv[s,i,j], sigma_juv);
-      }
-      
-      // non-centered for mu
-      mu_raw[s,i,j] ~ std_normal();
-      
-      // observation model for arrival
-      y[s,i,j] ~ normal(mu[s,i,j], sd_y[s,i,j]);
-    }
+    // mean juv date for each species/cell/year
+    juv[i,k] ~ normal(mu_juv[i], sigma_juv);
   }
 }
+
+// observation model for arrival
+y ~ normal(mu_y, sd_y);
+
 }
 
-// generated quantities {
-// real y_rep;
+generated quantities {
+real y_rep[N];
 
-// y_rep = normal_rng(mu, sigma);
-// }
+y_rep = normal_rng(mu_y, sd_y);
+}
 "
-
-# stanmodel3 <- "
-# data {
-# int<lower=0> N;                     // number of obs
-# int<lower=0> Nsp;                   // number of species
-# real<lower=0> y[N];                 // response
-# int<lower=1, upper=Nsp> sp[N];      // species ids
-# vector<lower=0>[N] year;
-# vector<lower=0>[N] lat;
-# vector<lower=0>[N] elev;
-# }
-# 
-# parameters {
-# real mu_alpha_raw;
-# real mu_beta_raw;
-# real mu_gamma_raw;
-# real mu_theta_raw;
-# vector<lower = 0>[Nsp] sigma_raw;
-# vector<lower = 0>[2] sigma_sp_raw;
-# cholesky_factor_corr[2] L_Rho;             // correlation matrix
-# matrix[2, Nsp] z;                          // z-scores
-# }
-# 
-# transformed parameters {
-# vector[N] mu;
-# matrix[Nsp, 2] abgt;                              // matrix for alpha, beta, gamma, and theta
-# matrix[2, 2] Rho;                                 // covariance matrix
-# vector[Nsp] alpha;
-# vector[Nsp] beta;
-# vector[Nsp] alpha_c;
-# vector[Nsp] beta_c;
-# 
-# vector<lower = 0>[Nsp] sigma;
-# vector<lower = 0>[2] sigma_sp;
-# real mu_alpha;
-# real mu_beta;
-# 
-# sigma = sigma_raw * 5;
-# mu_alpha = mu_alpha_raw * 10 + 70;
-# mu_beta = mu_beta_raw * 0.1;
-# sigma_sp[1] = sigma_sp_raw[1] * 20;             // variance alpha
-# sigma_sp[2] = sigma_sp_raw[2] * 0.1;              // variance beta
-# 
-# // cholesky factor of covariance matrix multiplied by z score
-# ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
-# alpha = ab[,1];
-# beta = ab[,2];
-# Rho = L_Rho * L_Rho';
-# 
-# for (i in 1:N)
-# {
-#   mu[i] = (mu_alpha + ab[sp[i], 1]) + 
-#   (mu_beta + ab[sp[i], 2]) * year[i];
-# }
-# 
-# alpha_c = mu_alpha + alpha;
-# beta_c = mu_beta + beta;
-# }
-# 
-# model {
-# sigma_raw ~ std_normal();
-# mu_alpha_raw ~ std_normal();
-# mu_beta_raw ~ std_normal();
-# sigma_sp_raw ~ std_normal();
-# 
-# to_vector(z) ~ std_normal();         // faster than normal(0, 1);
-# L_Rho ~ lkj_corr_cholesky(2);
-# 
-# y ~ normal(mu, sigma[sp]);
-# }
-# 
-# generated quantities {
-# real y_rep[N];
-# 
-# y_rep = normal_rng(mu, sigma[sp]);
-# }
-# "
 
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.85
+DELTA <- 0.98
 TREE_DEPTH <- 14
-STEP_SIZE <- 0.0025
+STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 5000
+ITER <- 2000
 
 tt <- proc.time()
-fit <- rstan::stan(model_code = stanmodel3,
+fit <- rstan::stan(model_code = stanmodel1,
                    data = DATA,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha',
+                   pars = c('alpha_c',
+                            'beta_c',
+                            'alpha',
                             'beta',
+                            'mu_alpha',
+                            'mu_beta',
+                            'sigma_sp',
+                            'Rho',
                             'sigma_juv',
                             'sigma',
-                            'mu_juv'), 
+                            'mu_juv',
+                            'mu_y',
+                            'y_rep'), 
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'wing_chord_changes/Results'))
-saveRDS(fit, file = paste0('wc-tle-stan-output-', DATE, '.rds'))
+saveRDS(fit, file = paste0('', DATE, '.rds'))
 #fit <- readRDS('wc-tle-stan-output-2019-05-02.rds')
 
 
@@ -342,7 +248,6 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 # Calc diagnostics ---------------------------------------------------
 
-#fit <- readRDS('Ictinia_mississippiensis-2019-05-26-pheno_trends_stan_output.rds')
 # library(shinystan)
 # launch_shinystan(fit)
 
@@ -528,4 +433,91 @@ sink()
 
 
 
+# plot --------------------------------------------------------------------
 
+#extract posterior estimates for true states for y and x
+y_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
+                                 func = mean)[[1]]
+y_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
+                                func = function(x) quantile(x, probs = c(0.025)))[[1]]
+y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
+                                func = function(x) quantile(x, probs = c(0.975)))[[1]]
+
+x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = mean)[[1]]
+x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = function(x) quantile(x, probs = c(0.025)))[[1]]
+x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = function(x) quantile(x, probs = c(0.975)))[[1]]
+
+#need true latent states
+DATA_PLOT <- data.frame(mean_y = y_true_mean,
+                        mean_y_l = y_true_LCI,
+                        mean_y_u = y_true_UCI,
+                        mean_x = x_true_mean, 
+                        mean_x_l = x_true_LCI,
+                        mean_x_u = x_true_UCI,
+                        sp_id = factor(arr_data$species))
+  
+#model fit for mu_beta and mu_alpha
+alpha_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
+beta_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
+
+sim_x <- seq(min(DATA_PLOT$mean_x_l) - 1, max(DATA_PLOT$mean_x_u) + 1, length = 100)
+  
+mf <- matrix(nrow = length(beta_ch), ncol = 100)
+for (i in 1:length(sim_x))
+{
+  mf[,i] <- alpha_ch + beta_ch * sim_x[i]
+}
+
+med_mf <- apply(mf, 2, median)
+LCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.025))
+UCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.975))
+
+FIT_PLOT <- data.frame(MN = med_mf,
+                       MN_X = sim_x,
+                       LCI = LCI_mf,
+                       UCI = UCI_mf)
+
+p <- ggplot(data = DATA_PLOT, aes(mean_x, mean_y)) +
+  # geom_ribbon(data = FIT_PLOT,
+  #             aes(x = MN_X, ymin = LCI, ymax = UCI),
+  #             fill = 'grey', alpha = 0.7,
+  #             inherit.aes = FALSE) +
+  # geom_line(data = FIT_PLOT, aes(MN_X, MN), color = 'red',
+  #           alpha = 0.9,
+  #           inherit.aes = FALSE,
+  #           size = 1.4) +
+  geom_errorbar(data = DATA_PLOT, 
+                aes(ymin = mean_y_l, ymax = mean_y_u), width = 0.3,
+                color = 'black', alpha = 0.2) +
+  geom_errorbarh(data = DATA_PLOT, 
+                 aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
+                 color = 'black', alpha = 0.2) +
+  geom_point(data = DATA_PLOT, aes(mean_x, mean_y, color = sp_id),
+             inherit.aes = FALSE, size = 3, alpha = 0.3) +
+  theme_bw() +
+  #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
+  xlab('BR') +
+  ylab('ARR') +
+  #ggtitle(paste0('Species: ', SPECIES)) +
+  theme(
+    plot.title = element_text(size = 22),
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 18),
+    axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+    axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
+    axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
+
+print(p)
+
+
+
+arr <- dplyr::filter(arr_data2, species == 'Geothlypis_trichas')
+
+means <- apply(juv_array, 1, function(x) mean(x[which(x > 0)]))
+da <- apply(juv_array, 1, function(x) sum(x > 0))
+GT <- which(arr_data2$species == 'Geothlypis_trichas')
+
+#number of birds for each cell/year
+da[GT]
+
+plot(means[GT], tt$mean_post_IAR)

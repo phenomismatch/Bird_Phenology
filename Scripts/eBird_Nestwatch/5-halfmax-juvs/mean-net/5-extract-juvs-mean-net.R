@@ -37,7 +37,6 @@ data <- readRDS('MAPS-age-filled.rds')
 data_a0 <- dplyr::filter(data, true_age == 0, !is.na(band_id))
 
 
-
 # create grid -------------------------------------------------------------
 
 hexgrid6 <- dggridR::dgconstruct(res = 6)
@@ -45,7 +44,7 @@ data_a0$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
                                        in_lon_deg = data_a0$lng, 
                                        in_lat_deg = data_a0$lat)[[1]]
 
-
+tt <- dplyr::filter(data_a0, sci_name == 'Geothlypis trichas', cell == 649, year == 2004)
 
 
 # filter by species/cell/year ---------------------------------------------
