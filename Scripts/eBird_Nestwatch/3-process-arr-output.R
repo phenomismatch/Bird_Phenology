@@ -1,5 +1,5 @@
 ######################
-# 3 - proces arrival cubic output
+# 3 - proces arrival GAM output
 #
 # Aggeregate posterior info and diagnostic info from 2-halfmax-arr.R to be used in IAR model
 # Determine which cells should be used in IAR model (cells that overlap breeding and migratory ranges, but do not overlap resident or non-breeding ranges) - 18 hour run time?
