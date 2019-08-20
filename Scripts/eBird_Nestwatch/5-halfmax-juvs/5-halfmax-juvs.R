@@ -1,6 +1,7 @@
 ######################
-# 5 - bern model juvs MAPS
+# 5 - GAM model juvs MAPS
 #
+# only cells where there was IAR input data
 ######################
 
 
