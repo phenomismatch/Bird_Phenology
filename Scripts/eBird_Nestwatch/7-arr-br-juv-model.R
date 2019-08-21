@@ -195,7 +195,7 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arr_br_', juv_date))
-saveRDS(fit, file = paste0('arr-br-stan-output', juv_date, '.rds'))
+saveRDS(fit, file = paste0('arr-br-juv-stan-output', juv_date, '.rds'))
 
 
 num_diverge <- rstan::get_num_divergent(fit)
@@ -237,7 +237,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('arr-br-stan-results-', DATE, '.txt'))
+sink(paste0('arr-br-juv-stan-results-', DATE, '.txt'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
