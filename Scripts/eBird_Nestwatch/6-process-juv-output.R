@@ -17,10 +17,12 @@ dir <- '~/Google_Drive/R/'
 
 # db/juv query dir ------------------------------------------------------------
 
-juv_dir <- 'halfmax_juvs_2019-08-20'
+#input dir
+juv_dir <- 'halfmax_juvs_2019-08-21'
 juv_date <- substr(juv_dir, start = 14, stop = 23)
 
-arr_br_dir <- 'arr_br_2019-08-20'
+#output dir
+arr_br_dir <- 'arr_br_2019-08-21'
 
 
 # runtime -----------------------------------------------------------------
