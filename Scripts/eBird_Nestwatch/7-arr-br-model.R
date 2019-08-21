@@ -84,7 +84,6 @@ int<lower=0> Nsp;
 
 parameters {
 real<lower = 0> sigma_raw;
-real<lower = 0> sigma_juv_raw;
 vector[N] mu_y_raw;
 vector[N] mu_juv_raw;
 real mu_alpha_raw;
@@ -96,7 +95,6 @@ matrix[2, Nsp] z;                          // z-scores
 
 transformed parameters {
 real<lower = 0> sigma;
-real<lower = 0> sigma_juv;
 vector[N] mu_y;
 vector[N] mu_juv;
 vector[N] mu;
@@ -111,12 +109,11 @@ real mu_alpha;
 real mu_beta;
 
 sigma = sigma_raw * 10;
-sigma_juv = sigma_juv_raw * 10;
-mu_juv = mu_juv_raw * 60 + 180;
-mu_alpha = mu_alpha_raw * 50 + 100;
+mu_juv = mu_juv_raw * 100 + 200;
+mu_alpha = mu_alpha_raw * 200;
 mu_beta = mu_beta_raw * 5;
-sigma_sp[1] = sigma_sp_raw[1] * 60;             // variance alpha
-sigma_sp[2] = sigma_sp_raw[2] * 1;              // variance beta
+sigma_sp[1] = sigma_sp_raw[1] * 200;             // variance alpha
+sigma_sp[2] = sigma_sp_raw[2] * 5;              // variance beta
 
 // cholesky factor of covariance matrix multiplied by z score
 ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
@@ -140,7 +137,6 @@ mu_y = mu_y_raw * sigma + mu;
 
 model {
 sigma_raw ~ std_normal();
-sigma_juv_raw ~ std_normal();
 sigma_sp_raw ~ std_normal();
 mu_alpha_raw ~ std_normal();
 mu_beta_raw ~ std_normal();
@@ -168,11 +164,11 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
-TREE_DEPTH <- 14
+DELTA <- 0.90
+TREE_DEPTH <- 15
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 2000
+ITER <- 3000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel1,
@@ -188,7 +184,6 @@ fit <- rstan::stan(model_code = stanmodel1,
                             'mu_beta',
                             'sigma_sp',
                             'Rho',
-                            'sigma_juv',
                             'sigma',
                             'mu_juv',
                             'mu_y',
@@ -200,7 +195,7 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arr_br_', juv_date))
-saveRDS(fit, file = paste0('arr-br-stan-output', DATE, '.rds'))
+saveRDS(fit, file = paste0('arr-br-stan-output', juv_date, '.rds'))
 
 
 num_diverge <- rstan::get_num_divergent(fit)
@@ -413,9 +408,12 @@ data_vis_fun <- function(SPECIES = 'all')
   y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
                                   func = function(x) quantile(x, probs = c(0.975)))[[1]]
   
-  x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = mean)[[1]]
-  x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = function(x) quantile(x, probs = c(0.025)))[[1]]
-  x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = function(x) quantile(x, probs = c(0.975)))[[1]]
+  x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', 
+                                   func = mean)[[1]]
+  x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', 
+                                  func = function(x) quantile(x, probs = c(0.025)))[[1]]
+  x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', 
+                                  func = function(x) quantile(x, probs = c(0.975)))[[1]]
   
   #need true latent states
   DATA_PLOT <- data.frame(mean_y = y_true_mean,
@@ -440,7 +438,7 @@ data_vis_fun <- function(SPECIES = 'all')
       alpha_ch <- MCMCchains(fit, params = paste0('alpha\\[', idx, '\\]'), ISB = FALSE)[,1]
       beta_ch <- MCMCchains(fit, params = paste0('beta\\[', idx, '\\]'), ISB = FALSE)[,1]
       
-      DATA_PLOT2 <- dplyr::filter(DATA_PLOT, sp_id == idx)
+      DATA_PLOT2 <- dplyr::filter(DATA_PLOT, sp_id == SPECIES)
     } else {
       stop(paste0('Species: ', SPECIES, ' not found!'))
     }
@@ -478,12 +476,14 @@ data_vis_fun <- function(SPECIES = 'all')
     geom_errorbarh(data = DATA_PLOT2, 
                    aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
                    color = 'black', alpha = 0.2) +
-    geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
+    # geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
+    #            inherit.aes = FALSE, size = 1, alpha = 0.3) +
+    geom_point(data = DATA_PLOT2, aes(mean_x, mean_y, color = sp_id),
                inherit.aes = FALSE, size = 1, alpha = 0.3) +
     theme_bw() +
     #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
-    xlab('True ARR halfmax') +
-    ylab('True BR halfmax') +
+    ylab('True ARR halfmax') +
+    xlab('True BR halfmax') +
     ggtitle(paste0('Species: ', SPECIES)) +
     theme(
       plot.title = element_text(size = 22),
@@ -494,6 +494,19 @@ data_vis_fun <- function(SPECIES = 'all')
       axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
   
   print(p)
+}
+
+
+
+#all species together
+data_vis_fun(SPECIES = 'all')
+
+#each species individually
+sps <- unique(mrg_f$species)
+for (i in 1:length(sps))
+{
+  #i <- 3
+  data_vis_fun(SPECIES = sps[i])
 }
 
 
