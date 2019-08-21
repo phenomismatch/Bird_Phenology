@@ -168,7 +168,7 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.98
+DELTA <- 0.95
 TREE_DEPTH <- 14
 STEP_SIZE <- 0.001
 CHAINS <- 4
@@ -201,7 +201,6 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arr_br_', juv_date))
 saveRDS(fit, file = paste0('arr-br-stan-output', DATE, '.rds'))
-#fit <- readRDS('wc-tle-stan-output-2019-05-02.rds')
 
 
 num_diverge <- rstan::get_num_divergent(fit)
@@ -395,6 +394,114 @@ sink()
 #                    pdf = FALSE)
  
 
+
+
+
+# new plot ----------------------------------------------------------------
+
+
+
+data_vis_fun <- function(SPECIES = 'all')
+{
+  #SPECIES <- 'Vireo_olivaceus'
+  
+  #extract posterior estimates for true states for y and x
+  y_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
+                                   func = mean)[[1]]
+  y_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
+                                  func = function(x) quantile(x, probs = c(0.025)))[[1]]
+  y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
+                                  func = function(x) quantile(x, probs = c(0.975)))[[1]]
+  
+  x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = mean)[[1]]
+  x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = function(x) quantile(x, probs = c(0.025)))[[1]]
+  x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = function(x) quantile(x, probs = c(0.975)))[[1]]
+  
+  #need true latent states
+  DATA_PLOT <- data.frame(mean_y = y_true_mean,
+                          mean_y_l = y_true_LCI,
+                          mean_y_u = y_true_UCI,
+                          mean_x = x_true_mean, 
+                          mean_x_l = x_true_LCI,
+                          mean_x_u = x_true_UCI,
+                          sp_id = factor(mrg_f$species))
+  
+  if (SPECIES == 'all')
+  {
+    #model fit for mu_beta and mu_alpha
+    alpha_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
+    beta_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
+    
+    DATA_PLOT2 <- DATA_PLOT
+  } else {
+    idx <- which(unique(mrg_f$species) == SPECIES)
+    if (length(idx) > 0)
+    {
+      alpha_ch <- MCMCchains(fit, params = paste0('alpha\\[', idx, '\\]'), ISB = FALSE)[,1]
+      beta_ch <- MCMCchains(fit, params = paste0('beta\\[', idx, '\\]'), ISB = FALSE)[,1]
+      
+      DATA_PLOT2 <- dplyr::filter(DATA_PLOT, sp_id == idx)
+    } else {
+      stop(paste0('Species: ', SPECIES, ' not found!'))
+    }
+  }
+  
+  sim_x <- seq(min(DATA_PLOT2$mean_x_l) - 1, max(DATA_PLOT2$mean_x_u) + 1, length = 100)
+  
+  mf <- matrix(nrow = length(beta_ch), ncol = 100)
+  for (i in 1:length(sim_x))
+  {
+    mf[,i] <- alpha_ch + beta_ch * sim_x[i]
+  }
+  
+  med_mf <- apply(mf, 2, median)
+  LCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.025))
+  UCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.975))
+  
+  FIT_PLOT <- data.frame(MN = med_mf,
+                         MN_X = sim_x,
+                         LCI = LCI_mf,
+                         UCI = UCI_mf)
+  
+  p <- ggplot(data = DATA_PLOT2, aes(mean_x, mean_y)) +
+    geom_ribbon(data = FIT_PLOT,
+                aes(x = MN_X, ymin = LCI, ymax = UCI),
+                fill = 'grey', alpha = 0.7,
+                inherit.aes = FALSE) +
+    geom_line(data = FIT_PLOT, aes(MN_X, MN), color = 'red',
+              alpha = 0.9,
+              inherit.aes = FALSE,
+              size = 1.4) +
+    geom_errorbar(data = DATA_PLOT2, 
+                  aes(ymin = mean_y_l, ymax = mean_y_u), width = 0.3,
+                  color = 'black', alpha = 0.2) +
+    geom_errorbarh(data = DATA_PLOT2, 
+                   aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
+                   color = 'black', alpha = 0.2) +
+    geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
+               inherit.aes = FALSE, size = 1, alpha = 0.3) +
+    theme_bw() +
+    #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
+    xlab('True ARR halfmax') +
+    ylab('True BR halfmax') +
+    ggtitle(paste0('Species: ', SPECIES)) +
+    theme(
+      plot.title = element_text(size = 22),
+      axis.text = element_text(size = 16),
+      axis.title = element_text(size = 18),
+      axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+      axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
+      axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
+  
+  print(p)
+}
+
+
+
+
+################################
+#vvvvvvvvv DEPRECATED? vvvvvvvvv
+################################
 
 
 # plot --------------------------------------------------------------------
