@@ -50,24 +50,24 @@ arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 #merge data sets
 mrg <- dplyr::inner_join(juvs_master, arr_master, by = c('species', 'cell', 'year'))
 
-#only species/cells/years with data for juvs and input data for IAR
-mrg_f <- dplyr::filter(mrg, !is.na(juv_mean), !is.na(mean_pre_IAR))
+#only species/cells/years with data for juvs
+mrg_f <- dplyr::filter(mrg, !is.na(juv_mean))
 
+#only species that have at least 5 data points
+cnt_arr <- plyr::count(mrg_f, 'species')
+sp_f <- filter(cnt_arr, freq >= 5)$species
 
-# #only species that have more than 3 data points
-# cnt_arr <- plyr::count(mrg_f, 'species')
-# sp_f <- filter(cnt_arr, freq > 3)$species
-
-sp_idx <- as.numeric(factor(mrg_f$species))
+mrg_f2 <- dplyr::filter(mrg_f, species %in% sp_f)
+sp_idx <- as.numeric(factor(mrg_f2$species))
 
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = mrg_f$mean_post_IAR,
-             sd_y = mrg_f$sd_post_IAR,
-             juv = mrg_f$juv_mean,
-             sd_juv = mrg_f$juv_sd,
-             N = NROW(mrg_f),
+DATA <- list(y = mrg_f2$mean_post_IAR,
+             sd_y = mrg_f2$sd_post_IAR,
+             juv = mrg_f2$juv_mean,
+             sd_juv = mrg_f2$juv_sd,
+             N = NROW(mrg_f2),
              sp = sp_idx,
              Nsp = length(unique(sp_idx)))
 
@@ -108,12 +108,12 @@ vector<lower = 0>[2] sigma_sp;
 real mu_alpha;
 real mu_beta;
 
-sigma = sigma_raw * 10;
-mu_juv = mu_juv_raw * 100 + 200;
 mu_alpha = mu_alpha_raw * 200;
-mu_beta = mu_beta_raw * 5;
-sigma_sp[1] = sigma_sp_raw[1] * 200;             // variance alpha
-sigma_sp[2] = sigma_sp_raw[2] * 5;              // variance beta
+mu_beta = mu_beta_raw * 2;
+sigma = sigma_raw * 10;
+mu_juv = mu_juv_raw * 40 + 200;
+sigma_sp[1] = sigma_sp_raw[1] * 20;
+sigma_sp[2] = sigma_sp_raw[2] * 1;
 
 // cholesky factor of covariance matrix multiplied by z score
 ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
@@ -164,8 +164,8 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.90
-TREE_DEPTH <- 15
+DELTA <- 0.98
+TREE_DEPTH <- 16
 STEP_SIZE <- 0.001
 CHAINS <- 4
 ITER <- 3000
@@ -206,7 +206,7 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 # Calc diagnostics ---------------------------------------------------
 
-# library(shinystan)
+# library(shinystan)  
 # launch_shinystan(fit)
 
 sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
@@ -228,10 +228,9 @@ model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2,
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
 neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
 
-#y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-
-# bayesplot::ppc_stat(DATA$y_obs, y_rep, stat = 'mean')
-# bayesplot::ppc_dens_overlay(DATA$y_obs, y_rep[1:500,])
+# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+# bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
+# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:500,])
 
 
 
@@ -304,93 +303,63 @@ sink()
 # 
 # # PPO ---------------------------------------------------------------------
 # 
-# sigma = sigma_raw * 5;
-# mu_alpha = mu_alpha_raw * 10 + 70;
-# mu_beta = mu_beta_raw * 0.1;
-# mu_gamma = mu_gamma_raw * 1;
-# mu_theta = mu_theta_raw * 0.01;
-# sigma_sp[1] = sigma_sp_raw[1] * 20;             // variance alpha
-# sigma_sp[2] = sigma_sp_raw[2] * 0.1;              // variance beta
-# sigma_sp[3] = sigma_sp_raw[3] * 1;              // variance gamma
-# sigma_sp[4] = sigma_sp_raw[4] * 0.01;              // variance gamma
+# mu_alpha = mu_alpha_raw * 200;
+# mu_beta = mu_beta_raw * 2;
+# sigma = sigma_raw * 10;
+# mu_juv = mu_juv_raw * 40 + 200;
+# sigma_sp[1] = sigma_sp_raw[1] * 20;
+# sigma_sp[2] = sigma_sp_raw[2] * 1;
 # 
 # 
 # 
-# #mu_alpha ~ N(70, 10)
-# PR <- rnorm(10000, 70, 10)
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'mu_alpha',
-#                    priors = PR,
-#                    pdf = FALSE)
-# 
-# #mu_beta ~ N(0, 2)
-# PR <- rnorm(10000, 0, 0.1)
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'mu_beta',
-#                    priors = PR,
-#                    pdf = FALSE)
-# 
-# #mu_gamma ~ N(0, 2)
-# PR <- rnorm(10000, 0, 1)
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'mu_gamma',
-#                    priors = PR,
-#                    pdf = FALSE)
-# 
-# #mu_theta ~ N(0, 1)
-# PR <- rnorm(10000, 0, 0.01)
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'mu_theta',
-#                    priors = PR,
-#                    pdf = FALSE)
-# 
-# #sigma_sp[1] ~ HN(0, 20)
-# PR_p <- rnorm(10000, 0, 20)
-# PR <- PR_p[which(PR_p > 0)]
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_sp\\[1',
-#                    ISB = 'FALSE',
-#                    priors = PR,
-#                    pdf = FALSE)
-# 
-# #sigma_sp[2] ~ HN(0, 0.1)
-# PR_p <- rnorm(10000, 0, 0.1)
-# PR <- PR_p[which(PR_p > 0)]
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_sp\\[2',
-#                    ISB = 'FALSE',
-#                    priors = PR,
-#                    pdf = FALSE)
-# 
-# #sigma_sp[3] ~ HN(0, 1)
-# PR_p <- rnorm(10000, 0, 1)
-# PR <- PR_p[which(PR_p > 0)]
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_sp\\[3',
-#                    ISB = 'FALSE',
-#                    priors = PR,
-#                    pdf = FALSE)
-# 
-# #sigma_sp[4] ~ HN(0, 0.01)
-# PR_p <- rnorm(10000, 0, 0.01)
-# PR <- PR_p[which(PR_p > 0)]
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma_sp\\[4',
-#                    ISB = 'FALSE',
-#                    priors = PR,
-#                    pdf = FALSE)
-# 
-# #sigma ~ HN(0, 5)
-# PR_p <- rnorm(10000, 0, 5)
-# PR <- PR_p[which(PR_p > 0)]
-# MCMCvis::MCMCtrace(fit,
-#                    params = 'sigma',
-#                    priors = PR,
-#                    pdf = FALSE)
+#mu_alpha ~ N(0, 200)
+PR <- rnorm(10000, 0, 200)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_alpha',
+                   priors = PR,
+                   pdf = FALSE)
+
+#mu_beta ~ N(0, 5)
+PR <- rnorm(10000, 0, 5)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_beta',
+                   priors = PR,
+                   pdf = FALSE)
+
+#sigma_sp[1] ~ HN(0, 200)
+PR_p <- rnorm(10000, 0, 200)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_sp\\[1',
+                   ISB = 'FALSE',
+                   priors = PR,
+                   pdf = FALSE)
+
+#sigma_sp[2] ~ HN(0, 5)
+PR_p <- rnorm(10000, 0, 5)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_sp\\[2',
+                   ISB = 'FALSE',
+                   priors = PR,
+                   pdf = FALSE)
+
+
+#sigma ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma',
+                   priors = PR,
+                   pdf = FALSE)
  
-
-
-
+#mu_juv ~ N(200, 100)
+PR <- rnorm(10000, 200, 100)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_juv',
+                   priors = PR,
+                   pdf = TRUE)
+setwd('~/Desktop')
 
 # new plot ----------------------------------------------------------------
 
@@ -398,7 +367,7 @@ sink()
 
 data_vis_fun <- function(SPECIES = 'all')
 {
-  #SPECIES <- 'Vireo_olivaceus'
+  #SPECIES <- 'Geothlypis_trichas'
   
   #extract posterior estimates for true states for y and x
   y_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
@@ -415,28 +384,40 @@ data_vis_fun <- function(SPECIES = 'all')
   x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', 
                                   func = function(x) quantile(x, probs = c(0.975)))[[1]]
   
-  #need true latent states
   DATA_PLOT <- data.frame(mean_y = y_true_mean,
                           mean_y_l = y_true_LCI,
                           mean_y_u = y_true_UCI,
                           mean_x = x_true_mean, 
                           mean_x_l = x_true_LCI,
                           mean_x_u = x_true_UCI,
-                          sp_id = factor(mrg_f$species))
+                          y_obs = DATA$y,
+                          y_obs_l = DATA$y - (1.96 * DATA$sd_y),
+                          y_obs_u = DATA$y + (1.96 * DATA$sd_y),
+                          x_obs = DATA$juv,
+                          x_obs_l = DATA$juv - (1.96 * DATA$sd_juv),
+                          x_obs_u = DATA$juv + (1.96 * DATA$sd_juv),
+                          sp_id = factor(mrg_f2$species))
+  
+  mu_alpha_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
+  mu_beta_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
   
   if (SPECIES == 'all')
   {
     #model fit for mu_beta and mu_alpha
-    alpha_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
-    beta_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
+    a_ch <- mu_alpha_ch
+    b_ch <- mu_beta_ch
     
     DATA_PLOT2 <- DATA_PLOT
   } else {
-    idx <- which(unique(mrg_f$species) == SPECIES)
+    
+    idx <- which(unique(mrg_f2$species) == SPECIES)
     if (length(idx) > 0)
     {
       alpha_ch <- MCMCchains(fit, params = paste0('alpha\\[', idx, '\\]'), ISB = FALSE)[,1]
       beta_ch <- MCMCchains(fit, params = paste0('beta\\[', idx, '\\]'), ISB = FALSE)[,1]
+      
+      a_ch <- mu_alpha_ch + alpha_ch
+      b_ch <- mu_beta_ch + beta_ch
       
       DATA_PLOT2 <- dplyr::filter(DATA_PLOT, sp_id == SPECIES)
     } else {
@@ -446,10 +427,10 @@ data_vis_fun <- function(SPECIES = 'all')
   
   sim_x <- seq(min(DATA_PLOT2$mean_x_l) - 1, max(DATA_PLOT2$mean_x_u) + 1, length = 100)
   
-  mf <- matrix(nrow = length(beta_ch), ncol = 100)
+  mf <- matrix(nrow = length(mu_alpha_ch), ncol = 100)
   for (i in 1:length(sim_x))
   {
-    mf[,i] <- alpha_ch + beta_ch * sim_x[i]
+    mf[,i] <- a_ch + b_ch * sim_x[i]
   }
   
   med_mf <- apply(mf, 2, median)
@@ -462,6 +443,7 @@ data_vis_fun <- function(SPECIES = 'all')
                          UCI = UCI_mf)
   
   p <- ggplot(data = DATA_PLOT2, aes(mean_x, mean_y)) +
+    #model fit
     geom_ribbon(data = FIT_PLOT,
                 aes(x = MN_X, ymin = LCI, ymax = UCI),
                 fill = 'grey', alpha = 0.7,
@@ -470,16 +452,26 @@ data_vis_fun <- function(SPECIES = 'all')
               alpha = 0.9,
               inherit.aes = FALSE,
               size = 1.4) +
+    #latent state
     geom_errorbar(data = DATA_PLOT2, 
                   aes(ymin = mean_y_l, ymax = mean_y_u), width = 0.3,
                   color = 'black', alpha = 0.2) +
     geom_errorbarh(data = DATA_PLOT2, 
                    aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
                    color = 'black', alpha = 0.2) +
-    # geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
-    #            inherit.aes = FALSE, size = 1, alpha = 0.3) +
-    geom_point(data = DATA_PLOT2, aes(mean_x, mean_y, color = sp_id),
-               inherit.aes = FALSE, size = 1, alpha = 0.3) +
+    geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
+               inherit.aes = FALSE, size = 3, alpha = 0.3) +
+    # geom_point(data = DATA_PLOT2, aes(mean_x, mean_y, color = sp_id),
+    #            inherit.aes = FALSE, size = 3, alpha = 0.3) +
+    #observed data
+    geom_errorbar(data = DATA_PLOT2,
+                  aes(x = x_obs, ymin = y_obs_l, ymax = y_obs_u), width = 0.3,
+                  color = 'red', alpha = 0.2) +
+    geom_errorbarh(data = DATA_PLOT2,
+                   aes(y = y_obs, xmin = x_obs_l, xmax = x_obs_u), height = 0.005,
+                   color = 'red', alpha = 0.2) +
+    geom_point(data = DATA_PLOT2, aes(x_obs, y_obs, color = 'red'),
+               inherit.aes = FALSE, size = 3, alpha = 0.3) +
     theme_bw() +
     #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
     ylab('True ARR halfmax') +
@@ -502,106 +494,10 @@ data_vis_fun <- function(SPECIES = 'all')
 data_vis_fun(SPECIES = 'all')
 
 #each species individually
-sps <- unique(mrg_f$species)
+sps <- unique(mrg_f2$species)
 for (i in 1:length(sps))
 {
   #i <- 3
   data_vis_fun(SPECIES = sps[i])
 }
 
-
-
-
-################################
-#vvvvvvvvv DEPRECATED? vvvvvvvvv
-################################
-
-
-# plot --------------------------------------------------------------------
-
-#extract posterior estimates for true states for y and x
-y_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
-                                 func = mean)[[1]]
-y_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
-                                func = function(x) quantile(x, probs = c(0.025)))[[1]]
-y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
-                                func = function(x) quantile(x, probs = c(0.975)))[[1]]
-
-x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = mean)[[1]]
-x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = function(x) quantile(x, probs = c(0.025)))[[1]]
-x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', func = function(x) quantile(x, probs = c(0.975)))[[1]]
-
-#need true latent states
-DATA_PLOT <- data.frame(mean_y = y_true_mean,
-                        mean_y_l = y_true_LCI,
-                        mean_y_u = y_true_UCI,
-                        mean_x = x_true_mean, 
-                        mean_x_l = x_true_LCI,
-                        mean_x_u = x_true_UCI,
-                        sp_id = factor(arr_data$species))
-  
-#model fit for mu_beta and mu_alpha
-alpha_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
-beta_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
-
-sim_x <- seq(min(DATA_PLOT$mean_x_l) - 1, max(DATA_PLOT$mean_x_u) + 1, length = 100)
-  
-mf <- matrix(nrow = length(beta_ch), ncol = 100)
-for (i in 1:length(sim_x))
-{
-  mf[,i] <- alpha_ch + beta_ch * sim_x[i]
-}
-
-med_mf <- apply(mf, 2, median)
-LCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.025))
-UCI_mf <- apply(mf, 2, function(x) quantile(x, probs = 0.975))
-
-FIT_PLOT <- data.frame(MN = med_mf,
-                       MN_X = sim_x,
-                       LCI = LCI_mf,
-                       UCI = UCI_mf)
-
-p <- ggplot(data = DATA_PLOT, aes(mean_x, mean_y)) +
-  # geom_ribbon(data = FIT_PLOT,
-  #             aes(x = MN_X, ymin = LCI, ymax = UCI),
-  #             fill = 'grey', alpha = 0.7,
-  #             inherit.aes = FALSE) +
-  # geom_line(data = FIT_PLOT, aes(MN_X, MN), color = 'red',
-  #           alpha = 0.9,
-  #           inherit.aes = FALSE,
-  #           size = 1.4) +
-  geom_errorbar(data = DATA_PLOT, 
-                aes(ymin = mean_y_l, ymax = mean_y_u), width = 0.3,
-                color = 'black', alpha = 0.2) +
-  geom_errorbarh(data = DATA_PLOT, 
-                 aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
-                 color = 'black', alpha = 0.2) +
-  geom_point(data = DATA_PLOT, aes(mean_x, mean_y, color = sp_id),
-             inherit.aes = FALSE, size = 3, alpha = 0.3) +
-  theme_bw() +
-  #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
-  xlab('BR') +
-  ylab('ARR') +
-  #ggtitle(paste0('Species: ', SPECIES)) +
-  theme(
-    plot.title = element_text(size = 22),
-    axis.text = element_text(size = 16),
-    axis.title = element_text(size = 18),
-    axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
-    axis.title.x = element_text(margin = margin(t = 15, r = 15, b = 0, l = 0)),
-    axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
-
-print(p)
-
-
-
-arr <- dplyr::filter(arr_data2, species == 'Geothlypis_trichas')
-
-means <- apply(juv_array, 1, function(x) mean(x[which(x > 0)]))
-da <- apply(juv_array, 1, function(x) sum(x > 0))
-GT <- which(arr_data2$species == 'Geothlypis_trichas')
-
-#number of birds for each cell/year
-da[GT]
-
-plot(means[GT], tt$mean_post_IAR)
