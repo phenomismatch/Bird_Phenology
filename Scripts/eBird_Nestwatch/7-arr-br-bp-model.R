@@ -317,32 +317,36 @@ PR <- rnorm(10000, 0, 200)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
-                   pdf = FALSE)
+                   pdf = TRUE,
+                   filename = paste0('arr-br-bp-', bp_date, '-trace_mu_alpha.pdf'))
 
-#mu_beta ~ N(0, 5)
-PR <- rnorm(10000, 0, 5)
+#mu_beta ~ N(0, 2)
+PR <- rnorm(10000, 0, 2)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta',
                    priors = PR,
-                   pdf = FALSE)
+                   pdf = TRUE,
+                   filename = paste0('arr-br-bp-', bp_date, '-trace_mu_beta.pdf'))
 
-#sigma_sp[1] ~ HN(0, 200)
-PR_p <- rnorm(10000, 0, 200)
+#sigma_sp[1] ~ HN(0, 20)
+PR_p <- rnorm(10000, 0, 20)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_sp\\[1',
                    ISB = 'FALSE',
                    priors = PR,
-                   pdf = FALSE)
+                   pdf = TRUE,
+                   filename = paste0('arr-br-bp-', bp_date, '-trace_sigma_sp[1].pdf'))
 
-#sigma_sp[2] ~ HN(0, 5)
-PR_p <- rnorm(10000, 0, 5)
+#sigma_sp[2] ~ HN(0, 1)
+PR_p <- rnorm(10000, 0, 1)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_sp\\[2',
                    ISB = 'FALSE',
                    priors = PR,
-                   pdf = FALSE)
+                   pdf = TRUE,
+                   filename = paste0('arr-br-bp-', bp_date, '-trace_sigma_sp[2].pdf'))
 
 
 #sigma ~ HN(0, 10)
@@ -351,18 +355,20 @@ PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma',
                    priors = PR,
-                   pdf = FALSE)
+                   pdf = TRUE,
+                   filename = paste0('arr-br-bp-', bp_date, '-trace_sigma.pdf'))
 
-#mu_bp ~ N(200, 100)
-PR <- rnorm(10000, 200, 100)
+#mu_bp ~ N(200, 40)
+PR <- rnorm(10000, 200, 40)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_bp',
                    priors = PR,
-                   pdf = TRUE)
-setwd('~/Desktop')
+                   pdf = TRUE,
+                   filename = paste0('arr-br-bp-', bp_date, '-trace_mu_bp.pdf'))
 
-# new plot ----------------------------------------------------------------
 
+
+# Plot fit ----------------------------------------------------------------
 
 
 data_vis_fun <- function(SPECIES = 'all')
@@ -490,14 +496,19 @@ data_vis_fun <- function(SPECIES = 'all')
 
 
 
+
 #all species together
+pdf('MF-all-bp.pdf')
 data_vis_fun(SPECIES = 'all')
+dev.off()
 
 #each species individually
 sps <- unique(mrg_f2$species)
 for (i in 1:length(sps))
 {
   #i <- 3
+  pdf(paste0('MF-', sps[i], '-bp.pdf'))
   data_vis_fun(SPECIES = sps[i])
+  dev.off()
 }
 
