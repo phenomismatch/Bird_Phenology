@@ -110,12 +110,14 @@ m_mf$juv <- NA
 m_mf$juv[which(m_mf$age == 2)] <- 1 #exclude young bird incapable of flight
 m_mf$juv[-which(m_mf$true_age == 0)] <- 0
 
-years <- sort(unique(m_mf$year))
-cells <- sort(unique(m_mf$cell))
+#exclude young bird incapable of flight
+m_mf2 <- m_mf[-which(m_mf$age == 4),]
+
+years <- sort(unique(m_mf2$year))
+cells <- sort(unique(m_mf2$cell))
 ncell <- length(cells)
 nyrs <- length(years)
 
-ff <- dplyr::filter(m_mf, juv == 1)
 
 
 
@@ -156,7 +158,7 @@ counter <- 1
 for (j in 1:nyrs)
 {
   #j <- 1
-  ydata <- dplyr::filter(m_mf, year == years[j])
+  ydata <- dplyr::filter(m_mf2, year == years[j])
   
   for (k in 1:ncell)
   {
@@ -275,7 +277,7 @@ for (j in 1:nyrs)
       mn_hm <- mean(halfmax_fit)
       LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
-      
+
       pdf(paste0(args, '_', years[j], '_', cells[k], '_juvs.pdf'))
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
