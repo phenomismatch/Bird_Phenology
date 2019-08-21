@@ -98,7 +98,7 @@ m_mrg <- dplyr::inner_join(data, arr_br_range, by = c('species', 'cell', 'year')
 m_mf <- dplyr::select(m_mrg, common_name, species, cell, 
                       year, day, age, true_age, mean_pre_IAR, 
                       sd_pre_IAR, mean_post_IAR, sd_post_IAR,
-                      sex, brood_patch)
+                      sex, brood_patch, band_id)
 
 #if no overlap between arrival and MAPS bp, stop script
 if (NROW(m_mf) == 0)
@@ -114,8 +114,9 @@ m_adults <- dplyr::filter(m_mf, age %in% c('1', '5', '6', '7', '8'))
 
 # Hinde 1962 Ibis - 'loss of feathers is related to nest building but not egg laying. Vascularization usually starts while defeathering is in progress. Moderate vascularization (stage 3) occurs somewhat before egg-laying. Vascularity disappears a few days after eggs are removed fmor incubating bird.
 
-#breeding defined as:
-#BP 3 (what is 4 - wrinkled?)
+#BP 0-2 -> nest building through egg laying
+#BP 3 -> incubation through hatching
+#BP 4 -> post hatch
 
 #only captures that recorded brood patch/cloacal protuberance
 m_bp_f <- dplyr::filter(m_adults, sex == 'F', brood_patch %in% c(0:5))
@@ -123,14 +124,50 @@ m_bp_f <- dplyr::filter(m_adults, sex == 'F', brood_patch %in% c(0:5))
 #add breeder col
 m_bp_f$bp <- NA
 
-m_bp_f[which(m_bp_f$brood_patch < 3 | m_bp_f$brood_patch > 3),]$bp <- 0
-m_bp_f[which(m_bp_f$brood_patch == 3),]$bp <- 1
+m_bp_f[which(m_bp_f$brood_patch <= 3 | m_bp_f$brood_patch == 5),]$bp <- 0
+m_bp_f[which(m_bp_f$brood_patch == 4),]$bp <- 1
 
 
 years <- sort(unique(m_bp_f$year))
 cells <- sort(unique(m_bp_f$cell))
 ncell <- length(cells)
 nyrs <- length(years)
+
+
+
+
+# ###
+# for (i in 1:nyrs)
+# {
+#   #i <- 1
+#   temp <- dplyr::filter(m_bp_f, year == years[i])  
+#   uc <- unique(temp$cell)
+#   
+#   for (j in 1:length(uc))
+#   {
+#     #j <- 1
+#     temp2 <- dplyr::filter(temp, cell == uc[j])
+#     plyr::count(temp2, 'band_id')
+#     
+#     bp12 <- dplyr::filter(temp2, brood_patch < 3)
+#     bp3 <- dplyr::filter(temp2, brood_patch == 3)
+#     bp4 <- dplyr::filter(temp2, brood_patch == 4)
+#     bp5 <- dplyr::filter(temp2, brood_patch == 5)
+#     
+#     if (NROW(bp12) > 5 & 
+#         NROW(bp3) > 5 & 
+#         NROW(bp4) > 5)
+#     {
+#       plot(density(bp12$day), xlim = c(100, 280))
+#       lines(density(bp3$day), col = 'red')
+#       lines(density(bp4$day), col = 'green')
+#       #lines(density(bp5$day))
+#     }
+#   }
+# }
+# ###
+
+
 
 
 
