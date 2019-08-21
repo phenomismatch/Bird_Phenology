@@ -41,10 +41,10 @@ library(rstan)
 
 # Get args fed to script --------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Vireo_olivaceus'
 #args <- 'Agelaius_phoeniceus'
-args <- 'Dumetella_carolinensis'
+#args <- 'Dumetella_carolinensis'
 #args <- 'Petrochelidon_pyrrhonota'
 
 
@@ -100,10 +100,10 @@ m_mf <- dplyr::select(m_mrg, common_name, species, cell,
                       sd_pre_IAR, mean_post_IAR, sd_post_IAR,
                       sex, brood_patch)
 
-#if no overlap between arrival and MAPS juvs, stop script
+#if no overlap between arrival and MAPS bp, stop script
 if (NROW(m_mf) == 0)
 {
-  stop('No overlap beteen arrival and MAPS juvs')
+  stop('No overlap beteen arrival and MAPS bp')
 }
 
 
@@ -123,8 +123,8 @@ m_bp_f <- dplyr::filter(m_adults, sex == 'F', brood_patch %in% c(0:5))
 #add breeder col
 m_bp_f$bp <- NA
 
-m_bp_f[which(m_bp_f$brood_patch <= 2 | m_bp_f$brood_patch == 5),]$bp <- 0
-m_bp_f[which(m_bp_f$brood_patch > 2 & m_bp_f$brood_patch < 5),]$bp <- 1
+m_bp_f[which(m_bp_f$brood_patch < 3 | m_bp_f$brood_patch > 3),]$bp <- 0
+m_bp_f[which(m_bp_f$brood_patch == 3),]$bp <- 1
 
 
 years <- sort(unique(m_bp_f$year))
@@ -175,31 +175,31 @@ for (j in 1:nyrs)
   
   for (k in 1:ncell)
   {
-    #k <- 18
+    #k <- 2
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cydata <- dplyr::filter(ydata, cell == cells[k])
     
     #number of surveys where brood patch was detected
-    n1 <- sum(cydata$juv)
+    n1 <- sum(cydata$bp)
     #number of surveys where brood patch was not detected
-    n0 <- sum(cydata$juv == 0)
+    n0 <- sum(cydata$bp == 0)
     # #number of detections that came before jday 60
-    # n1W <- sum(cydata$juv * as.numeric(cydata$day < 60))
+    # n1W <- sum(cydata$bp * as.numeric(cydata$day < 60))
     #number of unique days with detections
-    njd1 <- length(unique(cydata$day[which(cydata$juv == 1)]))
+    njd1 <- length(unique(cydata$day[which(cydata$bp == 1)]))
     #number of unique days with non-detection
-    njd0 <- length(unique(cydata$day[which(cydata$juv == 0)]))
+    njd0 <- length(unique(cydata$day[which(cydata$bp == 0)]))
     
     
     if (n1 > 0)
     {
       #number of unique days of non-detections before first detection
-      njd0i <- length(unique(cydata$day[which(cydata$juv == 0 & cydata$day < 
-                                                min(cydata$day[which(cydata$juv == 1)]))]))
+      njd0i <- length(unique(cydata$day[which(cydata$bp == 0 & cydata$day < 
+                                                min(cydata$day[which(cydata$bp == 1)]))]))
       #number of non-detections before first detection
-      n0i <- length(which(cydata$juv == 0 & 
-                            cydata$day < min(cydata$day[which(cydata$juv == 1)])))
+      n0i <- length(which(cydata$bp == 0 & 
+                            cydata$day < min(cydata$day[which(cydata$bp == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
@@ -220,9 +220,9 @@ for (j in 1:nyrs)
     #br thresholds
     #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     
-    if (n1 > 8 & n0 > 20 & njd0i > 5 & njd1 > 5)
+    if (n1 > 8 & n0 > 10 & njd0i > 5 & njd1 > 5)
     {
-      fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
+      fit2 <- rstanarm::stan_gamm4(bp ~ s(day), 
                                    data = cydata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -243,7 +243,7 @@ for (j in 1:nyrs)
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
         
-        fit2 <- rstanarm::stan_gamm4(juv ~ s(day),
+        fit2 <- rstanarm::stan_gamm4(bp ~ s(day),
                                      data = cydata,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',
@@ -298,8 +298,8 @@ for (j in 1:nyrs)
            xlab = 'Julian Day', ylab = 'Brood Patch Probability')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
-      cydata2$juv[which(cydata2$juv == 1)] <- max(UCI_dfit)
-      points(cydata2$day, cydata2$juv, col = rgb(0,0,0,0.25))
+      cydata2$bp[which(cydata2$bp == 1)] <- max(UCI_dfit)
+      points(cydata2$day, cydata2$bp, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
