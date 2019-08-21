@@ -37,7 +37,7 @@ library(MCMCvis)
 
 #juveniles hitting nets - MAPS
 
-setwd(paste0(dir, 'halfmax_juvs_', juv_date))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arr_br_', juv_date))
 
 #read in 
 juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
@@ -47,71 +47,38 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
 
 arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 
+#merge data sets
+mrg <- dplyr::inner_join(juvs_master, arr_master, by = c('species', 'cell', 'year'))
 
-arr_master2 <- arr_master
-
-#should match up almost directly...
-
-#vvvvv old vvvvv
-#save only species/cell/years that match arr_master - to be used for juv
-juv_data <- dplyr::inner_join(juv_MAPS, arr_master2, by = c('species', 'cell', 'year'))
-
-#arrival data for unique species/cells/years - to be used for y and sd_y
-arr_data <- unique(juv_data[,c('species', 'cell', 'year', 'mean_post_IAR', 'sd_post_IAR')])
-
-#only species that have more than 3 data points
-cnt_arr <- plyr::count(arr_data, 'species')
-sp_f <- filter(cnt_arr, freq > 3)$species
-
-juv_data2 <- dplyr::filter(juv_data, species %in% sp_f)
-arr_data2 <- dplyr::filter(arr_data, species %in% sp_f)
+#only species/cells/years with data for juvs and input data for IAR
+mrg_f <- dplyr::filter(mrg, !is.na(juv_mean), !is.na(mean_pre_IAR))
 
 
+# #only species that have more than 3 data points
+# cnt_arr <- plyr::count(mrg_f, 'species')
+# sp_f <- filter(cnt_arr, freq > 3)$species
 
-# Reformat data -----------------------------------------------------------
-
-cnt_juv <- plyr::count(juv_data2, c('species', 'cell', 'year'))
-max_ind <- max(cnt_juv$freq)
-juv_array <- array(NA, dim = c(NROW(arr_data2), max_ind))
-NI <- rep(NA, NROW(cnt_juv))
-for (i in 1:NROW(cnt_juv))
-{
-  #i <- 1
-  temp <- dplyr::filter(juv_data2, species == cnt_juv[i,1], cell == cnt_juv[i,2], year == cnt_juv[i,3])
-  
-  NI[i] <- cnt_juv[i,4]
-  for (k in 1:NI[i])
-  {
-    juv_array[i,k] <- temp[k,'jday']
-  }
-}
-
-na.vals <- which(is.na(juv_array), arr.ind = TRUE)
-juv_array[na.vals] <- 0
-
-sp_idx <- as.numeric(factor(arr_data2$species))
+sp_idx <- as.numeric(factor(mrg_f$species))
 
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = arr_data2$mean_post_IAR,
-             sd_y = arr_data2$sd_post_IAR,
-             juv = juv_array,
-             NI = NI,
-             N = NROW(arr_data2),
-             MI = max_ind,
+DATA <- list(y = mrg_f$mean_post_IAR,
+             sd_y = mrg_f$sd_post_IAR,
+             juv = mrg_f$juv_mean,
+             sd_juv = mrg_f$juv_sd,
+             N = NROW(mrg_f),
              sp = sp_idx,
              Nsp = length(unique(sp_idx)))
 
 stanmodel1 <- "
 data {
 int<lower=0> N;                      // number of data points
-int<lower=0> MI;                     // max number of individuals
-int<lower=0> NI[N];                     // number of individuals for each species/cell/year
 vector<lower=0>[N] y;                  // response
 vector<lower=0>[N] sd_y;               // uncertainty in response
-real<lower=0> juv[N,MI];            // response
-int<lower=0> sp[N];                    // species
+vector<lower=0>[N] juv;
+vector<lower=0>[N] sd_juv;
+int<lower=0> sp[N];              
 int<lower=0> Nsp;
 }
 
@@ -132,7 +99,7 @@ real<lower = 0> sigma;
 real<lower = 0> sigma_juv;
 vector[N] mu_y;
 vector[N] mu_juv;
-vector[N] gamma;
+vector[N] mu;
 matrix[Nsp, 2] ab;                              // matrix for alpha, beta, gamma, and theta
 matrix[2, 2] Rho;                                 // covariance matrix
 vector[Nsp] alpha;
@@ -159,15 +126,15 @@ Rho = L_Rho * L_Rho';
 
 for (i in 1:N)
 {
-  gamma[i] = (mu_alpha + ab[sp[i], 1]) +
+  mu[i] = (mu_alpha + ab[sp[i], 1]) +
   (mu_beta + ab[sp[i], 2]) * mu_juv[i];
 }
 
 alpha_c = mu_alpha + alpha;
 beta_c = mu_beta + beta;
 
-// implies mu_y[i] ~ normal(gamma[i], sigma)
-mu_y = mu_y_raw * sigma + gamma; 
+// implies mu_y[i] ~ normal(mu[i], sigma)
+mu_y = mu_y_raw * sigma + mu; 
 
 }
 
@@ -180,17 +147,11 @@ mu_beta_raw ~ std_normal();
 mu_y_raw ~ std_normal();
 mu_juv_raw ~ std_normal();
 
-to_vector(z) ~ std_normal();         // faster than normal(0, 1);
+to_vector(z) ~ std_normal();
 L_Rho ~ lkj_corr_cholesky(2);
 
-for (i in 1:N)
-{
-  for (k in 1:NI[i])
-  {
-    // mean juv date for each species/cell/year
-    juv[i,k] ~ normal(mu_juv[i], sigma_juv);
-  }
-}
+// observation model for juvs
+juv ~ normal(mu_juv, sd_juv);
 
 // observation model for arrival
 y ~ normal(mu_y, sd_y);
@@ -237,8 +198,9 @@ fit <- rstan::stan(model_code = stanmodel1,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
-setwd(paste0(dir, 'wing_chord_changes/Results'))
-saveRDS(fit, file = paste0('', DATE, '.rds'))
+
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arr_br_', juv_date))
+saveRDS(fit, file = paste0('arr-br-stan-output', DATE, '.rds'))
 #fit <- readRDS('wc-tle-stan-output-2019-05-02.rds')
 
 
@@ -282,7 +244,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('wc-tle-stan-results-', DATE, '.txt'))
+sink(paste0('arr-br-stan-results-', DATE, '.txt'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
