@@ -20,7 +20,7 @@ dir <- '~/Google_Drive/R/'
 juv_dir <- 'halfmax_juvs_2019-08-20'
 juv_date <- substr(juv_dir, start = 14, stop = 23)
 
-arr_br_dir <- 'arr_br_2019-08-19'
+arr_br_dir <- 'arr_br_2019-08-20'
 
 
 # runtime -----------------------------------------------------------------
@@ -33,7 +33,6 @@ tt <- proc.time()
 
 library(dplyr)
 library(dggridR)
-library(sp)
 
 
 # Set wd ------------------------------------------------------------------
@@ -53,8 +52,6 @@ species_list <- species_list_i[,1]
 # species_list <- species_list[-rm_sp]
 nsp <- length(species_list)
 
-years <- 2002:2018
-nyr <- length(years)
 
 
 
@@ -62,28 +59,31 @@ nyr <- length(years)
 
 #get number of cell/years
 cell_years <- 0
+species <- c()
 for (i in 1:nsp)
 {
-  #i <- 110
+  #i <- 2
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', juv_dir))
-  temp_halfmax <- readRDS(paste0('halfmax_juvs_', species_list[i], '.rds'))
-
-  if (!is.na(temp_halfmax$year[1]))
+  if (length(grep(paste0(species_list[i], '.rds'), list.files())) > 0 )
   {
+    temp_halfmax <- readRDS(paste0('halfmax_juvs_', species_list[i], '.rds'))
     cell_years <- cell_years + NROW(temp_halfmax)
+    species <- c(species, species_list[i])
   }
 }
 
 counter <- 1
-for (i in 1:nsp)
+for (i in 1:length(species))
 {
   #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', juv_dir))
-  temp_halfmax <- readRDS(paste0('halfmax_juvs_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('halfmax_juvs_', species[i], '.rds'))
+  
+  years <- unique(temp_halfmax$year)
   
   if (i == 1)
   {
@@ -112,7 +112,7 @@ for (i in 1:nsp)
   }
   
   #loop through years
-  for (j in 1:nyr)
+  for (j in 1:length(years))
   {
     #j <- 1
     tt_halfmax1 <- dplyr::filter(temp_halfmax, 
@@ -127,7 +127,7 @@ for (i in 1:nsp)
       {
         #k <- 1
         
-        diagnostics_frame$species[counter] <- species_list[i]
+        diagnostics_frame$species[counter] <- species[i]
         diagnostics_frame$year[counter] <- years[j]
         diagnostics_frame$cell[counter] <- cells[k]
         
@@ -135,7 +135,7 @@ for (i in 1:nsp)
         tt_halfmax2 <- dplyr::filter(tt_halfmax1, 
                              cell == cells[k])
         
-        print(paste0('species: ', species_list[i], ', ',
+        print(paste0('species: ', species[i], ', ',
                      'year: ', years[j], ', ', 
                      'cell: ', cells[k]))
 
@@ -187,21 +187,21 @@ for (i in 1:nsp)
 
 ### add NA for both juv_mean and juv_sd if any of the following conditions are met
 
-to.NA <- which(diagnostics_frame$num_diverge > 0 | 
+to.NA <- which(diagnostics_frame$num_diverge > 3 | 
                  diagnostics_frame$max_Rhat >= 1.1 |
                  diagnostics_frame$min_neff < 200 |
                  diagnostics_frame$num_BFMI > 0 |
                  diagnostics_frame$juv_sd > 10)
 
-# #1.4% of cells are bad
-# length(to.NA)/sum(!is.na(diagnostics_frame2$juv_mean))
-# diagnostics_frame2[to.NA,c('species', 'cell', 'year',
+# #11% of cells are bad
+# length(to.NA)/sum(!is.na(diagnostics_frame$juv_mean))
+# diagnostics_frame[to.NA,c('species', 'cell', 'year',
 #                            'juv_mean', 'juv_sd', 'min_neff', 'num_diverge')]
 
 if (length(to.NA) > 0)
 {
-  diagnostics_frame2[to.NA,'juv_mean'] <- NA
-  diagnostics_frame2[to.NA,'juv_sd'] <- NA
+  diagnostics_frame[to.NA,'juv_mean'] <- NA
+  diagnostics_frame[to.NA,'juv_sd'] <- NA
 }
 
 
