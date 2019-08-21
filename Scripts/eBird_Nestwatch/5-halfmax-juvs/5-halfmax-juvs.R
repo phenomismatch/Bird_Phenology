@@ -26,7 +26,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 arr_master_dir <- 'arrival_master_2019-05-26'
 
 #run date
-RUN_DATE <- '2019-08-20'
+RUN_DATE <- '2019-08-21'
 
 
 
@@ -82,8 +82,8 @@ arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 
 hexgrid6 <- dggridR::dgconstruct(res = 6)
 data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                         in_lon_deg = data$lng, 
-                                         in_lat_deg = data$lat)[[1]]
+                                      in_lon_deg = data$lng, 
+                                      in_lat_deg = data$lat)[[1]]
 
 
 
@@ -91,13 +91,14 @@ data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 # filter data -------------------------------------------------------------
 
 #filter by species, breeding range, and pre-IAR data
-arr_br_range <- dplyr::filter(arr_master, species == args, breed_cell == TRUE, !is.na(mean_pre_IAR))
+arr_br_range <- dplyr::filter(arr_master, #species == args, 
+                              breed_cell == TRUE, mig_cell == FALSE, !is.na(mean_pre_IAR))
 
 #keep only MAPS obs where there are IAR arrival estimates
 m_mrg <- dplyr::inner_join(data, arr_br_range, by = c('species', 'cell', 'year'))
 m_mf <- dplyr::select(m_mrg, common_name, species, cell, 
-                     year, day, age, true_age, mean_pre_IAR, 
-                     sd_pre_IAR, mean_post_IAR, sd_post_IAR)
+                      year, day, age, true_age, mean_pre_IAR, 
+                      sd_pre_IAR, mean_post_IAR, sd_post_IAR)
 
 #if no overlap between arrival and MAPS juvs, stop script
 if (NROW(m_mf) == 0)
@@ -158,10 +159,10 @@ for (j in 1:nyrs)
   
   for (k in 1:ncell)
   {
-    #k <- 1
+    #k <- 18
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
-    cydata <- dplyr::filter(m_mf, cell == cells[k])
+    cydata <- dplyr::filter(ydata, cell == cells[k])
     
     #number of surveys where brood patch was detected
     n1 <- sum(cydata$juv)
@@ -179,7 +180,7 @@ for (j in 1:nyrs)
     {
       #number of unique days of non-detections before first detection
       njd0i <- length(unique(cydata$day[which(cydata$juv == 0 & cydata$day < 
-                                                  min(cydata$day[which(cydata$juv == 1)]))]))
+                                                min(cydata$day[which(cydata$juv == 1)]))]))
       #number of non-detections before first detection
       n0i <- length(which(cydata$juv == 0 & 
                             cydata$day < min(cydata$day[which(cydata$juv == 1)])))
@@ -203,7 +204,7 @@ for (j in 1:nyrs)
     #br thresholds
     #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     
-    if (n1 > 15 & n0 > 30 & njd0i > 10 & njd1 > 10)
+    if (n1 > 8 & n0 > 20 & njd0i > 5 & njd1 > 5)
     {
       fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
                                    data = cydata,
@@ -220,26 +221,26 @@ for (j in 1:nyrs)
       num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
       num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
-      # #rerun model if things didn't go well
-      # while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
-      # {
-      #   DELTA <- DELTA + 0.01
-      #   TREE_DEPTH <- TREE_DEPTH + 1
-      #   
-      #   fit2 <- rstanarm::stan_gamm4(bp ~ s(day),
-      #                                data = cydata,
-      #                                family = binomial(link = "logit"),
-      #                                algorithm = 'sampling',
-      #                                iter = ITER,
-      #                                chains = CHAINS,
-      #                                cores = CHAINS,
-      #                                adapt_delta = DELTA,
-      #                                control = list(max_treedepth = TREE_DEPTH))
-      #   
-      #   num_diverge <- rstan::get_num_divergent(fit2$stanfit)
-      #   num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
-      #   num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
-      # }
+      #rerun model if things didn't go well
+      while (sum(num_diverge) > 0 & DELTA <= 0.98)
+      {
+        DELTA <- DELTA + 0.01
+        TREE_DEPTH <- TREE_DEPTH + 1
+        
+        fit2 <- rstanarm::stan_gamm4(juv ~ s(day),
+                                     data = cydata,
+                                     family = binomial(link = "logit"),
+                                     algorithm = 'sampling',
+                                     iter = ITER,
+                                     chains = CHAINS,
+                                     cores = CHAINS,
+                                     adapt_delta = DELTA,
+                                     control = list(max_treedepth = TREE_DEPTH))
+        
+        num_diverge <- rstan::get_num_divergent(fit2$stanfit)
+        num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
+        num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
+      }
       
       halfmax_df$num_diverge[counter] <- num_diverge
       halfmax_df$num_tree[counter] <- num_tree
@@ -278,7 +279,7 @@ for (j in 1:nyrs)
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-           xlab = 'Julian Day', ylab = 'Brood Patch Probability')
+           xlab = 'Julian Day', ylab = 'Juvenile capture probability')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
       cydata2$juv[which(cydata2$juv == 1)] <- max(UCI_dfit)
