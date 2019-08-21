@@ -17,7 +17,7 @@ dir <- '~/Google_Drive/R/'
 # model dir ------------------------------------------------------------
 
 #juveniles MAPS - date input data processed
-juv_date <- '2019-08-21'
+juv_date <- '2019-08-22'
 
 #IAR data
 arr_master_dir <- 'arrival_master_2019-05-26'

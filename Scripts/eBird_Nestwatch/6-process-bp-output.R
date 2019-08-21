@@ -18,11 +18,11 @@ dir <- '~/Google_Drive/R/'
 # db/bp query dir ------------------------------------------------------------
 
 #input dir
-bp_dir <- 'halfmax_bp_2019-08-21'
+bp_dir <- 'halfmax_bp_2019-08-22'
 bp_date <- substr(bp_dir, start = 14, stop = 23)
 
 #output dir
-arr_br_dir <- 'arr_br_2019-08-21'
+arr_br_dir <- 'arr_br_2019-08-22'
 
 
 # runtime -----------------------------------------------------------------
@@ -216,6 +216,7 @@ if (length(to.NA) > 0)
 
 #order diagnostics frame by species, year, and cell #
 df_master <- diagnostics_frame[with(diagnostics_frame, order(species, year, cell)),]
+
 
 
 # write to RDS --------------------------------------------------

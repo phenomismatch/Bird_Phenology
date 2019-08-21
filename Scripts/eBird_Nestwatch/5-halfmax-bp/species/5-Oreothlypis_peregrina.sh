@@ -9,8 +9,8 @@
 #SBATCH --mem=25G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_bp_2019-08-21/hm-bp-Oreothlypis_peregrina.out #STDOUT
-#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_bp_2019-08-21/hm-bp-Oreothlypis_peregrina.err #STDERR
+#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_bp_2019-08-22/hm-bp-Oreothlypis_peregrina.out #STDOUT
+#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_bp_2019-08-22/hm-bp-Oreothlypis_peregrina.err #STDERR
 
 #echos name of node
 echo `hostname`
