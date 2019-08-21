@@ -107,7 +107,7 @@ if (NROW(m_mf) == 0)
 
 #add col for juveniles (1 = juv, 0 = adult)
 m_mf$juv <- NA
-m_mf$juv[which(m_mf$true_age == 0)] <- 1
+m_mf$juv[which(m_mf$age == 2)] <- 1 #exclude young bird incapable of flight
 m_mf$juv[-which(m_mf$true_age == 0)] <- 0
 
 years <- sort(unique(m_mf$year))
