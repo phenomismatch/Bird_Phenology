@@ -111,7 +111,15 @@ m_mf$juv[which(m_mf$age == 2)] <- 1 #exclude young bird incapable of flight
 m_mf$juv[-which(m_mf$true_age == 0)] <- 0
 
 #exclude young bird incapable of flight
-m_mf2 <- m_mf[-which(m_mf$age == 4),]
+to.na <- which(m_mf$age == 4)
+if (length(to.na) > 0)
+{
+  m_mf2 <- m_mf[-to.na,]  
+} else {
+  m_mf2 <- m_mf
+}
+
+
 
 years <- sort(unique(m_mf2$year))
 cells <- sort(unique(m_mf2$cell))
