@@ -1,5 +1,5 @@
 ######################
-# 5 - GAM model juvs MAPS
+# 5 - GAM model bp MAPS
 #
 # only cells where there was IAR input data
 ######################
@@ -131,7 +131,6 @@ years <- sort(unique(m_bp_f$year))
 cells <- sort(unique(m_bp_f$cell))
 ncell <- length(cells)
 nyrs <- length(years)
-
 
 
 
