@@ -33,7 +33,6 @@ RUN_DATE <- '2019-08-21'
 # load packages -----------------------------------------------------------
 
 library(dplyr)
-library(plyr)
 library(dggridR)
 library(rstanarm)
 library(rstan)
@@ -91,7 +90,7 @@ data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 # filter data -------------------------------------------------------------
 
 #filter by species, breeding range, and pre-IAR data
-arr_br_range <- dplyr::filter(arr_master, #species == args, 
+arr_br_range <- dplyr::filter(arr_master, species == args, 
                               breed_cell == TRUE, mig_cell == FALSE, !is.na(mean_pre_IAR))
 
 #keep only MAPS obs where there are IAR arrival estimates
@@ -115,6 +114,8 @@ years <- sort(unique(m_mf$year))
 cells <- sort(unique(m_mf$cell))
 ncell <- length(cells)
 nyrs <- length(years)
+
+ff <- dplyr::filter(m_mf, juv == 1)
 
 
 
