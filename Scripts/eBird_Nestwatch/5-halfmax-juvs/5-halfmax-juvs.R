@@ -91,7 +91,15 @@ data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 
 #filter by species, breeding range, and pre-IAR data
 arr_br_range <- dplyr::filter(arr_master, species == args, 
-                              breed_cell == TRUE, mig_cell == FALSE, !is.na(mean_pre_IAR))
+                              breed_cell == TRUE, mig_cell == FALSE)#, !is.na(mean_pre_IAR))
+
+# ################
+# #plot data avail
+# t_arr_br <- dplyr::filter(arr_master, breed_cell == TRUE, mig_cell == FALSE, !is.na(mean_pre_IAR))
+# 
+# hist(data$year, col = rgb(0,0,1, 0.4), main = 'Data avail - MAPS (blue), IAR (red)', xlab = 'Year', ylim = c(0, 1.2e05))
+# hist(rep(t_arr_br$year, 50), add = TRUE, col = rgb(1,0,0,0.4))
+# ################
 
 #keep only MAPS obs where there are IAR arrival estimates
 m_mrg <- dplyr::inner_join(data, arr_br_range, by = c('species', 'cell', 'year'))
@@ -215,9 +223,9 @@ for (j in 1:nyrs)
     #br thresholds
     #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     
-    if (n1 > 8 & n0 > 20 & njd0i > 5 & njd1 > 5)
+    if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3)
     {
-      fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
+      fit2 <- rstanarm::stan_glm(juv ~ day, 
                                    data = cydata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -238,7 +246,7 @@ for (j in 1:nyrs)
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
         
-        fit2 <- rstanarm::stan_gamm4(juv ~ s(day),
+        fit2 <- rstanarm::stan_glm(juv ~ day,
                                      data = cydata,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',

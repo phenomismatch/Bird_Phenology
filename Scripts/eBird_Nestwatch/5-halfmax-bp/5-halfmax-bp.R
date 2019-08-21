@@ -91,7 +91,8 @@ data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 
 #filter by species, breeding range, and pre-IAR data
 arr_br_range <- dplyr::filter(arr_master, species == args, 
-                              breed_cell == TRUE, mig_cell == FALSE, !is.na(mean_pre_IAR))
+                              breed_cell == TRUE, mig_cell == FALSE)#, !is.na(mean_pre_IAR))
+
 
 #keep only MAPS obs where there are IAR arrival estimates
 m_mrg <- dplyr::inner_join(data, arr_br_range, by = c('species', 'cell', 'year'))
@@ -114,6 +115,7 @@ m_adults <- dplyr::filter(m_mf, age %in% c('1', '5', '6', '7', '8'))
 
 # Hinde 1962 Ibis - 'loss of feathers is related to nest building but not egg laying. Vascularization usually starts while defeathering is in progress. Moderate vascularization (stage 3) occurs somewhat before egg-laying. Vascularity disappears a few days after eggs are removed fmor incubating bird.
 
+#SOURCE: https://www.bto.org/sites/default/files/u17/downloads/about/resources/brood-patch-rb13.pdf
 #BP 0-2 -> nest building through egg laying
 #BP 3 -> incubation through hatching
 #BP 4 -> post hatch
@@ -257,9 +259,9 @@ for (j in 1:nyrs)
     #br thresholds
     #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     
-    if (n1 > 8 & n0 > 10 & njd0i > 5 & njd1 > 5)
+    if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3)
     {
-      fit2 <- rstanarm::stan_gamm4(bp ~ s(day), 
+      fit2 <- rstanarm::stan_glm(bp ~ day, 
                                    data = cydata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -280,7 +282,7 @@ for (j in 1:nyrs)
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
         
-        fit2 <- rstanarm::stan_gamm4(bp ~ s(day),
+        fit2 <- rstanarm::stan_glm(bp ~ day,
                                      data = cydata,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',
