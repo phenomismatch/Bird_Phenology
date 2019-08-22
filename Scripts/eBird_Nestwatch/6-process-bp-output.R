@@ -19,7 +19,7 @@ dir <- '~/Google_Drive/R/'
 
 #input dir
 bp_dir <- 'halfmax_bp_2019-08-22'
-bp_date <- substr(bp_dir, start = 14, stop = 23)
+bp_date <- substr(bp_dir, start = 12, stop = 21)
 
 #output dir
 arr_br_dir <- 'arr_br_2019-08-22'
