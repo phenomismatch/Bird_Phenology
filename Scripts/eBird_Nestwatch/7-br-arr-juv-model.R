@@ -1,5 +1,5 @@
 ######################
-# 7 - arrival ~ juv hitting nets
+# 7 - juv hitting nets ~ arrival
 #
 ######################
 
@@ -37,7 +37,7 @@ library(MCMCvis)
 
 #juveniles hitting nets - MAPS
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arr_br_', juv_date))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
 
 #read in 
 juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
@@ -149,7 +149,7 @@ L_Rho ~ lkj_corr_cholesky(2);
 // observation model for arr
 arr ~ normal(mu_arr, sd_arr);
 
-// observation model for arrival
+// observation model for juveniles
 y ~ normal(mu_y, sd_y);
 
 }
@@ -194,8 +194,8 @@ fit <- rstan::stan(model_code = stanmodel1,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arr_br_', juv_date))
-saveRDS(fit, file = paste0('arr-br-juv-stan-output-', juv_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
+saveRDS(fit, file = paste0('br-arr-juv-stan-output-', juv_date, '.rds'))
 saveRDS(mrg_f2, file = paste0('mrg-data-juv-', juv_date, '.rds'))
 #fit <- readRDS(paste0('arr-br-juv-stan-output-', juv_date, '.rds'))
 
@@ -238,7 +238,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('arr-br-juv-stan-results-', DATE, '.txt'))
+sink(paste0('arr-br-juv-stan-results-', juv_date, '.txt'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
@@ -319,7 +319,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('arr-br-juv-', juv_date, '-trace_mu_alpha.pdf'))
+                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_alpha.pdf'))
 
 #mu_beta ~ N(0, 2)
 PR <- rnorm(10000, 0, 2)
@@ -327,7 +327,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('arr-br-juv-', juv_date, '-trace_mu_beta.pdf'))
+                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_beta.pdf'))
 
 #sigma_sp[1] ~ HN(0, 40)
 PR_p <- rnorm(10000, 0, 40)
@@ -337,7 +337,7 @@ MCMCvis::MCMCtrace(fit,
                    ISB = 'FALSE',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('arr-br-juv-', juv_date, '-trace_sigma_sp[1].pdf'))
+                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma_sp[1].pdf'))
 
 #sigma_sp[2] ~ HN(0, 1)
 PR_p <- rnorm(10000, 0, 1)
@@ -347,7 +347,7 @@ MCMCvis::MCMCtrace(fit,
                    ISB = 'FALSE',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('arr-br-juv-', juv_date, '-trace_sigma_sp[2].pdf'))
+                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma_sp[2].pdf'))
 
 
 #sigma ~ HN(0, 10)
@@ -357,7 +357,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('arr-br-juv-', juv_date, '-trace_sigma.pdf'))
+                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma.pdf'))
  
 #mu_arr ~ N(180, 40)
 PR <- rnorm(10000, 180, 40)
@@ -365,7 +365,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_arr',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('arr-br-juv-', juv_date, '-trace_mu_juv.pdf'))
+                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_juv.pdf'))
 
 
 
@@ -384,11 +384,11 @@ data_vis_fun <- function(SPECIES = 'all')
   y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
                                   func = function(x) quantile(x, probs = c(0.975)))[[1]]
   
-  x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', 
+  x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_arr', type = 'summary', 
                                    func = mean)[[1]]
-  x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', 
+  x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_arr', type = 'summary', 
                                   func = function(x) quantile(x, probs = c(0.025)))[[1]]
-  x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_juv', type = 'summary', 
+  x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_arr', type = 'summary', 
                                   func = function(x) quantile(x, probs = c(0.975)))[[1]]
   
   DATA_PLOT <- data.frame(mean_y = y_true_mean,
@@ -400,19 +400,17 @@ data_vis_fun <- function(SPECIES = 'all')
                           y_obs = DATA$y,
                           y_obs_l = DATA$y - (1.96 * DATA$sd_y),
                           y_obs_u = DATA$y + (1.96 * DATA$sd_y),
-                          x_obs = DATA$juv,
-                          x_obs_l = DATA$juv - (1.96 * DATA$sd_juv),
-                          x_obs_u = DATA$juv + (1.96 * DATA$sd_juv),
+                          x_obs = DATA$arr,
+                          x_obs_l = DATA$arr - (1.96 * DATA$sd_arr),
+                          x_obs_u = DATA$arr + (1.96 * DATA$sd_arr),
                           sp_id = factor(mrg_f2$species))
   
-  mu_alpha_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
-  mu_beta_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
   
   if (SPECIES == 'all')
   {
     #model fit for mu_beta and mu_alpha
-    a_ch <- mu_alpha_ch
-    b_ch <- mu_beta_ch
+    a_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
+    b_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
     
     DATA_PLOT2 <- DATA_PLOT
   } else {
@@ -420,11 +418,8 @@ data_vis_fun <- function(SPECIES = 'all')
     idx <- which(unique(mrg_f2$species) == SPECIES)
     if (length(idx) > 0)
     {
-      alpha_ch <- MCMCchains(fit, params = paste0('alpha\\[', idx, '\\]'), ISB = FALSE)[,1]
-      beta_ch <- MCMCchains(fit, params = paste0('beta\\[', idx, '\\]'), ISB = FALSE)[,1]
-      
-      a_ch <- mu_alpha_ch + alpha_ch
-      b_ch <- mu_beta_ch + beta_ch
+      a_ch <- MCMCvis::MCMCchains(fit, ISB = FALSE, params = paste0('alpha_c\\[', idx, '\\]'))[,1]
+      b_ch <- MCMCvis::MCMCchains(fit, ISB = FALSE, params = paste0('beta_c\\[', idx, '\\]'))[,1]
       
       DATA_PLOT2 <- dplyr::filter(DATA_PLOT, sp_id == SPECIES)
     } else {
@@ -434,7 +429,7 @@ data_vis_fun <- function(SPECIES = 'all')
   
   sim_x <- seq(min(DATA_PLOT2$mean_x_l) - 1, max(DATA_PLOT2$mean_x_u) + 1, length = 100)
   
-  mf <- matrix(nrow = length(mu_alpha_ch), ncol = 100)
+  mf <- matrix(nrow = length(a_ch), ncol = 100)
   for (i in 1:length(sim_x))
   {
     mf[,i] <- a_ch + b_ch * sim_x[i]
@@ -481,8 +476,8 @@ data_vis_fun <- function(SPECIES = 'all')
     #            inherit.aes = FALSE, size = 3, alpha = 0.3) +
     theme_bw() +
     #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
-    ylab('True ARR halfmax') +
-    xlab('True BR halfmax') +
+    ylab('BR halfmax') +
+    xlab('ARR halfmax') +
     ggtitle(paste0('Species: ', SPECIES)) +
     theme(
       plot.title = element_text(size = 22),

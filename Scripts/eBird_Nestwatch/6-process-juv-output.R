@@ -22,7 +22,7 @@ juv_dir <- 'halfmax_juvs_2019-08-22'
 juv_date <- substr(juv_dir, start = 14, stop = 23)
 
 #output dir
-arr_br_dir <- 'arr_br_2019-08-22'
+br_arr_dir <- 'br_arr_2019-08-22'
 
 
 # runtime -----------------------------------------------------------------
@@ -220,9 +220,9 @@ df_master <- diagnostics_frame[with(diagnostics_frame, order(species, year, cell
 
 # write to RDS --------------------------------------------------
 
-ab_dir_path <- paste0(dir, 'Bird_Phenology/Data/Processed/', arr_br_dir)
+ba_dir_path <- paste0(dir, 'Bird_Phenology/Data/Processed/', br_arr_dir)
 
-dir.create(ab_dir_path)
-setwd(ab_dir_path)
+dir.create(ba_dir_path)
+setwd(ba_dir_path)
 
 saveRDS(df_master, paste0('juv-output-', juv_date, '.rds'))
