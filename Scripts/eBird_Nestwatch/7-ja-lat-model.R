@@ -69,14 +69,14 @@ sp_idx <- as.numeric(factor(mrg_f3$species))
 
 #difference between arrival and juveniles hitting nets
 #for difference of normals, subtract means, add variances - http://mathworld.wolfram.com/NormalDifferenceDistribution.html
-ja <- mrg_f3$juv_mean - mrg_f3$mean_post_IAR
-sd_ja <- sqrt(mrg_f3$juv_sd^2 + mrg_f3$sd_post_IAR^2)
+mrg_f3$ja <- mrg_f3$juv_mean - mrg_f3$mean_post_IAR
+mrg_f3$sd_ja <- sqrt(mrg_f3$juv_sd^2 + mrg_f3$sd_post_IAR^2)
 
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = ja,
-             sd_y = sd_ja,
+DATA <- list(y = mrg_f3$ja,
+             sd_y = mrg_f3$sd_ja,
              N = NROW(mrg_f3),
              sp = sp_idx,
              cell_lat = mrg_f3$cell_lat,
@@ -93,19 +93,20 @@ vector<lower=0>[N] cell_lat;
 }
 
 parameters {
-real<lower = 0> sigma_raw;
-vector[N] mu_y_raw;
+vector<lower = 0>[Nsp] sigma_raw;
+real mu_y_raw[N];
 real mu_alpha_raw;
 real mu_beta_raw;
 vector<lower = 0>[2] sigma_sp_raw;
 cholesky_factor_corr[2] L_Rho;             // correlation matrix
 matrix[2, Nsp] z;                          // z-scores
+real<lower = 0> sigma_sigma_raw;
 }
 
 transformed parameters {
-real<lower = 0> sigma;
+vector<lower = 0>[Nsp] sigma;
 vector[N] mu_y;
-vector[N] mu;
+real mu[N];
 matrix[Nsp, 2] ab;                              // matrix for alpha, beta, gamma, and theta
 matrix[2, 2] Rho;                                 // covariance matrix
 vector[Nsp] alpha;
@@ -115,10 +116,12 @@ vector[Nsp] beta_c;
 vector<lower = 0>[2] sigma_sp;
 real mu_alpha;
 real mu_beta;
+real<lower = 0> sigma_sigma;
 
 mu_alpha = mu_alpha_raw * 300;
 mu_beta = mu_beta_raw * 2;
-sigma = sigma_raw * 20;
+sigma_sigma = sigma_sigma_raw * 10;
+sigma = sigma_raw * sigma_sigma;
 sigma_sp[1] = sigma_sp_raw[1] * 100;
 sigma_sp[2] = sigma_sp_raw[2] * 50;
 
@@ -133,17 +136,19 @@ for (i in 1:N)
 {
   mu[i] = (mu_alpha + ab[sp[i], 1]) +
   (mu_beta + ab[sp[i], 2]) * cell_lat[i];
+  
+  // implies mu_y ~ normal(mu, sigma)
+  mu_y[i] = mu_y_raw[i] * sigma[sp[i]] + mu[i];
 }
 
 alpha_c = mu_alpha + alpha;
 beta_c = mu_beta + beta;
 
-// implies mu_y ~ normal(mu, sigma)
-mu_y = mu_y_raw * sigma + mu;
 }
 
 model {
 sigma_raw ~ std_normal();
+sigma_sigma_raw ~ std_normal();
 sigma_sp_raw ~ std_normal();
 mu_alpha_raw ~ std_normal();
 mu_beta_raw ~ std_normal();
@@ -187,6 +192,7 @@ fit <- rstan::stan(model_code = stanmodel1,
                             'sigma_sp',
                             'Rho',
                             'sigma',
+                            'sigma_sigma',
                             'mu_y',
                             'y_rep'), 
                    control = list(adapt_delta = DELTA,
@@ -199,12 +205,40 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
 saveRDS(fit, file = paste0('ja-lat-stan-output-', juv_date, '.rds'))
 #fit <- readRDS(paste0('ja-lat-stan-output-', juv_date, '.rds'))
 
+
 num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
 num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
+#check everything under 180 juv_mean (ja is too high?)
+#check everything under 60 ja
+mu_y <- MCMCvis::MCMCpstr(fit, params = 'mu_y')[[1]]
+mrg_f3$mu_y <- mu_y
+plot(mrg_f3$mu_y, mrg_f3$sd_ja)
+plot(mrg_f3$juv_mean, mrg_f3$juv_sd)
+plot(mrg_f3$juv_mean, mrg_f3$ja)
+plot(mrg_f3$mean_post_IAR, mrg_f3$ja)
+tt <- dplyr::filter(mrg_f3, juv_mean < 180)
+plot(tt$mean_post_IAR, tt$juv_mean)
+plot(tt$mean_post_IAR, tt$ja)
+plot(tt$juv_mean, tt$ja)
 
+plot(mrg_f3$mean_post_IAR, mrg_f3$ja)
+points(tt$mean_post_IAR, tt$ja, col = 'red')
 
+#is juv_mean low or mean_post_IAR low?
+
+pm <- dplyr::filter(mrg_f3, species == 'Parkesia_motacilla')
+points(pm$mean_post_IAR, pm$ja, col = 'green')
+plot(mrg_f3$juv_mean, mrg_f3$ja)
+points(pm$juv_mean, pm$ja, col = 'green')
+plot(mrg_f3$cell_lat, mrg_f3$mu_y)
+points(pm$cell_lat, pm$mu_y, col = 'green')
+plot(mrg_f3$ja, mrg_f3$mu_y)
+points(pm$ja, pm$mu_y, col = 'green')
+abline(a = 0, b = 1, col = 'red', lty = 2)
+
+summary(lm(mu_y ~ ja, data = mrg_f3))
 # Calc diagnostics ---------------------------------------------------
 
 # library(shinystan)  
@@ -294,15 +328,25 @@ sink()
 
 # # PPC ---------------------------------------------------------------------
 # 
-# y_val <- DATA$y
-# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
-# plot(DATA$y, y_rep[1,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
-# abline(a = 0, b = 1, col = 'red', lty = 2)
-# PPC_fun <- function(FUN)
-# {
-#   sum(apply(y_rep, 1, FUN) > FUN(DATA$y)) / NROW(y_rep)
-# }
+y_val <- DATA$y
+y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
+plot(DATA$y, y_rep[1,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
+abline(a = 0, b = 1, col = 'red', lty = 2)
+PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
+{
+  out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+  print(out)
+}
+PPC_fun(mean)
+for (i in 1:max(DATA$sp))
+{
+  #i <- 1
+  ny_val <- y_val[which(DATA$sp == i)]
+  ny_rep <- y_rep[,which(DATA$sp == i)]
+  PPC_fun(mean, YR = ny_rep, D = ny_val)
+}
+
 # 
 # 
 # # PPO ---------------------------------------------------------------------
@@ -449,8 +493,8 @@ data_vis_fun <- function(SPECIES = 'all')
     # geom_errorbar(data = DATA_PLOT2,
     #               aes(x = x_obs, ymin = y_obs_l, ymax = y_obs_u), width = 0.3,
     #               color = 'red', alpha = 0.2) +
-    # geom_point(data = DATA_PLOT2, aes(x_obs, y_obs), color = 'red',
-    #            inherit.aes = FALSE, size = 3, alpha = 0.3) +
+    geom_point(data = DATA_PLOT2, aes(x_obs, y_obs), color = 'red',
+               inherit.aes = FALSE, size = 3, alpha = 0.3) +
     theme_bw() +
     #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
     ylab('Juv - Arr') +
