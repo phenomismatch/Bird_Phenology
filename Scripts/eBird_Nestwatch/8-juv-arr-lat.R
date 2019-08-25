@@ -127,7 +127,7 @@ mu_arr = mu_arr_raw * 40 + 120;
 sigma_sp[1] = sigma_sp_raw[1] * 40;
 sigma_sp[2] = sigma_sp_raw[2] * 1;
 sigma_sp[3] = sigma_sp_raw[3] * 1;
-sigma_sp[4] = sigma_sp_raw[4] * 1;
+sigma_sp[4] = sigma_sp_raw[4] * 0.01;
 
 // cholesky factor of covariance matrix multiplied by z score
 abgt = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
@@ -142,7 +142,7 @@ for (i in 1:N)
   mu[i] = (mu_alpha + abgt[sp[i], 1]) +
   (mu_beta + abgt[sp[i], 2]) * mu_arr[i] + 
   (mu_gamma + abgt[sp[i], 3]) * cell_lat[i] + 
-  (mu_theta + abgt[sp[i], 4]) * cell_lat[i] * mu_arr[i];
+  (mu_theta + abgt[sp[i], 4]) * (cell_lat[i] * mu_arr[i]);
 }
 
 alpha_c = mu_alpha + alpha;
@@ -186,7 +186,7 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.999
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.0001
 CHAINS <- 4
