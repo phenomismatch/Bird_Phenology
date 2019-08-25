@@ -26,7 +26,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 arr_master_dir <- 'arrival_master_2019-05-26'
 
 #run date
-RUN_DATE <- '2019-08-22'
+RUN_DATE <- '2019-08-25'
 
 
 
@@ -70,10 +70,6 @@ colnames(data)[grep('sci_name', colnames(data))] <- 'species'
 #add underscore to species naems
 data$species <- gsub(' ', '_', data$species)
 
-#master arrival data (from IAR output)
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
-
-arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 
 
 
@@ -85,26 +81,134 @@ data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
                                       in_lat_deg = data$lat)[[1]]
 
 
+#get boundaries of all cells over earth
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+
+#dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
+#read in grid
+hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 
 
-# filter data -------------------------------------------------------------
+# filter cells by range  ---------------------------------------------------
 
-#filter by species, breeding range, and pre-IAR data
-arr_br_range <- dplyr::filter(arr_master, species == args, 
-                              breed_cell == TRUE, mig_cell == FALSE)#, !is.na(mean_pre_IAR))
+'%ni%' <- Negate('%in%')
 
+#reference key for species synonyms
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
+sp_key <- read.csv('species_filenames_key.csv')
 
-#keep only MAPS obs where there are IAR arrival estimates
-m_mrg <- dplyr::inner_join(data, arr_br_range, by = c('species', 'cell', 'year'))
-m_mf <- dplyr::select(m_mrg, common_name, species, cell, 
-                      year, day, age, true_age, mean_pre_IAR, 
-                      sd_pre_IAR, mean_post_IAR, sd_post_IAR,
-                      sex, brood_patch, band_id)
+#change dir to shp files
+setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
 
-#if no overlap between arrival and MAPS bp, stop script
-if (NROW(m_mf) == 0)
+#filter by breeding/migration cells
+#match species name to shp file name
+g_ind <- grep(args, sp_key$file_names_2016)
+
+#check for synonyms if there are no matches
+if (length(g_ind) == 0)
 {
-  stop('No overlap beteen arrival and MAPS bp')
+  g_ind2 <- grep(args, sp_key$BL_Checklist_name)
+} else {
+  g_ind2 <- g_ind
+}
+
+#get filename and read in
+fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
+sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+#crop to area of interest
+#raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
+#full range
+sp_rng2 <- sp_rng
+
+#filter by breeding (2) - need to convert spdf to sp
+nrng <- sp_rng2[which(sp_rng2$SEASONAL == 2),]
+
+#filter by resident (1), non-breeding (3), and migration (4) to exclude hex cells that contain more than one type
+nrng_rm <- sp_rng2[which(sp_rng2$SEASONAL == 1 | sp_rng2$SEASONAL == 3 | sp_rng2$SEASONAL == 4),]
+
+#remove unneeded objects
+rm(sp_rng)
+rm(sp_rng2)
+rm(fname)
+
+
+#if there is a legitimate range
+if (NROW(nrng@data) > 0)
+{
+  #good cells
+  nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+  sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+  #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
+  poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
+  tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
+  br_cells <- as.numeric(tpoly[!duplicated(tpoly)])
+  
+  #bad cells - also exclude cells 812, 813, and 841 (Bahamas)
+  if (length(nrng_rm) > 0)
+  {
+    nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
+    sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
+    poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
+    tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
+    res_ovr_cells <- as.numeric(tpoly_rm[!duplicated(tpoly_rm)])
+    
+    #remove cells that appear in resident and overwinter range that also appear in breeding range
+    cell_mrg <- c(br_cells, res_ovr_cells)
+    to_rm <- c(cell_mrg[duplicated(cell_mrg)], 812, 813, 841)
+    
+    rm(nrng_rm)
+    rm(nrng_rm_sp)
+    rm(res_ovr_cells)
+    
+  } else {
+    cell_mrg <- br_cells
+    to_rm <- c(812, 813, 841)
+  }
+  
+  #remove unneeded objects
+  rm(hge)
+  rm(nrng)
+  rm(nrng_sp)
+  
+  c_rm <- which(br_cells %in% to_rm)
+  if (length(c_rm) > 0)
+  {
+    overlap_cells <- br_cells[-c_rm]  
+  } else {
+    overlap_cells <- br_cells
+  }
+  
+  #remove unneeded objects
+  rm(br_cells)
+  rm(cell_mrg)
+  rm(to_rm)
+  
+  #get cell centers
+  cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, overlap_cells)
+  cc_df <- data.frame(cell = overlap_cells, lon = cell_centers$lon_deg, 
+                      lat = cell_centers$lat_deg)
+  
+  #remove unneeded objects
+  rm(hexgrid6)
+  rm(cell_centers)
+  rm(overlap_cells)
+  
+  #cells only within the range that ebird surveys were filtered to
+  #n_cc_df <- cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),]
+  #all cells
+  n_cc_df <- cc_df
+  cells <- n_cc_df$cell
+  
+  #retain rows that match selected cells
+  m_mf <- data[which(data$cell %in% cells),]
+  
+  #remove unneeded objects
+  rm(cc_df)
+  rm(n_cc_df)
+  rm(data)
+  
+} else {
+  stop('Range not suitable for modeling!')
 }
 
 
