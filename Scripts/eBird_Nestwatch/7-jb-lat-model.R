@@ -1,5 +1,5 @@
 ######################
-# 7 - juv hitting nets - arrival ~ cell lat
+# 7 - juv - brood patch ~ cell lat
 #
 ######################
 
@@ -17,7 +17,7 @@ dir <- '~/Google_Drive/R/'
 # model dir ------------------------------------------------------------
 
 #juveniles MAPS - date input data processed
-juv_date <- '2019-08-22'
+bp_date <- '2019-08-22'
 
 #IAR data
 arr_master_dir <- 'arrival_master_2019-05-26'
@@ -37,21 +37,25 @@ library(MCMCvis)
 
 #juveniles hitting nets - MAPS
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', bp_date))
 
 #read in 
-juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
+bp_master <- readRDS(paste0('bp-output-', bp_date, '.rds'))
 
-#master arrival data (from IAR output)
+juv_master <- readRDS(paste0('juv-output-', bp_date, '.rds'))
+
+#master arrival data (from IAR output) - for cell lat
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
 
 arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 
 #merge data sets
-mrg <- dplyr::inner_join(juvs_master, arr_master, by = c('species', 'cell', 'year'))
+mrg <- dplyr::inner_join(bp_master, juv_master, by = c('species', 'cell', 'year'))
+
+mrg2 <- dplyr::full_join(mrg, arr_master, by = c('species', 'cell', 'year'))
 
 #only species/cells/years with data for juvs
-mrg_f <- dplyr::filter(mrg, !is.na(juv_mean), !is.na(mean_pre_IAR))
+mrg_f <- dplyr::filter(mrg2, !is.na(bp_mean), !is.na(juv_mean))
 
 #only species that have at least 5 data points
 cnt_arr <- plyr::count(mrg_f, 'species')
@@ -69,15 +73,15 @@ sp_idx <- as.numeric(factor(mrg_f3$species))
 
 #difference between arrival and juveniles hitting nets
 #for difference of normals, subtract means, add variances - http://mathworld.wolfram.com/NormalDifferenceDistribution.html
-mrg_f3$ja <- mrg_f3$juv_mean - mrg_f3$mean_post_IAR
-mrg_f3$sd_ja <- sqrt(mrg_f3$juv_sd^2 + mrg_f3$sd_post_IAR^2)
+mrg_f3$jb <- mrg_f3$juv_mean - mrg_f3$bp_mean
+mrg_f3$sd_jb <- sqrt(mrg_f3$juv_sd^2 + mrg_f3$bp_sd^2)
 
 
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = mrg_f3$ja,
-             sd_y = mrg_f3$sd_ja,
+DATA <- list(y = mrg_f3$jb,
+             sd_y = mrg_f3$sd_jb,
              N = NROW(mrg_f3),
              sp = sp_idx,
              cell_lat = mrg_f3$cell_lat,
@@ -86,7 +90,7 @@ DATA <- list(y = mrg_f3$ja,
 stanmodel1 <- "
 data {
 int<lower=0> N;                      // number of data points
-vector<lower=0>[N] y;
+vector[N] y;
 vector<lower=0>[N] sd_y;
 int<lower=0> sp[N];              
 int<lower=0> Nsp;
@@ -154,7 +158,7 @@ mu_y_raw ~ std_normal();
 to_vector(z) ~ std_normal();
 L_Rho ~ lkj_corr_cholesky(1);
 
-// observation model for ja
+// observation model
 y ~ normal(mu_y, sd_y);
 }
 
@@ -168,9 +172,9 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
-TREE_DEPTH <- 16
-STEP_SIZE <- 0.001
+DELTA <- 0.99
+TREE_DEPTH <- 1
+STEP_SIZE <- 0.0001
 CHAINS <- 4
 ITER <- 5000
 
@@ -197,9 +201,9 @@ fit <- rstan::stan(model_code = stanmodel1,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
-saveRDS(fit, file = paste0('ja-lat-stan-output-', juv_date, '.rds'))
-#fit <- readRDS(paste0('ja-lat-stan-output-', juv_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', bp_date))
+saveRDS(fit, file = paste0('jb-lat-stan-output-', bp_date, '.rds'))
+#fit <- readRDS(paste0('jb-lat-stan-output-', bp_date, '.rds'))
 
 
 num_diverge <- rstan::get_num_divergent(fit)
@@ -237,7 +241,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('ja-lat-stan-results-', DATE, '.txt'))
+sink(paste0('jb-lat-stan-results-', DATE, '.txt'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
@@ -292,25 +296,23 @@ sink()
 # # PPC ---------------------------------------------------------------------
 
 
-# y_val <- DATA$y
-# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-# bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
-# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
-# plot(DATA$y, y_rep[1,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
-# abline(a = 0, b = 1, col = 'red', lty = 2)
-# PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
-# {
-#   out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
-#   print(out)
-# }
-# PPC_fun(mean)
-# PPC_fun(min)
-# PPC_fun(max)
+y_val <- DATA$y
+y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
+bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
+PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
+{
+  out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+  print(out)
+}
+PPC_fun(mean)
+PPC_fun(min)
+PPC_fun(max)
 
 # 
 # 
 # # PPO ---------------------------------------------------------------------
- 
+
 # mu_alpha = mu_alpha_raw * 300;
 # mu_beta = mu_besta_raw * 2;
 # sigma = sigma_raw * 20;
@@ -325,7 +327,7 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('ja-lat-', juv_date, '-trace_mu_alpha.pdf'))
+                   filename = paste0('jb-lat-', bp_date, '-trace_mu_alpha.pdf'))
 
 #mu_beta ~ N(0, 2)
 PR <- rnorm(10000, 0, 2)
@@ -334,7 +336,7 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('ja-lat-', juv_date, '-trace_mu_beta.pdf'))
+                   filename = paste0('jb-lat-', bp_date, '-trace_mu_beta.pdf'))
 
 #sigma_sp[1] ~ HN(0, 100)
 PR_p <- rnorm(10000, 0, 100)
@@ -345,7 +347,7 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('ja-lat-', juv_date, '-trace_sigma_sp[1].pdf'))
+                   filename = paste0('jb-lat-', bp_date, '-trace_sigma_sp[1].pdf'))
 
 #sigma_sp[2] ~ HN(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -356,7 +358,7 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('ja-lat-', juv_date, '-trace_sigma_sp[2].pdf'))
+                   filename = paste0('jb-lat-', bp_date, '-trace_sigma_sp[2].pdf'))
 
 
 #sigma ~ HN(0, 20)
@@ -367,7 +369,7 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('ja-lat-', juv_date, '-trace_sigma.pdf'))
+                   filename = paste0('jb-lat-', bp_date, '-trace_sigma.pdf'))
 
 
 
@@ -460,7 +462,7 @@ data_vis_fun <- function(SPECIES = 'all')
     #            inherit.aes = FALSE, size = 3, alpha = 0.3) +
     theme_bw() +
     #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
-    ylab('Juv - Arr') +
+    ylab('BP - Arr') +
     xlab('Latitude') +
     ggtitle(paste0('Species: ', SPECIES)) +
     theme(
@@ -472,12 +474,10 @@ data_vis_fun <- function(SPECIES = 'all')
       axis.ticks.length= unit(0.2, 'cm')) #length of axis tick
   
   print(p)
-}
-
-
+}jb
 
 #all species together
-pdf('MF-all-ja.pdf')
+pdf('MF-all-jb.pdf')
 data_vis_fun(SPECIES = 'all')
 dev.off()
 
@@ -486,7 +486,7 @@ sps <- unique(mrg_f3$species)
 for (i in 1:length(sps))
 {
   #i <- 3
-  pdf(paste0('MF-', sps[i], '-ja.pdf'))
+  pdf(paste0('MF-', sps[i], '-jb.pdf'))
   data_vis_fun(SPECIES = sps[i])
   dev.off()
 }
