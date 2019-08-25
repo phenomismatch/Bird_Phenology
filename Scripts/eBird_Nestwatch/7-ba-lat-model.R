@@ -1,5 +1,5 @@
 ######################
-# 7 - juv hitting nets ~ arrival
+# 7 - broop patch - arrival ~ cell lat
 #
 ######################
 
@@ -17,7 +17,7 @@ dir <- '~/Google_Drive/R/'
 # model dir ------------------------------------------------------------
 
 #juveniles MAPS - date input data processed
-juv_date <- '2019-08-22'
+bp_date <- '2019-08-22'
 
 #IAR data
 arr_master_dir <- 'arrival_master_2019-05-26'
@@ -37,10 +37,10 @@ library(MCMCvis)
 
 #juveniles hitting nets - MAPS
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', bp_date))
 
 #read in 
-juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
+bp_master <- readRDS(paste0('bp-output-', bp_date, '.rds'))
 
 #master arrival data (from IAR output)
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
@@ -48,44 +48,54 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
 arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 
 #merge data sets
-mrg <- dplyr::inner_join(juvs_master, arr_master, by = c('species', 'cell', 'year'))
+mrg <- dplyr::inner_join(bp_master, arr_master, by = c('species', 'cell', 'year'))
 
 #only species/cells/years with data for juvs
-mrg_f <- dplyr::filter(mrg, !is.na(juv_mean))
+mrg_f <- dplyr::filter(mrg, !is.na(bp_mean), !is.na(mean_pre_IAR))
 
 #only species that have at least 5 data points
 cnt_arr <- plyr::count(mrg_f, 'species')
-sp_f <- filter(cnt_arr, freq >= 5)$species
+sp_f <- dplyr::filter(cnt_arr, freq >= 5)$species
 
+#only species that cover more than 2 degrees lat
 mrg_f2 <- dplyr::filter(mrg_f, species %in% sp_f)
-sp_idx <- as.numeric(factor(mrg_f2$species))
+lat_rng <- aggregate(cell_lat ~ species, data = mrg_f2, FUN = function(x) diff(range(x)))
+sp_f2 <- lat_rng$species[which(lat_rng$cell_lat > 2)]
+
+#final filter
+mrg_f3 <- dplyr::filter(mrg_f2, species %in% sp_f2)
+
+sp_idx <- as.numeric(factor(mrg_f3$species))
+
+#difference between arrival and juveniles hitting nets
+#for difference of normals, subtract means, add variances - http://mathworld.wolfram.com/NormalDifferenceDistribution.html
+mrg_f3$ba <- mrg_f3$bp_mean - mrg_f3$mean_post_IAR
+mrg_f3$sd_ba <- sqrt(mrg_f3$bp_sd^2 + mrg_f3$sd_post_IAR^2)
+
 
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = mrg_f2$juv_mean,
-             sd_y = mrg_f2$juv_sd,
-             arr = mrg_f2$mean_post_IAR,
-             sd_arr = mrg_f2$mean_post_IAR,
-             N = NROW(mrg_f2),
+DATA <- list(y = mrg_f3$ba,
+             sd_y = mrg_f3$sd_ba,
+             N = NROW(mrg_f3),
              sp = sp_idx,
+             cell_lat = mrg_f3$cell_lat,
              Nsp = length(unique(sp_idx)))
 
 stanmodel1 <- "
 data {
 int<lower=0> N;                      // number of data points
-vector<lower=0>[N] y;                  // response
-vector<lower=0>[N] sd_y;               // uncertainty in response
-vector<lower=0>[N] arr;
-vector<lower=0>[N] sd_arr;
+vector<lower=0>[N] y;
+vector<lower=0>[N] sd_y;
 int<lower=0> sp[N];              
 int<lower=0> Nsp;
+vector<lower=0>[N] cell_lat;
 }
 
 parameters {
 real<lower = 0> sigma_raw;
-vector[N] mu_y_raw;
-vector[N] mu_arr_raw;
+real mu_y_raw[N];
 real mu_alpha_raw;
 real mu_beta_raw;
 vector<lower = 0>[2] sigma_sp_raw;
@@ -96,8 +106,7 @@ matrix[2, Nsp] z;                          // z-scores
 transformed parameters {
 real<lower = 0> sigma;
 vector[N] mu_y;
-vector[N] mu_arr;
-vector[N] mu;
+real mu[N];
 matrix[Nsp, 2] ab;                              // matrix for alpha, beta, gamma, and theta
 matrix[2, 2] Rho;                                 // covariance matrix
 vector[Nsp] alpha;
@@ -108,12 +117,12 @@ vector<lower = 0>[2] sigma_sp;
 real mu_alpha;
 real mu_beta;
 
-mu_alpha = mu_alpha_raw * 200;
+mu_alpha = mu_alpha_raw * 300;
 mu_beta = mu_beta_raw * 2;
-sigma = sigma_raw * 10;
-mu_arr = mu_arr_raw * 40 + 180;
-sigma_sp[1] = sigma_sp_raw[1] * 40;
-sigma_sp[2] = sigma_sp_raw[2] * 1;
+sigma = sigma_raw * 20;
+sigma_sp[1] = sigma_sp_raw[1] * 100;
+sigma_sp[2] = sigma_sp_raw[2] * 10;
+
 
 // cholesky factor of covariance matrix multiplied by z score
 ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
@@ -124,14 +133,14 @@ Rho = L_Rho * L_Rho';
 for (i in 1:N)
 {
   mu[i] = (mu_alpha + ab[sp[i], 1]) +
-  (mu_beta + ab[sp[i], 2]) * mu_arr[i];
+  (mu_beta + ab[sp[i], 2]) * cell_lat[i];
+  
+  // implies mu_y ~ normal(mu, sigma)
+  mu_y[i] = mu_y_raw[i] * sigma + mu[i];
 }
 
 alpha_c = mu_alpha + alpha;
 beta_c = mu_beta + beta;
-
-// implies mu_y[i] ~ normal(mu[i], sigma)
-mu_y = mu_y_raw * sigma + mu; 
 
 }
 
@@ -141,17 +150,12 @@ sigma_sp_raw ~ std_normal();
 mu_alpha_raw ~ std_normal();
 mu_beta_raw ~ std_normal();
 mu_y_raw ~ std_normal();
-mu_arr_raw ~ std_normal();
 
 to_vector(z) ~ std_normal();
-L_Rho ~ lkj_corr_cholesky(2);
+L_Rho ~ lkj_corr_cholesky(1);
 
-// observation model for arr
-arr ~ normal(mu_arr, sd_arr);
-
-// observation model for juveniles
+// observation model for ja
 y ~ normal(mu_y, sd_y);
-
 }
 
 generated quantities {
@@ -164,11 +168,11 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.98
+DELTA <- 0.999
 TREE_DEPTH <- 16
-STEP_SIZE <- 0.001
+STEP_SIZE <- 0.0001
 CHAINS <- 4
-ITER <- 3000
+ITER <- 5000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel1,
@@ -185,7 +189,6 @@ fit <- rstan::stan(model_code = stanmodel1,
                             'sigma_sp',
                             'Rho',
                             'sigma',
-                            'mu_arr',
                             'mu_y',
                             'y_rep'), 
                    control = list(adapt_delta = DELTA,
@@ -194,10 +197,10 @@ fit <- rstan::stan(model_code = stanmodel1,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
-saveRDS(fit, file = paste0('br-arr-juv-stan-output-', juv_date, '.rds'))
-saveRDS(mrg_f2, file = paste0('mrg-data-juv-', juv_date, '.rds'))
-#fit <- readRDS(paste0('arr-br-juv-stan-output-', juv_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', bp_date))
+saveRDS(fit, file = paste0('ba-lat-stan-output-', bp_date, '.rds'))
+#fit <- readRDS(paste0('ba-lat-stan-output-', bp_date, '.rds'))
+
 
 num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
@@ -223,22 +226,18 @@ accept_stat <- sapply(sampler_params,
 # Summaries ---------------------------------------------------------------
 
 #get summary of model output
-model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2, excl = 'y_rep')
+model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2, excl = c('y_rep', 'mu_y'))
 
 #extract Rhat and neff values
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
 neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
-
-# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-# bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
-# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:500,])
 
 
 
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('arr-br-juv-stan-results-', juv_date, '.txt'))
+sink(paste0('ba-lat-stan-results-', DATE, '.txt'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
@@ -288,84 +287,85 @@ sink()
 # sapply(sampler_params, function(x) mean(x[, 'n_leapfrog__']))
 # sapply(sampler_params, function(x) mean(x[, 'energy__']))
 
-# library(shinystan)
-# launch_shinystan(fit)
 
 
 # # PPC ---------------------------------------------------------------------
-# 
-# y_val <- DATA$y
-# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
-# plot(DATA$y, y_rep[1,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
-# abline(a = 0, b = 1, col = 'red', lty = 2)
-# 
+
+
+y_val <- DATA$y
+y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
+bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
+PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
+{
+  out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+  print(out)
+}
+PPC_fun(mean)
+PPC_fun(min)
+PPC_fun(max)
+
 # 
 # 
 # # PPO ---------------------------------------------------------------------
-# 
-# mu_alpha = mu_alpha_raw * 200;
-# mu_beta = mu_beta_raw * 2;
-# sigma = sigma_raw * 10;
-# mu_arr = mu_arr_raw * 40 + 180;
-# sigma_sp[1] = sigma_sp_raw[1] * 20;
-# sigma_sp[2] = sigma_sp_raw[2] * 1;
-# 
-# 
-# 
-#mu_alpha ~ N(0, 200)
-PR <- rnorm(10000, 0, 200)
+
+# mu_alpha = mu_alpha_raw * 300;
+# mu_beta = mu_besta_raw * 2;
+# sigma = sigma_raw * 20;
+# sigma_sp[1] = sigma_sp_raw[1] * 100;
+# sigma_sp[2] = sigma_sp_raw[2] * 10;
+
+
+#mu_alpha ~ N(0, 300)
+PR <- rnorm(10000, 0, 300)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_alpha.pdf'))
+                   filename = paste0('ba-lat-', bp_date, '-trace_mu_alpha.pdf'))
 
 #mu_beta ~ N(0, 2)
 PR <- rnorm(10000, 0, 2)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_beta.pdf'))
+                   filename = paste0('ba-lat-', bp_date, '-trace_mu_beta.pdf'))
 
-#sigma_sp[1] ~ HN(0, 40)
-PR_p <- rnorm(10000, 0, 40)
+#sigma_sp[1] ~ HN(0, 100)
+PR_p <- rnorm(10000, 0, 100)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_sp\\[1',
                    ISB = 'FALSE',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma_sp[1].pdf'))
+                   filename = paste0('ba-lat-', bp_date, '-trace_sigma_sp[1].pdf'))
 
-#sigma_sp[2] ~ HN(0, 1)
-PR_p <- rnorm(10000, 0, 1)
+#sigma_sp[2] ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_sp\\[2',
                    ISB = 'FALSE',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma_sp[2].pdf'))
+                   filename = paste0('ba-lat-', bp_date, '-trace_sigma_sp[2].pdf'))
 
 
-#sigma ~ HN(0, 10)
-PR_p <- rnorm(10000, 0, 10)
+#sigma ~ HN(0, 20)
+PR_p <- rnorm(10000, 0, 20)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma.pdf'))
- 
-#mu_arr ~ N(180, 40)
-PR <- rnorm(10000, 180, 40)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_arr',
-                   priors = PR,
-                   pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_juv.pdf'))
+                   filename = paste0('ba-lat-', bp_date, '-trace_sigma.pdf'))
 
 
 
@@ -384,38 +384,26 @@ data_vis_fun <- function(SPECIES = 'all')
   y_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_y', type = 'summary', 
                                   func = function(x) quantile(x, probs = c(0.975)))[[1]]
   
-  x_true_mean <- MCMCvis::MCMCpstr(fit, params = 'mu_arr', type = 'summary', 
-                                   func = mean)[[1]]
-  x_true_LCI <- MCMCvis::MCMCpstr(fit, params = 'mu_arr', type = 'summary', 
-                                  func = function(x) quantile(x, probs = c(0.025)))[[1]]
-  x_true_UCI <- MCMCvis::MCMCpstr(fit, params = 'mu_arr', type = 'summary', 
-                                  func = function(x) quantile(x, probs = c(0.975)))[[1]]
   
   DATA_PLOT <- data.frame(mean_y = y_true_mean,
                           mean_y_l = y_true_LCI,
                           mean_y_u = y_true_UCI,
-                          mean_x = x_true_mean, 
-                          mean_x_l = x_true_LCI,
-                          mean_x_u = x_true_UCI,
                           y_obs = DATA$y,
                           y_obs_l = DATA$y - (1.96 * DATA$sd_y),
                           y_obs_u = DATA$y + (1.96 * DATA$sd_y),
-                          x_obs = DATA$arr,
-                          x_obs_l = DATA$arr - (1.96 * DATA$sd_arr),
-                          x_obs_u = DATA$arr + (1.96 * DATA$sd_arr),
-                          sp_id = factor(mrg_f2$species))
-  
+                          x_obs = DATA$cell_lat,
+                          sp_id = factor(mrg_f3$species))
   
   if (SPECIES == 'all')
   {
     #model fit for mu_beta and mu_alpha
-    a_ch <- MCMCchains(fit, params = 'mu_alpha')[,1]
-    b_ch <- MCMCchains(fit, params = 'mu_beta')[,1]
+    a_ch <- MCMCvis::MCMCchains(fit, params = 'mu_alpha')[,1]
+    b_ch <- MCMCvis::MCMCchains(fit, params = 'mu_beta')[,1]
     
     DATA_PLOT2 <- DATA_PLOT
   } else {
     
-    idx <- which(unique(mrg_f2$species) == SPECIES)
+    idx <- which(unique(mrg_f3$species) == SPECIES)
     if (length(idx) > 0)
     {
       a_ch <- MCMCvis::MCMCchains(fit, ISB = FALSE, params = paste0('alpha_c\\[', idx, '\\]'))[,1]
@@ -427,7 +415,7 @@ data_vis_fun <- function(SPECIES = 'all')
     }
   }
   
-  sim_x <- seq(min(DATA_PLOT2$mean_x_l) - 1, max(DATA_PLOT2$mean_x_u) + 1, length = 100)
+  sim_x <- seq(min(DATA_PLOT2$x_obs) - 1, max(DATA_PLOT2$x_obs) + 1, length = 100)
   
   mf <- matrix(nrow = length(a_ch), ncol = 100)
   for (i in 1:length(sim_x))
@@ -444,7 +432,7 @@ data_vis_fun <- function(SPECIES = 'all')
                          LCI = LCI_mf,
                          UCI = UCI_mf)
   
-  p <- ggplot(data = DATA_PLOT2, aes(mean_x, mean_y)) +
+  p <- ggplot(data = DATA_PLOT2, aes(x_obs, mean_y)) +
     #model fit
     geom_ribbon(data = FIT_PLOT,
                 aes(x = MN_X, ymin = LCI, ymax = UCI),
@@ -458,10 +446,7 @@ data_vis_fun <- function(SPECIES = 'all')
     geom_errorbar(data = DATA_PLOT2, 
                   aes(ymin = mean_y_l, ymax = mean_y_u), width = 0.3,
                   color = 'black', alpha = 0.2) +
-    geom_errorbarh(data = DATA_PLOT2, 
-                   aes(xmin = mean_x_l, xmax = mean_x_u), height = 0.005,
-                   color = 'black', alpha = 0.2) +
-    geom_point(data = DATA_PLOT2, aes(mean_x, mean_y), color = 'black',
+    geom_point(data = DATA_PLOT2, aes(x_obs, mean_y), color = 'black',
                inherit.aes = FALSE, size = 3, alpha = 0.3) +
     # geom_point(data = DATA_PLOT2, aes(mean_x, mean_y, color = sp_id),
     #            inherit.aes = FALSE, size = 3, alpha = 0.3) +
@@ -469,15 +454,12 @@ data_vis_fun <- function(SPECIES = 'all')
     # geom_errorbar(data = DATA_PLOT2,
     #               aes(x = x_obs, ymin = y_obs_l, ymax = y_obs_u), width = 0.3,
     #               color = 'red', alpha = 0.2) +
-    # geom_errorbarh(data = DATA_PLOT2,
-    #                aes(y = y_obs, xmin = x_obs_l, xmax = x_obs_u), height = 0.005,
-    #                color = 'red', alpha = 0.2) +
     # geom_point(data = DATA_PLOT2, aes(x_obs, y_obs), color = 'red',
     #            inherit.aes = FALSE, size = 3, alpha = 0.3) +
     theme_bw() +
     #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
-    ylab('BR halfmax') +
-    xlab('ARR halfmax') +
+    ylab('BP - Arr') +
+    xlab('Latitude') +
     ggtitle(paste0('Species: ', SPECIES)) +
     theme(
       plot.title = element_text(size = 22),
@@ -493,16 +475,16 @@ data_vis_fun <- function(SPECIES = 'all')
 
 
 #all species together
-pdf('MF-all-juv.pdf')
+pdf('MF-all-ba.pdf')
 data_vis_fun(SPECIES = 'all')
 dev.off()
 
 #each species individually
-sps <- unique(mrg_f2$species)
+sps <- unique(mrg_f3$species)
 for (i in 1:length(sps))
 {
   #i <- 3
-  pdf(paste0('MF-', sps[i], '-juv.pdf'))
+  pdf(paste0('MF-', sps[i], '-ba.pdf'))
   data_vis_fun(SPECIES = sps[i])
   dev.off()
 }

@@ -51,7 +51,7 @@ arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 mrg <- dplyr::inner_join(bp_master, arr_master, by = c('species', 'cell', 'year'))
 
 #only species/cells/years with data for bp
-mrg_f <- dplyr::filter(mrg, !is.na(bp_mean))
+mrg_f <- dplyr::filter(mrg, !is.na(bp_mean), !is.na(mean_pre_IAR))
 
 #only species that have at least 5 data points
 cnt_arr <- plyr::count(mrg_f, 'species')
@@ -66,7 +66,7 @@ sp_idx <- as.numeric(factor(mrg_f2$species))
 DATA <- list(y = mrg_f2$bp_mean,
              sd_y = mrg_f2$bp_sd,
              arr = mrg_f2$mean_post_IAR,
-             sd_arr = mrg_f2$mean_post_IAR,
+             sd_arr = mrg_f2$sd_post_IAR,
              N = NROW(mrg_f2),
              sp = sp_idx,
              Nsp = length(unique(sp_idx)))
@@ -111,7 +111,7 @@ real mu_beta;
 mu_alpha = mu_alpha_raw * 200;
 mu_beta = mu_beta_raw * 2;
 sigma = sigma_raw * 10;
-mu_arr = mu_arr_raw * 40 + 180;
+mu_arr = mu_arr_raw * 40 + 120;
 sigma_sp[1] = sigma_sp_raw[1] * 40;
 sigma_sp[2] = sigma_sp_raw[2] * 1;
 
@@ -164,11 +164,11 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.98
+DELTA <- 0.999
 TREE_DEPTH <- 16
-STEP_SIZE <- 0.001
+STEP_SIZE <- 0.0001
 CHAINS <- 4
-ITER <- 3000
+ITER <- 4000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel1,
@@ -288,27 +288,30 @@ sink()
 # sapply(sampler_params, function(x) mean(x[, 'n_leapfrog__']))
 # sapply(sampler_params, function(x) mean(x[, 'energy__']))
 
-# library(shinystan)
-# launch_shinystan(fit)
 
 
 # # PPC ---------------------------------------------------------------------
 # 
-# y_val <- DATA$y
-# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
-# plot(DATA$y, y_rep[1,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
-# abline(a = 0, b = 1, col = 'red', lty = 2)
-# 
-# 
+y_val <- DATA$y
+y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
+bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
+PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
+{
+  out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+  print(out)
+}
+PPC_fun(mean)
+PPC_fun(min)
+PPC_fun(max)
 # 
 # # PPO ---------------------------------------------------------------------
 # 
 # mu_alpha = mu_alpha_raw * 200;
 # mu_beta = mu_beta_raw * 2;
 # sigma = sigma_raw * 10;
-# mu_arr = mu_bp_raw * 40 + 180;
-# sigma_sp[1] = sigma_sp_raw[1] * 20;
+# mu_arr = mu_arr_raw * 40 + 120;
+# sigma_sp[1] = sigma_sp_raw[1] * 40;
 # sigma_sp[2] = sigma_sp_raw[2] * 1;
 # 
 # 
@@ -359,8 +362,8 @@ MCMCvis::MCMCtrace(fit,
                    pdf = TRUE,
                    filename = paste0('br-arr-bp-', bp_date, '-trace_sigma.pdf'))
 
-#mu_arr ~ N(180, 40)
-PR <- rnorm(10000, 180, 40)
+#mu_arr ~ N(120, 40)
+PR <- rnorm(10000, 120, 40)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_arr',
                    priors = PR,
