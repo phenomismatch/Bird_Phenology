@@ -51,11 +51,11 @@ arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 mrg <- dplyr::inner_join(juvs_master, arr_master, by = c('species', 'cell', 'year'))
 
 #only species/cells/years with data for juvs
-mrg_f <- dplyr::filter(mrg, !is.na(juv_mean))
+mrg_f <- dplyr::filter(mrg, !is.na(juv_mean), !is.na(mean_pre_IAR))
 
 #only species that have at least 5 data points
 cnt_arr <- plyr::count(mrg_f, 'species')
-sp_f <- filter(cnt_arr, freq >= 5)$species
+sp_f <- dplyr::filter(cnt_arr, freq >= 5)$species
 
 #only species that cover more than 2 degrees lat
 mrg_f2 <- dplyr::filter(mrg_f, species %in% sp_f)
@@ -71,6 +71,7 @@ sp_idx <- as.numeric(factor(mrg_f3$species))
 #for difference of normals, subtract means, add variances - http://mathworld.wolfram.com/NormalDifferenceDistribution.html
 mrg_f3$ja <- mrg_f3$juv_mean - mrg_f3$mean_post_IAR
 mrg_f3$sd_ja <- sqrt(mrg_f3$juv_sd^2 + mrg_f3$sd_post_IAR^2)
+
 
 
 # Stan model --------------------------------------------------------------
@@ -93,18 +94,17 @@ vector<lower=0>[N] cell_lat;
 }
 
 parameters {
-vector<lower = 0>[Nsp] sigma_raw;
+real<lower = 0> sigma_raw;
 real mu_y_raw[N];
 real mu_alpha_raw;
 real mu_beta_raw;
 vector<lower = 0>[2] sigma_sp_raw;
 cholesky_factor_corr[2] L_Rho;             // correlation matrix
 matrix[2, Nsp] z;                          // z-scores
-real<lower = 0> sigma_sigma_raw;
 }
 
 transformed parameters {
-vector<lower = 0>[Nsp] sigma;
+real<lower = 0> sigma;
 vector[N] mu_y;
 real mu[N];
 matrix[Nsp, 2] ab;                              // matrix for alpha, beta, gamma, and theta
@@ -116,14 +116,12 @@ vector[Nsp] beta_c;
 vector<lower = 0>[2] sigma_sp;
 real mu_alpha;
 real mu_beta;
-real<lower = 0> sigma_sigma;
 
 mu_alpha = mu_alpha_raw * 300;
 mu_beta = mu_beta_raw * 2;
-sigma_sigma = sigma_sigma_raw * 10;
-sigma = sigma_raw * sigma_sigma;
+sigma = sigma_raw * 20;
 sigma_sp[1] = sigma_sp_raw[1] * 100;
-sigma_sp[2] = sigma_sp_raw[2] * 50;
+sigma_sp[2] = sigma_sp_raw[2] * 10;
 
 
 // cholesky factor of covariance matrix multiplied by z score
@@ -138,7 +136,7 @@ for (i in 1:N)
   (mu_beta + ab[sp[i], 2]) * cell_lat[i];
   
   // implies mu_y ~ normal(mu, sigma)
-  mu_y[i] = mu_y_raw[i] * sigma[sp[i]] + mu[i];
+  mu_y[i] = mu_y_raw[i] * sigma + mu[i];
 }
 
 alpha_c = mu_alpha + alpha;
@@ -148,7 +146,6 @@ beta_c = mu_beta + beta;
 
 model {
 sigma_raw ~ std_normal();
-sigma_sigma_raw ~ std_normal();
 sigma_sp_raw ~ std_normal();
 mu_alpha_raw ~ std_normal();
 mu_beta_raw ~ std_normal();
@@ -171,11 +168,11 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.97
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 3000
+ITER <- 5000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel1,
@@ -192,7 +189,6 @@ fit <- rstan::stan(model_code = stanmodel1,
                             'sigma_sp',
                             'Rho',
                             'sigma',
-                            'sigma_sigma',
                             'mu_y',
                             'y_rep'), 
                    control = list(adapt_delta = DELTA,
@@ -210,35 +206,8 @@ num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
 num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
-#check everything under 180 juv_mean (ja is too high?)
-#check everything under 60 ja
-mu_y <- MCMCvis::MCMCpstr(fit, params = 'mu_y')[[1]]
-mrg_f3$mu_y <- mu_y
-plot(mrg_f3$mu_y, mrg_f3$sd_ja)
-plot(mrg_f3$juv_mean, mrg_f3$juv_sd)
-plot(mrg_f3$juv_mean, mrg_f3$ja)
-plot(mrg_f3$mean_post_IAR, mrg_f3$ja)
-tt <- dplyr::filter(mrg_f3, juv_mean < 180)
-plot(tt$mean_post_IAR, tt$juv_mean)
-plot(tt$mean_post_IAR, tt$ja)
-plot(tt$juv_mean, tt$ja)
 
-plot(mrg_f3$mean_post_IAR, mrg_f3$ja)
-points(tt$mean_post_IAR, tt$ja, col = 'red')
 
-#is juv_mean low or mean_post_IAR low?
-
-pm <- dplyr::filter(mrg_f3, species == 'Parkesia_motacilla')
-points(pm$mean_post_IAR, pm$ja, col = 'green')
-plot(mrg_f3$juv_mean, mrg_f3$ja)
-points(pm$juv_mean, pm$ja, col = 'green')
-plot(mrg_f3$cell_lat, mrg_f3$mu_y)
-points(pm$cell_lat, pm$mu_y, col = 'green')
-plot(mrg_f3$ja, mrg_f3$mu_y)
-points(pm$ja, pm$mu_y, col = 'green')
-abline(a = 0, b = 1, col = 'red', lty = 2)
-
-summary(lm(mu_y ~ ja, data = mrg_f3))
 # Calc diagnostics ---------------------------------------------------
 
 # library(shinystan)  
@@ -262,10 +231,6 @@ model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2,
 #extract Rhat and neff values
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
 neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
-
-# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-# bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
-# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:500,])
 
 
 
@@ -327,44 +292,40 @@ sink()
 
 
 # # PPC ---------------------------------------------------------------------
-# 
-y_val <- DATA$y
-y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
-plot(DATA$y, y_rep[1,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
-abline(a = 0, b = 1, col = 'red', lty = 2)
-PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
-{
-  out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
-  print(out)
-}
-PPC_fun(mean)
-for (i in 1:max(DATA$sp))
-{
-  #i <- 1
-  ny_val <- y_val[which(DATA$sp == i)]
-  ny_rep <- y_rep[,which(DATA$sp == i)]
-  PPC_fun(mean, YR = ny_rep, D = ny_val)
-}
+
+
+# y_val <- DATA$y
+# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+# bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
+# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
+# plot(DATA$y, y_rep[1,], pch = '.', xlim = c(0, 200), ylim = c(0, 200))
+# abline(a = 0, b = 1, col = 'red', lty = 2)
+# PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
+# {
+#   out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+#   print(out)
+# }
+# PPC_fun(mean)
+# PPC_fun(min)
+# PPC_fun(max)
 
 # 
 # 
 # # PPO ---------------------------------------------------------------------
  
-# mu_y = mu_y_raw * 20;
-# mu_alpha = mu_alpha_raw * 200;
-# mu_beta = mu_beta_raw * 2;
-# sigma = sigma_raw * 10;
-# sigma_sp[1] = sigma_sp_raw[1] * 60;
-# sigma_sp[2] = sigma_sp_raw[2] * 3;
+# mu_alpha = mu_alpha_raw * 300;
+# mu_beta = mu_besta_raw * 2;
+# sigma = sigma_raw * 20;
+# sigma_sp[1] = sigma_sp_raw[1] * 100;
+# sigma_sp[2] = sigma_sp_raw[2] * 10;
 
 
-
-#mu_alpha ~ N(0, 200)
-PR <- rnorm(10000, 0, 200)
+#mu_alpha ~ N(0, 300)
+PR <- rnorm(10000, 0, 300)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
                    filename = paste0('ja-lat-', juv_date, '-trace_mu_alpha.pdf'))
 
@@ -373,36 +334,40 @@ PR <- rnorm(10000, 0, 2)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
                    filename = paste0('ja-lat-', juv_date, '-trace_mu_beta.pdf'))
 
-#sigma_sp[1] ~ HN(0, 60)
-PR_p <- rnorm(10000, 0, 60)
+#sigma_sp[1] ~ HN(0, 100)
+PR_p <- rnorm(10000, 0, 100)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_sp\\[1',
                    ISB = 'FALSE',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
                    filename = paste0('ja-lat-', juv_date, '-trace_sigma_sp[1].pdf'))
 
-#sigma_sp[2] ~ HN(0, 3)
-PR_p <- rnorm(10000, 0, 3)
+#sigma_sp[2] ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_sp\\[2',
                    ISB = 'FALSE',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
                    filename = paste0('ja-lat-', juv_date, '-trace_sigma_sp[2].pdf'))
 
 
-#sigma ~ HN(0, 10)
-PR_p <- rnorm(10000, 0, 10)
+#sigma ~ HN(0, 20)
+PR_p <- rnorm(10000, 0, 20)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma',
                    priors = PR,
+                   ind = TRUE,
                    pdf = TRUE,
                    filename = paste0('ja-lat-', juv_date, '-trace_sigma.pdf'))
 
@@ -493,8 +458,8 @@ data_vis_fun <- function(SPECIES = 'all')
     # geom_errorbar(data = DATA_PLOT2,
     #               aes(x = x_obs, ymin = y_obs_l, ymax = y_obs_u), width = 0.3,
     #               color = 'red', alpha = 0.2) +
-    geom_point(data = DATA_PLOT2, aes(x_obs, y_obs), color = 'red',
-               inherit.aes = FALSE, size = 3, alpha = 0.3) +
+    # geom_point(data = DATA_PLOT2, aes(x_obs, y_obs), color = 'red',
+    #            inherit.aes = FALSE, size = 3, alpha = 0.3) +
     theme_bw() +
     #scale_x_discrete(limits = c(seq(18,30, by = 2))) +
     ylab('Juv - Arr') +
