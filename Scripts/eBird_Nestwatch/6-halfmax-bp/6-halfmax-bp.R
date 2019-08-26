@@ -26,7 +26,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 arr_master_dir <- 'arrival_master_2019-05-26'
 
 #run date
-RUN_DATE <- '2019-08-25'
+RUN_DATE <- '2019-08-26'
 
 
 
@@ -212,6 +212,10 @@ if (NROW(nrng@data) > 0)
   stop('Range not suitable for modeling!')
 }
 
+if (NROW(m_mf) == 0)
+{
+  stop('No usable cells in breeding range!')
+}
 
 
 # Process MAPS data --------------------------------------------------------
@@ -334,7 +338,8 @@ for (j in 1:nyrs)
     njd1 <- length(unique(cydata$day[which(cydata$bp == 1)]))
     #number of unique days with non-detection
     njd0 <- length(unique(cydata$day[which(cydata$bp == 0)]))
-    
+    #number of total unique days
+    njd <- length(unique(cydata$day))
     
     if (n1 > 0)
     {
@@ -364,7 +369,7 @@ for (j in 1:nyrs)
     #br thresholds
     #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     
-    if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3)
+    if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3 & njd > 9)
     {
       fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
                                    data = cydata,

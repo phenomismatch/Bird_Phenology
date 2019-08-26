@@ -47,6 +47,11 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Dumetella_carolinensis'
 #args <- 'Petrochelidon_pyrrhonota'
 #args <- 'Catharus_guttatus'
+#args <- 'Cardellina_pusilla'
+#args <- 'Zonotrichia_albicollis'
+#args <- 'Setophaga_petechia'
+#args <- 'Ammospiza_nelsoni'
+
 
 
 # model settings ----------------------------------------------------------
@@ -211,6 +216,10 @@ if (NROW(nrng@data) > 0)
   stop('Range not suitable for modeling!')
 }
 
+if (NROW(m_mf) == 0)
+{
+  stop('No usable cells in breeding range!')
+}
 
 
 # Add juv info ------------------------------------------------------------
@@ -273,12 +282,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/juvs_', RUN_DATE))
 counter <- 1
 for (j in 1:nyrs)
 {
-  #j <- 2
+  #j <- 10
   ydata <- dplyr::filter(m_mf2, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 19
+    #k <- 57
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cydata <- dplyr::filter(ydata, cell == cells[k])
@@ -293,7 +302,8 @@ for (j in 1:nyrs)
     njd1 <- length(unique(cydata$day[which(cydata$juv == 1)]))
     #number of unique days with non-detection
     njd0 <- length(unique(cydata$day[which(cydata$juv == 0)]))
-    
+    #number of total unique days
+    njd <- length(unique(cydata$day))
     
     if (n1 > 0)
     {
@@ -323,7 +333,7 @@ for (j in 1:nyrs)
     #br thresholds
     #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     
-    if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3)
+    if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3 & njd > 9)
     {
       fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
                                    data = cydata,
