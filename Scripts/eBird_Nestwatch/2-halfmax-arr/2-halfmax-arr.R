@@ -8,12 +8,9 @@
 #
 # Halfmax is derived from model fit
 #
-# Additional code for supplemental run to model cells that were missed (and keep only cells of interest) is noted with the following (remove from code before rerunning from the start) vvvvvvvv
-# #################################################
-# ################################################# 
 #
 # Species name should be given as an arg to this script. The model will then be fit to that species only.
-# Runtime: Up to 7 days on Xanadu
+# Runtime: Up to 21 days on Xanadu (very long tail here, depends on data volume, etc.); more RAM allocation would likely speed up
 ######################  
 
 
@@ -73,6 +70,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Catharus_fuscescens'
 #args <- 'Ammospiza_nelsoni'
 #args <- 'Bombycilla_cedrorum'
+#args <- 'Tyrannus_tyrannus'
 
 
 # import processed data ---------------------------------------------------
@@ -203,37 +201,6 @@ if (NROW(nrng@data) > 0)
   n_cc_df <- cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),]
   cells <- n_cc_df$cell
   
-  #################################################
-  #################################################
-  #read in previous run to get which cells were run
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_2019-03-29/'))
-  initial <- readRDS(paste0('halfmax_df_arrival_', args, '.rds'))
-  initial_cells <- unique(initial$cell)
-
-  #get number of ITER for initial run so supplemental run will match
-  cn <- colnames(initial)
-  ITER <- (length(cn[grep('iter', cn)])/2)
-
-  #which of the initally modeled cells are in the updated list
-  trans_cells <- initial_cells[initial_cells %in% cells]
-  #sort initial results by just these cells - will append other cells to this
-  halfmax_df_initial <- dplyr::filter(initial, cell %in% trans_cells)
-  #which additional cells need to be modeled
-  new_cells <- cells[which(cells %ni% initial_cells)]
-  cells <- new_cells
-
-  #stop script and write rds (relevant cells from initial run) if there aren't any new cells to add
-  if (length(cells) == 0)
-  {
-    #save to rds object
-    setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_species_', RUN_DATE))
-    saveRDS(halfmax_df_initial, file = paste0('halfmax_df_arrival_', args, '.rds'))
-
-    stop('No new cells to model!')
-  }
-  #################################################
-  #################################################
-  
   #retain rows that match selected cells
   spdata2 <- spdata[which(spdata$cell %in% cells),]
   
@@ -277,14 +244,7 @@ if (NROW(nrng@data) > 0)
 # process data ------------------------------------------------------------
 
 ncell <- length(cells)
-
-#################################################
-#################################################
-years <- min(halfmax_df_initial$year):max(halfmax_df_initial$year)
-#years <- min(spdata2$year):max(spdata2$year)
-#################################################
-#################################################
-
+years <- min(spdata2$year):max(spdata2$year)
 nyr <- length(years)
 
 
@@ -314,8 +274,8 @@ halfmax_df <- data.frame(species = args,
 
 
 #create dir for figs if doesn't exist
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE)), 
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE)), 
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE)),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE)),
        FALSE)
 
 setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
@@ -325,7 +285,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 8
+  #j <- 11
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
