@@ -65,11 +65,12 @@ CHAINS <- 4
 #read in - RDS create with 1-query-db.R in wing_chord_changes project
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
-data <- readRDS('MAPS-age-filled.rds')
-colnames(data)[grep('sci_name', colnames(data))] <- 'species'
+data_p <- readRDS('MAPS-age-filled.rds')
+colnames(data_p)[grep('sci_name', colnames(data_p))] <- 'species'
 #add underscore to species naems
-data$species <- gsub(' ', '_', data$species)
+data_p$species <- gsub(' ', '_', data_p$species)
 
+data <- dplyr::filter(data_p, species == args)
 
 
 
@@ -365,7 +366,7 @@ for (j in 1:nyrs)
     
     if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3)
     {
-      fit2 <- rstanarm::stan_glm(bp ~ day, 
+      fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
                                    data = cydata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -386,7 +387,7 @@ for (j in 1:nyrs)
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
         
-        fit2 <- rstanarm::stan_glm(bp ~ day,
+        fit2 <- rstanarm::stan_gamm4(juv ~ s(day),
                                      data = cydata,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',
