@@ -371,7 +371,7 @@ for (j in 1:nyrs)
     
     if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3 & njd > 9)
     {
-      fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
+      fit2 <- rstanarm::stan_gamm4(bp ~ s(day), 
                                    data = cydata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -392,7 +392,7 @@ for (j in 1:nyrs)
         DELTA <- DELTA + 0.01
         TREE_DEPTH <- TREE_DEPTH + 1
         
-        fit2 <- rstanarm::stan_gamm4(juv ~ s(day),
+        fit2 <- rstanarm::stan_gamm4(bp ~ s(day),
                                      data = cydata,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',
