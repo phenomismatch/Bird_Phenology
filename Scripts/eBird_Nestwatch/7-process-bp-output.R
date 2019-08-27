@@ -18,11 +18,11 @@ dir <- '~/Google_Drive/R/'
 # db/bp query dir ------------------------------------------------------------
 
 #input dir
-bp_dir <- 'halfmax_bp_2019-08-22'
+bp_dir <- 'halfmax_bp_2019-08-26'
 bp_date <- substr(bp_dir, start = 12, stop = 21)
 
 #output dir
-br_arr_dir <- 'br_arr_2019-08-22'
+br_arr_dir <- 'br_arr_2019-08-26'
 
 
 # runtime -----------------------------------------------------------------
