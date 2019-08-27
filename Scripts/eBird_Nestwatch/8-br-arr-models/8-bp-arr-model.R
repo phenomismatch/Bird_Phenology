@@ -1,5 +1,5 @@
 ######################
-# 7 - juv hitting nets ~ arrival
+# 8 - brood patch ~ arrival
 #
 ######################
 
@@ -16,8 +16,8 @@ dir <- '~/Google_Drive/R/'
 
 # model dir ------------------------------------------------------------
 
-#juveniles MAPS - date input data processed
-juv_date <- '2019-08-22'
+#bp MAPS - date input data processed
+bp_date <- '2019-08-26'
 
 #IAR data
 arr_master_dir <- 'arrival_master_2019-05-26'
@@ -35,12 +35,12 @@ library(MCMCvis)
 
 # Filter data ------------------------------------------------------------------
 
-#juveniles hitting nets - MAPS
+#bp - MAPS
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', bp_date))
 
 #read in 
-juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
+bp_master <- readRDS(paste0('bp-output-', bp_date, '.rds'))
 
 #master arrival data (from IAR output)
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
@@ -48,10 +48,10 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
 arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 
 #merge data sets
-mrg <- dplyr::inner_join(juvs_master, arr_master, by = c('species', 'cell', 'year'))
+mrg <- dplyr::inner_join(bp_master, arr_master, by = c('species', 'cell', 'year'))
 
-#only species/cells/years with data for juvs
-mrg_f <- dplyr::filter(mrg, !is.na(juv_mean), !is.na(mean_pre_IAR))
+#only species/cells/years with data for bp
+mrg_f <- dplyr::filter(mrg, !is.na(bp_mean), !is.na(mean_pre_IAR))
 
 #only species that have at least 5 data points
 cnt_arr <- plyr::count(mrg_f, 'species')
@@ -63,8 +63,8 @@ sp_idx <- as.numeric(factor(mrg_f2$species))
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = mrg_f2$juv_mean,
-             sd_y = mrg_f2$juv_sd,
+DATA <- list(y = mrg_f2$bp_mean,
+             sd_y = mrg_f2$bp_sd,
              arr = mrg_f2$mean_post_IAR,
              sd_arr = mrg_f2$sd_post_IAR,
              N = NROW(mrg_f2),
@@ -98,7 +98,7 @@ real<lower = 0> sigma;
 vector[N] mu_y;
 vector[N] mu_arr;
 vector[N] mu;
-matrix[Nsp, 2] ab;                              // matrix for alpha, beta
+matrix[Nsp, 2] ab;                              // matrix for alpha, beta, gamma, and theta
 matrix[2, 2] Rho;                                 // covariance matrix
 vector[Nsp] alpha;
 vector[Nsp] beta;
@@ -144,12 +144,12 @@ mu_y_raw ~ std_normal();
 mu_arr_raw ~ std_normal();
 
 to_vector(z) ~ std_normal();
-L_Rho ~ lkj_corr_cholesky(1);
+L_Rho ~ lkj_corr_cholesky(2);
 
 // observation model for arr
 arr ~ normal(mu_arr, sd_arr);
 
-// observation model for juveniles
+// observation model for brood patch
 y ~ normal(mu_y, sd_y);
 
 }
@@ -194,10 +194,10 @@ fit <- rstan::stan(model_code = stanmodel1,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
-saveRDS(fit, file = paste0('br-arr-juv-stan-output-', juv_date, '.rds'))
-saveRDS(mrg_f2, file = paste0('mrg-data-juv-', juv_date, '.rds'))
-#fit <- readRDS(paste0('arr-br-juv-stan-output-', juv_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', bp_date))
+saveRDS(fit, file = paste0('bp-arr-stan-output-', bp_date, '.rds'))
+saveRDS(mrg_f2, file = paste0('mrg-data-bp-', bp_date, '.rds'))
+#fit <- readRDS(paste0('br-arr-bp-stan-output-', bp_date, '.rds'))
 
 num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
@@ -229,12 +229,16 @@ model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2,
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
 neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
 
+# y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+# bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
+# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:500,])
+
 
 
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('arr-br-juv-stan-results-', juv_date, '.txt'))
+sink(paste0('bp-arr-stan-results-', bp_date, '.txt'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
@@ -301,15 +305,13 @@ PPC_fun(mean)
 PPC_fun(min)
 PPC_fun(max)
 # 
-# 
-# 
 # # PPO ---------------------------------------------------------------------
 # 
 # mu_alpha = mu_alpha_raw * 200;
 # mu_beta = mu_beta_raw * 2;
 # sigma = sigma_raw * 10;
-# mu_arr = mu_arr_raw * 40 + 180;
-# sigma_sp[1] = sigma_sp_raw[1] * 20;
+# mu_arr = mu_arr_raw * 40 + 120;
+# sigma_sp[1] = sigma_sp_raw[1] * 40;
 # sigma_sp[2] = sigma_sp_raw[2] * 1;
 # 
 # 
@@ -320,7 +322,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_alpha',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_alpha.pdf'))
+                   filename = paste0('bp-arr-', bp_date, '-trace_mu_alpha.pdf'))
 
 #mu_beta ~ N(0, 2)
 PR <- rnorm(10000, 0, 2)
@@ -328,7 +330,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_beta',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_beta.pdf'))
+                   filename = paste0('bp-arr-', bp_date, '-trace_mu_beta.pdf'))
 
 #sigma_sp[1] ~ HN(0, 40)
 PR_p <- rnorm(10000, 0, 40)
@@ -338,7 +340,7 @@ MCMCvis::MCMCtrace(fit,
                    ISB = 'FALSE',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma_sp[1].pdf'))
+                   filename = paste0('bp-arr-', bp_date, '-trace_sigma_sp[1].pdf'))
 
 #sigma_sp[2] ~ HN(0, 1)
 PR_p <- rnorm(10000, 0, 1)
@@ -348,7 +350,7 @@ MCMCvis::MCMCtrace(fit,
                    ISB = 'FALSE',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma_sp[2].pdf'))
+                   filename = paste0('bp-arr-', bp_date, '-trace_sigma_sp[2].pdf'))
 
 
 #sigma ~ HN(0, 10)
@@ -358,15 +360,15 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_sigma.pdf'))
- 
-#mu_arr ~ N(180, 40)
-PR <- rnorm(10000, 180, 40)
+                   filename = paste0('bp-arr-', bp_date, '-trace_sigma.pdf'))
+
+#mu_arr ~ N(120, 40)
+PR <- rnorm(10000, 120, 40)
 MCMCvis::MCMCtrace(fit,
                    params = 'mu_arr',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('br-arr-juv-', juv_date, '-trace_mu_juv.pdf'))
+                   filename = paste0('bp-arr-', bp_date, '-trace_mu_bp.pdf'))
 
 
 
@@ -405,8 +407,7 @@ data_vis_fun <- function(SPECIES = 'all')
                           x_obs_l = DATA$arr - (1.96 * DATA$sd_arr),
                           x_obs_u = DATA$arr + (1.96 * DATA$sd_arr),
                           sp_id = factor(mrg_f2$species))
-  
-  
+
   if (SPECIES == 'all')
   {
     #model fit for mu_beta and mu_alpha
@@ -493,8 +494,9 @@ data_vis_fun <- function(SPECIES = 'all')
 
 
 
+
 #all species together
-pdf('MF-all-juv.pdf')
+pdf('bp-arr-ALL.pdf')
 data_vis_fun(SPECIES = 'all')
 dev.off()
 
@@ -503,7 +505,7 @@ sps <- unique(mrg_f2$species)
 for (i in 1:length(sps))
 {
   #i <- 3
-  pdf(paste0('MF-', sps[i], '-juv.pdf'))
+  pdf(paste0('bp-arr-', sps[i], '.pdf'))
   data_vis_fun(SPECIES = sps[i])
   dev.off()
 }

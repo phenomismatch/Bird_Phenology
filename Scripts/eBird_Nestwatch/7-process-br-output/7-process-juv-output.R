@@ -1,7 +1,7 @@
 ######################
-# 6 - proces bp GAM output
+# 7 - proces juv GAM output
 #
-# Aggeregate posterior info and diagnostic info from 5-halfmax-bp.R to be used in arr ~ br model
+# Aggeregate posterior info and diagnostic info from 5-halfmax-juvs.R to be used in arr ~ br model
 #
 ######################
 
@@ -15,11 +15,11 @@ dir <- '~/Google_Drive/R/'
 #dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
-# db/bp query dir ------------------------------------------------------------
+# db/juv query dir ------------------------------------------------------------
 
 #input dir
-bp_dir <- 'halfmax_bp_2019-08-26'
-bp_date <- substr(bp_dir, start = 12, stop = 21)
+juv_dir <- 'halfmax_juvs_2019-08-26'
+juv_date <- substr(juv_dir, start = 14, stop = 23)
 
 #output dir
 br_arr_dir <- 'br_arr_2019-08-26'
@@ -67,10 +67,10 @@ for (i in 1:nsp)
   #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', bp_dir))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', juv_dir))
   if (length(grep(paste0(species_list[i], '.rds'), list.files())) > 0)
   {
-    temp_halfmax <- readRDS(paste0('halfmax_bp_', species_list[i], '.rds'))
+    temp_halfmax <- readRDS(paste0('halfmax_juvs_', species_list[i], '.rds'))
     cell_years <- cell_years + NROW(temp_halfmax)
     species <- c(species, species_list[i])
   }
@@ -82,8 +82,8 @@ for (i in 1:length(species))
   #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', bp_dir))
-  temp_halfmax <- readRDS(paste0('halfmax_bp_', species[i], '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', juv_dir))
+  temp_halfmax <- readRDS(paste0('halfmax_juvs_', species[i], '.rds'))
   
   years <- unique(temp_halfmax$year)
   
@@ -94,8 +94,8 @@ for (i in 1:length(species))
     diagnostics_frame <- data.frame(species = na_reps,
                                     year = na_reps,
                                     cell = na_reps,
-                                    bp_mean = na_reps,
-                                    bp_sd = na_reps,
+                                    juv_mean = na_reps,
+                                    juv_sd = na_reps,
                                     n1 = na_reps,
                                     #n1W = na_reps,
                                     n0 = na_reps,
@@ -175,8 +175,8 @@ for (i in 1:length(species))
         #calculate posterior mean and sd
         if (sum(!is.na(halfmax_posterior)) > 0)
         {
-          diagnostics_frame$bp_mean[counter] <- mean(halfmax_posterior)
-          diagnostics_frame$bp_sd[counter] <- sd(halfmax_posterior)
+          diagnostics_frame$juv_mean[counter] <- mean(halfmax_posterior)
+          diagnostics_frame$juv_sd[counter] <- sd(halfmax_posterior)
         }
         
         counter <- counter + 1
@@ -190,23 +190,23 @@ for (i in 1:length(species))
 
 # filter bad results ------------------------------------------------------
 
-### add NA for both bp_mean and bp_sd if any of the following conditions are met
+### add NA for both juv_mean and juv_sd if any of the following conditions are met
 
 to.NA <- which(diagnostics_frame$num_diverge > 3 | 
                  diagnostics_frame$max_Rhat >= 1.1 |
                  diagnostics_frame$min_neff < 200 |
                  diagnostics_frame$num_BFMI > 0 |
-                 diagnostics_frame$bp_sd > 10)
+                 diagnostics_frame$juv_sd > 10)
 
 # #11% of cells are bad
-# length(to.NA)/sum(!is.na(diagnostics_frame$bp_mean))
+# length(to.NA)/sum(!is.na(diagnostics_frame$juv_mean))
 # diagnostics_frame[to.NA,c('species', 'cell', 'year',
-#                            'bp_mean', 'bp_sd', 'min_neff', 'num_diverge')]
+#                            'juv_mean', 'juv_sd', 'min_neff', 'num_diverge')]
 
 if (length(to.NA) > 0)
 {
-  diagnostics_frame[to.NA,'bp_mean'] <- NA
-  diagnostics_frame[to.NA,'bp_sd'] <- NA
+  diagnostics_frame[to.NA,'juv_mean'] <- NA
+  diagnostics_frame[to.NA,'juv_sd'] <- NA
 }
 
 
@@ -218,7 +218,6 @@ if (length(to.NA) > 0)
 df_master <- diagnostics_frame[with(diagnostics_frame, order(species, year, cell)),]
 
 
-
 # write to RDS --------------------------------------------------
 
 ba_dir_path <- paste0(dir, 'Bird_Phenology/Data/Processed/', br_arr_dir)
@@ -226,4 +225,4 @@ ba_dir_path <- paste0(dir, 'Bird_Phenology/Data/Processed/', br_arr_dir)
 dir.create(ba_dir_path)
 setwd(ba_dir_path)
 
-saveRDS(df_master, paste0('bp-output-', bp_date, '.rds'))
+saveRDS(df_master, paste0('juv-output-', juv_date, '.rds'))

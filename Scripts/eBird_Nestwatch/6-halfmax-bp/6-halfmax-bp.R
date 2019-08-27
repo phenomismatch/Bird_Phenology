@@ -1,5 +1,5 @@
 ######################
-# 5 - GAM model bp MAPS
+# 6 - GAM model bp MAPS
 #
 # only cells where there was IAR input data
 ######################
