@@ -92,7 +92,8 @@ DATA <- list(y = mrg_f2$juv_mean,
              cell_lat = mrg_f2$cell_lat,
              N = NROW(mrg_f2),
              sp = sp_idx,
-             Nsp = length(unique(sp_idx)))
+             Nsp = length(unique(sp_idx)),
+             P = 3)
 
 stanmodel1 <- "
 data {
@@ -104,6 +105,7 @@ vector<lower=0>[N] sd_arr;
 int<lower=0> sp[N];              
 int<lower=0> Nsp;
 vector<lower=0>[N] cell_lat;
+int<lower=0> P;
 }
 
 parameters {
@@ -113,10 +115,10 @@ vector[N] mu_arr_raw;
 real mu_alpha_raw;
 real mu_beta_raw;
 real mu_gamma_raw;
-real mu_theta_raw;
-vector<lower = 0>[4] sigma_sp_raw;
-cholesky_factor_corr[4] L_Rho;             // correlation matrix
-matrix[4, Nsp] z;                          // z-scores
+// real mu_theta_raw;
+vector<lower = 0>[P] sigma_sp_raw;
+cholesky_factor_corr[P] L_Rho;             // correlation matrix
+matrix[P, Nsp] z;                          // z-scores
 }
 
 transformed parameters {
@@ -124,53 +126,53 @@ real<lower = 0> sigma;
 vector[N] mu_y;
 vector[N] mu_arr;
 vector[N] mu;
-matrix[Nsp, 4] abgt;                              // matrix for alpha, beta
-matrix[4, 4] Rho;                                 // covariance matrix
+matrix[Nsp, P] abgt;                              // matrix for alpha, beta
+matrix[P, P] Rho;                                 // covariance matrix
 vector[Nsp] alpha;
 vector[Nsp] beta;
 vector[Nsp] gamma;
-vector[Nsp] theta;
+// vector[Nsp] theta;
 vector[Nsp] alpha_c;
 vector[Nsp] beta_c;
 vector[Nsp] gamma_c;
-vector[Nsp] theta_c;
-vector<lower = 0>[4] sigma_sp;
+// vector[Nsp] theta_c;
+vector<lower = 0>[P] sigma_sp;
 real mu_alpha;
 real mu_beta;
 real mu_gamma;
-real mu_theta;
+// real mu_theta;
 
 mu_alpha = mu_alpha_raw * 200;
 mu_beta = mu_beta_raw * 2;
 mu_gamma = mu_beta_raw * 2;
-mu_theta = mu_beta_raw * 2;
+// mu_theta = mu_beta_raw * 2;
 sigma = sigma_raw * 10;
 mu_arr = mu_arr_raw * 40 + 120;
 sigma_sp[1] = sigma_sp_raw[1] * 40;
 sigma_sp[2] = sigma_sp_raw[2] * 1;
 sigma_sp[3] = sigma_sp_raw[3] * 1;
-sigma_sp[4] = sigma_sp_raw[4] * 0.01;
+// sigma_sp[4] = sigma_sp_raw[4] * 0.01;
 
 // cholesky factor of covariance matrix multiplied by z score
 abgt = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
 alpha = abgt[,1];
 beta = abgt[,2];
 gamma = abgt[,3];
-theta = abgt[,4];
+// theta = abgt[,4];
 Rho = L_Rho * L_Rho';
 
 for (i in 1:N)
 {
   mu[i] = (mu_alpha + abgt[sp[i], 1]) +
   (mu_beta + abgt[sp[i], 2]) * mu_arr[i] + 
-  (mu_gamma + abgt[sp[i], 3]) * cell_lat[i] + 
-  (mu_theta + abgt[sp[i], 4]) * (cell_lat[i] * mu_arr[i]);
+  (mu_gamma + abgt[sp[i], 3]) * cell_lat[i]; //+ 
+  // (mu_theta + abgt[sp[i], 4]) * (cell_lat[i] * mu_arr[i]);
 }
 
 alpha_c = mu_alpha + alpha;
 beta_c = mu_beta + beta;
 gamma_c = mu_gamma + gamma;
-theta_c = mu_theta + theta;
+// theta_c = mu_theta + theta;
 
 // implies mu_y[i] ~ normal(mu[i], sigma)
 mu_y = mu_y_raw * sigma + mu; 
@@ -183,7 +185,7 @@ sigma_sp_raw ~ std_normal();
 mu_alpha_raw ~ std_normal();
 mu_beta_raw ~ std_normal();
 mu_gamma_raw ~ std_normal();
-mu_theta_raw ~ std_normal();
+// mu_theta_raw ~ std_normal();
 mu_y_raw ~ std_normal();
 mu_arr_raw ~ std_normal();
 
@@ -223,15 +225,15 @@ fit <- rstan::stan(model_code = stanmodel1,
                    pars = c('alpha_c',
                             'beta_c',
                             'gamma_c',
-                            'theta_c',
+                            # 'theta_c',
                             'alpha',
                             'beta',
                             'gamma',
-                            'theta',
+                            # 'theta',
                             'mu_alpha',
                             'mu_beta',
                             'mu_gamma',
-                            'mu_theta',
+                            # 'mu_theta',
                             'sigma_sp',
                             'Rho',
                             'sigma',
@@ -543,7 +545,7 @@ data_vis_fun <- function(SPECIES = 'all')
 
 
 #all species together
-pdf('MF-all-juv.pdf')
+pdf('juv-arr-lat-ALL.pdf')
 data_vis_fun(SPECIES = 'all')
 dev.off()
 
@@ -552,7 +554,7 @@ sps <- unique(mrg_f2$species)
 for (i in 1:length(sps))
 {
   #i <- 3
-  pdf(paste0('MF-', sps[i], '-juv.pdf'))
+  pdf(paste0('juv-arr-lat-', sps[i], '.pdf'))
   data_vis_fun(SPECIES = sps[i])
   dev.off()
 }
