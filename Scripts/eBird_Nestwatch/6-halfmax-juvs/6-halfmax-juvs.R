@@ -26,7 +26,7 @@ dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 arr_master_dir <- 'arrival_master_2019-05-26'
 
 #run date
-RUN_DATE <- '2019-08-26'
+RUN_DATE <- '2019-08-28'
 
 
 

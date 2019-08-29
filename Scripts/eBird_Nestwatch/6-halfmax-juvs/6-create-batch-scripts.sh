@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-08-26"
+DATE="2019-08-28"
 
 while read name
 do
@@ -29,4 +29,4 @@ singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Ting
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/6-$temp.sh"
-done < ../../../Data/IAR_species_list.txt
+done < ../../../Data/no_IAR_species_list.txt
