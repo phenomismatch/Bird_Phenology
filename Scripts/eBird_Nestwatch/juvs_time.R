@@ -3,8 +3,7 @@
 #
 # juv_{i} \sim N(\mu_{i}, \sigma)
 # \mu_{i} = \alpha_{i} + \beta_{i} \times year
-# \alpha_{i} \sim N(\mu_{\alpha_{i}}, \sigma_{\alpha})
-# \beta_{i} \sim N(\mu_{\beta_{i}}, \sigma_{\beta})
+# \begin{bmatrix} \alpha_{i} \\ \beta_{i} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\alpha_{i}} \\ \mu_{\beta_{i}} \end{bmatrix}, \Sigma_{\alpha\beta} \right)
 # \mu_{\alpha_{i}} = \gamma_{j} + \theta_{j} \times lat_{i}
 # \mu_{\beta_{i}} = \pi_{j} + \nu_{j} \times lat_{i}
 # \begin{bmatrix} \gamma_{j} \\ \theta_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\gamma} \\ \mu_{\theta} \end{bmatrix}, \Sigma_{\gamma\theta} \right)
@@ -117,7 +116,7 @@ transformed parameters {
 real<lower = 0> sigma;
 vector[N] mu_y;
 vector[N] mu;
-matrix[N, P] gt;
+matrix[N, P] ab;
 matrix[Nsp, P] gt;
 matrix[Nsp, P] pn;
 matrix[P, P] Rho_ab;
@@ -129,14 +128,12 @@ real mu_pi;
 real mu_nu;
 vector[N] alpha;
 vector[N] beta;
+vector[N] mu_alpha;
+vector[N] mu_beta;
 vector[Nsp] gamma;
 vector[Nsp] theta;
 vector[Nsp] pi;
 vector[Nsp] nu;
-vector[Nsp] gamma_c;
-vector[Nsp] theta_c;
-vector[Nsp] pi_c;
-vector[Nsp] nu_c;
 vector<lower = 0>[P] sigma_ab;
 vector<lower = 0>[P] sigma_gt;
 vector<lower = 0>[P] sigma_pn;
@@ -155,38 +152,31 @@ sigma_pn[1] = sigma_pn_raw[1] * 40;
 sigma_pn[2] = sigma_pn_raw[2] * 1;
 
 // cholesky factor of covariance matrix multiplied by z score
+// implies gt ~ MVN(0, sigma)
 gt = (diag_pre_multiply(sigma_gt, L_Rho_gt) * z_gt)';
-gamma = gt[,1];
-theta = gt[,2];
 Rho_gt = L_Rho_gt * L_Rho_gt';
 
 pn = (diag_pre_multiply(sigma_pn, L_Rho_pn) * z_pn)';
-pi = pn[,1];
-nu = pn[,2];
 Rho_pn = L_Rho_pn * L_Rho_pn';
 
-
 ab = (diag_pre_multiply(sigma_ab, L_Rho_ab) * z_ab)';
+Rho_ab = L_Rho_ab * L_Rho_ab';
+
 for (i in 1:N)
 {
-  ab[,1] = (mu_gamma + gt[sp[i], 1]) +
+  mu_alpha[i] = (mu_gamma + gt[sp[i], 1]) +
   (mu_theta + gt[sp[i], 2]) * cell_lat[i];
   
-  ab[i,2] = (mu_pi + pn[sp[i], 1]) +
+  mu_beta[i] = (mu_pi + pn[sp[i], 1]) +
   (mu_nu + pn[sp[i], 2]) * cell_lat[i];
 }
 
-alpha = ab[,1];
-beta = ab[,2];
-Rho_ab = L_Rho_ab * L_Rho_ab';
-
-
-// alpha_c = mu_alpha + alpha;
-// beta_c = mu_beta + beta;
-gamma_c = mu_gamma + gamma;
-theta_c = mu_theta + theta;
-pi_c = mu_pi + pi;
-nu_c = mu_nu + nu;
+alpha = mu_alpha + ab[,1];
+beta = mu_beta + ab[,2];
+gamma = mu_gamma + gt[,1];
+theta = mu_theta + gt[,2];
+pi = mu_pi + pn[,1];
+nu = mu_nu + pn[,1];
 
 for (i in 1:N)
 {
@@ -243,24 +233,22 @@ fit <- rstan::stan(model_code = stanmodel1,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('gamma_c',
-                            'theta_c',
-                            'pi_c',
-                            'nu_c',
-                            'gamma',
+                   pars = c('gamma',
                             'theta',
                             'pi',
                             'nu',
+                            'gt',
+                            'pn',
                             'mu_gamma',
                             'mu_theta',
                             'mu_pi',
                             'mu_nu',
+                            'sigma_ab',
                             'sigma_gt',
                             'sigma_pn',
+                            'Rho_ab',
                             'Rho_gt',
                             'Rho_pn',
-                            'sigma_alpha',
-                            'sigma_beta',
                             'sigma',
                             'mu_y',
                             'y_rep'), 
