@@ -152,7 +152,8 @@ sigma_pn[1] = sigma_pn_raw[1] * 40;
 sigma_pn[2] = sigma_pn_raw[2] * 1;
 
 // cholesky factor of covariance matrix (i.e., diagonal matrix of scale times cholesky factor of correlation matrix) multiplied by z score
-// implies gt ~ MVN(0, sigma)
+// cholesky factor transforms uncorrelated variables (z scores) into variables whose variances and covariances are given by Sigma (i.e., sigma[diag of scale] * Rho[corr matrix] * sigma) and are centered on 0
+// implies gt ~ MVN(0, Sigma)
 gt = (diag_pre_multiply(sigma_gt, L_Rho_gt) * z_gt)';
 Rho_gt = L_Rho_gt * L_Rho_gt';
 
