@@ -104,7 +104,7 @@ real mu_nu_raw;
 vector<lower = 0>[P] sigma_ab_raw;
 vector<lower = 0>[P] sigma_gt_raw;
 vector<lower = 0>[P] sigma_pn_raw;
-cholesky_factor_corr[P] L_Rho_ab;
+cholesky_factor_corr[P] L_Rho_ab;       // cholesky factor of corr matrix
 cholesky_factor_corr[P] L_Rho_gt;
 cholesky_factor_corr[P] L_Rho_pn;
 matrix[P, N] z_ab;
@@ -119,7 +119,7 @@ vector[N] mu;
 matrix[N, P] ab;
 matrix[Nsp, P] gt;
 matrix[Nsp, P] pn;
-matrix[P, P] Rho_ab;
+matrix[P, P] Rho_ab;    // covariance matrix
 matrix[P, P] Rho_gt;
 matrix[P, P] Rho_pn;
 real mu_gamma;
@@ -151,7 +151,7 @@ sigma_gt[2] = sigma_gt_raw[2] * 1;
 sigma_pn[1] = sigma_pn_raw[1] * 40;
 sigma_pn[2] = sigma_pn_raw[2] * 1;
 
-// cholesky factor of covariance matrix multiplied by z score
+// cholesky factor of covariance matrix (i.e., diagonal matrix of scale times cholesky factor of correlation matrix) multiplied by z score
 // implies gt ~ MVN(0, sigma)
 gt = (diag_pre_multiply(sigma_gt, L_Rho_gt) * z_gt)';
 Rho_gt = L_Rho_gt * L_Rho_gt';
