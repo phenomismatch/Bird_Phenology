@@ -20,7 +20,7 @@ dir <- '~/Google_Drive/R/'
 
 # other dir ---------------------------------------------------------------
 
-run_date <- '2019-09-02'
+run_date <- '2019-09-03'
 IAR_date <- '2019-05-26'
 
 in_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)

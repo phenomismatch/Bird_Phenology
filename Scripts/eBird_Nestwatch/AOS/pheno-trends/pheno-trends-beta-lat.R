@@ -1,5 +1,5 @@
 #######
-# phenology ~ time using post IAR (no beta as func of lat)
+# phenology ~ time using post IAR
 #
 # i = obs
 # j = cell
@@ -8,7 +8,8 @@
 # \mu_{y_{i}} \sim N(\mu_{i}, \sigma)
 # \mu_{i} = \alpha_{j} + \beta_{j} \times year_{i}
 # \alpha_{j} \sim N(\mu_{\alpha}, \sigma_{\alpha})
-# \beta_{j} \sim N(\mu_{\beta}, \sigma_{\beta})
+# \beta_{j} \sim N(\mu_{\beta_{j}}, \sigma_{\beta})
+# \mu_{\beta_{j}} = \alpha_{\beta} + \beta_{\beta} \times lat_{j}
 #######
 
 
@@ -38,7 +39,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 IAR_in_date <- '2019-05-03'
 IAR_out_date <- '2019-05-26'
-run_date <- '2019-09-04'
+run_date <- '2019-09-03'
 
 IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', IAR_in_date)
 
@@ -127,10 +128,10 @@ if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.fi
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
+#data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
 
 #all cell years
-#data_f <- pro_data
+data_f <- pro_data
 
 #cells with at least 5 years of data
 cnts <- plyr::count(data_f, 'cell')
@@ -152,8 +153,7 @@ DATA <- list(N = NROW(data_f2),
              NC = length(u_cells),
              year = (data_f2$year - 2001),
              lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
-             lat_usc = ot_cl$cell_lat,
-             P = 2)
+             lat_usc = ot_cl$cell_lat)
 
 
 # ggplot(data_f2, aes(x = year, y = mean_post_IAR, col = factor(cell))) +
@@ -171,64 +171,80 @@ int<lower = 1> cn_id[N];                          // cell ids
 int<lower = 0> NC;                                // number of cells
 vector<lower = 1, upper = 17>[N] year;
 vector[NC] lat;
-int<lower = 0> P;
 }
 
 parameters {
+vector[NC] alpha_raw;
+vector[NC] beta_raw;
 vector[N] y_true_raw;
-real mu_alpha_raw;
+real<lower = 0> sigma_beta_raw;
 real mu_beta_raw;
-vector<lower = 0>[P] sigma_sp_raw;
-cholesky_factor_corr[P] L_Rho;             // correlation matrix
-matrix[P, NC] z;                          // z-scores
+real alpha_beta_raw;
+real beta_beta_raw;
+real mu_alpha_raw;
+real<lower = 0> sigma_alpha_raw;
+// real mu_sigma_raw;
+// real<lower = 0> sigma_sigma_raw;
+// vector[NC] sigma_raw;
 real<lower = 0> sigma_raw;
 }
 
 transformed parameters {
+vector[N] mu;
 vector[N] y_true;
-real mu[N];
-matrix[NC, P] ab;
-matrix[P, P] Rho;                                 // covariance matrix
 vector[NC] alpha;
 vector[NC] beta;
-vector<lower = 0>[P] sigma_sp;
+real<lower = 0> sigma_beta;
+vector[NC] mu_beta;
+real alpha_beta;
+real beta_beta;
 real mu_alpha;
-real mu_beta;
+real<lower = 0> sigma_alpha;
+// vector<lower = 0>[NC] sigma;
 real<lower = 0> sigma;
+// real mu_sigma;
+// real<lower = 0> sigma_sigma;
 
 sigma = sigma_raw * 5;
-mu_alpha = mu_alpha_raw * 50 + 120;
-mu_beta = mu_beta_raw * 5;
-sigma_sp[1] = sigma_sp_raw[1] * 100;
-sigma_sp[2] = sigma_sp_raw[2] * 10;
+// mu_sigma = mu_sigma_raw * 1.5;
+// sigma_sigma = sigma_sigma_raw * 0.5;
+// sigma = exp(sigma_raw * sigma_sigma + mu_sigma);
 
-// cholesky factor of covariance matrix multiplied by z score
-ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
-Rho = L_Rho * L_Rho';
+mu_alpha = mu_alpha_raw * 50 + 120;
+sigma_alpha = sigma_alpha_raw * 20;
+alpha = alpha_raw * sigma_alpha + mu_alpha;
+
+alpha_beta = alpha_beta_raw * 1;
+beta_beta = beta_beta_raw * 1;
+mu_beta = alpha_beta + beta_beta * lat;
+sigma_beta = sigma_beta_raw * 3;
+beta = beta_raw * sigma_beta + mu_beta;
 
 for (i in 1:N)
 {
-  mu[i] = (mu_alpha + ab[cn_id[i], 1]) +
-  (mu_beta + ab[cn_id[i], 2]) * year[i];
-  
-  // implies y_true ~ normal(mu, sigma)
+  mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
+  //y_true[i] = y_true_raw[i] * sigma[cn_id[i]] + mu[i];
   y_true[i] = y_true_raw[i] * sigma + mu[i];
 }
-
-alpha = mu_alpha + ab[,1];
-beta = mu_beta + ab[,2];
-
 }
 
 model {
-y_true_raw ~ std_normal();
-sigma_raw ~ std_normal();
-sigma_sp_raw ~ std_normal();
-mu_alpha_raw ~ std_normal();
-mu_beta_raw ~ std_normal();
 
-to_vector(z) ~ std_normal();
-L_Rho ~ lkj_corr_cholesky(1);
+y_true_raw ~ std_normal();
+alpha_raw ~ std_normal();
+beta_raw ~ std_normal();
+
+mu_beta_raw ~ std_normal();
+sigma_beta_raw ~ std_normal();
+
+mu_alpha_raw ~ std_normal();
+sigma_alpha_raw ~ std_normal();
+
+alpha_beta_raw ~ std_normal();
+beta_beta_raw ~ std_normal();
+sigma_raw ~ std_normal();
+// mu_sigma_raw ~ std_normal();
+// sigma_sigma_raw ~ std_normal();
 
 y_obs ~ normal(y_true, y_sd);
 }
@@ -248,11 +264,11 @@ y_rep = normal_rng(y_true, y_sd);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.99
 TREE_DEPTH <- 15
 STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 5000
+ITER <- 8000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = model,
@@ -260,15 +276,9 @@ fit <- rstan::stan(model_code = model,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 
-                            'mu_alpha', 
-                            'beta',
-                            'mu_beta',
-                            'ab',
-                            'sigma_sp',
-                            'sigma', 
-                            'y_true', 
-                            'y_rep'),
+                   pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
+                            'sigma_beta', 'alpha_beta', 'beta_beta',
+                            'sigma', 'y_true', 'y_rep'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
@@ -280,9 +290,9 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 
 #rerun model with higher target acceptance if divergences exist
-while (num_diverge > 0 & DELTA < 0.99)
+if (num_diverge > 0)
 {
-  DELTA <- DELTA + 0.01
+  DELTA <- 0.9999
   
   tt <- proc.time()
   fit <- rstan::stan(model_code = model,
@@ -290,15 +300,9 @@ while (num_diverge > 0 & DELTA < 0.99)
                      chains = CHAINS,
                      iter = ITER,
                      cores = CHAINS,
-                     pars = c('alpha', 
-                              'mu_alpha', 
-                              'beta',
-                              'mu_beta',
-                              'ab',
-                              'sigma_sp',
-                              'sigma', 
-                              'y_true', 
-                              'y_rep'),
+                     pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
+                              'sigma_beta', 'alpha_beta', 'beta_beta',
+                              'sigma', 'y_true', 'y_rep'),
                      control = list(adapt_delta = DELTA,
                                     max_treedepth = TREE_DEPTH,
                                     stepsize = STEP_SIZE))
@@ -330,11 +334,11 @@ saveRDS(DATA, file = paste0(args, '-', run_date, '-pheno_trends_stan_input.rds')
 
 sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
 mn_stepsize <- sapply(sampler_params, 
-                      function(x) mean(x[, 'stepsize__']))
+                            function(x) mean(x[, 'stepsize__']))
 mn_treedepth <- sapply(sampler_params, 
-                       function(x) mean(x[, 'treedepth__']))
+                             function(x) mean(x[, 'treedepth__']))
 accept_stat <- sapply(sampler_params, 
-                      function(x) mean(x[, 'accept_stat__']))
+                            function(x) mean(x[, 'accept_stat__']))
 
 
 
