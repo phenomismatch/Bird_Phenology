@@ -1,5 +1,15 @@
 #######
 # phenology ~ time using post IAR
+#
+# i = obs
+# j = cell
+#
+# y_{obs_{i}} \sim N(\mu_{y_{i}}, \sigma_{y})
+# \mu_{y_{i}} \sim N(\mu_{i}, \sigma)
+# \mu_{i} = \alpha_{j} + \beta_{j} \times year_{i}
+# \alpha_{j} \sim N(\mu_{\alpha}, \sigma_{\alpha})
+# \beta_{j} \sim N(\mu_{\beta_{j}}, \sigma_{\beta})
+# \mu_{\beta_{j}} = \alpha_{\beta} + \beta_{\beta} \times lat_{j}
 #######
 
 
@@ -23,17 +33,21 @@ args <- commandArgs(trailingOnly = TRUE)
 
 #args <- 'Empidonax_virescens'
 #args <- 'Hirundo_rustica'
-args <- 'Icterus_spurius'
+#args <- 'Icterus_spurius'
 
 # other dir ---------------------------------------------------------------
 
-IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_2019-05-03')
-#IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_2019-05-26')
-#trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_2019-06-13')
+run_date < '2019-09-02'
+IAR_in_date <- '2019-05-03'
+IAR_out_date <- '2019-05-26'
 
-IAR_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-trends_out_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-17'
+IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', IAR_in_date)
 
+IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_', IAR_out_date)
+
+#trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_', run_date)
+
+trends_out_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)
 
 
 # Load packages -----------------------------------------------------------
@@ -46,20 +60,9 @@ library(dggridR)
 
 
 
-# setwd -------------------------------------------------------------------
+# Filter data by species/years ------------------------------------------------------
 
 setwd(IAR_in_dir)
-
-#CHANGE
-nc_in_dir <- nchar(IAR_in_dir)
-nc_out_dir <- nchar(IAR_out_dir)
-IAR_in_date <- substr(IAR_in_dir, start = (nc_in_dir - 9), stop = nc_in_dir)
-IAR_out_date <- substr(IAR_out_dir, start = (nc_out_dir - 9), stop = nc_out_dir)
-
-nc_to_dir <- nchar(trends_out_dir)
-run_date <- substr(trends_out_dir, start = (nc_to_dir - 9), stop = nc_to_dir)
-
-# Filter data by species/years ------------------------------------------------------
 
 #read in master df
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
@@ -124,12 +127,13 @@ if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.fi
 
 #cell years with input data
 data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
-#asll cell years
+
+#all cell years
 #data_f <- pro_data
 
-#cells with more than three years of data
+#cells with at least 5 years of data
 cnts <- plyr::count(data_f, 'cell')
-u_cells <- cnts[which(cnts[,2] >= 3),1]
+u_cells <- cnts[which(cnts[,2] >= 5),1]
 
 data_f2 <- dplyr::filter(data_f, cell %in% u_cells)
 
@@ -308,8 +312,14 @@ if (num_diverge > 0)
 }
 
 
+#create dir if doesn't exist
+ifelse(!dir.exists(trends_out_dir),
+       dir.create(trends_out_dir),
+       FALSE)
+
 #save to RDS
 setwd(trends_out_dir)
+
 saveRDS(fit, file = paste0(args, '-', run_date, '-pheno_trends_stan_output.rds'))
 saveRDS(DATA, file = paste0(args, '-', run_date, '-pheno_trends_stan_input.rds'))
 
@@ -402,9 +412,6 @@ ggsave(paste0(args, '-', run_date, '-dens_overlay.pdf'), p)
 #estimated slope in grey, sd in white
 
 #extract median and sd estimates for mu params
-setwd('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-17/')
-fit <- readRDS(paste0(args, '-2019-06-17-pheno_trends_stan_output.rds'))
-
 med_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = median)[[1]]
 sd_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = sd)[[1]]
 
@@ -445,8 +452,6 @@ MAX <- max(med_fit)
 # nrng_rm@data$id <- rownames(nrng_rm@data)
 # nrng_rm.points <- ggplot2::fortify(nrng_rm, region = "id")
 # nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
-
-setwd(trends_out_dir)
 
 #median of mu and sd of mu
 m_fit <- data.frame(med_beta = med_fit, sd_beta = sd_fit, cell = u_cells)
@@ -493,7 +498,7 @@ p_beta <- ggplot() +
   xlab('Longitude') +
   ylab('Latitude')
 
-setwd('~/Desktop')
+
 ggsave(plot = p_beta,
        filename = paste0(args, '-', run_date, '-pheno_trends_map.pdf'))
 
