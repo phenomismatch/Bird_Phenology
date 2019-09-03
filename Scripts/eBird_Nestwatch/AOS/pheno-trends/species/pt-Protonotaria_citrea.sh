@@ -9,15 +9,15 @@
 #SBATCH --mem=15G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/trends_output_2019-06-13/Protonotaria_citrea-iar.out #STDOUT
-#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/trends_output_2019-06-13/Protonotaria_citrea-iar.err #STDERR
+#SBATCH -o /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/trends_output_2019-09-02/Protonotaria_citrea-pt.out #STDOUT
+#SBATCH -e /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Data/Processed/trends_output_2019-09-02/Protonotaria_citrea-pt.err #STDERR
 
 #echos name of node
 echo `hostname`
 
 #load singularity and run R script using singularity
 module load singularity/3.0.2
-singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/AOS/pheno_trends.R Protonotaria_citrea
+singularity exec -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /UCHC/LABS/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/AOS/pheno-trends/pheno-trends.R Protonotaria_citrea
 
 #displays amount of memory used
 sstat --format="AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize" $SLURM_JOBID.batch

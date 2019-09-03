@@ -15,10 +15,10 @@
 
 # top-level dir --------------------------------------------------------------
 
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 # species -----------------------------------------------------------------
@@ -37,17 +37,19 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # other dir ---------------------------------------------------------------
 
-run_date < '2019-09-02'
 IAR_in_date <- '2019-05-03'
 IAR_out_date <- '2019-05-26'
+run_date <- '2019-09-02'
 
 IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', IAR_in_date)
 
 IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_', IAR_out_date)
 
-#trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_', run_date)
+#IAR_out_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_', IAR_out_date)
 
-trends_out_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)
+trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_', run_date)
+
+#trends_out_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)
 
 
 # Load packages -----------------------------------------------------------
