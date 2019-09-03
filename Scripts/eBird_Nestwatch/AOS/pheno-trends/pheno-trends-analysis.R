@@ -34,6 +34,8 @@ setwd(trends_summary_dir)
 pt_out <- readRDS('pheno_trends_master_2019-06-17.rds')
 sp <- pt_out$species
 
+pt2 <- dplyr::filter(pt_out, per_cd > 0.2, rng_lat > 5)
+
 sigma_post <- readRDS('pheno_trends_sigma_post_2019-06-17.rds')
 alpha_beta_post <- readRDS('pheno_trends_alpha_beta_post_2019-06-17.rds')
 beta_beta_post <- readRDS('pheno_trends_beta_beta_post_2019-06-17.rds')
@@ -42,6 +44,32 @@ setwd(arrival_master_dir)
 
 alpha_gamma_post <- readRDS('arrival_alpha_gamma_post_2019-05-26.rds')
 beta_gamma_post <- readRDS('arrival_beta_gamma_post_2019-05-26.rds')
+
+
+
+# plot beta_beta ----------------------------------------------------------
+
+#simulate beta_beta (gamma) posteriors
+temp <- matrix(NA, nrow = 1000, ncol = NROW(pt2))
+for (i in 1:NROW(pt2))
+{
+  #i <- 1
+  temp[,i] <- rnorm(1000, pt2$mn_beta_beta[i], pt2$sd_beta_beta[i])
+}
+colnames(temp) <- unique(pt2$species)
+labs <- gsub('_', ' ', unique(pt2$species))
+
+
+setwd('~/Desktop')
+pdf('gamma.pdf', height = 14, width = 8.5, useDingbats = FALSE)
+MCMCvis::MCMCplot(object = temp, 
+                  labels = labs,
+                  main = 'gamma - lat effect on slope',
+                  guide_lines = TRUE, sz_labels = 0.8,
+                  rank = TRUE)
+dev.off()
+
+
 
 
 # size doesn't matter for halfmax -----------------------------------------
@@ -97,7 +125,7 @@ dev.off()
 
 # alpha_gamma ~ sigma ------------------------------------------------------
 
-rng_sigma <- range(pt_out$mn_sigma)
+rng_sigma <- range(pt2$mn_sigma)
 
 #data for stan model
 DATA <- list(N = NROW(pt_out),
@@ -253,13 +281,13 @@ saveRDS(fit2, file = 'beta-gamma_sigma.rds')
 # mn_alpha_beta <- apply(alpha_beta_post, 2, function(x) mean(abs(x)))
 # sd_alpha_beta <- apply(alpha_beta_post, 2, function(x) sd(abs(x)))
 
-DATA <- list(N = NROW(pt_out),
+DATA <- list(N = NROW(pt2),
              # y_obs = mn_alpha_beta,
              # sd_y = sd_alpha_beta,
-             y_obs = pt_out$mn_alpha_beta,
-             sd_y = pt_out$sd_alpha_beta,
-             x_obs = pt_out$mn_sigma,
-             sd_x = pt_out$sd_sigma,
+             y_obs = pt2$mn_alpha_beta,
+             sd_y = pt2$sd_alpha_beta,
+             x_obs = pt2$mn_sigma,
+             sd_x = pt2$sd_sigma,
              pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
              N_pred_sim = 100)
 
@@ -298,13 +326,13 @@ saveRDS(fit3, file = 'alpha-beta_sigma.rds')
 # mn_beta_beta <- apply(beta_beta_post, 2, function(x) mean(abs(x)))
 # sd_beta_beta <- apply(beta_beta_post, 2, function(x) sd(abs(x)))
 
-DATA <- list(N = NROW(pt_out),
+DATA <- list(N = NROW(pt2),
              # y_obs = mn_beta_beta,
              # sd_y = sd_beta_beta,
-             y_obs = pt_out$mn_beta_beta,
-             sd_y = pt_out$sd_beta_beta,
-             x_obs = pt_out$mn_sigma,
-             sd_x = pt_out$sd_sigma,
+             y_obs = pt2$mn_beta_beta,
+             sd_y = pt2$sd_beta_beta,
+             x_obs = pt2$mn_sigma,
+             sd_x = pt2$sd_sigma,
              pred_sim =  seq(from = rng_sigma[1], to = rng_sigma[2], length.out = 100),
              N_pred_sim = 100)
 
