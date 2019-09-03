@@ -22,7 +22,7 @@ dir <- '~/Google_Drive/R/'
 
 in_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-17'
 out_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_2019-06-17'
-am_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/'
+am_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_2019-05-26'
 
 
 # readin arrival master ---------------------------------------------------
@@ -57,7 +57,7 @@ species <- unique(sapply(strsplit(files, split = '-'), head , 1))
 out <- data.frame()
 for (i in 1:length(species))
 {
-  #i <- 1
+  #i <- 3
   
   #filter by species
   sp <- species[i]
@@ -73,6 +73,7 @@ for (i in 1:length(species))
     
     #t_fit <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'))
     #t_in <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_input.rds'))
+    
     
     #make sure there are samples
     if (length(t_fit@par_dims) > 0)
@@ -99,10 +100,23 @@ for (i in 1:length(species))
       beta_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_beta')
       colnames(beta_beta_ch) <- sp
       
+      mn_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta', func = mean)[[1]]
+      sd_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta', func = sd)[[1]]
+      
       n_cells <- t_in$NC
       n_years <- length(unique(t_in$year))
       rng_lat <- range(t_in$lat)[2] - range(t_in$lat)[1]
       #mn_lat <- mean(t_in$lat_usc)
+      
+      #which index is the most northerly
+      max_idx <- which.max(t_in$lat)
+      min_idx <- which.min(t_in$lat)
+      
+      mxl_mn_beta <- mn_beta[max_idx]
+      mxl_sd_beta <- sd_beta[max_idx]
+      
+      mnl_mn_beta <- mn_beta[min_idx]
+      mnl_sd_beta <- sd_beta[min_idx]
       
       #diagnostics
       num_diverge <- rstan::get_num_divergent(t_fit)
@@ -112,6 +126,16 @@ for (i in 1:length(species))
       
       #arrival master (for alpha_gamma and beta_gamma)
       am_t <- dplyr::filter(am_out_f, species == sp)
+      
+      t_mean_pre_IAR <- dplyr::filter(am_out, species == sp, year == 2018)$mean_pre_IAR
+      
+      #percent of cells over range that data is avail for in 2018
+      nc_pre_IAR <- sum(!is.na(t_mean_pre_IAR))
+      per_pre_IAR <- nc_pre_IAR / length(t_mean_pre_IAR)
+      
+      #percent of cells over range that have 3+ years data
+      per_cd <- n_cells / length(t_mean_pre_IAR)
+      
       
       t_full <- data.frame(species = sp,
                            mn_alpha_gamma = am_t$mean_alpha_gamma,
@@ -128,7 +152,13 @@ for (i in 1:length(species))
                            sd_beta_beta,
                            n_cells,
                            n_years,
+                           per_pre_IAR,
+                           per_cd,
                            rng_lat,
+                           mxl_mn_beta,
+                           mxl_sd_beta,
+                           mnl_mn_beta,
+                           mnl_sd_beta,
                            #mn_lat,
                            num_diverge,
                            max_rhat,
