@@ -16,7 +16,7 @@
 
 # set dirs ----------------------------------------------------------------
 
-trends_date <- '2019-09-02'
+trends_date <- '2019-09-04'
 IAR_date <- '2019-05-26'
 
 trends_summary_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_', trends_date)

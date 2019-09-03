@@ -2,6 +2,12 @@
 Pheno Mismatch notes
 ===================
 
+trends_output notes
+-------------------
+2019-09-03 = beta as a function of lat - all cells
+2019-09-04 = no beta as a function of lat (only cells that had pre IAR data)
+2019-09-05 = no beta as a function of lat - pre IAR data
+
 
 Notes from Oct 2018 meeting
 ===========================

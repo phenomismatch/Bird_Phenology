@@ -4,11 +4,11 @@
 # i = obs
 # j = cell
 #
-# y_{obs_{i}} \sim N(\mu_{y_{i}}, \sigma_{y})
+# y_{obs_{i}} \sim N(\mu_{y_{i}}, \sigma_{y_{i}})
 # \mu_{y_{i}} \sim N(\mu_{i}, \sigma)
 # \mu_{i} = \alpha_{j} + \beta_{j} \times year_{i}
-# \alpha_{j} \sim N(\mu_{\alpha}, \sigma_{\alpha})
-# \beta_{j} \sim N(\mu_{\beta}, \sigma_{\beta})
+# 
+# \begin{bmatrix} \alpha_{j} \\ \beta_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\alpha} \\ \mu_{\beta} \end{bmatrix}, \Sigma_{\alpha\beta} \right)
 #######
 
 
@@ -38,7 +38,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 IAR_in_date <- '2019-05-03'
 IAR_out_date <- '2019-05-26'
-run_date <- '2019-09-04'
+run_date <- '2019-09-05'
 
 IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', IAR_in_date)
 
@@ -134,7 +134,7 @@ data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
 
 #cells with at least 5 years of data
 cnts <- plyr::count(data_f, 'cell')
-u_cells <- cnts[which(cnts[,2] >= 5),1]
+u_cells <- cnts[which(cnts[,2] >= 5), 1]
 
 data_f2 <- dplyr::filter(data_f, cell %in% u_cells)
 
@@ -146,8 +146,10 @@ sim_year <- min(data_f2$year - 2001):max(data_f2$year - 2001)
 
 #create data list for Stan
 DATA <- list(N = NROW(data_f2),
-             y_obs = data_f2$mean_post_IAR,
-             y_sd = data_f2$sd_post_IAR,
+             # y_obs = data_f2$mean_post_IAR,
+             # y_sd = data_f2$sd_post_IAR,
+             y_obs = data_f2$mean_pre_IAR,
+             y_sd = data_f2$sd_pre_IAR,
              cn_id = as.numeric(factor(data_f2$cell)),
              NC = length(u_cells),
              year = (data_f2$year - 2001),

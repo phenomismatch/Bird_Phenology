@@ -20,7 +20,7 @@ dir <- '~/Google_Drive/R/'
 
 # other dir ---------------------------------------------------------------
 
-run_date <- '2019-09-03'
+run_date <- '2019-09-04'
 IAR_date <- '2019-05-26'
 
 in_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)
@@ -85,20 +85,25 @@ for (i in 1:length(species))
       mu_alpha_ch <- MCMCvis::MCMCchains(t_fit, params = 'mu_alpha')
       colnames(mu_alpha_ch) <- sp
       
+      mn_mu_beta <- MCMCvis::MCMCpstr(t_fit, params = 'mu_beta', func = mean)[[1]]
+      sd_mu_beta <- MCMCvis::MCMCpstr(t_fit, params = 'mu_beta', func = sd)[[1]]
+      mu_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'mu_beta')
+      colnames(mu_beta_ch) <- sp
+      
       mn_sigma <- MCMCvis::MCMCpstr(t_fit, params = 'sigma', func = mean)[[1]]
       sd_sigma <- MCMCvis::MCMCpstr(t_fit, params = 'sigma', func = sd)[[1]]
       sigma_ch <- MCMCvis::MCMCchains(t_fit, params = 'sigma')
       colnames(sigma_ch) <- sp
       
-      mn_alpha_beta <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_beta', func = mean)[[1]]
-      sd_alpha_beta <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_beta', func = sd)[[1]]
-      alpha_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'alpha_beta')
-      colnames(alpha_beta_ch) <- sp
+      #mn_alpha_beta <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_beta', func = mean)[[1]]
+      #sd_alpha_beta <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_beta', func = sd)[[1]]
+      #alpha_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'alpha_beta')
+      #colnames(alpha_beta_ch) <- sp
       
-      mn_beta_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta_beta', func = mean)[[1]]
-      sd_beta_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta_beta', func = sd)[[1]]
-      beta_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_beta')
-      colnames(beta_beta_ch) <- sp
+      #mn_beta_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta_beta', func = mean)[[1]]
+      #sd_beta_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta_beta', func = sd)[[1]]
+      #beta_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_beta')
+      #colnames(beta_beta_ch) <- sp
       
       mn_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta', func = mean)[[1]]
       sd_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta', func = sd)[[1]]
@@ -144,12 +149,14 @@ for (i in 1:length(species))
                            sd_beta_gamma = am_t$sd_beta_gamma,
                            mn_mu_alpha,
                            sd_mu_alpha,
+                           mn_mu_beta,
+                           sd_mu_beta,
                            mn_sigma,
                            sd_sigma,
-                           mn_alpha_beta,
-                           sd_alpha_beta,
-                           mn_beta_beta,
-                           sd_beta_beta,
+                           # mn_alpha_beta,
+                           # sd_alpha_beta,
+                           # mn_beta_beta,
+                           # sd_beta_beta,
                            n_cells,
                            n_years,
                            per_pre_IAR,
@@ -169,14 +176,16 @@ for (i in 1:length(species))
       if (i == 1)
       {
         mu_alpha_post <- mu_alpha_ch
+        mu_beta_post <- mu_beta_ch
         sigma_post <- sigma_ch
-        alpha_beta_post <- alpha_beta_ch
-        beta_beta_post <- beta_beta_ch
+        # alpha_beta_post <- alpha_beta_ch
+        # beta_beta_post <- beta_beta_ch
       } else {
         mu_alpha_post <- cbind(mu_alpha_post, mu_alpha_ch)
+        mu_beta_post <- cbind(mu_beta_post, mu_beta_ch)
         sigma_post <- cbind(sigma_post, sigma_ch)
-        alpha_beta_post <- cbind(alpha_beta_post, alpha_beta_ch)
-        beta_beta_post <- cbind(beta_beta_post, beta_beta_ch)
+        # alpha_beta_post <- cbind(alpha_beta_post, alpha_beta_ch)
+        # beta_beta_post <- cbind(beta_beta_post, beta_beta_ch)
       }
     } else {
       print('No samples for species')
@@ -196,8 +205,9 @@ setwd(out_dir)
 
 saveRDS(out, file = paste0('pheno_trends_master_', run_date, '.rds'))
 saveRDS(mu_alpha_post, file = paste0('pheno_trends_mu_alpha_post_', run_date, '.rds'))
+saveRDS(mu_beta_post, file = paste0('pheno_trends_mu_beta_post_', run_date, '.rds'))
 saveRDS(sigma_post, file = paste0('pheno_trends_sigma_post_', run_date, '.rds'))
-saveRDS(alpha_beta_post, file = paste0('pheno_trends_alpha_beta_post_', run_date, '.rds'))
-saveRDS(beta_beta_post, file = paste0('pheno_trends_beta_beta_post_', run_date, '.rds'))
+# saveRDS(alpha_beta_post, file = paste0('pheno_trends_alpha_beta_post_', run_date, '.rds'))
+# saveRDS(beta_beta_post, file = paste0('pheno_trends_beta_beta_post_', run_date, '.rds'))
 
 print('I completed!')

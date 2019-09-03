@@ -1,6 +1,15 @@
 ######################
 # 8 - juv hitting nets ~ arrival
 #
+# y_{obs_{i}} \sim N(y_{true_{i}}, \sigma_{y_{i}})
+# 
+# x_{obs_{i}} \sim N(x_{true_{i}}, \sigma_{x_{i]})
+# 
+# y_{true_{i}} \sim N(\mu_{i}, \sigma)
+# 
+# \mu_{i} = \alpha_{j} + \beta_{j} \times x_{true_{i}}
+# 
+# \begin{bmatrix} \alpha_{j} \\ \beta_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\alpha} \\ \mu_{\beta} \end{bmatrix}, \Sigma_{\alpha\beta} \right)
 ######################
 
 
