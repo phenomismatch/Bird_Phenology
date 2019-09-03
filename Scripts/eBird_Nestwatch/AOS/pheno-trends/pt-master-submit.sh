@@ -11,4 +11,4 @@ do
 done < ../../../Data/IAR_species_list.txt
 #done < ../../../Data/test_species_list.txt
 
-cp pheno_trends.R ../../../Data/Processed/trends_output_$DATE/pheno_trends.R-$DATE.R
+cp pheno_trends.R ../../../Data/Processed/trends_output_$DATE/pheno_trends-$DATE.R
