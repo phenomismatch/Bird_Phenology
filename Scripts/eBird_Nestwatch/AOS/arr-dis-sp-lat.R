@@ -146,7 +146,8 @@ arr_mrg_f <- dplyr::filter(arr_mrg, per_pre_IAR > 0.2)
 
 #|r| < 0.5 - multicolinearity not a major issue here
 cor(arr_mrg_f$mig_dis, arr_mrg_f$mn_beta_gamma, use = 'pairwise.complete.obs')
-
+cor(arr_mrg_f$mig_dis, arr_mrg_f$mn_lat, use = 'pairwise.complete.obs')
+cor(arr_mrg_f$mn_beta_gamma, arr_mrg_f$mn_lat, use = 'pairwise.complete.obs')
 
 #create data list for Stan
 DATA <- list(N = NROW(arr_mrg_f),
@@ -302,6 +303,9 @@ fit <- rstan::stan(model_code = model,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
+setwd("~/Desktop/Bird_Phenology_Offline/Data/Processed")
+saveRDS(fit, file = paste0('arr-dis-sp-lat-stan-output.rds'))
+
 
 
 # Model summaries ---------------------------------------------------------
@@ -328,6 +332,7 @@ MCMCvis::MCMCplot(fit, params = c('beta', 'gamma', 'pi'))#,
 y_val <- DATA$y_obs
 y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
 bayesplot::ppc_dens_overlay(y_val, y_rep[1:100,])
+bayesplot::ppc_stat(y_val, y_rep, stat = 'mean')
 
 N <- 100
 plot(matrix(rep(y_val, N), nrow = N, byrow = TRUE), 
