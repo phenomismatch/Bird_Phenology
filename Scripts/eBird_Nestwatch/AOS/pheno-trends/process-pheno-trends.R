@@ -20,16 +20,19 @@ dir <- '~/Google_Drive/R/'
 
 # other dir ---------------------------------------------------------------
 
-in_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_2019-06-17'
-out_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_2019-06-17'
-am_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_2019-05-26'
+run_date <- '2019-09-02'
+IAR_date <- '2019-05-26'
+
+in_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)
+out_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_', run_date)
+am_dir <- paste0('~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_', IAR_date)
 
 
 # readin arrival master ---------------------------------------------------
 
 setwd(am_dir)
 
-am_out <- readRDS('arrival_master_2019-05-26.rds')
+am_out <- readRDS(paste0('arrival_master_', IAR_date, '.rds'))
 am_out_f <- unique(am_out[,c('species', 'mean_alpha_gamma', 'sd_alpha_gamma', 
                                 'mean_beta_gamma' ,'sd_beta_gamma')])
 
@@ -44,9 +47,6 @@ library(dggridR)
 # setwd -------------------------------------------------------------------
 
 setwd(in_dir)
-
-nc_in_dir <- nchar(in_dir)
-in_date <- substr(in_dir, start = (nc_in_dir - 9), stop = nc_in_dir)
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -64,12 +64,12 @@ for (i in 1:length(species))
   print(sp)
   
   #if that species RDS object exists in dir
-  if (length(grep(paste0(sp, '-', in_date, '-pheno_trends_stan_output.rds'), list.files())) > 0)
+  if (length(grep(paste0(sp, '-', run_date, '-pheno_trends_stan_output.rds'), list.files())) > 0)
   # if (length(grep(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'), list.files())) > 0)
   {
     #read in model output
-    t_fit <- readRDS(paste0(sp, '-', in_date, '-pheno_trends_stan_output.rds'))
-    t_in <- readRDS(paste0(sp, '-', in_date, '-pheno_trends_stan_input.rds'))
+    t_fit <- readRDS(paste0(sp, '-', run_date, '-pheno_trends_stan_output.rds'))
+    t_in <- readRDS(paste0(sp, '-', run_date, '-pheno_trends_stan_input.rds'))
     
     #t_fit <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'))
     #t_in <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_input.rds'))
@@ -187,12 +187,17 @@ for (i in 1:length(species))
 } #end species loop
 
 
+#create dir if doesn't exist
+ifelse(!dir.exists(out_dir),
+       dir.create(out_dir),
+       FALSE)
+
 setwd(out_dir)
 
-saveRDS(out, file = paste0('pheno_trends_master_', in_date, '.rds'))
-saveRDS(mu_alpha_post, file = paste0('pheno_trends_mu_alpha_post_', in_date, '.rds'))
-saveRDS(sigma_post, file = paste0('pheno_trends_sigma_post_', in_date, '.rds'))
-saveRDS(alpha_beta_post, file = paste0('pheno_trends_alpha_beta_post_', in_date, '.rds'))
-saveRDS(beta_beta_post, file = paste0('pheno_trends_beta_beta_post_', in_date, '.rds'))
+saveRDS(out, file = paste0('pheno_trends_master_', run_date, '.rds'))
+saveRDS(mu_alpha_post, file = paste0('pheno_trends_mu_alpha_post_', run_date, '.rds'))
+saveRDS(sigma_post, file = paste0('pheno_trends_sigma_post_', run_date, '.rds'))
+saveRDS(alpha_beta_post, file = paste0('pheno_trends_alpha_beta_post_', run_date, '.rds'))
+saveRDS(beta_beta_post, file = paste0('pheno_trends_beta_beta_post_', run_date, '.rds'))
 
 print('I completed!')

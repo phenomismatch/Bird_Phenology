@@ -39,7 +39,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 IAR_in_date <- '2019-05-03'
 IAR_out_date <- '2019-05-26'
-run_date <- '2019-09-02'
+run_date <- '2019-09-03'
 
 IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', IAR_in_date)
 
@@ -128,10 +128,10 @@ if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.fi
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
+#data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
 
 #all cell years
-#data_f <- pro_data
+data_f <- pro_data
 
 #cells with at least 5 years of data
 cnts <- plyr::count(data_f, 'cell')
@@ -211,10 +211,10 @@ sigma = sigma_raw * 5;
 // sigma = exp(sigma_raw * sigma_sigma + mu_sigma);
 
 mu_alpha = mu_alpha_raw * 50 + 120;
-sigma_alpha = sigma_alpha_raw * 10;
+sigma_alpha = sigma_alpha_raw * 20;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 
-alpha_beta = alpha_beta_raw * 10;
+alpha_beta = alpha_beta_raw * 1;
 beta_beta = beta_beta_raw * 1;
 mu_beta = alpha_beta + beta_beta * lat;
 sigma_beta = sigma_beta_raw * 3;

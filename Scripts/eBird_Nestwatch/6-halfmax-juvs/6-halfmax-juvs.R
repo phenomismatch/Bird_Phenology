@@ -282,12 +282,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/juvs_', RUN_DATE))
 counter <- 1
 for (j in 1:nyrs)
 {
-  #j <- 10
+  #j <- 5
   ydata <- dplyr::filter(m_mf2, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 57
+    #k <- 62
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cydata <- dplyr::filter(ydata, cell == cells[k])
@@ -421,6 +421,26 @@ for (j in 1:nyrs)
       #        col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
       #        lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
+      
+      # #plot code for presentation
+      # pdf(paste0(args, '_', years[j], '_', cells[k], '_juvs.pdf'))
+      # plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 5,
+      #      ylim = c(0, max(UCI_dfit)),
+      #      #main = paste0(args, ' - ', years[j], ' - ', cells[k]),
+      #      #xlab = 'Julian Day', ylab = 'Detection Probability',
+      #      tck = 0, ann = FALSE, xaxt = 'n', yaxt = 'n')
+      # lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 5)
+      # lines(predictDays, mn_dfit, lwd = 5)
+      # cydata$juv[which(cydata$juv == 1)] <- max(UCI_dfit)
+      # points(cydata$day, cydata$juv, col = rgb(0,0,0,0.25), cex = 2)
+      # abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 5)
+      # abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
+      # abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
+      # #legend('topleft',
+      # #       legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
+      # #       col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
+      # #       lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
+      # dev.off()
       ########################
       
       iter_ind <- grep('iter', colnames(halfmax_df))

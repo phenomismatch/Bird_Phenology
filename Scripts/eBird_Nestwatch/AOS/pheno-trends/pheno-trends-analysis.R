@@ -16,8 +16,12 @@
 
 # set dirs ----------------------------------------------------------------
 
-trends_summary_dir <- '~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_2019-06-17'
-arrival_master_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_2019-05-26'
+trends_date <- '2019-09-02'
+IAR_date <- '2019-05-26'
+
+trends_summary_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_', trends_date)
+
+arrival_master_dir <- paste0('~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_', IAR_date)
 
 
 # load packages -----------------------------------------------------------
@@ -31,14 +35,14 @@ library(MCMCvis)
 
 setwd(trends_summary_dir)
 
-pt_out <- readRDS('pheno_trends_master_2019-06-17.rds')
+pt_out <- readRDS(paste0('pheno_trends_master_', trends_date, '.rds'))
 sp <- pt_out$species
 
 pt2 <- dplyr::filter(pt_out, per_cd > 0.2, rng_lat > 5)
 
-sigma_post <- readRDS('pheno_trends_sigma_post_2019-06-17.rds')
-alpha_beta_post <- readRDS('pheno_trends_alpha_beta_post_2019-06-17.rds')
-beta_beta_post <- readRDS('pheno_trends_beta_beta_post_2019-06-17.rds')
+sigma_post <- readRDS(paste0('pheno_trends_sigma_post_', trends_date, '.rds'))
+alpha_beta_post <- readRDS(paste0('pheno_trends_alpha_beta_post_', trends_date, '.rds'))
+beta_beta_post <- readRDS(paste0('pheno_trends_beta_beta_post_', trends_date, '.rds'))
 
 setwd(arrival_master_dir)
 

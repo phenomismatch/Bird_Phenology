@@ -72,6 +72,9 @@ sp_idx <- as.numeric(factor(mrg_f3$species))
 mrg_f3$ja <- mrg_f3$juv_mean - mrg_f3$mean_post_IAR
 mrg_f3$sd_ja <- sqrt(mrg_f3$juv_sd^2 + mrg_f3$sd_post_IAR^2)
 
+#|r| > 0.6 - multicolinearity a potential problem
+cor(mrg_f3$cell_lat, mrg_f3$mean_post_IAR, use = 'pairwise.complete.obs')
+
 
 
 # Stan model --------------------------------------------------------------
@@ -81,7 +84,9 @@ DATA <- list(y = mrg_f3$ja,
              N = NROW(mrg_f3),
              sp = sp_idx,
              cell_lat = mrg_f3$cell_lat,
-             Nsp = length(unique(sp_idx)))
+             arr = mrg_f3$mean_post_IAR,
+             Nsp = length(unique(sp_idx)),
+             P = 2)
 
 stanmodel1 <- "
 data {
@@ -91,6 +96,7 @@ vector<lower=0>[N] sd_y;
 int<lower=0> sp[N];              
 int<lower=0> Nsp;
 vector<lower=0>[N] cell_lat;
+int<lower=0> P;
 }
 
 parameters {
@@ -98,22 +104,20 @@ real<lower = 0> sigma_raw;
 real mu_y_raw[N];
 real mu_alpha_raw;
 real mu_beta_raw;
-vector<lower = 0>[2] sigma_sp_raw;
-cholesky_factor_corr[2] L_Rho;             // correlation matrix
-matrix[2, Nsp] z;                          // z-scores
+vector<lower = 0>[P] sigma_sp_raw;
+cholesky_factor_corr[P] L_Rho;             // correlation matrix
+matrix[P, Nsp] z;                          // z-scores
 }
 
 transformed parameters {
 real<lower = 0> sigma;
 vector[N] mu_y;
 real mu[N];
-matrix[Nsp, 2] ab;                              // matrix for alpha, beta, gamma, and theta
-matrix[2, 2] Rho;                                 // covariance matrix
+matrix[Nsp, P] ab;
+matrix[P, P] Rho;                                 // covariance matrix
 vector[Nsp] alpha;
 vector[Nsp] beta;
-vector[Nsp] alpha_c;
-vector[Nsp] beta_c;
-vector<lower = 0>[2] sigma_sp;
+vector<lower = 0>[P] sigma_sp;
 real mu_alpha;
 real mu_beta;
 
@@ -126,8 +130,6 @@ sigma_sp[2] = sigma_sp_raw[2] * 10;
 
 // cholesky factor of covariance matrix multiplied by z score
 ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
-alpha = ab[,1];
-beta = ab[,2];
 Rho = L_Rho * L_Rho';
 
 for (i in 1:N)
@@ -139,8 +141,8 @@ for (i in 1:N)
   mu_y[i] = mu_y_raw[i] * sigma + mu[i];
 }
 
-alpha_c = mu_alpha + alpha;
-beta_c = mu_beta + beta;
+alpha = mu_alpha + ab[,1];
+beta = mu_beta + ab[,2];
 
 }
 
@@ -180,12 +182,11 @@ fit <- rstan::stan(model_code = stanmodel1,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha_c',
-                            'beta_c',
-                            'alpha',
+                   pars = c('alpha',
                             'beta',
                             'mu_alpha',
                             'mu_beta',
+                            'ab',
                             'sigma_sp',
                             'Rho',
                             'sigma',

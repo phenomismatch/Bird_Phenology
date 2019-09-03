@@ -102,8 +102,6 @@ matrix[Nsp, 2] ab;                              // matrix for alpha, beta
 matrix[2, 2] Rho;                                 // covariance matrix
 vector[Nsp] alpha;
 vector[Nsp] beta;
-vector[Nsp] alpha_c;
-vector[Nsp] beta_c;
 vector<lower = 0>[2] sigma_sp;
 real mu_alpha;
 real mu_beta;
@@ -117,8 +115,6 @@ sigma_sp[2] = sigma_sp_raw[2] * 1;
 
 // cholesky factor of covariance matrix multiplied by z score
 ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
-alpha = ab[,1];
-beta = ab[,2];
 Rho = L_Rho * L_Rho';
 
 for (i in 1:N)
@@ -127,8 +123,8 @@ for (i in 1:N)
   (mu_beta + ab[sp[i], 2]) * mu_arr[i];
 }
 
-alpha_c = mu_alpha + alpha;
-beta_c = mu_beta + beta;
+alpha = mu_alpha + ab[,1];
+beta = mu_beta + ab[,2];
 
 // implies mu_y[i] ~ normal(mu[i], sigma)
 mu_y = mu_y_raw * sigma + mu; 
@@ -176,10 +172,9 @@ fit <- rstan::stan(model_code = stanmodel1,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha_c',
-                            'beta_c',
-                            'alpha',
+                   pars = c('alpha',
                             'beta',
+                            'ab',
                             'mu_alpha',
                             'mu_beta',
                             'sigma_sp',
@@ -197,7 +192,7 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
 saveRDS(fit, file = paste0('juv-arr-stan-output-', juv_date, '.rds'))
 saveRDS(mrg_f2, file = paste0('mrg-data-juv-', juv_date, '.rds'))
-#fit <- readRDS(paste0('arr-br-juv-stan-output-', juv_date, '.rds'))
+#fit <- readRDS(paste0('juv-arr-stan-output-', juv_date, '.rds'))
 
 num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
