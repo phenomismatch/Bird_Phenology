@@ -54,9 +54,9 @@ juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 #only species/cells/years with data for juvs
 j1 <- dplyr::filter(juvs_master, !is.na(juv_mean))
 
-#only species that have at least 5 data points
+#only species that have at least 20 data points
 cnt_arr <- plyr::count(j1, 'species')
-sp_f <- filter(cnt_arr, freq >= 5)$species
+sp_f <- filter(cnt_arr, freq >= 20)$species
 
 j2 <- dplyr::filter(j1, species %in% sp_f)
 sp_idx <- as.numeric(factor(j2$species))
@@ -70,12 +70,24 @@ j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
                                         in_seqnum = j2$cell)$lon_deg
 
 
+# quick freq check --------------------------------------------------------
+
+# plyr::count(j2, 'species')
+# 
+# tt <- dplyr::filter(j2, species == 'Geothlypis_trichas')
+# tt_h <- dplyr::filter(tt,  cell_lat > 45)
+# tt_l <- dplyr::filter(tt,  cell_lat < 40)
+# 
+# summary(lm(juv_mean ~ year, data = tt_h))
+# summary(lm(juv_mean ~ year, data = tt_l))
+
+
 
 # Stan model --------------------------------------------------------------
 
 DATA <- list(y = j2$juv_mean,
              sd_y = j2$juv_sd,
-             year = j2$year,
+             year = (j2$year - 1991),
              cell_lat = j2$cell_lat,
              N = NROW(j2),
              sp = sp_idx,
@@ -224,9 +236,9 @@ options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.90
 TREE_DEPTH <- 16
-STEP_SIZE <- 0.0001
+STEP_SIZE <- 0.01
 CHAINS <- 4
-ITER <- 4000
+ITER <- 3000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel1,
@@ -271,7 +283,7 @@ num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 # Calc diagnostics ---------------------------------------------------
 
-# library(shinystan)  
+# library(shinystan)
 # launch_shinystan(fit)
 
 sampler_params <- get_sampler_params(fit, inc_warmup = FALSE)
