@@ -68,7 +68,7 @@ juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 j1 <- dplyr::filter(juvs_master, !is.na(juv_mean), species == args)
 
 #only species that have at least 40 data points
-if (NROW(j1) < 40)
+if (NROW(j1) < 20)
 {
   stop('Species has fewer than 40 data points')
 }
