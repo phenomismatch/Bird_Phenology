@@ -8,7 +8,11 @@
 #
 # Halfmax is derived from model fit
 #
-#
+# GAM notes
+# ---------
+# https://stats.stackexchange.com/questions/352995/does-there-exist-theory-behind-how-many-knots-one-should-use-in-a-stan-gamm4-m?noredirect=1&lq=1
+# https://github.com/milkha/Splines_in_Stan/blob/master/splines_in_stan.pdf
+# 
 # Species name should be given as an arg to this script. The model will then be fit to that species only.
 # Runtime: Up to 21 days on Xanadu (very long tail here, depends on data volume, etc.); more RAM allocation would likely speed up
 ######################  
