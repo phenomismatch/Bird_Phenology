@@ -150,7 +150,7 @@ DATA <- list(N = NROW(data_f2),
              y_obs = data_f2$mean_post_IAR,
              y_sd = data_f2$sd_post_IAR,
              cn_id = as.numeric(factor(data_f2$cell)),
-             NC = length(u_cells),
+             NC = NROW(ot_cl$cell),
              year = (data_f2$year - 2001),
              lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
              lat_usc = ot_cl$cell_lat)
@@ -174,18 +174,15 @@ vector[NC] lat;
 }
 
 parameters {
+vector[N] y_true_raw;
 vector[NC] alpha_raw;
 vector[NC] beta_raw;
-vector[N] y_true_raw;
+vector[NC] mu_beta_raw;
 real<lower = 0> sigma_beta_raw;
-real mu_beta_raw;
 real alpha_beta_raw;
 real beta_beta_raw;
 real mu_alpha_raw;
 real<lower = 0> sigma_alpha_raw;
-// real mu_sigma_raw;
-// real<lower = 0> sigma_sigma_raw;
-// vector[NC] sigma_raw;
 real<lower = 0> sigma_raw;
 }
 
@@ -194,22 +191,15 @@ vector[N] mu;
 vector[N] y_true;
 vector[NC] alpha;
 vector[NC] beta;
-real<lower = 0> sigma_beta;
 vector[NC] mu_beta;
+real<lower = 0> sigma_beta;
 real alpha_beta;
 real beta_beta;
 real mu_alpha;
 real<lower = 0> sigma_alpha;
-// vector<lower = 0>[NC] sigma;
 real<lower = 0> sigma;
-// real mu_sigma;
-// real<lower = 0> sigma_sigma;
 
 sigma = sigma_raw * 5;
-// mu_sigma = mu_sigma_raw * 1.5;
-// sigma_sigma = sigma_sigma_raw * 0.5;
-// sigma = exp(sigma_raw * sigma_sigma + mu_sigma);
-
 mu_alpha = mu_alpha_raw * 50 + 120;
 sigma_alpha = sigma_alpha_raw * 20;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
@@ -234,7 +224,6 @@ y_true_raw ~ std_normal();
 alpha_raw ~ std_normal();
 beta_raw ~ std_normal();
 
-mu_beta_raw ~ std_normal();
 sigma_beta_raw ~ std_normal();
 
 mu_alpha_raw ~ std_normal();
@@ -276,9 +265,16 @@ fit <- rstan::stan(model_code = model,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
-                            'sigma_beta', 'alpha_beta', 'beta_beta',
-                            'sigma', 'y_true', 'y_rep'),
+                   pars = c('alpha', 
+                            'mu_alpha', 
+                            'sigma_alpha', 
+                            'beta',
+                            'sigma_beta', 
+                            'alpha_beta',
+                            'beta_beta',
+                            'sigma', 
+                            'y_true', 
+                            'y_rep'),
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
@@ -363,6 +359,7 @@ options(max.print = 5e6)
 sink(paste0(args, '-', run_date, '-pheno_trends_results.txt'))
 cat(paste0('Pheno trends results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Iterations: ', ITER, ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
 cat(paste0('Step size: ', STEP_SIZE, ' \n'))
@@ -418,10 +415,10 @@ med_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = median)[[1]]
 sd_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = sd)[[1]]
 
 #transform cells to grid
-cell_grid <- dggridR::dgcellstogrid(hexgrid6, u_cells)
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, ot_cl$cell)
 cell_grid$cell <- as.numeric(cell_grid$cell)
-cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, u_cells)
-ll_df <- data.frame(cell = u_cells,
+cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, ot_cl$cell)
+ll_df <- data.frame(cell = ot_cl$cell,
                     lon_deg = cell_centers$lon_deg,
                     lat_deg = cell_centers$lat_deg)
 
@@ -456,7 +453,7 @@ MAX <- max(med_fit)
 # nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 #median of mu and sd of mu
-m_fit <- data.frame(med_beta = med_fit, sd_beta = sd_fit, cell = u_cells)
+m_fit <- data.frame(med_beta = med_fit, sd_beta = sd_fit, cell = ot_cl$cell)
 
 #merge hex spatial data with HM data
 to_plt <- dplyr::inner_join(m_fit, cell_grid, by = 'cell')
@@ -524,8 +521,11 @@ counter <- 1
 for (i in 1:NCOL(alpha_ch))
 {
   #i <- 1
-  min_yr <- min(dplyr::filter(data_f2, cell == u_cells[i])$year) - 2001
-  max_yr <- max(dplyr::filter(data_f2, cell == u_cells[i])$year) - 2001
+  c_idx <- which(data_f2$cell == ot_cl$cell[i])
+  
+  yrs <- DATA$year[c_idx]
+  min_yr <- min(yrs)
+  max_yr <- max(yrs)
   
   for (j in 1:length(x_sim))
   {

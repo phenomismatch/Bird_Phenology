@@ -56,7 +56,7 @@ j1 <- dplyr::filter(juvs_master, !is.na(juv_mean))
 
 #only species that have at least 20 data points
 cnt_arr <- plyr::count(j1, 'species')
-sp_f <- filter(cnt_arr, freq >= 20)$species
+sp_f <- filter(cnt_arr, freq >= 40)$species
 
 j2 <- dplyr::filter(j1, species %in% sp_f)
 sp_idx <- as.numeric(factor(j2$species))
@@ -81,6 +81,31 @@ j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
 # summary(lm(juv_mean ~ year, data = tt_h))
 # summary(lm(juv_mean ~ year, data = tt_l))
 
+
+
+# setwd('~/Desktop')
+# sink('output.txt')
+# for (i in 1:length(sp_f))
+# {
+#   #i <- 1
+#   temp <- dplyr::filter(j2, species == sp_f[i])
+#   
+#   t_rng <- quantile(temp$cell_lat, probs = c(0.1, 0.90))
+#   tt_h <- dplyr::filter(temp,  cell_lat >= t_rng[2])
+#   tt_l <- dplyr::filter(temp,  cell_lat <= t_rng[1])
+#   if (NROW(tt_h) > 3 & NROW(tt_l) > 3)
+#   {
+#     f1 <- summary(lm(juv_mean ~ year, data = tt_h))
+#     f2 <- summary(lm(juv_mean ~ year, data = tt_l))
+#     print(sp_f[i])
+#     print(paste0('slope high lat: ', round(f1$coefficients[2,1], 2)))
+#     print(paste0('pval high lat: ', round(f1$coefficients[2,4], 2)))
+#     print(paste0('slope low lat: ', round(f2$coefficients[2,1], 2)))
+#     print(paste0('pval low lat: ', round(f2$coefficients[2,4], 2)))
+#     print('')
+#   }
+# }
+# sink()
 
 
 # Stan model --------------------------------------------------------------
@@ -152,15 +177,15 @@ vector<lower = 0>[P] sigma_pn;
 
 mu_gamma = mu_gamma_raw * 200;
 mu_theta = mu_theta_raw * 2;
-mu_pi = mu_pi_raw * 200;
+mu_pi = mu_pi_raw * 2;
 mu_nu = mu_nu_raw * 2;
 
 sigma = sigma_raw * 10;
-sigma_ab[1] = sigma_ab_raw[1] * 40;
-sigma_ab[2] = sigma_ab_raw[2] * 10;
+sigma_ab[1] = sigma_ab_raw[1] * 10;
+sigma_ab[2] = sigma_ab_raw[2] * 1;
 sigma_gt[1] = sigma_gt_raw[1] * 40;
 sigma_gt[2] = sigma_gt_raw[2] * 1;
-sigma_pn[1] = sigma_pn_raw[1] * 40;
+sigma_pn[1] = sigma_pn_raw[1] * 1;
 sigma_pn[2] = sigma_pn_raw[2] * 1;
 
 // cholesky factor of covariance matrix (i.e., diagonal matrix of scale times cholesky factor of correlation matrix) multiplied by z score
@@ -189,7 +214,7 @@ beta = mu_beta + ab[,2];
 gamma = mu_gamma + gt[,1];
 theta = mu_theta + gt[,2];
 pi = mu_pi + pn[,1];
-nu = mu_nu + pn[,1];
+nu = mu_nu + pn[,2];
 
 for (i in 1:N)
 {
@@ -234,11 +259,11 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.90
-TREE_DEPTH <- 16
-STEP_SIZE <- 0.01
+DELTA <- 0.97
+TREE_DEPTH <- 17
+STEP_SIZE <- 0.003
 CHAINS <- 4
-ITER <- 3000
+ITER <- 15000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel1,
@@ -263,8 +288,8 @@ fit <- rstan::stan(model_code = stanmodel1,
                             'Rho_gt',
                             'Rho_pn',
                             'sigma',
-                            'mu_y',
-                            'y_rep'), 
+                            'mu_y'),
+                            #'y_rep'), 
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
@@ -312,6 +337,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 options(max.print = 50000)
 sink(paste0('juv-time-stan-results-', juv_date, '.txt'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Iterations: ', ITER, ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
 cat(paste0('Step size: ', STEP_SIZE, ' \n'))

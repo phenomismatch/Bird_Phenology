@@ -1,23 +1,25 @@
-#######
-# phenology ~ time using post IAR (no beta as func of lat)
+######################
+# ? - juv hitting nets ~ time - models for each species
 #
-# i = obs
-# j = cell
+# y_{i} ~ N(\mu_{y_{i}}, \sigma_{y_{i}})
+# \mu_{y_{i}} ~ N(mu_{i}, \sigma)
+# \mu_{i} = \alpha_{j} + \beta_{j} * year_{i}
+# \alpha_{j} ~ N(\mu_{\alpha_{j}}, \sigma_{\alpha})
+# \mu_{\alpha_{j}} = \gamma + \theta * lat_{j}
+# \beta_{j} ~ N(\mu_{\beta_{j}}, \sigma_{\beta})
+# \mu_{\beta_{j}} = \nu + \eta * lat_{j}
 #
-# y_{obs_{i}} \sim N(\mu_{y_{i}}, \sigma_{y_{i}})
-# \mu_{y_{i}} \sim N(\mu_{i}, \sigma)
-# \mu_{i} = \alpha_{j} + \beta_{j} \times year_{i}
-# 
-# \begin{bmatrix} \alpha_{j} \\ \beta_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\alpha} \\ \mu_{\beta} \end{bmatrix}, \Sigma_{\alpha\beta} \right)
-#######
+######################
 
 
-# top-level dir --------------------------------------------------------------
+# Top-level dir -----------------------------------------------------------
 
+#desktop/laptop
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
 dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+
 
 
 # species -----------------------------------------------------------------
@@ -30,209 +32,161 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Agelaius_phoeniceus')
 #args <- as.character('Turdus_migratorius')
 
-#args <- 'Empidonax_virescens'
-#args <- 'Hirundo_rustica'
-#args <- 'Icterus_spurius'
 
-# other dir ---------------------------------------------------------------
 
-IAR_in_date <- '2019-05-03'
-IAR_out_date <- '2019-05-26'
-run_date <- '2019-09-05'
+# model dir ------------------------------------------------------------
 
-IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', IAR_in_date)
+#juveniles MAPS - date input data processed
+juv_date <- '2019-08-26'
+run_date <- '2019-09-09'
 
-IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_', IAR_out_date)
+#dirs
+juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date)
+juv_trends_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_trends_output_', run_date)
 
-#IAR_out_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_', IAR_out_date)
-
-trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_', run_date)
-
-#trends_out_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)
 
 
 # Load packages -----------------------------------------------------------
 
-library(dplyr)
-library(ggplot2)
 library(rstan)
+library(ggplot2)
+library(dplyr)
 library(MCMCvis)
-library(dggridR)
 
 
 
-# Filter data by species/years ------------------------------------------------------
+# Filter data ------------------------------------------------------------------
 
-setwd(IAR_in_dir)
+#juveniles hitting nets - MAPS
 
-#read in master df
-df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
+setwd(juv_dir)
 
-#switch to out dir
-setwd(IAR_out_dir)
+#read in 
+juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 
+#only species/cells/years with data for juvs
+j1 <- dplyr::filter(juvs_master, !is.na(juv_mean), species == args)
 
-#if that species RDS object exists in dir
-pro_data <- data.frame()
-if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.files())) > 0)
+#only species that have at least 40 data points
+if (NROW(j1) < 40)
 {
-  f_in_p <- dplyr::filter(df_master, species == args & MODEL == TRUE)
-  
-  #read in IAR model output and input
-  t_fit <- readRDS(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
-  t_data <- readRDS(paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
-  
-  #only cells and years that were modeled (to account for any lone cells that were dropped in 4-IAR-arr.R)
-  f_in <- dplyr::filter(f_in_p, cell %in% t_data$cells)
-  
-  t_cells <- unique(f_in$cell)
-  t_years <- unique(f_in$year)
-  
-  #make hexgrid
-  hexgrid6 <- dggridR::dgconstruct(res = 6)
-  
-  #get hexgrid cell centers
-  cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
-  
-  #extract median and sd for IAR arrival dates
-  mean_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
-  med_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
-  sd_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
-  
-  #loop through years
-  for (j in 1:length(t_years))
-  {
-    #j <- 1
-    print(paste0('species: ', args, ', ', 
-                 'year: ', t_years[j]))
-    
-    t_f_in <- dplyr::filter(f_in, year == t_years[j])
-    
-    t_full <- data.frame(t_f_in[,c('species','cell')], 
-                         cell_lat = round(cellcenters$lat_deg, digits = 2), 
-                         cell_lon = round(cellcenters$lon_deg, digits = 2),
-                         t_f_in[,c('year', 'HM_mean', 'HM_sd')],
-                         mean_post_IAR = mean_fit[,j], sd_post_IAR = sd_fit[,j])
-    
-    colnames(t_full)[6:7] <- c('mean_pre_IAR', 'sd_pre_IAR')
-    
-    pro_data <- rbind(pro_data, t_full)
-  } #end year loop
-} else {
-  stop(paste0('.rds file for ', args, ' not found in directory'))
+  stop('Species has fewer than 40 data points')
 }
 
 
+#add cell lat to df
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+j1$cell_lat <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
+                                        in_seqnum = j1$cell)$lat_deg
+j1$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
+                                        in_seqnum = j1$cell)$lon_deg
 
-# Process data ------------------------------------------------------------
 
-#cell years with input data
-data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
-
-#all cell years
-#data_f <- pro_data
-
-#cells with at least 5 years of data
-cnts <- plyr::count(data_f, 'cell')
-u_cells <- cnts[which(cnts[,2] >= 5), 1]
-
-data_f2 <- dplyr::filter(data_f, cell %in% u_cells)
-
-t_cl <- unique(data_f2[,c('cell', 'cell_lat')])
+#order cells (and corresponding cell lats) so they match factor
+t_cl <- unique(j1[,c('cell', 'cell_lat')])
 ot_cl <- t_cl[order(t_cl[,1]),]
 
-#years to generate low, mid, high lat phenology
-sim_year <- min(data_f2$year - 2001):max(data_f2$year - 2001)
-
-#create data list for Stan
-DATA <- list(N = NROW(data_f2),
-             # y_obs = data_f2$mean_post_IAR,
-             # y_sd = data_f2$sd_post_IAR,
-             y_obs = data_f2$mean_pre_IAR,
-             y_sd = data_f2$sd_pre_IAR,
-             cn_id = as.numeric(factor(data_f2$cell)),
-             NC = length(u_cells),
-             year = (data_f2$year - 2001),
-             lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
-             lat_usc = ot_cl$cell_lat,
-             P = 2)
-
-
-# ggplot(data_f2, aes(x = year, y = mean_post_IAR, col = factor(cell))) +
-#   geom_point() +
-#   stat_smooth(method = 'lm')
 
 # Stan model --------------------------------------------------------------
+
+DATA <- list(y = j1$juv_mean,
+             sd_y = j1$juv_sd,
+             year = as.numeric(factor(j1$year)),
+             cn_id = as.numeric(factor(j1$cell)),
+             NC = NROW(ot_cl),
+             lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
+             lat_usc = ot_cl$cell_lat,
+             N = NROW(j1))
+
+
+# y_{i} ~ N(\mu_{y_{i}}, \sigma_{y_{i}})
+# \mu_{y_{i}} ~ N(mu_{i}, \sigma)
+# \mu_{i} = \alpha_{j} + \beta_{j} * year_{i}
+# \alpha_{j} ~ N(\mu_{\alpha_{j}}, \sigma_{\alpha})
+# \mu_{\alpha_{j}} = \gamma + \theta * lat_{j}
+# \beta_{j} ~ N(\mu_{\beta_{j}}, \sigma_{\beta})
+# \mu_{\beta_{j}} = \nu + \eta * lat_{j}
 
 model <- "
 data {
 int<lower = 0> N;                                 // number of obs
-vector<lower = 0, upper = 200>[N] y_obs;
-vector<lower = 0>[N] y_sd;
+vector<lower = 0>[N] y;
+vector<lower = 0>[N] sd_y;
 int<lower = 1> cn_id[N];                          // cell ids
 int<lower = 0> NC;                                // number of cells
-vector<lower = 1, upper = 17>[N] year;
+vector<lower = 1>[N] year;
 vector[NC] lat;
-int<lower = 0> P;
 }
 
 parameters {
-vector[N] y_true_raw;
-real mu_alpha_raw;
-real mu_beta_raw;
-vector<lower = 0>[P] sigma_sp_raw;
-cholesky_factor_corr[P] L_Rho;             // correlation matrix
-matrix[P, NC] z;                          // z-scores
+vector[N] mu_y_raw;
+vector[NC] alpha_raw;
+vector[NC] beta_raw;
+vector[NC] mu_beta_raw;
+real<lower = 0> sigma_beta_raw;
+vector[NC] mu_alpha_raw;
+real<lower = 0> sigma_alpha_raw;
+real gamma_raw;
+real theta_raw;
+real pi_raw;
+real nu_raw;
 real<lower = 0> sigma_raw;
 }
 
 transformed parameters {
-vector[N] y_true;
-real mu[N];
-matrix[NC, P] ab;
-matrix[P, P] Rho;                                 // covariance matrix
+vector[N] mu;
+vector[N] mu_y;
 vector[NC] alpha;
 vector[NC] beta;
-vector<lower = 0>[P] sigma_sp;
-real mu_alpha;
-real mu_beta;
+vector[NC] mu_beta;
+real<lower = 0> sigma_beta;
+vector[NC] mu_alpha;
+real<lower = 0> sigma_alpha;
+real gamma;
+real theta;
+real pi;
+real nu;
 real<lower = 0> sigma;
 
 sigma = sigma_raw * 5;
-mu_alpha = mu_alpha_raw * 50 + 120;
-mu_beta = mu_beta_raw * 5;
-sigma_sp[1] = sigma_sp_raw[1] * 100;
-sigma_sp[2] = sigma_sp_raw[2] * 10;
 
-// cholesky factor of covariance matrix multiplied by z score
-ab = (diag_pre_multiply(sigma_sp, L_Rho) * z)';
-Rho = L_Rho * L_Rho';
+// implies gamma ~ N(0, 10)
+gamma = gamma_raw * 10;
+theta = theta_raw * 10;
+mu_alpha = gamma + theta * lat;
+sigma_alpha = sigma_alpha_raw * 20;
+alpha = alpha_raw * sigma_alpha + mu_alpha;
+
+// implies gamma ~ N(0, 10)
+pi = pi_raw * 10;
+nu = nu_raw * 10;
+mu_beta = pi + nu * lat;
+sigma_beta = sigma_beta_raw * 20;
+beta = beta_raw * sigma_beta + mu_beta;
 
 for (i in 1:N)
 {
-  mu[i] = (mu_alpha + ab[cn_id[i], 1]) +
-  (mu_beta + ab[cn_id[i], 2]) * year[i];
-  
-  // implies y_true ~ normal(mu, sigma)
-  y_true[i] = y_true_raw[i] * sigma + mu[i];
+  mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
+  mu_y[i] = mu_y_raw[i] * sigma + mu[i];
 }
-
-alpha = mu_alpha + ab[,1];
-beta = mu_beta + ab[,2];
-
 }
 
 model {
-y_true_raw ~ std_normal();
+
+mu_y_raw ~ std_normal();
+alpha_raw ~ std_normal();
+beta_raw ~ std_normal();
+
+sigma_beta_raw ~ std_normal();
+sigma_alpha_raw ~ std_normal();
+
+gamma_raw ~ std_normal();
+theta_raw ~ std_normal();
+pi_raw ~ std_normal();
+nu_raw ~ std_normal();
 sigma_raw ~ std_normal();
-sigma_sp_raw ~ std_normal();
-mu_alpha_raw ~ std_normal();
-mu_beta_raw ~ std_normal();
 
-to_vector(z) ~ std_normal();
-L_Rho ~ lkj_corr_cholesky(1);
-
-y_obs ~ normal(y_true, y_sd);
+y ~ normal(mu_y, sd_y);
 }
 
 generated quantities {
@@ -240,19 +194,16 @@ generated quantities {
 real y_rep[N];
 
 // PPC
-y_rep = normal_rng(y_true, y_sd);
+y_rep = normal_rng(mu_y, sd_y);
 }
 "
-
-
-# Run model ---------------------------------------------------------------
 
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
-TREE_DEPTH <- 15
-STEP_SIZE <- 0.001
+DELTA <- 0.97
+TREE_DEPTH <- 17
+STEP_SIZE <- 0.003
 CHAINS <- 4
 ITER <- 5000
 
@@ -262,71 +213,44 @@ fit <- rstan::stan(model_code = model,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('alpha', 
-                            'mu_alpha', 
+                   pars = c('gamma',
+                            'theta',
+                            'pi',
+                            'nu',
+                            'alpha',
                             'beta',
-                            'mu_beta',
-                            'ab',
-                            'sigma_sp',
-                            'sigma', 
-                            'y_true', 
-                            'y_rep'),
+                            'sigma_alpha',
+                            'sigma_beta',
+                            'sigma',
+                            'mu_y',
+                            'y_rep'), 
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
+
+
+
+#create dir if doesn't exist
+ifelse(!dir.exists(juv_trends_dir),
+       dir.create(juv_trends_dir),
+       FALSE)
+
+#save to RDS
+setwd(juv_trends_dir)
+
+saveRDS(fit, file = paste0(args, '-', run_date, '-juv_trends_stan_output.rds'))
+
+
 
 num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
 num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 
-#rerun model with higher target acceptance if divergences exist
-while (num_diverge > 0 & DELTA < 0.99)
-{
-  DELTA <- DELTA + 0.01
-  
-  tt <- proc.time()
-  fit <- rstan::stan(model_code = model,
-                     data = DATA,
-                     chains = CHAINS,
-                     iter = ITER,
-                     cores = CHAINS,
-                     pars = c('alpha', 
-                              'mu_alpha', 
-                              'beta',
-                              'mu_beta',
-                              'ab',
-                              'sigma_sp',
-                              'sigma', 
-                              'y_true', 
-                              'y_rep'),
-                     control = list(adapt_delta = DELTA,
-                                    max_treedepth = TREE_DEPTH,
-                                    stepsize = STEP_SIZE))
-  run_time <- (proc.time()[3] - tt[3]) / 60
-  
-  num_diverge <- rstan::get_num_divergent(fit)
-  num_tree <- rstan::get_num_max_treedepth(fit)
-  num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
-}
-
-
-#create dir if doesn't exist
-ifelse(!dir.exists(trends_out_dir),
-       dir.create(trends_out_dir),
-       FALSE)
-
-#save to RDS
-setwd(trends_out_dir)
-
-saveRDS(fit, file = paste0(args, '-', run_date, '-pheno_trends_stan_output.rds'))
-saveRDS(DATA, file = paste0(args, '-', run_date, '-pheno_trends_stan_input.rds'))
-
 
 # Calc diagnostics ---------------------------------------------------
 
-#fit <- readRDS('Ictinia_mississippiensis-2019-05-26-pheno_trends_stan_output.rds')
 # library(shinystan)
 # launch_shinystan(fit)
 
@@ -349,18 +273,15 @@ model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2,
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
 neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
 
-y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-
-# bayesplot::ppc_stat(DATA$y_obs, y_rep, stat = 'mean')
-# bayesplot::ppc_dens_overlay(DATA$y_obs, y_rep[1:500,])
 
 
 # write model results to file ---------------------------------------------
 
 options(max.print = 5e6)
-sink(paste0(args, '-', run_date, '-pheno_trends_results.txt'))
-cat(paste0('Pheno trends results ', args, ' \n'))
+sink(paste0(args, '-', run_date, '-juv_trends_results.txt'))
+cat(paste0('Juv trends results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Iterations: ', ITER, ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
 cat(paste0('Step size: ', STEP_SIZE, ' \n'))
@@ -370,17 +291,35 @@ cat(paste0('Number chains low BFMI: ', num_BFMI, ' \n'))
 cat(paste0('Mean stepsize: ', round(mean(mn_stepsize), 5), ' \n'))
 cat(paste0('Mean treedepth: ', round(mean(mn_treedepth), 1), ' \n'))
 cat(paste0('Mean accept stat: ', round(mean(accept_stat), 2), ' \n'))
-cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
-cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
+cat(paste0('Max Rhat: ', max(rhat_output, na.rm = TRUE), ' \n'))
+cat(paste0('Min n.eff: ', min(neff_output, na.rm = TRUE), ' \n'))
 print(model_summary)
 sink()
 
 
 
+
+# PPC ---------------------------------------------------------------------
+
+y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+
+# y_val <- DATA$y
+# bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
+# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
+# PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
+# {
+#   out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+#   print(out)
+# }
+# PPC_fun(mean)
+# PPC_fun(min)
+# PPC_fun(max)
+
+
 # density overlay plot ----------------------------------------------------
 
 #modified bayesplot::ppc_dens_overlay function
-tdata <- bayesplot::ppc_data(DATA$y_obs, y_rep[1:100,])
+tdata <- bayesplot::ppc_data(DATA$y, y_rep[1:100,])
 
 p <- ggplot(tdata) + 
   aes_(x = ~value) + 
@@ -416,10 +355,10 @@ med_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = median)[[1]]
 sd_fit <- MCMCvis::MCMCpstr(fit, params = 'beta', func = sd)[[1]]
 
 #transform cells to grid
-cell_grid <- dggridR::dgcellstogrid(hexgrid6, u_cells)
+cell_grid <- dggridR::dgcellstogrid(hexgrid6, ot_cl$cell)
 cell_grid$cell <- as.numeric(cell_grid$cell)
-cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, u_cells)
-ll_df <- data.frame(cell = u_cells,
+cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, ot_cl$cell)
+ll_df <- data.frame(cell = ot_cl$cell,
                     lon_deg = cell_centers$lon_deg,
                     lat_deg = cell_centers$lat_deg)
 
@@ -454,7 +393,7 @@ MAX <- max(med_fit)
 # nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 #median of mu and sd of mu
-m_fit <- data.frame(med_beta = med_fit, sd_beta = sd_fit, cell = u_cells)
+m_fit <- data.frame(med_beta = med_fit, sd_beta = sd_fit, cell = ot_cl$cell)
 
 #merge hex spatial data with HM data
 to_plt <- dplyr::inner_join(m_fit, cell_grid, by = 'cell')
@@ -493,14 +432,14 @@ p_beta <- ggplot() +
   # annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5,
   #          label = round(to_plt2$sd_beta, digits = 2), col = 'white', alpha = 1,
   #          size = 2) +
-  ggtitle(paste0(args, ' - Arrival ~ time')) +
+  ggtitle(paste0(args, ' - Fledging ~ time')) +
   theme_bw() +
   xlab('Longitude') +
   ylab('Latitude')
 
 
 ggsave(plot = p_beta,
-       filename = paste0(args, '-', run_date, '-pheno_trends_map.pdf'))
+       filename = paste0(args, '-', run_date, '-juv_trends_map.pdf'))
 
 
 
@@ -510,7 +449,7 @@ ggsave(plot = p_beta,
 alpha_ch <- MCMCvis::MCMCchains(fit, params = 'alpha')
 beta_ch <- MCMCvis::MCMCchains(fit, params = 'beta')
 
-x_sim <- seq(0, 18, length = 500)
+x_sim <- seq(0, max(DATA$year), length = 500)
 
 FIT_PLOT <- data.frame(cell = rep(1:DATA$NC, each = length(x_sim)), 
                        x_sim = rep(x_sim, times = DATA$NC),
@@ -518,16 +457,20 @@ FIT_PLOT <- data.frame(cell = rep(1:DATA$NC, each = length(x_sim)),
                        mu_rep_LCI = NA, 
                        mu_rep_UCI = NA)
 
+
 counter <- 1
 for (i in 1:NCOL(alpha_ch))
 {
   #i <- 1
-  min_yr <- min(dplyr::filter(data_f2, cell == u_cells[i])$year) - 2001
-  max_yr <- max(dplyr::filter(data_f2, cell == u_cells[i])$year) - 2001
+  c_idx <- which(j1$cell == ot_cl$cell[i])
+  
+  yrs <- DATA$year[c_idx]
+  min_yr <- min(yrs)
+  max_yr <- max(yrs)
   
   for (j in 1:length(x_sim))
   {
-    #j <- 29
+    #j <- 1
     if (x_sim[j] >= (min_yr - 1) & x_sim[j] <= (max_yr + 1))
     {
       temp <- alpha_ch[,i] + beta_ch[,i] * x_sim[j]
@@ -549,20 +492,21 @@ for (i in 1:NCOL(alpha_ch))
 
 
 #mean and +- 1 sd - y_out
-y_true_mn <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = mean)[[1]]
-y_true_sd <- MCMCvis::MCMCpstr(fit, params = 'y_true', func = sd)[[1]]
+y_true_mn <- MCMCvis::MCMCpstr(fit, params = 'mu_y', func = mean)[[1]]
+y_true_sd <- MCMCvis::MCMCpstr(fit, params = 'mu_y', func = sd)[[1]]
 y_true_LCI <- y_true_mn - y_true_sd
 y_true_UCI <- y_true_mn + y_true_sd
 
-DATA_PLOT <- data.frame(y_true_mn, y_true_LCI, y_true_UCI,
+DATA_PLOT <- data.frame(y_true_mn, 
+                        y_true_LCI, 
+                        y_true_UCI,
                         cell = DATA$cn_id,
                         year = DATA$year,
-                        y_obs = DATA$y_obs,
-                        y_obs_LCI = DATA$y_obs - DATA$y_sd,
-                        y_obs_UCI = DATA$y_obs + DATA$y_sd,
-                        lat = data_f2$cell_lat)
+                        y_obs = DATA$y,
+                        y_obs_LCI = DATA$y - DATA$sd_y,
+                        y_obs_UCI = DATA$y + DATA$sd_y)
 
-pdf(paste0(args, '-', run_date, '-pheno_trends_fig.pdf'), 
+pdf(paste0(args, '-', run_date, '-juv_trends_fig.pdf'), 
     height = 11, width = 9, useDingbats = FALSE)
 ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6) +
   # geom_ribbon(data = FIT_PLOT,
@@ -603,7 +547,7 @@ ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6
 dev.off()
 
 
-pdf(paste0(args, '-', IAR_out_date, '-betas.pdf'), 
+pdf(paste0(args, '-', juv_date, '-betas.pdf'), 
     height = 11, width = 9, useDingbats = FALSE)
 MCMCvis::MCMCplot(fit, params = 'beta', main = args)
 dev.off()
@@ -667,22 +611,23 @@ dev.off()
 
 # Trace plots with PPO ----------------------------------------------------
 
-#mu_alpha ~ normal(120, 50)
-PR <- rnorm(10000, 120, 50)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_alpha',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', run_date, '-trace_mu_alpha.pdf'))
 
-#sigma_alpha ~ halfnormal(0, 10)
-PR_p <- rnorm(10000, 0, 10)
-PR <- PR_p[which(PR_p > 0)]
-MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_alpha',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-', run_date, '-trace_sigma_alpha.pdf'))
+# sigma = sigma_raw * 5;
+# 
+# // implies gamma ~ N(0, 10)
+# gamma = gamma_raw * 10;
+# theta = theta_raw * 10;
+# mu_alpha = gamma + theta * lat;
+# sigma_alpha = sigma_alpha_raw * 20;
+# alpha = alpha_raw * sigma_alpha + mu_alpha;
+# 
+# // implies gamma ~ N(0, 10)
+# pi = pi_raw * 10;
+# nu = nu_raw * 10;
+# mu_beta = pi + nu * lat;
+# sigma_beta = sigma_beta_raw * 20;
+# beta = beta_raw * sigma_beta + mu_beta;
+
 
 #sigma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -693,24 +638,49 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_sigma.pdf'))
 
-#alpha_beta ~ normal(0, 10)
+#gamma ~ normal(0, 10)
 PR <- rnorm(10000, 0, 10)
 MCMCvis::MCMCtrace(fit,
-                   params = 'alpha_beta',
+                   params = 'gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', run_date, '-trace_alpha_beta.pdf'))
+                   filename = paste0(args, '-', run_date, '-trace_gamma.pdf'))
 
-#beta_beta ~ normal(0, 1)
-PR <- rnorm(10000, 0, 1)
+#theta ~ normal(0, 10)
+PR <- rnorm(10000, 0, 10)
 MCMCvis::MCMCtrace(fit,
-                   params = 'beta_beta',
+                   params = 'theta',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', run_date, '-trace_beta_beta.pdf'))
+                   filename = paste0(args, '-', run_date, '-trace_theta.pdf'))
 
-#sigma_beta ~ halfnormal(0, 3)
-PR_p <- rnorm(10000, 0, 3)
+#sigma_alpha ~ halfnormal(0, 20)
+PR_p <- rnorm(10000, 0, 20)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_alpha',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', run_date, '-trace_sigma_alpha.pdf'))
+
+#pi ~ normal(0, 10)
+PR <- rnorm(10000, 0, 10)
+MCMCvis::MCMCtrace(fit,
+                   params = 'pi',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', run_date, '-trace_pi.pdf'))
+
+#nu ~ normal(0, 10)
+PR <- rnorm(10000, 0, 10)
+MCMCvis::MCMCtrace(fit,
+                   params = 'nu',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args, '-', run_date, '-trace_nu.pdf'))
+
+#sigma_beta ~ halfnormal(0, 20)
+PR_p <- rnorm(10000, 0, 20)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta',
@@ -726,3 +696,4 @@ if ('Rplots.pdf' %in% list.files())
 
 
 print('I completed!')
+
