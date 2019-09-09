@@ -73,6 +73,8 @@ df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 setwd(IAR_out_dir)
 
 
+#why not use the arrival master object here???
+
 #if that species RDS object exists in dir
 pro_data <- data.frame()
 if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.files())) > 0)

@@ -67,36 +67,42 @@ juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 #only species/cells/years with data for juvs
 j1 <- dplyr::filter(juvs_master, !is.na(juv_mean), species == args)
 
-#only species that have at least 40 data points
-if (NROW(j1) < 20)
+#cells with at least 5 years of data
+cnts <- plyr::count(j1, 'cell')
+u_cells <- cnts[which(cnts[,2] >= 3),1]
+
+j2 <- dplyr::filter(j1, cell %in% u_cells)
+
+#only species that have at least 10 data points
+if (NROW(j2) < 10)
 {
-  stop('Species has fewer than 40 data points')
+  stop('Species has fewer than 10 data points')
 }
 
 
 #add cell lat to df
 hexgrid6 <- dggridR::dgconstruct(res = 6)
-j1$cell_lat <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
-                                        in_seqnum = j1$cell)$lat_deg
-j1$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
-                                        in_seqnum = j1$cell)$lon_deg
+j2$cell_lat <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
+                                        in_seqnum = j2$cell)$lat_deg
+j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
+                                        in_seqnum = j2$cell)$lon_deg
 
 
 #order cells (and corresponding cell lats) so they match factor
-t_cl <- unique(j1[,c('cell', 'cell_lat')])
+t_cl <- unique(j2[,c('cell', 'cell_lat')])
 ot_cl <- t_cl[order(t_cl[,1]),]
 
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = j1$juv_mean,
-             sd_y = j1$juv_sd,
-             year = as.numeric(factor(j1$year)),
-             cn_id = as.numeric(factor(j1$cell)),
+DATA <- list(y = j2$juv_mean,
+             sd_y = j2$juv_sd,
+             year = as.numeric(factor(j2$year)),
+             cn_id = as.numeric(factor(j2$cell)),
              NC = NROW(ot_cl),
              lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
              lat_usc = ot_cl$cell_lat,
-             N = NROW(j1))
+             N = NROW(j2))
 
 
 # y_{i} ~ N(\mu_{y_{i}}, \sigma_{y_{i}})
@@ -462,7 +468,7 @@ counter <- 1
 for (i in 1:NCOL(alpha_ch))
 {
   #i <- 1
-  c_idx <- which(j1$cell == ot_cl$cell[i])
+  c_idx <- which(j2$cell == ot_cl$cell[i])
   
   yrs <- DATA$year[c_idx]
   min_yr <- min(yrs)
