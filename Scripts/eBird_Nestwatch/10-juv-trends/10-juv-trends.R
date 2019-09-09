@@ -41,7 +41,7 @@ juv_date <- '2019-08-26'
 run_date <- '2019-09-09'
 
 #dirs
-juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date)
+juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date)
 juv_trends_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_trends_output_', run_date)
 
 

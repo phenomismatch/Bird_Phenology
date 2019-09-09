@@ -18,11 +18,15 @@ dir <- '~/Google_Drive/R/'
 # db/juv query dir ------------------------------------------------------------
 
 #input dir
-juv_dir <- 'halfmax_juvs_2019-08-26'
-juv_date <- substr(juv_dir, start = 14, stop = 23)
+juv_date <- '2019-08-26'
+juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', juv_date)
+
 
 #output dir
 br_arr_dir <- 'br_arr_2019-08-26'
+juv_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date)
+
+
 
 
 # runtime -----------------------------------------------------------------
@@ -67,7 +71,7 @@ for (i in 1:nsp)
   #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', juv_dir))
+  setwd(juv_dir)
   if (length(grep(paste0(species_list[i], '.rds'), list.files())) > 0)
   {
     temp_halfmax <- readRDS(paste0('halfmax_juvs_', species_list[i], '.rds'))
@@ -82,7 +86,7 @@ for (i in 1:length(species))
   #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', juv_dir))
+  setwd(juv_dir)
   temp_halfmax <- readRDS(paste0('halfmax_juvs_', species[i], '.rds'))
   
   years <- unique(temp_halfmax$year)
@@ -220,9 +224,7 @@ df_master <- diagnostics_frame[with(diagnostics_frame, order(species, year, cell
 
 # write to RDS --------------------------------------------------
 
-ba_dir_path <- paste0(dir, 'Bird_Phenology/Data/Processed/', br_arr_dir)
-
-dir.create(ba_dir_path)
-setwd(ba_dir_path)
+dir.create(juv_master_dir)
+setwd(juv_master_dir)
 
 saveRDS(df_master, paste0('juv-output-', juv_date, '.rds'))
