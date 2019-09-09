@@ -2,12 +2,6 @@
 Pheno Mismatch notes
 ===================
 
-trends_output notes
--------------------
-2019-09-03 = beta as a function of lat - all cells
-2019-09-04 = no beta as a function of lat (only cells that had pre IAR data)
-2019-09-05 = no beta as a function of lat - pre IAR data
-
 
 Notes from Oct 2018 meeting
 ===========================
@@ -15,63 +9,7 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
     Would expect positive relationship between productivity and curve area
 
 
-*[DONE] Run single set of phi/theta
-*[DONE] Run different phi/theta for each year
-*[DONE] Run hierarchical phi/theta -> run time too long, params not estimated well
-*[DONE] Run single year (2017) with just test set of cells - LARGE RHO
-*[DONE] Fit all years with different phi/thetas and one phi/thetas
-*[DONE] Filter cells by species ranges
-*[DONE] Generalize creation of Stan script indices
-*[DONE] Run V_olivaceus for all years/cells
-*[DONE] Check maps
-*[DONE] Setup script to run one species at a time
-*[DONE] Determine which species to run (separate script?)
-*[DONE] Test 4 on singularity - WORKS
-*[DONE] Test 2 on singularity - WORKS
-*[DONE] Test 7 on singularity - WORKS
-*[DONE] Compare models with different sigma parameterizations
-*[DONE] Check normality for 2
-*[DONE] Query BR codes - extend to jday 300
-*[DONE] Create provisional master IAR object
-*[DONE] Full run 7 after query
-*[DONE] Run 2 on cluster
-*[DONE] Fit 4 with slope for lat
-*[DONE] Run 3
-*[DONE] Run 6 - query ebrid br codes (local)
-*[DONE] Run 7
-*[DONE] Run 4 tests - 3 species
-*[DONE] *Polynomials (2nd to 6th) - RWBB
-*[DONE] Test ebird query 1
-*[DONE] Run 4 - BATCH
-*[DONE] Test 2 (limited iter)
-*[DONE] Transfer 2 test and check figs
-*[DONE] Test 7 (GAM br)
-*[DONE] Run 2 test (GAM arr)
-*[DONE] Query new ebird
-*[DONE] New age fill MAPS
-*[DONE] Run wing chord ~ age analysis/make figs - send to Morgan
-*[DONE] Wing chord ~ age
-*[DONE] Run 2 (GAM)
-*[DONE] Run 3 and 4
-
-
-
-*Run 6 (query breeding) - need IAR species list from 3
-*Run 7 (GAM)
-*Run 8 (process 7)
-*Run 9 (breeding IAR)
-
-
-*Run MAPS brood patch model? Aggregate cells?
-*Add correlation structure for gamma in IAR models - what was meant by this? Don't think this needs any correlation structure to be accounted for.
-
-
-
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
-*Breeding IAR integrating other datasets
-  -Query NW from DB
-  -Model NW using 5th quantile? Model MAPS using logistic? Or proportion of yearlings hitting nets?
-  -If no IAR, integrate other datasets into similar model
 
 
 ###
@@ -99,7 +37,6 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 
 *Check differences between y_true from br_arr and y_true from br_time
 *Could get derived qty for y_true and x_true from above models - then model change in diff (controlling for arrival)
-*Try to code using McElreath method - to account for correlations
 
 
 
@@ -130,17 +67,7 @@ Demographics
         -particularly as they pertain to range edges (recent paper about deforestation and range edges) -> larger fluctuations = less stable population
     -links to phenological dynamics
     -links to fat content/body mass from MAPS
-    
-    
-    
 
-
-*Look at MAPS BAND data for model - can look at age and phenology with these data as well
-
-*Compare ebird breeding codes to nestwatch
-  *model/plot
-*Compare nestwatch to arrival/breeding codes to arrival
-  *model/plot
 
 
 To check which files (if any) contain a particular word
@@ -155,19 +82,13 @@ do
 done <tt.txt
 
 
-
-#GAM notes
-https://stats.stackexchange.com/questions/352995/does-there-exist-theory-behind-how-many-knots-one-should-use-in-a-stan-gamm4-m?noredirect=1&lq=1
-https://github.com/milkha/Splines_in_Stan/blob/master/splines_in_stan.pdf
-
-
 #AFTER
 *Run model nesting (Nestwatch) ~ arrival (IAR)
   -period between arrival and breeding may be plastic (as suggested for Black throated blues by Lany et al. 2016 - interval was shorter when greenup was earlier)
   -does the interval between arrival and nesting vary depending on 1) arrival/nesting time, 2) greenup time, or 3) the interval between arrival and greenup timing?
 *Look at impact of green up on bird arrival (IAR)
   -are there other covariates that explain arrival well?
-*Look at impact of green up on nesting date (Nestwatch, etc.)
+*Look at impact of green up on nesting date
   -are there other covariates that explain nesting well?
 
 
