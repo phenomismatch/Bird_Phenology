@@ -1,13 +1,16 @@
 ######################
 # 10 - juv hitting nets ~ time - models for each species
 #
-# y_{i} ~ N(\mu_{y_{i}}, \sigma_{y_{i}})
-# \mu_{y_{i}} ~ N(mu_{i}, \sigma)
-# \mu_{i} = \alpha_{j} + \beta_{j} * year_{i}
-# \alpha_{j} ~ N(\mu_{\alpha_{j}}, \sigma_{\alpha})
-# \mu_{\alpha_{j}} = \gamma + \theta * lat_{j}
-# \beta_{j} ~ N(\mu_{\beta_{j}}, \sigma_{\beta})
-# \mu_{\beta_{j}} = \nu + \eta * lat_{j}
+# i = obs
+# j = cell
+#
+# y_{i} \sim N(\mu_{y_{i}}, \sigma_{y_{i}})
+# \mu_{y_{i}} \sim N(mu_{i}, \sigma)
+# \mu_{i} = \alpha_{j} + \beta_{j} \times year_{i}
+# \alpha_{j} \sim N(\mu_{\alpha_{j}}, \sigma_{\alpha})
+# \mu_{\alpha_{j}} = \gamma + \theta \times lat_{j}
+# \beta_{j} \sim N(\mu_{\beta_{j}}, \sigma_{\beta})
+# \mu_{\beta_{j}} = \nu + \eta \times lat_{j}
 #
 ######################
 
@@ -93,8 +96,6 @@ t_cl <- unique(j2[,c('cell', 'cell_lat')])
 ot_cl <- t_cl[order(t_cl[,1]),]
 
 
-# Stan model --------------------------------------------------------------
-
 DATA <- list(y = j2$juv_mean,
              sd_y = j2$juv_sd,
              year = as.numeric(factor(j2$year)),
@@ -105,13 +106,8 @@ DATA <- list(y = j2$juv_mean,
              N = NROW(j2))
 
 
-# y_{i} ~ N(\mu_{y_{i}}, \sigma_{y_{i}})
-# \mu_{y_{i}} ~ N(mu_{i}, \sigma)
-# \mu_{i} = \alpha_{j} + \beta_{j} * year_{i}
-# \alpha_{j} ~ N(\mu_{\alpha_{j}}, \sigma_{\alpha})
-# \mu_{\alpha_{j}} = \gamma + \theta * lat_{j}
-# \beta_{j} ~ N(\mu_{\beta_{j}}, \sigma_{\beta})
-# \mu_{\beta_{j}} = \nu + \eta * lat_{j}
+
+# Stan model --------------------------------------------------------------
 
 model <- "
 data {
@@ -236,22 +232,42 @@ fit <- rstan::stan(model_code = model,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
+num_diverge <- rstan::get_num_divergent(fit)
+num_tree <- rstan::get_num_max_treedepth(fit)
+num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
-#create dir if doesn't exist
-ifelse(!dir.exists(juv_trends_dir),
-       dir.create(juv_trends_dir),
-       FALSE)
+
+#rerun model with higher target acceptance if divergences exist
+if (num_diverge > 0)
+{
+  DELTA <- 0.99
+  
+  tt <- proc.time()
+  fit <- rstan::stan(model_code = model,
+                     data = DATA,
+                     chains = CHAINS,
+                     iter = ITER,
+                     cores = CHAINS,
+                     pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
+                              'sigma_beta', 'alpha_beta', 'beta_beta',
+                              'sigma', 'y_true', 'y_rep'),
+                     control = list(adapt_delta = DELTA,
+                                    max_treedepth = TREE_DEPTH,
+                                    stepsize = STEP_SIZE))
+  run_time <- (proc.time()[3] - tt[3]) / 60
+  
+  num_diverge <- rstan::get_num_divergent(fit)
+  num_tree <- rstan::get_num_max_treedepth(fit)
+  num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
+}
+
+
 
 #save to RDS
 setwd(juv_trends_dir)
 
 saveRDS(fit, file = paste0(args, '-', run_date, '-juv_trends_stan_output.rds'))
-
-
-
-num_diverge <- rstan::get_num_divergent(fit)
-num_tree <- rstan::get_num_max_treedepth(fit)
-num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
+saveRDS(DATA, file = paste0(args, '-', run_date, '-juv_trends_stan_input.rds'))
 
 
 
@@ -543,7 +559,7 @@ ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6
   theme_bw() +
   theme(legend.position='none') +
   xlab('Year') +
-  ylab('Arrival date') +
+  ylab('Fledge date') +
   theme(
     axis.text = element_text(size = 16),
     axis.title = element_text(size = 18),
