@@ -307,11 +307,32 @@ rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
 neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
 
 
+# PPC ---------------------------------------------------------------------
+
+y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
+y_val <- DATA$y
+
+# bayesplot::ppc_stat(y_val, y_rep, stat = 'mean')
+# bayesplot::ppc_dens_overlay(y_val, y_rep[1:100,])
+
+PPC_fun <- function(FUN, YR = y_rep, D = y_val)
+{
+  out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+  print(out)
+}
+
+ppc_mn <- round(PPC_fun(mean), 3)
+ppc_min <- round(PPC_fun(min), 3)
+ppc_max <- round(PPC_fun(max), 3)
+
+
+
+
 # write model results to file ---------------------------------------------
 
 options(max.print = 5e6)
-sink(paste0(args, '-', run_date, '-pheno_trends_results.txt'))
-cat(paste0('Pheno trends results ', args, ' \n'))
+sink(paste0(args, '-', run_date, '-arr_trends_results.txt'))
+cat(paste0('Arrival trends results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Iterations: ', ITER, ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -325,25 +346,12 @@ cat(paste0('Mean treedepth: ', round(mean(mn_treedepth), 1), ' \n'))
 cat(paste0('Mean accept stat: ', round(mean(accept_stat), 2), ' \n'))
 cat(paste0('Max Rhat: ', max(rhat_output, na.rm = TRUE), ' \n'))
 cat(paste0('Min n.eff: ', min(neff_output, na.rm = TRUE), ' \n'))
+cat(paste0('PPC mean: ', ppc_mn, ' \n'))
+cat(paste0('PPC min: ', ppc_min, ' \n'))
+cat(paste0('PPC man: ', ppc_max, ' \n'))
 print(model_summary)
 sink()
 
-
-# PPC ---------------------------------------------------------------------
-
-y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
-
-# y_val <- DATA$y
-# bayesplot::ppc_stat(DATA$y, y_rep, stat = 'mean')
-# bayesplot::ppc_dens_overlay(DATA$y, y_rep[1:100,])
-# PPC_fun <- function(FUN, YR = y_rep, D = DATA$y)
-# {
-#   out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
-#   print(out)
-# }
-# PPC_fun(mean)
-# PPC_fun(min)
-# PPC_fun(max)
 
 
 
