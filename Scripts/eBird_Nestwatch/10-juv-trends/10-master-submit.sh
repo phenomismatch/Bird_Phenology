@@ -11,4 +11,4 @@ do
 done < ../../../../Data/IAR_species_list.txt
 #done < ../../../../Data/test_species_list.txt
 
-cp juvs_time_ind.R ../../../../Data/Processed/juv_trends_output_$DATE/juvs_time_ind-$DATE.R
+cp 10-juv-trends.R ../../../Data/Processed/juv_trends_output_$DATE/10-juv-trends-$DATE.R

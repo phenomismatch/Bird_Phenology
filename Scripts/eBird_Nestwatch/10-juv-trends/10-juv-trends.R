@@ -1,5 +1,5 @@
 ######################
-# ? - juv hitting nets ~ time - models for each species
+# 10 - juv hitting nets ~ time - models for each species
 #
 # y_{i} ~ N(\mu_{y_{i}}, \sigma_{y_{i}})
 # \mu_{y_{i}} ~ N(mu_{i}, \sigma)

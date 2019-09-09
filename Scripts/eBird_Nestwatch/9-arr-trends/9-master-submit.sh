@@ -11,4 +11,4 @@ do
 done < ../../../../Data/IAR_species_list.txt
 #done < ../../../../Data/test_species_list.txt
 
-cp arr-trends.R ../../../../Data/Processed/arr_trends_output_$DATE/arr-trends-$DATE.R
+cp 9-arr-trends.R ../../../../Data/Processed/arr_trends_output_$DATE/9-arr-trends-$DATE.R
