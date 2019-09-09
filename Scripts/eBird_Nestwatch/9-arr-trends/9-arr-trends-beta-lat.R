@@ -37,19 +37,11 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # other dir ---------------------------------------------------------------
 
-IAR_in_date <- '2019-05-03'
 IAR_out_date <- '2019-05-26'
 run_date <- '2019-09-03'
 
-IAR_in_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_input_', IAR_in_date)
-
-IAR_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/IAR_output_', IAR_out_date)
-
-#IAR_out_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_', IAR_out_date)
-
+arr_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/arrival_master_', IAR_out_date)
 trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_output_', run_date)
-
-#trends_out_dir <- paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)
 
 
 # Load packages -----------------------------------------------------------
@@ -64,76 +56,19 @@ library(dggridR)
 
 # Filter data by species/years ------------------------------------------------------
 
-setwd(IAR_in_dir)
+setwd(arr_dir)
 
-#read in master df
-df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
-
-#switch to out dir
-setwd(IAR_out_dir)
-
-
-#why not use the arrival master object here???
-
-#if that species RDS object exists in dir
-pro_data <- data.frame()
-if (length(grep(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'), list.files())) > 0)
-{
-  f_in_p <- dplyr::filter(df_master, species == args & MODEL == TRUE)
-  
-  #read in IAR model output and input
-  t_fit <- readRDS(paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
-  t_data <- readRDS(paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
-  
-  #only cells and years that were modeled (to account for any lone cells that were dropped in 4-IAR-arr.R)
-  f_in <- dplyr::filter(f_in_p, cell %in% t_data$cells)
-  
-  t_cells <- unique(f_in$cell)
-  t_years <- unique(f_in$year)
-  
-  #make hexgrid
-  hexgrid6 <- dggridR::dgconstruct(res = 6)
-  
-  #get hexgrid cell centers
-  cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
-  
-  #extract median and sd for IAR arrival dates
-  mean_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
-  med_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
-  sd_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
-  
-  #loop through years
-  for (j in 1:length(t_years))
-  {
-    #j <- 1
-    print(paste0('species: ', args, ', ', 
-                 'year: ', t_years[j]))
-    
-    t_f_in <- dplyr::filter(f_in, year == t_years[j])
-    
-    t_full <- data.frame(t_f_in[,c('species','cell')], 
-                         cell_lat = round(cellcenters$lat_deg, digits = 2), 
-                         cell_lon = round(cellcenters$lon_deg, digits = 2),
-                         t_f_in[,c('year', 'HM_mean', 'HM_sd')],
-                         mean_post_IAR = mean_fit[,j], sd_post_IAR = sd_fit[,j])
-    
-    colnames(t_full)[6:7] <- c('mean_pre_IAR', 'sd_pre_IAR')
-    
-    pro_data <- rbind(pro_data, t_full)
-  } #end year loop
-} else {
-  stop(paste0('.rds file for ', args, ' not found in directory'))
-}
-
+arr_master <- readRDS(file = paste0('arrival_master_', IAR_out_date, '.rds'))
+arr_master2 <- dplyr::filter(arr_master, species == args)
 
 
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-#data_f <- pro_data[which(!is.na(pro_data$mean_pre_IAR)),]
+#data_f <- arr_master2[which(!is.na(arr_master2$mean_pre_IAR)),]
 
 #all cell years
-data_f <- pro_data
+data_f <- arr_master2
 
 #cells with at least 5 years of data
 cnts <- plyr::count(data_f, 'cell')
