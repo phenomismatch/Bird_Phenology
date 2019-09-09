@@ -8,7 +8,7 @@ do
   temp="${name%\"}"
   temp="${temp#\"}"
   sbatch species/at-$temp.sh
-done < ../../../../Data/IAR_species_list.txt
-#done < ../../../../Data/test_species_list.txt
+done < ../../../Data/IAR_species_list.txt
+#done < ../../../Data/test_species_list.txt
 
 cp 9-arr-trends-beta-lat.R ../../../Data/Processed/arr_trends_output_$DATE/9-arr-trends-beta-lat$DATE.R
