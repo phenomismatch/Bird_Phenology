@@ -68,10 +68,10 @@ arr_master_f <- dplyr::filter(arr_master, species == args)
 # Process data ------------------------------------------------------------
 
 #cell years with input data
-#j1 <- arr_master2[which(!is.na(arr_master_f$mean_pre_IAR)),]
+j1 <- arr_master_f[which(!is.na(arr_master_f$mean_pre_IAR)),]
 
 #all cell years
-j1 <- arr_master_f
+#j1 <- arr_master_f
 
 #cells with at least 5 years of data
 cnts <- plyr::count(j1, 'cell')
