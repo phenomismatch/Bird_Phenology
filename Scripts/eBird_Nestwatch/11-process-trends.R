@@ -1,10 +1,11 @@
 ######################
-# Extract AOS pheno trends model output
+# Extract trends for arr and juv
 #
-# mu_alpha - absolute arrival date for species (intercepts drawn from this mean)
 # sigma - interannual variability in arrival date after accounting for trend
-# alpha_beta - magnitude of phenological change over time
-# beta_beta - effect of lat on magnitude of phenological change over time
+# gamma - intercept for phenological event
+# theta - effect of lat on phenological event
+# pi - magnitude of phenological change over time
+# nu - effect of lat on magnitude of phenological change over time
 ######################
 
 
@@ -20,15 +21,29 @@ dir <- '~/Google_Drive/R/'
 
 # other dir ---------------------------------------------------------------
 
-run_date <- '2019-09-05'
+arr_run_date <- '2019-09-09'
+juv_run_date <- '2019-09-09'
 IAR_date <- '2019-05-26'
 
-in_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_output_', run_date)
-out_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_', run_date)
+
+# arr_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/arr_trends_output',
+#                   arr_run_date)
+# juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_trends_output_',
+#                   juv_run_date)
+
+arr_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/arr_trends_output_',
+                  arr_run_date)
+juv_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/juv_trends_output_',
+                  juv_run_date)
+
+# out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/trends_summary_', arr_run_date)
+out_dir <- paste0('/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/trends_summary_', arr_run_date)
+
 am_dir <- paste0('~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_', IAR_date)
 
 
-# readin arrival master ---------------------------------------------------
+
+# read in arrival master ---------------------------------------------------
 
 setwd(am_dir)
 
@@ -46,10 +61,10 @@ library(dggridR)
 
 # setwd -------------------------------------------------------------------
 
-setwd(in_dir)
+setwd(arr_dir)
 
 
-# Filter data by species/years ------------------------------------------------------
+# Filter arr results by species/years ------------------------------------------------------
 
 files <- list.files()
 species <- unique(sapply(strsplit(files, split = '-'), head , 1))
@@ -64,46 +79,41 @@ for (i in 1:length(species))
   print(sp)
   
   #if that species RDS object exists in dir
-  if (length(grep(paste0(sp, '-', run_date, '-pheno_trends_stan_output.rds'), list.files())) > 0)
-  # if (length(grep(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'), list.files())) > 0)
+  if (length(grep(paste0(sp, '-', arr_run_date, '-arr_trends_stan_output.rds'), list.files())) > 0)
   {
     #read in model output
-    t_fit <- readRDS(paste0(sp, '-', run_date, '-pheno_trends_stan_output.rds'))
-    t_in <- readRDS(paste0(sp, '-', run_date, '-pheno_trends_stan_input.rds'))
-    
-    #t_fit <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_output.rds'))
-    #t_in <- readRDS(paste0(sp, '-2019-05-26-pheno_trends_stan_input.rds'))
-    
+    t_fit <- readRDS(paste0(sp, '-', arr_run_date, '-arr_trends_stan_output.rds'))
+    t_in <- readRDS(paste0(sp, '-', arr-run_date, '-arr_trends_stan_input.rds'))
     
     #make sure there are samples
     if (length(t_fit@par_dims) > 0)
     {
       #add year range and cell range (maybe range area calculated from range maps)?
       
-      mn_mu_alpha <- MCMCvis::MCMCpstr(t_fit, params = 'mu_alpha', func = mean)[[1]]
-      sd_mu_alpha <- MCMCvis::MCMCpstr(t_fit, params = 'mu_alpha', func = sd)[[1]]
-      mu_alpha_ch <- MCMCvis::MCMCchains(t_fit, params = 'mu_alpha')
-      colnames(mu_alpha_ch) <- sp
+      mn_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = mean)[[1]]
+      sd_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = sd)[[1]]
+      # gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'gamma')
+      # colnames(gamma_ch) <- sp
       
-      mn_mu_beta <- MCMCvis::MCMCpstr(t_fit, params = 'mu_beta', func = mean)[[1]]
-      sd_mu_beta <- MCMCvis::MCMCpstr(t_fit, params = 'mu_beta', func = sd)[[1]]
-      mu_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'mu_beta')
-      colnames(mu_beta_ch) <- sp
+      mn_theta <- MCMCvis::MCMCpstr(t_fit, params = 'theta', func = mean)[[1]]
+      sd_theta <- MCMCvis::MCMCpstr(t_fit, params = 'theta', func = sd)[[1]]
+      # theta_ch <- MCMCvis::MCMCchains(t_fit, params = 'theta')
+      # colnames(theta_ch) <- sp
+      
+      mn_pi <- MCMCvis::MCMCpstr(t_fit, params = 'pi', func = mean)[[1]]
+      sd_pi <- MCMCvis::MCMCpstr(t_fit, params = 'pi', func = sd)[[1]]
+      # pi_ch <- MCMCvis::MCMCchains(t_fit, params = 'pi')
+      # colnames(pi_ch) <- sp
+      
+      mn_nu <- MCMCvis::MCMCpstr(t_fit, params = 'nu', func = mean)[[1]]
+      sd_nu <- MCMCvis::MCMCpstr(t_fit, params = 'nu', func = sd)[[1]]
+      # nu_ch <- MCMCvis::MCMCchains(t_fit, params = 'nu')
+      # colnames(nu_ch) <- sp
       
       mn_sigma <- MCMCvis::MCMCpstr(t_fit, params = 'sigma', func = mean)[[1]]
       sd_sigma <- MCMCvis::MCMCpstr(t_fit, params = 'sigma', func = sd)[[1]]
-      sigma_ch <- MCMCvis::MCMCchains(t_fit, params = 'sigma')
-      colnames(sigma_ch) <- sp
-      
-      #mn_alpha_beta <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_beta', func = mean)[[1]]
-      #sd_alpha_beta <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_beta', func = sd)[[1]]
-      #alpha_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'alpha_beta')
-      #colnames(alpha_beta_ch) <- sp
-      
-      #mn_beta_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta_beta', func = mean)[[1]]
-      #sd_beta_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta_beta', func = sd)[[1]]
-      #beta_beta_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_beta')
-      #colnames(beta_beta_ch) <- sp
+      # sigma_ch <- MCMCvis::MCMCchains(t_fit, params = 'sigma')
+      # colnames(sigma_ch) <- sp
       
       mn_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta', func = mean)[[1]]
       sd_beta <- MCMCvis::MCMCpstr(t_fit, params = 'beta', func = sd)[[1]]
@@ -129,7 +139,7 @@ for (i in 1:length(species))
       max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
       min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
       
-      #arrival master (for alpha_gamma and beta_gamma)
+      #arrival master
       am_t <- dplyr::filter(am_out_f, species == sp)
       
       t_mean_pre_IAR <- dplyr::filter(am_out, species == sp, year == 2018)$mean_pre_IAR
@@ -147,16 +157,16 @@ for (i in 1:length(species))
                            sd_alpha_gamma = am_t$sd_alpha_gamma,
                            mn_beta_gamma = am_t$mean_beta_gamma,
                            sd_beta_gamma = am_t$sd_beta_gamma,
-                           mn_mu_alpha,
-                           sd_mu_alpha,
-                           mn_mu_beta,
-                           sd_mu_beta,
+                           mn_gamma,
+                           sd_gamma,
+                           mn_theta,
+                           sd_theta,
+                           mn_pi,
+                           sd_pi,
+                           mn_nu,
+                           sd_nu,
                            mn_sigma,
                            sd_sigma,
-                           # mn_alpha_beta,
-                           # sd_alpha_beta,
-                           # mn_beta_beta,
-                           # sd_beta_beta,
                            n_cells,
                            n_years,
                            per_pre_IAR,
@@ -175,15 +185,15 @@ for (i in 1:length(species))
       
       if (i == 1)
       {
-        mu_alpha_post <- mu_alpha_ch
-        mu_beta_post <- mu_beta_ch
-        sigma_post <- sigma_ch
+        # mu_alpha_post <- mu_alpha_ch
+        # mu_beta_post <- mu_beta_ch
+        # sigma_post <- sigma_ch
         # alpha_beta_post <- alpha_beta_ch
         # beta_beta_post <- beta_beta_ch
       } else {
-        mu_alpha_post <- cbind(mu_alpha_post, mu_alpha_ch)
-        mu_beta_post <- cbind(mu_beta_post, mu_beta_ch)
-        sigma_post <- cbind(sigma_post, sigma_ch)
+        # mu_alpha_post <- cbind(mu_alpha_post, mu_alpha_ch)
+        # mu_beta_post <- cbind(mu_beta_post, mu_beta_ch)
+        # sigma_post <- cbind(sigma_post, sigma_ch)
         # alpha_beta_post <- cbind(alpha_beta_post, alpha_beta_ch)
         # beta_beta_post <- cbind(beta_beta_post, beta_beta_ch)
       }
@@ -203,10 +213,10 @@ ifelse(!dir.exists(out_dir),
 
 setwd(out_dir)
 
-saveRDS(out, file = paste0('pheno_trends_master_', run_date, '.rds'))
-saveRDS(mu_alpha_post, file = paste0('pheno_trends_mu_alpha_post_', run_date, '.rds'))
-saveRDS(mu_beta_post, file = paste0('pheno_trends_mu_beta_post_', run_date, '.rds'))
-saveRDS(sigma_post, file = paste0('pheno_trends_sigma_post_', run_date, '.rds'))
+saveRDS(out, file = paste0('arr_trends_master_', arr_run_date, '.rds'))
+# saveRDS(mu_alpha_post, file = paste0('pheno_trends_mu_alpha_post_', arr_run_date, '.rds'))
+# saveRDS(mu_beta_post, file = paste0('pheno_trends_mu_beta_post_', arr_run_date, '.rds'))
+# saveRDS(sigma_post, file = paste0('pheno_trends_sigma_post_', arr_run_date, '.rds'))
 # saveRDS(alpha_beta_post, file = paste0('pheno_trends_alpha_beta_post_', run_date, '.rds'))
 # saveRDS(beta_beta_post, file = paste0('pheno_trends_beta_beta_post_', run_date, '.rds'))
 

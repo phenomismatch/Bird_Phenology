@@ -6,11 +6,11 @@
 #
 # y_{i} \sim N(\mu_{y_{i}}, \sigma_{y_{i}})
 # \mu_{y_{i}} \sim N(mu_{i}, \sigma)
-# \mu_{i} = \alpha_{j} + \beta_{j} \times year_{i}
-# \alpha_{j} \sim N(\mu_{\alpha_{j}}, \sigma_{\alpha})
-# \mu_{\alpha_{j}} = \gamma + \theta \times lat_{j}
-# \beta_{j} \sim N(\mu_{\beta_{j}}, \sigma_{\beta})
-# \mu_{\beta_{j}} = \nu + \eta \times lat_{j}
+# \mu_{i} = \alpha_{i} + \beta_{i} \times year_{i}
+# \alpha_{i} \sim N(\mu_{\alpha_{i}}, \sigma_{\alpha})
+# \mu_{\alpha_{i}} = \gamma + \theta \times lat_{i}
+# \beta_{i} \sim N(\mu_{\beta_{i}}, \sigma_{\beta})
+# \mu_{\beta_{i}} = \nu + \eta \times lat_{i}
 #
 ######################
 
@@ -18,22 +18,25 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 
 # species -----------------------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Ammospiza_nelsoni')
 #args <- as.character('Agelaius_phoeniceus')
 #args <- as.character('Turdus_migratorius')
+#args <- as.character('Setophaga_pinus')
+args <- as.character('Seiurus_aurocapilla')
+
 
 
 
@@ -70,11 +73,11 @@ juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 #only species/cells/years with data for juvs
 j1 <- dplyr::filter(juvs_master, !is.na(juv_mean), species == args)
 
-#cells with at least 5 years of data
-cnts <- plyr::count(j1, 'cell')
-u_cells <- cnts[which(cnts[,2] >= 3),1]
-
-j2 <- dplyr::filter(j1, cell %in% u_cells)
+# #cells with at least 5 years of data
+# cnts <- plyr::count(j1, 'cell')
+# u_cells <- cnts[which(cnts[,2] >= 3),1]
+# j2 <- dplyr::filter(j1, cell %in% u_cells)
+j2 <- j1
 
 #only species that have at least 10 data points
 if (NROW(j2) < 10)
@@ -90,20 +93,24 @@ j2$cell_lat <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
 j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
                                         in_seqnum = j2$cell)$lon_deg
 
+#filter by study region
+j3 <- dplyr::filter(j2, cell_lng > -95)
+
 
 #order cells (and corresponding cell lats) so they match factor
 t_cl <- unique(j2[,c('cell', 'cell_lat')])
 ot_cl <- t_cl[order(t_cl[,1]),]
 
 
-DATA <- list(y = j2$juv_mean,
-             sd_y = j2$juv_sd,
-             year = as.numeric(factor(j2$year)),
-             cn_id = as.numeric(factor(j2$cell)),
-             NC = NROW(ot_cl),
-             lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
-             lat_usc = ot_cl$cell_lat,
-             N = NROW(j2))
+DATA <- list(y = j3$juv_mean,
+             sd_y = j3$juv_sd,
+             year = as.numeric(factor(j3$year)),
+             # cn_id = as.numeric(factor(j2$cell)),
+             # NC = NROW(ot_cl),
+             # lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
+             # lat_usc = ot_cl$cell_lat,
+             lat = scale(j3$cell_lat, scale = FALSE)[,1],
+             N = NROW(j3))
 
 
 
@@ -114,20 +121,20 @@ data {
 int<lower = 0> N;                                 // number of obs
 vector<lower = 0>[N] y;
 vector<lower = 0>[N] sd_y;
-int<lower = 1> cn_id[N];                          // cell ids
-int<lower = 0> NC;                                // number of cells
+// int<lower = 1> cn_id[N];                          // cell ids
+// int<lower = 0> NC;                                // number of cells
 vector<lower = 1>[N] year;
-vector[NC] lat;
+vector[N] lat;
 }
 
 parameters {
 vector[N] mu_y_raw;
-vector[NC] alpha_raw;
-vector[NC] beta_raw;
-vector[NC] mu_beta_raw;
-real<lower = 0> sigma_beta_raw;
-vector[NC] mu_alpha_raw;
+vector[N] alpha_raw;
+vector[N] beta_raw;
+vector[N] mu_alpha_raw;
 real<lower = 0> sigma_alpha_raw;
+vector[N] mu_beta_raw;
+real<lower = 0> sigma_beta_raw;
 real gamma_raw;
 real theta_raw;
 real pi_raw;
@@ -138,12 +145,12 @@ real<lower = 0> sigma_raw;
 transformed parameters {
 vector[N] mu;
 vector[N] mu_y;
-vector[NC] alpha;
-vector[NC] beta;
-vector[NC] mu_beta;
-real<lower = 0> sigma_beta;
-vector[NC] mu_alpha;
+vector[N] alpha;
+vector[N] beta;
+vector[N] mu_alpha;
 real<lower = 0> sigma_alpha;
+vector[N] mu_beta;
+real<lower = 0> sigma_beta;
 real gamma;
 real theta;
 real pi;
@@ -153,10 +160,10 @@ real<lower = 0> sigma;
 sigma = sigma_raw * 5;
 
 // implies gamma ~ N(0, 10)
-gamma = gamma_raw * 10;
-theta = theta_raw * 10;
+gamma = gamma_raw * 50;
+theta = theta_raw * 30;
 mu_alpha = gamma + theta * lat;
-sigma_alpha = sigma_alpha_raw * 20;
+sigma_alpha = sigma_alpha_raw * 100;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 
 // implies gamma ~ N(0, 10)
@@ -168,7 +175,7 @@ beta = beta_raw * sigma_beta + mu_beta;
 
 for (i in 1:N)
 {
-  mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
+  mu[i] = alpha[i] + beta[i] * year[i];
   mu_y[i] = mu_y_raw[i] * sigma + mu[i];
 }
 }
@@ -203,7 +210,7 @@ y_rep = normal_rng(mu_y, sd_y);
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
+DELTA <- 0.99
 TREE_DEPTH <- 17
 STEP_SIZE <- 0.003
 CHAINS <- 4
@@ -248,9 +255,17 @@ if (num_diverge > 0)
                      chains = CHAINS,
                      iter = ITER,
                      cores = CHAINS,
-                     pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
-                              'sigma_beta', 'alpha_beta', 'beta_beta',
-                              'sigma', 'y_true', 'y_rep'),
+                     pars = c('gamma',
+                              'theta',
+                              'pi',
+                              'nu',
+                              'alpha',
+                              'beta',
+                              'sigma_alpha',
+                              'sigma_beta',
+                              'sigma',
+                              'mu_y',
+                              'y_rep'), 
                      control = list(adapt_delta = DELTA,
                                     max_treedepth = TREE_DEPTH,
                                     stepsize = STEP_SIZE))
@@ -576,7 +591,7 @@ ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6
 dev.off()
 
 
-pdf(paste0(args, '-', juv_date, '-betas.pdf'), 
+pdf(paste0(args, '-', run_date, '-betas.pdf'), 
     height = 11, width = 9, useDingbats = FALSE)
 MCMCvis::MCMCplot(fit, params = 'beta', main = args)
 dev.off()
@@ -667,24 +682,24 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_sigma.pdf'))
 
-#gamma ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#gamma ~ normal(0, 50)
+PR <- rnorm(10000, 0, 50)
 MCMCvis::MCMCtrace(fit,
                    params = 'gamma',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_gamma.pdf'))
 
-#theta ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#theta ~ normal(0, 30)
+PR <- rnorm(10000, 0, 30)
 MCMCvis::MCMCtrace(fit,
                    params = 'theta',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_theta.pdf'))
 
-#sigma_alpha ~ halfnormal(0, 20)
-PR_p <- rnorm(10000, 0, 20)
+#sigma_alpha ~ halfnormal(0, 100)
+PR_p <- rnorm(10000, 0, 100)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_alpha',

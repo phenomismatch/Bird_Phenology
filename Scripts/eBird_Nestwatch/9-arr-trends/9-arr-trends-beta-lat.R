@@ -17,21 +17,23 @@
 
 # top-level dir --------------------------------------------------------------
 
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
 
 
 # species -----------------------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
 #args <- as.character('Ammospiza_nelsoni')
 #args <- as.character('Agelaius_phoeniceus')
 #args <- as.character('Turdus_migratorius')
+#args <- as.character('Setophaga_ruticilla')
+args <- as.character('Seiurus_aurocapilla')
 
 #args <- 'Empidonax_virescens'
 #args <- 'Hirundo_rustica'
@@ -101,8 +103,8 @@ ot_cl <- t_cl[order(t_cl[,1]),]
 
 
 #create data list for Stan
-DATA <- list(y = j2$juv_mean,
-             sd_y = j2$juv_sd,
+DATA <- list(y = j2$mean_post_IAR,
+             sd_y = j2$sd_post_IAR,
              year = as.numeric(factor(j2$year)),
              cn_id = as.numeric(factor(j2$cell)),
              NC = NROW(ot_cl),
@@ -166,7 +168,7 @@ sigma = sigma_raw * 5;
 gamma = gamma_raw * 10;
 theta = theta_raw * 10;
 mu_alpha = gamma + theta * lat;
-sigma_alpha = sigma_alpha_raw * 20;
+sigma_alpha = sigma_alpha_raw * 30;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 
 // implies gamma ~ N(0, 10)
@@ -259,9 +261,17 @@ if (num_diverge > 0)
                      chains = CHAINS,
                      iter = ITER,
                      cores = CHAINS,
-                     pars = c('alpha', 'mu_alpha', 'sigma_alpha', 'beta',
-                              'sigma_beta', 'alpha_beta', 'beta_beta',
-                              'sigma', 'y_true', 'y_rep'),
+                     pars = c('gamma',
+                              'theta',
+                              'pi',
+                              'nu',
+                              'alpha',
+                              'beta',
+                              'sigma_alpha',
+                              'sigma_beta',
+                              'sigma',
+                              'mu_y',
+                              'y_rep'), 
                      control = list(adapt_delta = DELTA,
                                     max_treedepth = TREE_DEPTH,
                                     stepsize = STEP_SIZE))
@@ -586,7 +596,7 @@ ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6
 dev.off()
 
 
-pdf(paste0(args, '-', IAR_out_date, '-betas.pdf'), 
+pdf(paste0(args, '-', run_date, '-betas.pdf'), 
     height = 11, width = 9, useDingbats = FALSE)
 MCMCvis::MCMCplot(fit, params = 'beta', main = args)
 dev.off()
@@ -676,8 +686,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_theta.pdf'))
 
-#sigma_alpha ~ halfnormal(0, 20)
-PR_p <- rnorm(10000, 0, 20)
+#sigma_alpha ~ halfnormal(0, 30)
+PR_p <- rnorm(10000, 0, 30)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_alpha',
