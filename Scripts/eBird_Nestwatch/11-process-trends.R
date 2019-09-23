@@ -15,7 +15,7 @@
 dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/UCHC/LABS/Tingley/phenomismatch/'
+#dir <- '/labs/Tingley/phenomismatch/'
 
 
 
