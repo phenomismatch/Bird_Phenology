@@ -7,7 +7,6 @@ f <- list.files()
 # of a posterior chain. Each dataframe has a row for each species-cell-year, giving the predicted arrival, the year
 # offset, the combined spatial and nonspatial random effect, and whether the species-cell-year had input data are was estimated exclusively from the IAR model.  
 
-
 counter <- 0
 for(s in 1:length(species.list)){
   species <- species.list[s]
@@ -65,8 +64,9 @@ for(s in 1:length(species.list)){
 
 save(frame.list, file = "framelist.Rdata")
 
-library(rstanarm)
+load("framelist.Rdata")
 
+library(rstanarm)
 migD <- read.csv('/Users/JacobSocolar/Dropbox/Work/Phenomismatch/IAR_output/migD.csv')  # gives whether long or short distance migrant, and a summary habitat code for each species
 migD[is.na(migD)] <- 0
 
@@ -84,12 +84,50 @@ fl$migD <- fl$species %in% migD$species[migD$LDM==1]
 
 model <- lmerTest::lmer(nu ~ yr_effect + lat + yr_effect*lat + (1|sc), data = fl)
 summary(model)
-model <- lmerTest::lmer(nu ~ yr_effect*lat*migD + (1|sc), data = fl)
-summary(model)
-model <- lmerTest::lmer(nu ~ yr_effect + lat + yr_effect*lat + (1|sc), data = fl.s)
-summary(model)
 
+outputs <- as.data.frame(matrix(data=NA, nrow=500, ncol=2))
 
-model <- rstanarm::stan_lmer(nu ~ yr_effect + lat + yr_effect*lat + (1|sc), data = fl)
+for(i in 1:500){
+  print(i)
+  fl <- frame.list[[i]]
+  fl$sc <- paste0(fl$species, fl$cell)
+  fl$lat <- dggridR::dgSEQNUM_to_GEO(hex6,as.numeric(fl$cell))$lat_deg
+  fl <- fl[fl$data.in == 1, ]
+  fl$migD <- fl$species %in% migD$species[migD$LDM==1]
+  fl <- fl[fl$migD == 1,]
+  model <- lmerTest::lmer(nu ~ yr_effect + lat + yr_effect*lat + (1|sc), data = fl)
+  
+  outputs[i, 1] <- summary(model)$coefficients[4,1]
+  outputs[i, 2] <- summary(model)$coefficients[4,5]
+}
+
+hist(outputs[,1])
+hist(outputs[outputs[,2] < .05, 1])
+min(outputs[outputs[,2] < .05, 1])
+
+### Fit the model via stan, in parallel
+library(doParallel)
+
+run_models <- function(frame.list, n){
+  output.list <- list()
+  for(j in 1:100){
+    fl <- frame.list[[j + 100*(n-1)]]
+    fl$sc <- paste0(fl$species, fl$cell)
+    fl$lat <- dggridR::dgSEQNUM_to_GEO(hex6,as.numeric(fl$cell))$lat_deg
+    fl <- fl[fl$data.in == 1, ]
+    fl$migD <- fl$species %in% migD$species[migD$LDM==1]
+    fl <- fl[fl$migD == 1, ]
+    output.list[[j]] <- rstanarm::stan_lmer(nu ~ yr_effect + lat + yr_effect*lat + (1|sc), data = fl, chains = 2, cores = 1, iter = 1500)
+
+  }
+  return(output.list)
+}
+
+set.seed(3)
+cl <- parallel::makeCluster(5)
+doParallel::registerDoParallel(cl)
+clusterCall(cl, function() library(rstanarm))
+mOut <- foreach(i = 1:5) %dopar% run_models(frame.list = frame.list, n = i)
+parallel::stopCluster(cl)
 
 
