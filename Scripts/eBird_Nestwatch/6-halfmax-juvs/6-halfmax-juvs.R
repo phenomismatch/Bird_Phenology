@@ -333,7 +333,7 @@ for (j in 1:nyrs)
     #br thresholds
     #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     
-    if (n1 > 5 & n0 > 5 & njd0i > 3 & njd1 > 3 & njd > 9)
+    if (n1 > 4 & n0 > 4 & njd0i > 2 & njd1 > 2 & njd > 4)
     {
       fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
                                    data = cydata,
