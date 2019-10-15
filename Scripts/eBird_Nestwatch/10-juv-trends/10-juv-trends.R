@@ -44,7 +44,7 @@ args <- as.character('Seiurus_aurocapilla')
 
 #juveniles MAPS - date input data processed
 juv_date <- '2019-08-26'
-run_date <- '2019-09-09'
+run_date <- '2019-10-15'
 
 #dirs
 juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date)
@@ -73,17 +73,11 @@ juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 #only species/cells/years with data for juvs
 j1 <- dplyr::filter(juvs_master, !is.na(juv_mean), species == args)
 
-# #cells with at least 5 years of data
-# cnts <- plyr::count(j1, 'cell')
-# u_cells <- cnts[which(cnts[,2] >= 3),1]
-# j2 <- dplyr::filter(j1, cell %in% u_cells)
-j2 <- j1
-
-#only species that have at least 10 data points
-if (NROW(j2) < 10)
-{
-  stop('Species has fewer than 10 data points')
-}
+#cells with at least 5 years of data
+cnts <- plyr::count(j1, 'cell')
+u_cells <- cnts[which(cnts[,2] >= 3),1]
+j2 <- dplyr::filter(j1, cell %in% u_cells)
+# j2 <- j1
 
 
 #add cell lat to df
@@ -96,20 +90,25 @@ j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
 #filter by study region
 j3 <- dplyr::filter(j2, cell_lng > -95)
 
+#only species that have at least 10 data points
+if (NROW(j3) < 10)
+{
+  stop('Species has fewer than 10 data points')
+}
 
 #order cells (and corresponding cell lats) so they match factor
-t_cl <- unique(j2[,c('cell', 'cell_lat')])
+t_cl <- unique(j3[,c('cell', 'cell_lat')])
 ot_cl <- t_cl[order(t_cl[,1]),]
 
 
 DATA <- list(y = j3$juv_mean,
              sd_y = j3$juv_sd,
              year = as.numeric(factor(j3$year)),
-             # cn_id = as.numeric(factor(j2$cell)),
-             # NC = NROW(ot_cl),
+             cn_id = as.numeric(factor(j3$cell)),
+             NC = NROW(ot_cl),
              # lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
-             # lat_usc = ot_cl$cell_lat,
-             lat = scale(j3$cell_lat, scale = FALSE)[,1],
+             lat = ot_cl$cell_lat,
+             #lat = scale(j3$cell_lat, scale = FALSE)[,1],
              N = NROW(j3))
 
 
@@ -121,19 +120,19 @@ data {
 int<lower = 0> N;                                 // number of obs
 vector<lower = 0>[N] y;
 vector<lower = 0>[N] sd_y;
-// int<lower = 1> cn_id[N];                          // cell ids
-// int<lower = 0> NC;                                // number of cells
+int<lower = 1> cn_id[N];                          // cell ids
+int<lower = 0> NC;                                // number of cells
 vector<lower = 1>[N] year;
-vector[N] lat;
+vector[NC] lat;
 }
 
 parameters {
 vector[N] mu_y_raw;
-vector[N] alpha_raw;
-vector[N] beta_raw;
-vector[N] mu_alpha_raw;
+vector[NC] alpha_raw;
+vector[NC] beta_raw;
+vector[NC] mu_alpha_raw;
 real<lower = 0> sigma_alpha_raw;
-vector[N] mu_beta_raw;
+vector[NC] mu_beta_raw;
 real<lower = 0> sigma_beta_raw;
 real gamma_raw;
 real theta_raw;
@@ -145,11 +144,11 @@ real<lower = 0> sigma_raw;
 transformed parameters {
 vector[N] mu;
 vector[N] mu_y;
-vector[N] alpha;
-vector[N] beta;
-vector[N] mu_alpha;
+vector[NC] alpha;
+vector[NC] beta;
+vector[NC] mu_alpha;
 real<lower = 0> sigma_alpha;
-vector[N] mu_beta;
+vector[NC] mu_beta;
 real<lower = 0> sigma_beta;
 real gamma;
 real theta;
@@ -159,23 +158,21 @@ real<lower = 0> sigma;
 
 sigma = sigma_raw * 5;
 
-// implies gamma ~ N(0, 10)
-gamma = gamma_raw * 50;
-theta = theta_raw * 30;
+gamma = gamma_raw * 20 + 200;           // implies gamma ~ N(200, 20)
+theta = theta_raw * 3;
 mu_alpha = gamma + theta * lat;
-sigma_alpha = sigma_alpha_raw * 100;
+sigma_alpha = sigma_alpha_raw * 5;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 
-// implies gamma ~ N(0, 10)
-pi = pi_raw * 10;
-nu = nu_raw * 10;
+pi = pi_raw * 1;
+nu = nu_raw * 2;
 mu_beta = pi + nu * lat;
-sigma_beta = sigma_beta_raw * 20;
+sigma_beta = sigma_beta_raw * 5;
 beta = beta_raw * sigma_beta + mu_beta;
 
 for (i in 1:N)
 {
-  mu[i] = alpha[i] + beta[i] * year[i];
+  mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
   mu_y[i] = mu_y_raw[i] * sigma + mu[i];
 }
 }
@@ -211,7 +208,7 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.99
-TREE_DEPTH <- 17
+TREE_DEPTH <- 16
 STEP_SIZE <- 0.003
 CHAINS <- 4
 ITER <- 5000
@@ -244,37 +241,37 @@ num_tree <- rstan::get_num_max_treedepth(fit)
 num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
 
 
-#rerun model with higher target acceptance if divergences exist
-if (num_diverge > 0)
-{
-  DELTA <- 0.99
-  
-  tt <- proc.time()
-  fit <- rstan::stan(model_code = model,
-                     data = DATA,
-                     chains = CHAINS,
-                     iter = ITER,
-                     cores = CHAINS,
-                     pars = c('gamma',
-                              'theta',
-                              'pi',
-                              'nu',
-                              'alpha',
-                              'beta',
-                              'sigma_alpha',
-                              'sigma_beta',
-                              'sigma',
-                              'mu_y',
-                              'y_rep'), 
-                     control = list(adapt_delta = DELTA,
-                                    max_treedepth = TREE_DEPTH,
-                                    stepsize = STEP_SIZE))
-  run_time <- (proc.time()[3] - tt[3]) / 60
-  
-  num_diverge <- rstan::get_num_divergent(fit)
-  num_tree <- rstan::get_num_max_treedepth(fit)
-  num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
-}
+# #rerun model with higher target acceptance if divergences exist
+# if (num_diverge > 0)
+# {
+#   DELTA <- 0.99
+#   
+#   tt <- proc.time()
+#   fit <- rstan::stan(model_code = model,
+#                      data = DATA,
+#                      chains = CHAINS,
+#                      iter = ITER,
+#                      cores = CHAINS,
+#                      pars = c('gamma',
+#                               'theta',
+#                               'pi',
+#                               'nu',
+#                               'alpha',
+#                               'beta',
+#                               'sigma_alpha',
+#                               'sigma_beta',
+#                               'sigma',
+#                               'mu_y',
+#                               'y_rep'), 
+#                      control = list(adapt_delta = DELTA,
+#                                     max_treedepth = TREE_DEPTH,
+#                                     stepsize = STEP_SIZE))
+#   run_time <- (proc.time()[3] - tt[3]) / 60
+#   
+#   num_diverge <- rstan::get_num_divergent(fit)
+#   num_tree <- rstan::get_num_max_treedepth(fit)
+#   num_BFMI <- length(rstan::get_low_bfmi_chains(fit))
+# }
 
 
 
