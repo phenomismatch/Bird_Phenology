@@ -42,7 +42,7 @@ args <- as.character('Seiurus_aurocapilla')
 # other dir ---------------------------------------------------------------
 
 IAR_out_date <- '2019-05-26'
-run_date <- '2019-09-09'
+run_date <- '2019-10-15'
 
 arr_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/arrival_master_', IAR_out_date)
 trends_out_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/arr_trends_output_', run_date)
@@ -108,8 +108,8 @@ DATA <- list(y = j2$mean_post_IAR,
              year = as.numeric(factor(j2$year)),
              cn_id = as.numeric(factor(j2$cell)),
              NC = NROW(ot_cl),
-             lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
-             lat_usc = ot_cl$cell_lat,
+             #lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
+             lat = ot_cl$cell_lat,
              N = NROW(j2))
 
 
@@ -136,10 +136,10 @@ parameters {
 vector[N] mu_y_raw;
 vector[NC] alpha_raw;
 vector[NC] beta_raw;
-vector[NC] mu_beta_raw;
-real<lower = 0> sigma_beta_raw;
 vector[NC] mu_alpha_raw;
 real<lower = 0> sigma_alpha_raw;
+vector[NC] mu_beta_raw;
+real<lower = 0> sigma_beta_raw;
 real gamma_raw;
 real theta_raw;
 real pi_raw;
@@ -152,10 +152,10 @@ vector[N] mu;
 vector[N] mu_y;
 vector[NC] alpha;
 vector[NC] beta;
-vector[NC] mu_beta;
-real<lower = 0> sigma_beta;
 vector[NC] mu_alpha;
 real<lower = 0> sigma_alpha;
+vector[NC] mu_beta;
+real<lower = 0> sigma_beta;
 real gamma;
 real theta;
 real pi;
@@ -164,18 +164,16 @@ real<lower = 0> sigma;
 
 sigma = sigma_raw * 5;
 
-// implies gamma ~ N(0, 10)
-gamma = gamma_raw * 10;
-theta = theta_raw * 10;
+gamma = gamma_raw * 20 + 120;                     // implies gamma ~ N(120, 20)
+theta = theta_raw * 3;
 mu_alpha = gamma + theta * lat;
-sigma_alpha = sigma_alpha_raw * 30;
+sigma_alpha = sigma_alpha_raw * 5;
 alpha = alpha_raw * sigma_alpha + mu_alpha;
 
-// implies gamma ~ N(0, 10)
-pi = pi_raw * 10;
-nu = nu_raw * 10;
+pi = pi_raw * 1;
+nu = nu_raw * 2;
 mu_beta = pi + nu * lat;
-sigma_beta = sigma_beta_raw * 20;
+sigma_beta = sigma_beta_raw * 5;
 beta = beta_raw * sigma_beta + mu_beta;
 
 for (i in 1:N)
