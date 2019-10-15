@@ -29,4 +29,4 @@ Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/6-hal
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/6-$temp.sh"
-done < ../../../Data/no_IAR_species_list.txt
+done < ../../../Data/IAR_species_list.txt
