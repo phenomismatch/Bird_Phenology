@@ -104,6 +104,7 @@ for (i in 1:length(species))
                                     #n1W = na_reps,
                                     n0 = na_reps,
                                     n0i = na_reps,
+                                    ndj = na_reps,
                                     njd1 = na_reps,
                                     njd0 = na_reps,
                                     njd0i = na_reps,
@@ -153,13 +154,15 @@ for (i in 1:length(species))
         # diagnostics_frame$n1W[counter] <- tt_halfmax2$n1W
         #number of non-detections before first detection
         diagnostics_frame$n0i[counter] <- tt_halfmax2$n0i
+        #number of unique days
+        diagnostics_frame$njd[counter] <- tt_halfmax2$njd
         #number of unique days with detections
         diagnostics_frame$njd1[counter] <- tt_halfmax2$njd1
         #number of unique days with non-detection
         diagnostics_frame$njd0[counter] <- tt_halfmax2$njd0
         #number of unique days of non-detections before first detection
         diagnostics_frame$njd0i[counter] <- tt_halfmax2$njd0i
-          
+        
         diagnostics_frame$min_neff[counter] <- tt_halfmax2$min_neff
         diagnostics_frame$max_Rhat[counter] <- tt_halfmax2$max_Rhat
         
