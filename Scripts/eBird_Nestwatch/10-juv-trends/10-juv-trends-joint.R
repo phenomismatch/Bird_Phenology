@@ -139,13 +139,10 @@ real mu_gamma_raw;
 real mu_theta_raw;
 real mu_pi_raw;
 real mu_nu_raw;
-vector<lower = 0>[P] sigma_ab_raw;
 vector<lower = 0>[P] sigma_gt_raw;
 vector<lower = 0>[P] sigma_pn_raw;
-cholesky_factor_corr[P] L_Rho_ab;       // cholesky factor of corr matrix
-cholesky_factor_corr[P] L_Rho_gt;
+cholesky_factor_corr[P] L_Rho_gt;                 // cholesky factor of corr matrix
 cholesky_factor_corr[P] L_Rho_pn;
-matrix[P, N] z_ab;
 matrix[P, Nsp] z_gt;
 matrix[P, Nsp] z_pn;
 }
@@ -154,11 +151,9 @@ transformed parameters {
 real<lower = 0> sigma;
 vector[N] mu_y;
 vector[N] mu;
-matrix[N, P] ab;
 matrix[Nsp, P] gt;
 matrix[Nsp, P] pn;
-matrix[P, P] Rho_ab;    // covariance matrix
-matrix[P, P] Rho_gt;
+matrix[P, P] Rho_gt;    // covariance matrix
 matrix[P, P] Rho_pn;
 real mu_gamma;
 real mu_theta;
@@ -166,13 +161,10 @@ real mu_pi;
 real mu_nu;
 vector[N] alpha;
 vector[N] beta;
-vector[N] mu_alpha;
-vector[N] mu_beta;
 vector[Nsp] gamma;
 vector[Nsp] theta;
 vector[Nsp] pi;
 vector[Nsp] nu;
-vector<lower = 0>[P] sigma_ab;
 vector<lower = 0>[P] sigma_gt;
 vector<lower = 0>[P] sigma_pn;
 
@@ -182,8 +174,6 @@ mu_pi = mu_pi_raw * 2;
 mu_nu = mu_nu_raw * 2;
 
 sigma = sigma_raw * 10;
-sigma_ab[1] = sigma_ab_raw[1] * 10;
-sigma_ab[2] = sigma_ab_raw[2] * 1;
 sigma_gt[1] = sigma_gt_raw[1] * 40;
 sigma_gt[2] = sigma_gt_raw[2] * 1;
 sigma_pn[1] = sigma_pn_raw[1] * 1;
@@ -198,20 +188,15 @@ Rho_gt = L_Rho_gt * L_Rho_gt';
 pn = (diag_pre_multiply(sigma_pn, L_Rho_pn) * z_pn)';
 Rho_pn = L_Rho_pn * L_Rho_pn';
 
-ab = (diag_pre_multiply(sigma_ab, L_Rho_ab) * z_ab)';
-Rho_ab = L_Rho_ab * L_Rho_ab';
-
 for (i in 1:N)
 {
-  mu_alpha[i] = (mu_gamma + gt[sp[i], 1]) +
+  alpha[i] = (mu_gamma + gt[sp[i], 1]) +
   (mu_theta + gt[sp[i], 2]) * cell_lat[i];
   
-  mu_beta[i] = (mu_pi + pn[sp[i], 1]) +
+  beta[i] = (mu_pi + pn[sp[i], 1]) +
   (mu_nu + pn[sp[i], 2]) * cell_lat[i];
 }
 
-alpha = mu_alpha + ab[,1];
-beta = mu_beta + ab[,2];
 gamma = mu_gamma + gt[,1];
 theta = mu_theta + gt[,2];
 pi = mu_pi + pn[,1];
@@ -228,7 +213,6 @@ mu_y = mu_y_raw * sigma + mu;
 }
 
 model {
-sigma_ab_raw ~ std_normal();
 sigma_gt_raw ~ std_normal();
 sigma_pn_raw ~ std_normal();
 mu_gamma_raw ~ std_normal();
@@ -238,8 +222,6 @@ mu_nu_raw ~ std_normal();
 sigma_raw ~ std_normal();
 mu_y_raw ~ std_normal();
 
-to_vector(z_ab) ~ std_normal();
-L_Rho_ab ~ lkj_corr_cholesky(1);
 to_vector(z_gt) ~ std_normal();
 L_Rho_gt ~ lkj_corr_cholesky(1);
 to_vector(z_pn) ~ std_normal();
@@ -282,10 +264,8 @@ fit <- rstan::stan(model_code = stanmodel1,
                             'mu_theta',
                             'mu_pi',
                             'mu_nu',
-                            'sigma_ab',
                             'sigma_gt',
                             'sigma_pn',
-                            'Rho_ab',
                             'Rho_gt',
                             'Rho_pn',
                             'sigma',
