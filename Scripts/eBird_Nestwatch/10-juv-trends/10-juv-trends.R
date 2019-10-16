@@ -18,16 +18,16 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/labs/Tingley/phenomismatch/'
+dir <- '/labs/Tingley/phenomismatch/'
 
 
 
 # species -----------------------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
@@ -35,7 +35,7 @@ dir <- '~/Google_Drive/R/'
 #args <- as.character('Agelaius_phoeniceus')
 #args <- as.character('Turdus_migratorius')
 #args <- as.character('Setophaga_pinus')
-args <- as.character('Seiurus_aurocapilla')
+#args <- as.character('Seiurus_aurocapilla')
 
 
 
