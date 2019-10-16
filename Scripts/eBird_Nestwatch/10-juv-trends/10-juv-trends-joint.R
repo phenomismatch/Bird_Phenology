@@ -1,13 +1,14 @@
 ######################
 # ? - juv hitting nets ~ time
 #
-# juv_{i} \sim N(\mu_{i}, \sigma)
-# \mu_{i} = \alpha_{i} + \beta_{i} \times year
-# \begin{bmatrix} \alpha_{i} \\ \beta_{i} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\alpha_{i}} \\ \mu_{\beta_{i}} \end{bmatrix}, \Sigma_{\alpha\beta} \right)
-# \mu_{\alpha_{i}} = \gamma_{j} + \theta_{j} \times lat_{i}
-# \mu_{\beta_{i}} = \pi_{j} + \nu_{j} \times lat_{i}
-# \begin{bmatrix} \gamma_{j} \\ \theta_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\gamma} \\ \mu_{\theta} \end{bmatrix}, \Sigma_{\gamma\theta} \right)
-# \begin{bmatrix} \pi_{j} \\ \nu_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\pi} \\ \mu_{\nu} \end{bmatrix}, \Sigma_{\pi\nu} \right)
+# juv_{i} \sim N(\mu_{y_{i}}, \sigma_y) \newline
+# \mu_{y_{i}} \sim N(\mu_{i}, \sigma) \newline
+# \mu_{i} = \alpha_{i} + \beta_{i} \times year \newline
+# \begin{bmatrix} \alpha_{i} \\ \beta_{i} \end{bmatrix} \sim MVN \left(\begin{bmatrix}  \mu_{\alpha_{i}} \\ \mu_{\beta_{i}} \end{bmatrix}, \Sigma_{\alpha\beta} \right) \newline
+# \mu_{\alpha_{i}} = \gamma_{j} + \theta_{j} \times lat_{i} \newline
+# \mu_{\beta_{i}} = \pi_{j} + \nu_{j} \times lat_{i} \newline
+# \begin{bmatrix} \gamma_{j} \\ \theta_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\gamma} \\ \mu_{\theta} \end{bmatrix}, \Sigma_{\gamma\theta} \right) \newline
+# \begin{bmatrix} \pi_{j} \\ \nu_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\pi} \\ \mu_{\nu} \end{bmatrix}, \Sigma_{\pi\nu} \right) \newline
 #
 # see McElreath p. 393
 ######################
@@ -16,17 +17,17 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/labs/Tingley/phenomismatch/'
+#dir <- '/labs/Tingley/phenomismatch/'
 
 
 
 # model dir ------------------------------------------------------------
 
 #juveniles MAPS - date input data processed
-juv_date <- '2019-08-26'
+juv_date <- '2019-10-15'
 
 #IAR data
 arr_master_dir <- 'arrival_master_2019-05-26'
@@ -46,7 +47,7 @@ library(MCMCvis)
 
 #juveniles hitting nets - MAPS
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date))
 
 #read in 
 juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
@@ -54,7 +55,7 @@ juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 #only species/cells/years with data for juvs
 j1 <- dplyr::filter(juvs_master, !is.na(juv_mean))
 
-#only species that have at least 20 data points
+#only species that have at least 40 data points (cell/years)
 cnt_arr <- plyr::count(j1, 'species')
 sp_f <- filter(cnt_arr, freq >= 40)$species
 
@@ -260,10 +261,10 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.97
-TREE_DEPTH <- 17
+TREE_DEPTH <- 15
 STEP_SIZE <- 0.003
 CHAINS <- 4
-ITER <- 15000
+ITER <- 5000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel1,
@@ -298,7 +299,7 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
 saveRDS(fit, file = paste0('juv-time-bad-stan-output-', juv_date, '.rds'))
-#fit <- readRDS(paste0('arr-br-juv-stan-output-', juv_date, '.rds'))
+#fit <- readRDS('juv-time-bad-stan-output-2019-08-31.rds')
 
 num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
