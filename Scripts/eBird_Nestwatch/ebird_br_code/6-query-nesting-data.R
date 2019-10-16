@@ -536,35 +536,58 @@ for (i in 1:nsp)
     to.z.obs <- which(is.na(mrg4[,'num_C4_obs']))
     mrg4[to.z.obs, 'num_C4_obs'] <- 0
     
-    t_out <- data.frame(species = species_list_i[i,1], mrg2)
+    t_out <- data.frame(species = species_list_i[i,1], mrg4)
     output_df <- rbind(output_df, t_out)
   }
 }
 
 
-num_years <- aggregate(num_usable_cells ~ species, data = output_df, FUN = function(x) sum(x > 0))
+num_years <- aggregate(num_usable_cells ~ species, 
+                       data = output_df, FUN = function(x) sum(x > 0))
 colnames(num_years)[2] <- 'num_years'
 
-summary_output_df <- aggregate(num_usable_cells ~ species, data = output_df, FUN = sum)
+num_years_C3 <- aggregate(num_usable_cells_C3 ~ species, 
+                       data = output_df, FUN = function(x) sum(x > 0))
+colnames(num_years_C3)[2] <- 'num_years_C3'
+
+num_years_C4 <- aggregate(num_usable_cells_C4 ~ species, 
+                       data = output_df, FUN = function(x) sum(x > 0))
+colnames(num_years_C4)[2] <- 'num_years_C4'
+
+summary_output_df <- aggregate(num_usable_cells ~ species, 
+                               data = output_df, FUN = sum)
 colnames(summary_output_df)[2] <- 'num_cell_years'
 summary_output_df$num_years <- num_years[,'num_years']
+
+summary_output_df_C3 <- aggregate(num_usable_cells_C3 ~ species, 
+                                  data = output_df, FUN = sum)
+colnames(summary_output_df_C3)[2] <- 'num_cell_years_C3'
+summary_output_df_C3$num_years_C3 <- num_years_C3[,'num_years_C3']
+
+summary_output_df_C4 <- aggregate(num_usable_cells_C4 ~ species, 
+                                  data = output_df, FUN = sum)
+colnames(summary_output_df_C4)[2] <- 'num_cell_years_C4'
+summary_output_df_C4$num_years_C4 <- num_years_C4[,'num_years_C4']
+
+summary_output2 <- cbind(summary_output_df, 
+      summary_output_df_C3[,c('num_cell_years_C3', 'num_years_C3')], 
+      summary_output_df_C4[,c('num_cell_years_C4', 'num_years_C4')])
 
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 write.csv(output_df, paste0('br_code_data_avail-',
                             DATE_BC, '.csv'), row.names = FALSE)
-write.csv(summary_output_df, paste0('summary_br_code_data_avail-',
+write.csv(summary_output2, paste0('summary_br_code_data_avail-',
                                     DATE_BC, '.csv'), row.names = FALSE)
 
 #read in data
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
 summary_output_df <- read.csv('summary_br_code_data_avail.csv')
-sum(summary_output_df[,2] > 20)
+sum(summary_output2[,2] > 20)
 hist(summary_output_df[,2], col = 'grey',
      xlab = 'Number cell/years of data',
      main = 'eBird breeding code availability')
 
-output_df <- read.csv('br_code_data_avail.csv')
 
 
 
