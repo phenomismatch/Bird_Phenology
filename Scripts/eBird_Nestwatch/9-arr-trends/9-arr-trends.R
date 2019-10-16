@@ -320,13 +320,13 @@ ifelse(!dir.exists(trends_out_dir),
 #save to RDS
 setwd(trends_out_dir)
 
-saveRDS(fit, file = paste0(args, '-', run_date, '-pheno_trends_stan_output.rds'))
-saveRDS(DATA, file = paste0(args, '-', run_date, '-pheno_trends_stan_input.rds'))
+saveRDS(fit, file = paste0(args, '-', run_date, '-arr_trends_stan_output.rds'))
+saveRDS(DATA, file = paste0(args, '-', run_date, '-arr_trends_stan_input.rds'))
 
 
 # Calc diagnostics ---------------------------------------------------
 
-#fit <- readRDS('Ictinia_mississippiensis-2019-05-26-pheno_trends_stan_output.rds')
+#fit <- readRDS('Ictinia_mississippiensis-2019-05-26-arr_trends_stan_output.rds')
 # library(shinystan)
 # launch_shinystan(fit)
 
@@ -358,8 +358,8 @@ y_rep <- MCMCvis::MCMCchains(fit, params = 'y_rep')
 # write model results to file ---------------------------------------------
 
 options(max.print = 5e6)
-sink(paste0(args, '-', run_date, '-pheno_trends_results.txt'))
-cat(paste0('Pheno trends results ', args, ' \n'))
+sink(paste0(args, '-', run_date, '-arr_trends_results.txt'))
+cat(paste0('Arr trends results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Iterations: ', ITER, ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -501,7 +501,7 @@ p_beta <- ggplot() +
 
 
 ggsave(plot = p_beta,
-       filename = paste0(args, '-', run_date, '-pheno_trends_map.pdf'))
+       filename = paste0(args, '-', run_date, '-arr_trends_map.pdf'))
 
 
 
@@ -566,7 +566,7 @@ DATA_PLOT <- data.frame(y_true_mn, y_true_LCI, y_true_UCI,
                         y_obs_UCI = DATA$y_obs + DATA$y_sd,
                         lat = data_f2$cell_lat)
 
-pdf(paste0(args, '-', run_date, '-pheno_trends_fig.pdf'), 
+pdf(paste0(args, '-', run_date, '-arr_trends_fig.pdf'), 
     height = 11, width = 9, useDingbats = FALSE)
 ggplot(data = DATA_PLOT, aes(DATA$year, y_true_mn), color = 'black', alpha = 0.6) +
   # geom_ribbon(data = FIT_PLOT,

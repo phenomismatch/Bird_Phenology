@@ -17,10 +17,10 @@
 
 # top-level dir --------------------------------------------------------------
 
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/labs/Tingley/phenomismatch/'
+dir <- '/labs/Tingley/phenomismatch/'
 
 
 # species -----------------------------------------------------------------
@@ -33,7 +33,7 @@ dir <- '~/Google_Drive/R/'
 #args <- as.character('Agelaius_phoeniceus')
 #args <- as.character('Turdus_migratorius')
 #args <- as.character('Setophaga_ruticilla')
-args <- as.character('Seiurus_aurocapilla')
+#args <- as.character('Seiurus_aurocapilla')
 
 #args <- 'Empidonax_virescens'
 #args <- 'Hirundo_rustica'
@@ -75,7 +75,7 @@ j1 <- arr_master_f[which(!is.na(arr_master_f$mean_pre_IAR)),]
 #all cell years
 #j1 <- arr_master_f
 
-#cells with at least 5 years of data
+#cells with at least 3 years of data
 cnts <- plyr::count(j1, 'cell')
 u_cells <- cnts[which(cnts[,2] >= 3),1]
 
@@ -658,7 +658,6 @@ dev.off()
 
 # Trace plots with PPO ----------------------------------------------------
 
-
 #sigma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
@@ -668,24 +667,24 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_sigma.pdf'))
 
-#gamma ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#gamma ~ normal(120, 20)
+PR <- rnorm(10000, 120, 20)
 MCMCvis::MCMCtrace(fit,
                    params = 'gamma',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_gamma.pdf'))
 
-#theta ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#theta ~ normal(0, 3)
+PR <- rnorm(10000, 0, 3)
 MCMCvis::MCMCtrace(fit,
                    params = 'theta',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_theta.pdf'))
 
-#sigma_alpha ~ halfnormal(0, 30)
-PR_p <- rnorm(10000, 0, 30)
+#sigma_alpha ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_alpha',
@@ -693,24 +692,24 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_sigma_alpha.pdf'))
 
-#pi ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#pi ~ normal(0, 1)
+PR <- rnorm(10000, 0, 1)
 MCMCvis::MCMCtrace(fit,
                    params = 'pi',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_pi.pdf'))
 
-#nu ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#nu ~ normal(0, 2)
+PR <- rnorm(10000, 0, 2)
 MCMCvis::MCMCtrace(fit,
                    params = 'nu',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_nu.pdf'))
 
-#sigma_beta ~ halfnormal(0, 20)
-PR_p <- rnorm(10000, 0, 20)
+#sigma_beta ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta',
