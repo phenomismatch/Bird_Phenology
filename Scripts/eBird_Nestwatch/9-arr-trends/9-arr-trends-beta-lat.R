@@ -25,7 +25,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 # species -----------------------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')

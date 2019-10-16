@@ -447,58 +447,98 @@ proc.time() - tt
 # counts for breeding codes -----------------------------------------------
 
 #IAR input data (to get relevant cells)
-DATE_MA <- '2019-02-12'
+DATE_MA <- '2019-05-03'
 
-#setwd(paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', DATE_MA))
-setwd('~/Desktop/Bird_Phenology_Offline/Data/Processed/breeding_cat_query_2019-02-12/')
+setwd(paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', DATE_MA))
 df_master <- readRDS(paste0('IAR_input-', DATE_MA, '.rds'))
 
 nsp <- NROW(species_list_i)
 
-DATE_BC <- '2019-01-28'
+DATE_BC <- '2019-02-12'
 
 output_df <- data.frame()
 for (i in 1:nsp)
 {
-  #i <- 17
+  #i <- 2
   #read in ebird breeding code data
 
-  setwd(paste0(dir, 'Bird_phenology/Data/Processed/breeding_cat_query_', DATE_BC))
-  temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
-  temp_master <- dplyr::filter(df_master, species == species_list_i[i,1])
+  setwd(paste0('~/Desktop/Bird_Phenology_Offline/Data/Processed/breeding_cat_query_', DATE_BC))
+  
+  gind <- grep(species_list_i[i,1], list.files())
+  
+  if (length(gind) > 0)
+  {
+    temp_bc <- readRDS(paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
+    temp_master <- dplyr::filter(df_master, species == species_list_i[i,1])
 
-  #only cells that are in IAR input
-  kp_cells <- unique(temp_master$cell)
-  temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
+    #only cells that are in IAR input
+    kp_cells <- unique(temp_master$cell)
+    temp_bc_f <- dplyr::filter(temp_bc, cell %in% kp_cells)
 
-  #probable/confirmed
-  t_C34 <- dplyr::filter(temp_bc_f,
+    #probable/confirmed
+    t_C34 <- dplyr::filter(temp_bc_f,
                          bba_category == 'C3' |
                            bba_category == 'C4')
+    
+    t_C3 <- dplyr::filter(temp_bc_f,
+                           bba_category == 'C3')
+    
+    t_C4 <- dplyr::filter(temp_bc_f,
+                           bba_category == 'C4')
+    
 
-  #how many C3/C4 obs for a given year
-  tt <- plyr::count(t_C34, vars = c('year'))
-  #how many C3/C4 obs for a given year/cell
-  cy <- plyr::count(t_C34, vars = c('cell', 'year'))
-  #filter by > 20 obs in cell
-  gr20 <- dplyr::filter(cy, freq > 20)
-  #how cells in each year have # C3/C4 obs > 20
-  nc_gr20 <- plyr::count(gr20[,1:2], vars = c('year'))
-  colnames(nc_gr20)[2] <- 'num_usable_cells'
-  #merge with number of C3/C4 obs
-  mrg <- dplyr::left_join(tt, nc_gr20, by = 'year')
-  colnames(mrg)[2] <- 'num_br_obs'
-  #merge with years
-  nn <- data.frame(year = 2002:2017)
-  mrg2 <- dplyr::left_join(nn, mrg, by = 'year')
-  #insert zeros for NA vals
-  to.z.use <- which(is.na(mrg2[,'num_usable_cells']))
-  mrg2[to.z.use, 'num_usable_cells'] <- 0
-  to.z.obs <- which(is.na(mrg2[,'num_br_obs']))
-  mrg2[to.z.obs, 'num_br_obs'] <- 0
-
-  t_out <- data.frame(species = species_list_i[i,1], mrg2)
-  output_df <- rbind(output_df, t_out)
+    #how many C3/C4 obs for a given year
+    tt <- plyr::count(t_C34, vars = c('year'))
+    tt_C3 <- plyr::count(t_C3, vars = c('year'))
+    tt_C4 <- plyr::count(t_C4, vars = c('year'))
+    #how many C3/C4 obs for a given year/cell
+    cy <- plyr::count(t_C34, vars = c('cell', 'year'))
+    cy_C3 <- plyr::count(t_C3, vars = c('cell', 'year'))
+    cy_C4 <- plyr::count(t_C4, vars = c('cell', 'year'))
+    #filter by > 20 obs in cell
+    gr20 <- dplyr::filter(cy, freq > 20)
+    gr20_C3 <- dplyr::filter(cy_C3, freq > 20)
+    gr20_C4 <- dplyr::filter(cy_C4, freq > 20)
+    #how cells in each year have # C3/C4 obs > 20
+    nc_gr20 <- plyr::count(gr20[,1:2], vars = c('year'))
+    colnames(nc_gr20)[2] <- 'num_usable_cells'
+    nc_gr20_C3 <- plyr::count(gr20_C3[,1:2], vars = c('year'))
+    colnames(nc_gr20_C3)[2] <- 'num_usable_cells_C3'
+    nc_gr20_C4 <- plyr::count(gr20_C4[,1:2], vars = c('year'))
+    colnames(nc_gr20_C4)[2] <- 'num_usable_cells_C4'
+    
+    #merge with number of C3/C4 obs
+    mrg <- dplyr::left_join(tt, nc_gr20, by = 'year')
+    colnames(mrg)[2] <- 'num_br_obs'
+    mrg_C3 <- dplyr::left_join(tt_C3, nc_gr20_C3, by = 'year')
+    colnames(mrg_C3)[2] <- 'num_C3_obs'
+    mrg_C4 <- dplyr::left_join(tt_C4, nc_gr20_C4, by = 'year')
+    colnames(mrg_C4)[2] <- 'num_C4_obs'
+    #merge with years
+    nn <- data.frame(year = 2002:2017)
+    mrg2 <- dplyr::left_join(nn, mrg, by = 'year')
+    mrg3 <- dplyr::left_join(mrg2, mrg_C3, by = 'year')
+    mrg4 <- dplyr::left_join(mrg3, mrg_C4, by = 'year')
+    
+    #insert zeros for NA vals
+    to.z.use <- which(is.na(mrg4[,'num_usable_cells']))
+    mrg4[to.z.use, 'num_usable_cells'] <- 0
+    to.z.obs <- which(is.na(mrg4[,'num_br_obs']))
+    mrg4[to.z.obs, 'num_br_obs'] <- 0
+  
+    to.z.use <- which(is.na(mrg4[,'num_usable_cells_C3']))
+    mrg4[to.z.use, 'num_usable_cells_C3'] <- 0
+    to.z.obs <- which(is.na(mrg4[,'num_C3_obs']))
+    mrg4[to.z.obs, 'num_C3_obs'] <- 0
+    
+    to.z.use <- which(is.na(mrg4[,'num_usable_cells_C4']))
+    mrg4[to.z.use, 'num_usable_cells_C4'] <- 0
+    to.z.obs <- which(is.na(mrg4[,'num_C4_obs']))
+    mrg4[to.z.obs, 'num_C4_obs'] <- 0
+    
+    t_out <- data.frame(species = species_list_i[i,1], mrg2)
+    output_df <- rbind(output_df, t_out)
+  }
 }
 
 

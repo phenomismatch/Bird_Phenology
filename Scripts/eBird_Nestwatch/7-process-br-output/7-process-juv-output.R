@@ -205,7 +205,7 @@ to.NA <- which(diagnostics_frame$num_diverge > 3 |
                  diagnostics_frame$num_BFMI > 0 |
                  diagnostics_frame$juv_sd > 10)
 
-# #11% of cells are bad
+# #27% of cells are bad
 # length(to.NA)/sum(!is.na(diagnostics_frame$juv_mean))
 # diagnostics_frame[to.NA,c('species', 'cell', 'year',
 #                            'juv_mean', 'juv_sd', 'min_neff', 'num_diverge')]
