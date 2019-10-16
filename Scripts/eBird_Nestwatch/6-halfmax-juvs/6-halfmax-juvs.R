@@ -22,11 +22,8 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 # other dir ------------------------------------------------------------
 
-#IAR data
-arr_master_dir <- 'arrival_master_2019-05-26'
-
 #run date
-RUN_DATE <- '2019-08-28'
+RUN_DATE <- '2019-10-15'
 
 
 
@@ -322,6 +319,7 @@ for (j in 1:nyrs)
     # halfmax_df$n1W[counter] <- n1W
     halfmax_df$n0[counter] <- n0
     halfmax_df$n0i[counter] <- n0i
+    halfmax_df$njd[counter] <- njd
     halfmax_df$njd1[counter] <- njd1
     halfmax_df$njd0[counter] <- njd0
     halfmax_df$njd0i[counter] <- njd0i

@@ -43,7 +43,7 @@ args <- as.character('Seiurus_aurocapilla')
 # model dir ------------------------------------------------------------
 
 #juveniles MAPS - date input data processed
-juv_date <- '2019-08-26'
+juv_date <- '2019-10-15'
 run_date <- '2019-10-15'
 
 #dirs
@@ -73,7 +73,7 @@ juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 #only species/cells/years with data for juvs
 j1 <- dplyr::filter(juvs_master, !is.na(juv_mean), species == args)
 
-#cells with at least 5 years of data
+#cells with at least 3 years of data
 cnts <- plyr::count(j1, 'cell')
 u_cells <- cnts[which(cnts[,2] >= 3),1]
 j2 <- dplyr::filter(j1, cell %in% u_cells)
@@ -88,7 +88,7 @@ j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
                                         in_seqnum = j2$cell)$lon_deg
 
 #filter by study region
-j3 <- dplyr::filter(j2, cell_lng > -95)
+j3 <- dplyr::filter(j2, cell_lng > -95, cell_lat > 24)
 
 #only species that have at least 10 data points
 if (NROW(j3) < 10)
@@ -652,24 +652,6 @@ dev.off()
 
 # Trace plots with PPO ----------------------------------------------------
 
-
-# sigma = sigma_raw * 5;
-# 
-# // implies gamma ~ N(0, 10)
-# gamma = gamma_raw * 10;
-# theta = theta_raw * 10;
-# mu_alpha = gamma + theta * lat;
-# sigma_alpha = sigma_alpha_raw * 20;
-# alpha = alpha_raw * sigma_alpha + mu_alpha;
-# 
-# // implies gamma ~ N(0, 10)
-# pi = pi_raw * 10;
-# nu = nu_raw * 10;
-# mu_beta = pi + nu * lat;
-# sigma_beta = sigma_beta_raw * 20;
-# beta = beta_raw * sigma_beta + mu_beta;
-
-
 #sigma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
@@ -679,24 +661,24 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_sigma.pdf'))
 
-#gamma ~ normal(0, 50)
-PR <- rnorm(10000, 0, 50)
+#gamma ~ normal(200, 20)
+PR <- rnorm(10000, 200, 20)
 MCMCvis::MCMCtrace(fit,
                    params = 'gamma',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_gamma.pdf'))
 
-#theta ~ normal(0, 30)
-PR <- rnorm(10000, 0, 30)
+#theta ~ normal(0, 3)
+PR <- rnorm(10000, 0, 3)
 MCMCvis::MCMCtrace(fit,
                    params = 'theta',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_theta.pdf'))
 
-#sigma_alpha ~ halfnormal(0, 100)
-PR_p <- rnorm(10000, 0, 100)
+#sigma_alpha ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_alpha',
@@ -704,24 +686,24 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_sigma_alpha.pdf'))
 
-#pi ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#pi ~ normal(0, 1)
+PR <- rnorm(10000, 0, 1)
 MCMCvis::MCMCtrace(fit,
                    params = 'pi',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_pi.pdf'))
 
-#nu ~ normal(0, 10)
-PR <- rnorm(10000, 0, 10)
+#nu ~ normal(0, 2)
+PR <- rnorm(10000, 0, 2)
 MCMCvis::MCMCtrace(fit,
                    params = 'nu',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-', run_date, '-trace_nu.pdf'))
 
-#sigma_beta ~ halfnormal(0, 20)
-PR_p <- rnorm(10000, 0, 20)
+#sigma_beta ~ halfnormal(0, 5)
+PR_p <- rnorm(10000, 0, 5)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta',
