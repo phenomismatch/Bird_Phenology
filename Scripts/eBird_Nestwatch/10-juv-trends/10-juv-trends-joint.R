@@ -1,14 +1,14 @@
 ######################
 # ? - juv hitting nets ~ time
+# all species jointly
 #
-# juv_{i} \sim N(\mu_{y_{i}}, \sigma_y) \newline
-# \mu_{y_{i}} \sim N(\mu_{i}, \sigma) \newline
-# \mu_{i} = \alpha_{i} + \beta_{i} \times year \newline
-# \begin{bmatrix} \alpha_{i} \\ \beta_{i} \end{bmatrix} \sim MVN \left(\begin{bmatrix}  \mu_{\alpha_{i}} \\ \mu_{\beta_{i}} \end{bmatrix}, \Sigma_{\alpha\beta} \right) \newline
-# \mu_{\alpha_{i}} = \gamma_{j} + \theta_{j} \times lat_{i} \newline
-# \mu_{\beta_{i}} = \pi_{j} + \nu_{j} \times lat_{i} \newline
-# \begin{bmatrix} \gamma_{j} \\ \theta_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\gamma} \\ \mu_{\theta} \end{bmatrix}, \Sigma_{\gamma\theta} \right) \newline
-# \begin{bmatrix} \pi_{j} \\ \nu_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\pi} \\ \mu_{\nu} \end{bmatrix}, \Sigma_{\pi\nu} \right) \newline
+# y_{i} ~ N(mu_{i}, sigma)
+# mu_{i} = alpha_{j} + beta_{j} * year_{i}
+# [alpha_{j}, beta_{j}] ~ MVN(mu_alpha_{j}, mu_beta_{j}, Sigma_ab)
+# mu_alpha_{j} = gamma_{k} + theta_{k} * lat_{j}
+# mu_beta_{j} = pi_{k} + nu_{k} * lat_{j}
+# [gamma_k, theta_k] ~ MVN(mu_gamma, mu_theta, Sigma_gt)
+# [pi_k, nu_k] ~ MVN(mu_pi, mu_nu, Sigma_pn)
 #
 # see McElreath p. 393
 ######################
@@ -28,9 +28,6 @@ dir <- '~/Google_Drive/R/'
 
 #juveniles MAPS - date input data processed
 juv_date <- '2019-10-15'
-
-#IAR data
-arr_master_dir <- 'arrival_master_2019-05-26'
 
 
 
@@ -57,10 +54,11 @@ j1 <- dplyr::filter(juvs_master, !is.na(juv_mean))
 
 #only species that have at least 40 data points (cell/years)
 cnt_arr <- plyr::count(j1, 'species')
-sp_f <- filter(cnt_arr, freq >= 40)$species
+sp_f <- filter(cnt_arr, freq >= 20)$species
 
 j2 <- dplyr::filter(j1, species %in% sp_f)
-sp_idx <- as.numeric(factor(j2$species))
+j2$sp_idx <- as.numeric(factor(j2$species))
+usp <- unique(j2$sp_idx)
 
 
 #add cell lat to df
@@ -69,6 +67,37 @@ j2$cell_lat <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
                                         in_seqnum = j2$cell)$lat_deg
 j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
                                         in_seqnum = j2$cell)$lon_deg
+
+#add cell id
+j2$cn_id <- NA
+cn_id <- c()
+counter <- 0
+for (i in 1:length(usp))
+{
+  #i <- 1
+  t_idx <- which(j2$sp_id == usp[i])
+  temp <- j2[t_idx,]
+  tj <- as.numeric(factor(temp$cell))
+  j2$cn_id[t_idx] <- counter + tj
+  
+  counter <- counter + max(tj)
+}
+
+#species index and cell_lat
+u_cn_id <- sort(unique(j2$cn_id))
+sp_id <- c()
+cell_lat <- c()
+for (i in 1:length(u_cn_id))
+{
+  #i <- 1
+  s_idx <- which(j2$cn_id == u_cn_id[i])
+  sn <- j2[s_idx,'sp_idx'][1]
+  sp_id <- c(sp_id, sn)
+  
+  cl <- j2[s_idx,'cell_lat'][1]
+  cell_lat <- c(cell_lat, cl)
+}
+
 
 
 # quick freq check --------------------------------------------------------
@@ -88,9 +117,9 @@ j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
 # sink('output.txt')
 # for (i in 1:length(sp_f))
 # {
-#   #i <- 1
+#   #i <- 3
 #   temp <- dplyr::filter(j2, species == sp_f[i])
-#   
+# 
 #   t_rng <- quantile(temp$cell_lat, probs = c(0.1, 0.90))
 #   tt_h <- dplyr::filter(temp,  cell_lat >= t_rng[2])
 #   tt_l <- dplyr::filter(temp,  cell_lat <= t_rng[1])
@@ -98,6 +127,8 @@ j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
 #   {
 #     f1 <- summary(lm(juv_mean ~ year, data = tt_h))
 #     f2 <- summary(lm(juv_mean ~ year, data = tt_l))
+#     plot(tt_h$year, tt_h$juv_mean)
+#     plot(tt_l$year, tt_l$juv_mean)
 #     print(sp_f[i])
 #     print(paste0('slope high lat: ', round(f1$coefficients[2,1], 2)))
 #     print(paste0('pval high lat: ', round(f1$coefficients[2,4], 2)))
@@ -111,25 +142,32 @@ j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(y = j2$juv_mean,
+DATA <- list(N = NROW(j2),
+             NC = length(u_cn_id),
+             Nsp = length(unique(sp_id)),
+             y = j2$juv_mean,
              sd_y = j2$juv_sd,
-             year = (j2$year - 1991),
-             cell_lat = j2$cell_lat,
-             N = NROW(j2),
-             sp = sp_idx,
-             Nsp = length(unique(sp_idx)),
+             sp_id = sp_id,
+             cn_id = j2$cn_id,
+             year = as.numeric(factor(j2$year)),
+             cell_lat = cell_lat,
              P = 2)
+
+#cn_id needs to be unique cells for each species
+#sp_id is species id for each cn_id
 
 stanmodel1 <- "
 data {
 int<lower=0> N;                      // number of data points
+int<lower=0> NC;                      // number of species/cells
+int<lower=0> Nsp;                     // number of species
 vector<lower=0>[N] y;                  // response
 vector<lower=0>[N] sd_y;               // uncertainty in response
+int<lower=0> sp_id[NC];                 // species ids
+int<lower=0> cn_id[N];                // species/cell ids
 vector<lower=0>[N] year;
-int<lower=0> sp[N];              
-int<lower=0> Nsp;
+vector<lower=0>[NC] cell_lat;
 int<lower=0> P;
-vector<lower=0>[N] cell_lat;
 }
 
 parameters {
@@ -139,10 +177,13 @@ real mu_gamma_raw;
 real mu_theta_raw;
 real mu_pi_raw;
 real mu_nu_raw;
+vector<lower = 0>[P] sigma_ab_raw;
 vector<lower = 0>[P] sigma_gt_raw;
 vector<lower = 0>[P] sigma_pn_raw;
-cholesky_factor_corr[P] L_Rho_gt;                 // cholesky factor of corr matrix
+cholesky_factor_corr[P] L_Rho_ab;                 // cholesky factor of corr matrix
+cholesky_factor_corr[P] L_Rho_gt;
 cholesky_factor_corr[P] L_Rho_pn;
+matrix[P, NC] z_ab;
 matrix[P, Nsp] z_gt;
 matrix[P, Nsp] z_pn;
 }
@@ -151,29 +192,36 @@ transformed parameters {
 real<lower = 0> sigma;
 vector[N] mu_y;
 vector[N] mu;
+matrix[NC, P] ab;
 matrix[Nsp, P] gt;
 matrix[Nsp, P] pn;
-matrix[P, P] Rho_gt;    // covariance matrix
+matrix[P, P] Rho_ab;    // covariance matrix
+matrix[P, P] Rho_gt;
 matrix[P, P] Rho_pn;
+vector[NC] mu_alpha;
+vector[NC] mu_beta;
 real mu_gamma;
 real mu_theta;
 real mu_pi;
 real mu_nu;
-vector[N] alpha;
-vector[N] beta;
+vector[NC] alpha;
+vector[NC] beta;
 vector[Nsp] gamma;
 vector[Nsp] theta;
 vector[Nsp] pi;
 vector[Nsp] nu;
+vector<lower = 0>[P] sigma_ab;
 vector<lower = 0>[P] sigma_gt;
 vector<lower = 0>[P] sigma_pn;
 
-mu_gamma = mu_gamma_raw * 200;
+mu_gamma = mu_gamma_raw * 100;
 mu_theta = mu_theta_raw * 2;
 mu_pi = mu_pi_raw * 2;
 mu_nu = mu_nu_raw * 2;
 
 sigma = sigma_raw * 10;
+sigma_ab[1] = sigma_ab_raw[1] * 10;
+sigma_ab[2] = sigma_ab_raw[2] * 10;
 sigma_gt[1] = sigma_gt_raw[1] * 40;
 sigma_gt[2] = sigma_gt_raw[2] * 1;
 sigma_pn[1] = sigma_pn_raw[1] * 1;
@@ -182,29 +230,33 @@ sigma_pn[2] = sigma_pn_raw[2] * 1;
 // cholesky factor of covariance matrix (i.e., diagonal matrix of scale times cholesky factor of correlation matrix) multiplied by z score
 // cholesky factor transforms uncorrelated variables (z scores) into variables whose variances and covariances are given by Sigma (i.e., sigma[diag of scale] * Rho[corr matrix] * sigma) and are centered on 0
 // implies gt ~ MVN(0, Sigma)
+
+ab = (diag_pre_multiply(sigma_ab, L_Rho_ab) * z_ab)';
+Rho_ab = L_Rho_ab * L_Rho_ab';
+
 gt = (diag_pre_multiply(sigma_gt, L_Rho_gt) * z_gt)';
 Rho_gt = L_Rho_gt * L_Rho_gt';
 
 pn = (diag_pre_multiply(sigma_pn, L_Rho_pn) * z_pn)';
 Rho_pn = L_Rho_pn * L_Rho_pn';
 
-for (i in 1:N)
-{
-  alpha[i] = (mu_gamma + gt[sp[i], 1]) +
-  (mu_theta + gt[sp[i], 2]) * cell_lat[i];
-  
-  beta[i] = (mu_pi + pn[sp[i], 1]) +
-  (mu_nu + pn[sp[i], 2]) * cell_lat[i];
-}
-
 gamma = mu_gamma + gt[,1];
 theta = mu_theta + gt[,2];
 pi = mu_pi + pn[,1];
 nu = mu_nu + pn[,2];
 
+for (j in 1:NC)
+{
+  mu_alpha[j] = gamma[sp_id[j]] + theta[sp_id[j]] * cell_lat[j];
+  mu_beta[j] = pi[sp_id[j]] + nu[sp_id[j]] * cell_lat[j];
+}
+
+alpha = mu_alpha + ab[,1];
+beta = mu_beta + ab[,2];
+
 for (i in 1:N)
 {
-  mu[i] = alpha[i] + beta[i] * year[i];
+  mu[i] = alpha[cn_id[i]] + beta[cn_id[i]] * year[i];
 }
 
 // implies mu_y[i] ~ normal(mu[i], sigma)
@@ -213,6 +265,7 @@ mu_y = mu_y_raw * sigma + mu;
 }
 
 model {
+sigma_ab_raw ~ std_normal();
 sigma_gt_raw ~ std_normal();
 sigma_pn_raw ~ std_normal();
 mu_gamma_raw ~ std_normal();
@@ -222,6 +275,8 @@ mu_nu_raw ~ std_normal();
 sigma_raw ~ std_normal();
 mu_y_raw ~ std_normal();
 
+to_vector(z_ab) ~ std_normal();
+L_Rho_ab ~ lkj_corr_cholesky(1);
 to_vector(z_gt) ~ std_normal();
 L_Rho_gt ~ lkj_corr_cholesky(1);
 to_vector(z_pn) ~ std_normal();
@@ -254,18 +309,23 @@ fit <- rstan::stan(model_code = stanmodel1,
                    chains = CHAINS,
                    iter = ITER,
                    cores = CHAINS,
-                   pars = c('gamma',
+                   pars = c('alpha',
+                            'beta',
+                            'gamma',
                             'theta',
                             'pi',
                             'nu',
+                            'ab',
                             'gt',
                             'pn',
                             'mu_gamma',
                             'mu_theta',
                             'mu_pi',
                             'mu_nu',
+                            'sigma_ab',
                             'sigma_gt',
                             'sigma_pn',
+                            'Rho_ab',
                             'Rho_gt',
                             'Rho_pn',
                             'sigma',
@@ -305,7 +365,10 @@ accept_stat <- sapply(sampler_params,
 # Summaries ---------------------------------------------------------------
 
 #get summary of model output
-model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2, excl = 'y_rep')
+model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, 
+                                      n.eff = TRUE, 
+                                      round = 2, 
+                                      excl = 'mu_y')
 
 #extract Rhat and neff values
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
