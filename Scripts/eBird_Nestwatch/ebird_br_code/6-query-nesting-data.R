@@ -47,12 +47,6 @@ species_list_i <- read.table(paste0('IAR_species_list.txt'), stringsAsFactors = 
 species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
 
 
-#combine species names into a single string with quotes
-SL <- paste0("'", species_list_i2, "'", collapse = ", ")
-
-SL <- "'Vireo olivaceus'"
-
-
 
 # eBird breeding codes ----------------------------------------------------
 
@@ -140,7 +134,6 @@ setwd(query_dir_path)
 
 
 
-
 # Query and filter - event_id ----------------------------------------------------
 
 #filter all unique event_ids that meet criteria - about 38 min to complete query
@@ -162,7 +155,7 @@ data <- DBI::dbGetQuery(cxn, paste0("
                                     AND year > 2001
                                     AND day < 300
                                     AND lng BETWEEN -95 AND -50
-                                    AND lat > 26
+                                    AND lat > 24
                                     AND (event_json ->> 'DURATION_MINUTES')::int BETWEEN 6 AND 1440
                                     AND LEFT(started, 2)::int < 18
                                     AND RADIUS < 100000;
@@ -204,12 +197,12 @@ data2[species_list_i[,1]] <- NA
 nsp <- NROW(species_list_i)
 
 #run in parallel with 6 logical cores
-doParallel::registerDoParallel(cores = 4)
+doParallel::registerDoParallel(cores = 2)
 
 tt <- proc.time()
 foreach::foreach(i = 1:nsp) %dopar%
 {
-  #i <- 100
+  #i <- 1
   print(i)
   
   pg <- DBI::dbDriver("PostgreSQL")
@@ -246,65 +239,95 @@ foreach::foreach(i = 1:nsp) %dopar%
   #data without dups (neither dup)
   temp2 <- temp[which(temp[,'event_id'] %ni% ev2),]
   
+  
+  #take 'furthest along' observation from each survey
+  
+  #could use Nestwatch to get at more accurate species-specific numbers
+  #FL = Recently fledged young - F
+  #NY = Nest with young - Y
+  #FY = Feeding young - Y
+  #CS = Carrying fecal sac - Y
+  #CF = Carrying food - Y
+  #DD = Distraction display -Y
+  #NE = Nest with egg - E
+  #ON = Occupied nest - E
+  #PE = Brood patch - E
+  
+  FLEDGE <- c('FL')
+  YOUNG <- c('NY', 'FY', 'CS', 'CF', 'DD')
+  EGG <- c('NE', 'ON', 'PE')
+  
   #add dups in (only one) with corresponding br code
   if (length(ev2) > 0)
   {
     for (j in 1:length(ev2))
     {
-      #i <- 2
+      #j <- 5
       lt <- dplyr::filter(temp, event_id == ev2[j])
       
-      #if there is a C4, insert that
-      #if there is a C3, insert that
-      #if neither, insert NA
-      if (sum(lt$bba_category == 'C4', na.rm = TRUE) > 0)
+      #if there is a F, insert that
+      #if there is a Y, insert that
+      #if there is a E, insert that
+      #if none, insert NA
+      if (sum(lt$bba_code %in% FLEDGE, na.rm = TRUE) > 0)
       {
-        tsind <- min(which(lt$bba_category == 'C4'))
+        tsind <- min(which(lt$bba_code %in% FLEDGE))
         temp2 <- rbind(temp2, lt[tsind,])
       } else {
-        if (sum(lt$bba_category == 'C3', na.rm = TRUE) > 0)
+        if (sum(lt$bba_code %in% YOUNG, na.rm = TRUE) > 0)
         {
-          tsind <- min(which(lt$bba_category == 'C3'))
+          tsind <- min(which(lt$bba_code %in% YOUNG))
           temp2 <- rbind(temp2, lt[tsind,])
         } else {
-          tsind <- min(which(is.na(lt$bba_category)))
-          temp2 <- rbind(temp2, lt[tsind,])
+          if (sum(lt$bba_code %in% EGG, na.rm = TRUE) > 0)
+          {
+            tsind <- min(which(lt$bba_code %in% EGG))
+            temp2 <- rbind(temp2, lt[tsind,])
+          } else { 
+            tsind <- min(which(is.na(lt$bba_category)))
+            temp2 <- rbind(temp2, lt[tsind,])
+            
+          }
         }
       }
     }
   }
   
-  #NAs for C1 and C2 (not/possible breeding) as we're not interested in these metrics
-  temp2$bba_category[which(temp2$bba_category == 'C1' | temp2$bba_category == 'C2')] <- NA
+  #NAs for codes we're not interested in
+  NONE <- c('NB', 'CN', 'T', 'C', 'N', 'A', 'P', 'S', 'H', 'F', NA)
+  temp2$bba_code[which(temp2$bba_code %in% NONE)] <- NA
   
-  #just c3/4
-  c3_uid <- temp2$event_id[which(temp2$bba_category == 'C3')]
-  c4_uid <- temp2$event_id[which(temp2$bba_category == 'C4')]
-  z_uid <- temp2$event_id[which(is.na(temp2$bba_category))]
+  FLEDGE_uid <- temp2$event_id[which(temp2$bba_code %in% FLEDGE)]
+  YOUNG_uid <- temp2$event_id[which(temp2$bba_code %in% YOUNG)]
+  EGG_uid <- temp2$event_id[which(temp2$bba_code %in% EGG)]
+  NONE_uid <- temp2$event_id[which(is.na(temp2$bba_code))]
+  
   #check combined length matches number of rows
-  #length(c(c3_uid, c4_uid, z_uid)) == NROW(temp2)
+  #length(c(FLEDGE_uid, YOUNG_uid, EGG_uid, NONE_uid)) == NROW(temp2)
   
   #indices for data2 where the event ids match
-  c3_ind <- which(data2$event_id %in% c3_uid)
-  c4_ind <- which(data2$event_id %in% c4_uid)
-  z_ind <- which(data2$event_id %in% z_uid)
+  FLEDGE_ind <- which(data2$event_id %in% FLEDGE_uid)
+  YOUNG_ind <- which(data2$event_id %in% YOUNG_uid)
+  EGG_ind <- which(data2$event_id %in% EGG_uid)
+  NONE_ind <- which(data2$event_id %in% NONE_uid)
   
   #0 if not observed in that survey at all (independent of breeding code)
-  #NA if observed but no breeding code recorded
-  #letter code if observed and breeding code recorded
-  
-  data2[c3_ind, species_list_i[i,1]] <- 'C3'
-  data2[c4_ind, species_list_i[i,1]] <- 'C4'
-  data2[z_ind, species_list_i[i,1]] <- 0
+  #NA if observed but no applicable breeding code recorded
+  #all entries zero to start
+  data2[, species_list_i[i,1]] <- 0
+  data2[FLEDGE_ind, species_list_i[i,1]] <- 'F'
+  data2[YOUNG_ind, species_list_i[i,1]] <- 'Y'
+  data2[EGG_ind, species_list_i[i,1]] <- 'E'
+  data2[NONE_ind, species_list_i[i,1]] <- NA
   
   sdata <- dplyr::select(data2, 
                          event_id, year, jday,
                          shr, cell, species_list_i[i,1])
   
-  names(sdata)[6] <- "bba_category"
+  names(sdata)[6] <- "breeding_code"
   sdata['species'] <- species_list_i[i,1]
   
-  saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', species_list_i[i,1], '.rds'))
+  saveRDS(sdata, file = paste0('ebird_NA_breeding_code_', species_list_i[i,1], '.rds'))
   
   DBI::dbDisconnect(cxn)
 }
@@ -354,7 +377,7 @@ if (length(m_sp2) > 0)
                                         AND year > 2001
                                         AND day < 300
                                         AND lng BETWEEN -95 AND -50
-                                        AND lat > 26
+                                        AND lat > 24
                                         AND (sci_name IN ('", m_sp2[i],"'));
                                         "))
     
@@ -366,66 +389,97 @@ if (length(m_sp2) > 0)
     #data without dups (neither dup)
     temp2 <- temp[which(temp[,'event_id'] %ni% ev2),]
     
+    
+    #take 'furthest along' observation from each survey
+    
+    #could use Nestwatch to get at more accurate species-specific numbers
+    #FL = Recently fledged young - F
+    #NY = Nest with young - Y
+    #FY = Feeding young - Y
+    #CS = Carrying fecal sac - Y
+    #CF = Carrying food - Y
+    #DD = Distraction display -Y
+    #NE = Nest with egg - E
+    #ON = Occupied nest - E
+    #PE = Brood patch - E
+    
+    FLEDGE <- c('FL')
+    YOUNG <- c('NY', 'FY', 'CS', 'CF', 'DD')
+    EGG <- c('NE', 'ON', 'PE')
+    
+    #add dups in (only one) with corresponding br code
     if (length(ev2) > 0)
     {
-      #add dups in (only one) with corresponding br code
       for (j in 1:length(ev2))
       {
-        #i <- 2
+        #j <- 5
         lt <- dplyr::filter(temp, event_id == ev2[j])
         
-        #if there is a C4, insert that
-        #if there is a C3, insert that
-        #if neither, insert NA
-        if (sum(lt$bba_category == 'C4', na.rm = TRUE) > 0)
+        #if there is a F, insert that
+        #if there is a Y, insert that
+        #if there is a E, insert that
+        #if none, insert NA
+        if (sum(lt$bba_code %in% FLEDGE, na.rm = TRUE) > 0)
         {
-          tsind <- min(which(lt$bba_category == 'C4'))
+          tsind <- min(which(lt$bba_code %in% FLEDGE))
           temp2 <- rbind(temp2, lt[tsind,])
         } else {
-          if (sum(lt$bba_category == 'C3', na.rm = TRUE) > 0)
+          if (sum(lt$bba_code %in% YOUNG, na.rm = TRUE) > 0)
           {
-            tsind <- min(which(lt$bba_category == 'C3'))
+            tsind <- min(which(lt$bba_code %in% YOUNG))
             temp2 <- rbind(temp2, lt[tsind,])
           } else {
-            tsind <- min(which(is.na(lt$bba_category)))
-            temp2 <- rbind(temp2, lt[tsind,])
+            if (sum(lt$bba_code %in% EGG, na.rm = TRUE) > 0)
+            {
+              tsind <- min(which(lt$bba_code %in% EGG))
+              temp2 <- rbind(temp2, lt[tsind,])
+            } else { 
+              tsind <- min(which(is.na(lt$bba_category)))
+              temp2 <- rbind(temp2, lt[tsind,])
+              
+            }
           }
         }
       }
     }
     
-    #NAs for C1 and C2 (not/possible breeding) as we're not interested in these metrics
-    temp2$bba_category[which(temp2$bba_category == 'C1' | temp2$bba_category == 'C2')] <- NA
+    #NAs for codes we're not interested in
+    NONE <- c('NB', 'CN', 'T', 'C', 'N', 'A', 'P', 'S', 'H', 'F', NA)
+    temp2$bba_code[which(temp2$bba_code %in% NONE)] <- NA
     
-    #just c3/4
-    c3_uid <- temp2$event_id[which(temp2$bba_category == 'C3')]
-    c4_uid <- temp2$event_id[which(temp2$bba_category == 'C4')]
-    z_uid <- temp2$event_id[which(is.na(temp2$bba_category))]
+    FLEDGE_uid <- temp2$event_id[which(temp2$bba_code %in% FLEDGE)]
+    YOUNG_uid <- temp2$event_id[which(temp2$bba_code %in% YOUNG)]
+    EGG_uid <- temp2$event_id[which(temp2$bba_code %in% EGG)]
+    NONE_uid <- temp2$event_id[which(is.na(temp2$bba_code))]
+    
     #check combined length matches number of rows
-    #length(c(c3_uid, c4_uid, z_uid)) == NROW(temp2)
+    #length(c(FLEDGE_uid, YOUNG_uid, EGG_uid, NONE_uid)) == NROW(temp2)
     
     #indices for data2 where the event ids match
-    c3_ind <- which(data2$event_id %in% c3_uid)
-    c4_ind <- which(data2$event_id %in% c4_uid)
-    z_ind <- which(data2$event_id %in% z_uid)
+    FLEDGE_ind <- which(data2$event_id %in% FLEDGE_uid)
+    YOUNG_ind <- which(data2$event_id %in% YOUNG_uid)
+    EGG_ind <- which(data2$event_id %in% EGG_uid)
+    NONE_ind <- which(data2$event_id %in% NONE_uid)
     
     #0 if not observed in that survey at all (independent of breeding code)
-    #NA if observed but no breeding code recorded
-    #letter code if observed and breeding code recorded
-    
-    data2[c3_ind, m_sp[i]] <- 'C3'
-    data2[c4_ind, m_sp[i]] <- 'C4'
-    data2[z_ind, m_sp[i]] <- 0
+    #NA if observed but no applicable breeding code recorded
+    #all entries zero to start
+    data2[, m_sp[i]] <- 0
+    data2[FLEDGE_ind, m_sp[i]] <- 'F'
+    data2[YOUNG_ind, m_sp[i]] <- 'Y'
+    data2[EGG_ind, m_sp[i]] <- 'E'
+    data2[NONE_ind, m_sp[i]] <- NA
     
     sdata <- dplyr::select(data2, 
                            event_id, year, jday,
                            shr, cell, m_sp[i])
     
-    
-    names(sdata)[6] <- "bba_category"
+    names(sdata)[6] <- "breeding_code"
     sdata['species'] <- m_sp[i]
     
-    saveRDS(sdata, file = paste0('ebird_NA_breeding_cat_', m_sp[i], '.rds'))
+    saveRDS(sdata, file = paste0('ebird_NA_breeding_code_', 
+                                 m_sp[i], '.rds'))
+    
     DBI::dbDisconnect(cxn)
   }
 }
@@ -433,7 +487,7 @@ if (length(m_sp2) > 0)
 
 # copy script to query folder for records ---------------------------------
 
-system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/6-query-nesting-data.R ', 
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/ebird_br_code/6-query-nesting-data.R ', 
               dir, 'Bird_Phenology/Data/', query_dir_path, 
               '/6-query-nesting-data-', Sys.Date(), '.R'))
 
