@@ -98,7 +98,7 @@ vector[N] mu_arr_raw;
 real mu_alpha_raw;
 real mu_beta_raw;
 vector<lower = 0>[2] sigma_sp_raw;
-cholesky_factor_corr[2] L_Rho;             // correlation matrix
+cholesky_factor_corr[2] L_Rho;             // cholesky factor of correlation matrix
 matrix[2, Nsp] z;                          // z-scores
 }
 
@@ -108,7 +108,7 @@ vector[N] mu_y;
 vector[N] mu_arr;
 vector[N] mu;
 matrix[Nsp, 2] ab;                              // matrix for alpha, beta
-matrix[2, 2] Rho;                                 // covariance matrix
+matrix[2, 2] Rho;                                 // corr matrix
 vector[Nsp] alpha;
 vector[Nsp] beta;
 vector<lower = 0>[2] sigma_sp;
