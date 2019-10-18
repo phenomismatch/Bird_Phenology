@@ -204,7 +204,7 @@ vector[N] mu;
 // matrix[NC, P] ab;
 // matrix[Nsp, P] gt;
 matrix[Nsp, P] pn;
-// matrix[P, P] Rho_ab;    // covariance matrix
+// matrix[P, P] Rho_ab;    // correlation matrix
 // matrix[P, P] Rho_gt;
 matrix[P, P] Rho_pn;
 vector[Nsp] mu_alpha;
@@ -245,7 +245,7 @@ sigma_alpha = sigma_alpha_raw * 30;
 sigma_beta = sigma_beta_raw * 30;
 
 // cholesky factor of covariance matrix (i.e., diagonal matrix of scale times cholesky factor of correlation matrix) multiplied by z score
-// cholesky factor transforms uncorrelated variables (z scores) into variables whose variances and covariances are given by Sigma (i.e., sigma[diag of scale] * Rho[corr matrix] * sigma) and are centered on 0
+// cholesky factor transforms uncorrelated variables (z scores) into variables whose variances and covariances are given by Sigma (i.e., sigma[diag of scale] * Rho[corr matrix] * sigma) and are centered on 0 (since corr_xy = cov_xy / (sigma_x * simga_y)) - remember to use matrix multiplication
 // implies gt ~ MVN(0, Sigma)
 
 // ab = (diag_pre_multiply(sigma_ab, L_Rho_ab) * z_ab)';

@@ -4,7 +4,7 @@
 #
 # y_{i} ~ N(mu_{i}, sigma)
 # mu_{i} = alpha_{j} + beta_{j} * year_{i}
-# [alpha_{j}, beta_{j}] ~ MVN(mu_alpha_{j}, mu_beta_{j}, Sigma_ab)
+# [alpha_{j}, beta_{j}] ~ MVN(mu_alpha_{j}, mu_beta_{j}, Sigma_ab_{k})
 # mu_alpha_{j} = gamma_{k} + theta_{k} * lat_{j}
 # mu_beta_{j} = pi_{k} + nu_{k} * lat_{j}
 # [gamma_k, theta_k] ~ MVN(mu_gamma, mu_theta, Sigma_gt)
@@ -28,7 +28,7 @@ dir <- '~/Google_Drive/R/'
 
 #juveniles MAPS - date input data processed
 juv_date <- '2019-10-15'
-
+run_date <- '2019-10-17'
 
 
 # Load packages -----------------------------------------------------------
@@ -52,14 +52,11 @@ juvs_master <- readRDS(paste0('juv-output-', juv_date, '.rds'))
 #only species/cells/years with data for juvs
 j1 <- dplyr::filter(juvs_master, !is.na(juv_mean))
 
-#only species that have at least 40 data points (cell/years)
-cnt_arr <- plyr::count(j1, 'species')
-sp_f <- filter(cnt_arr, freq >= 20)$species
-
-j2 <- dplyr::filter(j1, species %in% sp_f)
-j2$sp_idx <- as.numeric(factor(j2$species))
-usp <- unique(j2$sp_idx)
-
+#species/cells with at least 3 years
+cnt_arr <- plyr::count(j1, c('species', 'cell'))
+ff <- filter(cnt_arr, freq >= 3)
+fcr <- data.frame(species = ff[,'species'], cell = ff[,'cell'])
+j2 <- dplyr::inner_join(fcr, j1)
 
 #add cell lat to df
 hexgrid6 <- dggridR::dgconstruct(res = 6)
@@ -68,33 +65,43 @@ j2$cell_lat <- dggridR::dgSEQNUM_to_GEO(hexgrid6,
 j2$cell_lng <- dggridR::dgSEQNUM_to_GEO(hexgrid6, 
                                         in_seqnum = j2$cell)$lon_deg
 
+#more than 5 degrees lat difference between cells with data
+cnt_j2 <- aggregate(cell_lat ~ species, data = j2, FUN = function(x) max(x) - min(x))
+g_idx <- cnt_j2[,2] > 5
+sp_k <- cnt_j2[g_idx,1]
+
+j3 <- dplyr::filter(j2, species %in% sp_k)
+j3$sp_idx <- as.numeric(factor(j3$species))
+usp <- unique(j3$sp_idx)
+
+
 #add cell id
-j2$cn_id <- NA
+j3$cn_id <- NA
 cn_id <- c()
 counter <- 0
 for (i in 1:length(usp))
 {
   #i <- 1
-  t_idx <- which(j2$sp_id == usp[i])
-  temp <- j2[t_idx,]
+  t_idx <- which(j3$sp_id == usp[i])
+  temp <- j3[t_idx,]
   tj <- as.numeric(factor(temp$cell))
-  j2$cn_id[t_idx] <- counter + tj
+  j3$cn_id[t_idx] <- counter + tj
   
   counter <- counter + max(tj)
 }
 
 #species index and cell_lat
-u_cn_id <- sort(unique(j2$cn_id))
+u_cn_id <- sort(unique(j3$cn_id))
 sp_id <- c()
 cell_lat <- c()
 for (i in 1:length(u_cn_id))
 {
   #i <- 1
-  s_idx <- which(j2$cn_id == u_cn_id[i])
-  sn <- j2[s_idx,'sp_idx'][1]
+  s_idx <- which(j3$cn_id == u_cn_id[i])
+  sn <- j3[s_idx,'sp_idx'][1]
   sp_id <- c(sp_id, sn)
   
-  cl <- j2[s_idx,'cell_lat'][1]
+  cl <- j3[s_idx,'cell_lat'][1]
   cell_lat <- c(cell_lat, cl)
 }
 
@@ -142,19 +149,17 @@ for (i in 1:length(u_cn_id))
 
 # Stan model --------------------------------------------------------------
 
-DATA <- list(N = NROW(j2),
+DATA <- list(N = NROW(j3),
              NC = length(u_cn_id),
              Nsp = length(unique(sp_id)),
-             y = j2$juv_mean,
-             sd_y = j2$juv_sd,
+             y = j3$juv_mean,
+             sd_y = j3$juv_sd,
              sp_id = sp_id,
-             cn_id = j2$cn_id,
-             year = as.numeric(factor(j2$year)),
+             cn_id = j3$cn_id,
+             year = as.numeric(factor(j3$year)),
              cell_lat = cell_lat,
              P = 2)
 
-#cn_id needs to be unique cells for each species
-#sp_id is species id for each cn_id
 
 stanmodel1 <- "
 data {
@@ -329,17 +334,28 @@ fit <- rstan::stan(model_code = stanmodel1,
                             'Rho_gt',
                             'Rho_pn',
                             'sigma',
-                            'mu_y'),
-                            #'y_rep'), 
+                            'mu_y',
+                            'y_rep'), 
                    control = list(adapt_delta = DELTA,
                                   max_treedepth = TREE_DEPTH,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
-
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
-saveRDS(fit, file = paste0('juv-time-bad-stan-output-', juv_date, '.rds'))
+setwd('~/Desktop/')
+#setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
+saveRDS(fit, file = paste0('juv-joint-cell-stan-output-', run_date, '.rds'))
 #fit <- readRDS('juv-time-bad-stan-output-2019-08-31.rds')
+
+MCMCvis::MCMCsummary(fit, 
+                     params = c('gamma', 'theta', 'pi', 'nu'), 
+                     round = 3)
+MCMCvis::MCMCsummary(fit, 
+                     params = c('mu_gamma', 'mu_theta', 'mu_pi', 'mu_nu'), 
+                     round = 4)
+MCMCvis::MCMCplot(fit, params = 'gamma')
+MCMCvis::MCMCplot(fit, params = 'theta')
+MCMCvis::MCMCplot(fit, params = 'pi')
+MCMCvis::MCMCplot(fit, params = 'nu')
 
 num_diverge <- rstan::get_num_divergent(fit)
 num_tree <- rstan::get_num_max_treedepth(fit)
@@ -379,7 +395,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # write model results to file ---------------------------------------------
 
 options(max.print = 50000)
-sink(paste0('juv-time-stan-results-', juv_date, '.txt'))
+sink(paste0('juv-time-stan-results-', run_date, '.txt'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Iterations: ', ITER, ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -450,52 +466,99 @@ PPC_fun(max)
 # 
 # 
 # # PPO ---------------------------------------------------------------------
-# 
-# mu_alpha = mu_alpha_raw * 200;
-# mu_beta = mu_beta_raw * 2;
-# sigma = sigma_raw * 10;
-# mu_arr = mu_arr_raw * 40 + 180;
-# sigma_sp[1] = sigma_sp_raw[1] * 20;
-# sigma_sp[2] = sigma_sp_raw[2] * 1;
-# 
-# 
-# 
-#mu_alpha ~ N(0, 200)
-PR <- rnorm(10000, 0, 200)
+
+#mu_gamma ~ N(0, 100)
+PR <- rnorm(10000, 0, 100)
 MCMCvis::MCMCtrace(fit,
-                   params = 'mu_alpha',
+                   params = 'mu_gamma',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('juv-time-', juv_date, '-trace_mu_alpha.pdf'))
+                   filename = paste0('juv-time-', run_date, '-trace_mu_gamma.pdf'))
 
-#mu_beta ~ N(0, 2)
+#mu_theta ~ N(0, 2)
 PR <- rnorm(10000, 0, 2)
 MCMCvis::MCMCtrace(fit,
-                   params = 'mu_beta',
+                   params = 'mu_theta',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('juv-time-', juv_date, '-trace_mu_beta.pdf'))
+                   filename = paste0('juv-time-', run_date, '-trace_mu_theta.pdf'))
 
-#sigma_sp[1] ~ HN(0, 40)
+#mu_pi ~ N(0, 2)
+PR <- rnorm(10000, 0, 2)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_pi',
+                   priors = PR,
+                   pdf = TRUE,
+                   filename = paste0('juv-time-', run_date, '-trace_mu_pi.pdf'))
+
+#mu_nu ~ N(0, 2)
+PR <- rnorm(10000, 0, 2)
+MCMCvis::MCMCtrace(fit,
+                   params = 'mu_nu',
+                   priors = PR,
+                   pdf = TRUE,
+                   filename = paste0('juv-time-', run_date, '-trace_mu_nu.pdf'))
+
+#sigma_ab[1] ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_ab\\[1',
+                   ISB = 'FALSE',
+                   priors = PR,
+                   pdf = TRUE,
+                   filename = paste0('juv-time-', run_date, '-trace_sigma_ab[1].pdf'))
+
+#sigma_ab[2] ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_ab\\[2',
+                   ISB = 'FALSE',
+                   priors = PR,
+                   pdf = TRUE,
+                   filename = paste0('juv-time-', run_date, '-trace_sigma_ab[2].pdf'))
+
+
+#sigma_gt[1] ~ HN(0, 40)
 PR_p <- rnorm(10000, 0, 40)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_sp\\[1',
+                   params = 'sigma_gt\\[1',
                    ISB = 'FALSE',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('juv-time-', juv_date, '-trace_sigma_sp[1].pdf'))
+                   filename = paste0('juv-time-', run_date, '-trace_sigma_gt[1].pdf'))
 
-#sigma_sp[2] ~ HN(0, 1)
+#sigma_gt[2] ~ HN(0, 1)
 PR_p <- rnorm(10000, 0, 1)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_sp\\[2',
+                   params = 'sigma_gt\\[2',
                    ISB = 'FALSE',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('juv-time-', juv_date, '-trace_sigma_sp[2].pdf'))
+                   filename = paste0('juv-time-', run_date, '-trace_sigma_gt[2].pdf'))
 
+#sigma_pn[1] ~ HN(0, 40)
+PR_p <- rnorm(10000, 0, 40)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_pn\\[1',
+                   ISB = 'FALSE',
+                   priors = PR,
+                   pdf = TRUE,
+                   filename = paste0('juv-time-', run_date, '-trace_sigma_pn[1].pdf'))
+
+#sigma_pn[2] ~ HN(0, 1)
+PR_p <- rnorm(10000, 0, 1)
+PR <- PR_p[which(PR_p > 0)]
+MCMCvis::MCMCtrace(fit,
+                   params = 'sigma_pn\\[2',
+                   ISB = 'FALSE',
+                   priors = PR,
+                   pdf = TRUE,
+                   filename = paste0('juv-time-', run_date, '-trace_sigma_pn[2].pdf'))
 
 #sigma ~ HN(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -504,15 +567,8 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma',
                    priors = PR,
                    pdf = TRUE,
-                   filename = paste0('juv-time-', juv_date, '-trace_sigma.pdf'))
+                   filename = paste0('juv-time-', run_date, '-trace_sigma.pdf'))
 
-#mu_arr ~ N(180, 40)
-PR <- rnorm(10000, 180, 40)
-MCMCvis::MCMCtrace(fit,
-                   params = 'mu_arr',
-                   priors = PR,
-                   pdf = TRUE,
-                   filename = paste0('juv-time-', juv_date, '-trace_mu_juv.pdf'))
 
 
 

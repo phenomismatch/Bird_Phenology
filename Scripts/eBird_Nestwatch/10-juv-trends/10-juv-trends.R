@@ -36,7 +36,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Turdus_migratorius')
 #args <- as.character('Setophaga_pinus')
 #args <- as.character('Seiurus_aurocapilla')
-
+args <- as.character('Dumetella_carolinensis')
 
 
 

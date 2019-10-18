@@ -110,6 +110,7 @@ DATA <- list(y = j2$mean_post_IAR,
              NC = NROW(ot_cl),
              #lat = scale(ot_cl$cell_lat, scale = FALSE)[,1],
              lat = ot_cl$cell_lat,
+             P = 2,
              N = NROW(j2))
 
 
