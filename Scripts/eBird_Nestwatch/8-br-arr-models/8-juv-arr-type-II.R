@@ -5,11 +5,11 @@
 # 
 # x_{obs_{i}} \sim N(x_{true_{i}}, \sigma_{x_{i]})
 # 
-# y_{true_{i}} \sim N(\mu_{i}, \sigma)
+# \begin{bmatrix} y_{true_{i}} \\ x_{true_{i}} \end{bmatrix} \sim MVN \left(\begin{bmatrix} 0 \\ 0 \end{bmatrix}, \Sigma \right)
 # 
-# \mu_{i} = \alpha_{j} + \beta_{j} \times x_{true_{i}}
+# \beta = \frac{\sigma_{x} - \sigma_{y} + \sqrt{(\sigma_{x} - \sigma_{y})^{2} + 4 \sigma_{xy}}}{2 \sqrt{\sigma_{xy}}}
 # 
-# \begin{bmatrix} \alpha_{j} \\ \beta_{j} \end{bmatrix} \sim MVN \left(\begin{bmatrix} \mu_{\alpha} \\ \mu_{\beta} \end{bmatrix}, \Sigma_{\alpha\beta} \right)
+# \alpha = \overline{y_{obs}} - \beta * \overline{x_{obs}}
 ######################
 
 
@@ -79,7 +79,27 @@ DATA <- list(y = mrg_f2$juv_mean,
              sd_arr = mrg_f2$sd_post_IAR,
              N = NROW(mrg_f2),
              sp = sp_idx,
-             Nsp = length(unique(sp_idx)))
+             Nsp = length(unique(sp_idx)),
+             zero = rep(0, 2))#,
+             #aj = cbind(mrg_f2$juv_mean, mrg_f2$mean_post_IAR))
+
+
+# Latex for orthogonal slope (specific case of Deming regression where errors are known, I believe):
+# \beta = \frac{\sigma_{x} - \sigma_{y} + \sqrt{(\sigma_{x} - \sigma_{y})^{2} + 4 \sigma_{xy}}}{2 \sqrt{\sigma_{xy}}}
+# helpful: 
+# https://www.wikiwand.com/en/Deming_regression
+# https://davegiles.blogspot.com/2014/11/orthogonal-regression-first-steps.html
+# https://bayes.wustl.edu/etj/articles/leapz.pdf
+
+# less helpful:
+# https://stats.stackexchange.com/questions/6163/what-is-the-prediction-error-while-using-deming-regression-weighted-total-least
+# https://stats.stackexchange.com/questions/143378/bayesian-estimates-for-deming-regression-coinciding-with-least-squares-estimates
+
+# hierarchical prior on covariance matrix: 
+# https://discourse.mc-stan.org/t/covariance-matrix-with-more-hierarchy-levels/696
+# and
+# http://modernstatisticalworkflow.blogspot.com/2017/04/hierarchical-vector-autoregression.html
+
 
 stanmodel1 <- "
 data {
@@ -88,6 +108,7 @@ vector<lower=0>[N] y;                  // response
 vector<lower=0>[N] sd_y;               // uncertainty in response
 vector<lower=0>[N] arr;
 vector<lower=0>[N] sd_arr;
+vector[2] zero;                  // vector of 0s for multinormal
 int<lower=0> sp[N];              
 int<lower=0> Nsp;
 }
@@ -95,50 +116,40 @@ int<lower=0> Nsp;
 parameters {
 vector[N] mu_y;
 vector[N] mu_arr;
-vector<lower = 0>[2] sigma_aj_raw;
-cholesky_factor_corr[2] L_Rho;             // cholesky factor of corr matrix
-matrix[2, N] z;                            // z-scores
+vector<lower=0>[2] sigma_aj_raw;
+corr_matrix[2] Omega;                       // corr matrix
 }
 
 transformed parameters {
-// vector[N] mu_y;
-// vector[N] mu_arr;
-matrix[N, 2] aj;                                  // matrix for arr and juv
-matrix[2, 2] Rho;                                 // correlation matrix
-matrix[2, 2] Sigma;                               // covariance matrix
-real beta;
-vector<lower = 0>[2] sigma_aj;                    // sd for arr and juv
+vector[2] aj[N];                                  // matrix for arr and juv
+cov_matrix[2] Sigma;                              // covariance matrix
+real beta;                                        // orthogonal slope
+vector<lower=0>[2] sigma_aj;                      // sd for arr and juv
 
 // sd of arrival and juv respectively
-sigma_aj[1] = sigma_aj[1] * 40;
-sigma_aj[2] = sigma_aj[2] * 40;
+sigma_aj[1] = sigma_aj_raw[1] * 40;
+sigma_aj[2] = sigma_aj_raw[2] * 40;
 
-// calculate covariance matrix for arrival and juvenile dates
-// cholesky factor of covariance matrix (i.e., diagonal matrix of scale times cholesky factor of correlation matrix) multiplied by z score
-// cholesky factor transforms uncorrelated variables (z scores) into variables whose variances and covariances are given by Sigma (i.e., sigma[diag of scale] * Rho[corr matrix] * sigma) and are centered on 0 (since corr_xy = cov_xy / (sigma_x * simga_y)) - remember to use matrix multiplication
-// diag_pre_multiply = diag_matrix(v) * m (where v is vector and m is matrix)
+// fill aj matrix with arr and juv values - 2nd dim is 'vector' in mixed object
+for (i in 1:N)
+{
+  aj[i, 1] = mu_y[i];
+  aj[i, 2] = mu_arr[i];
+}
 
-aj = (diag_pre_multiply(sigma_aj, L_Rho) * z)';
+// derived covariance matrix - diag(sigma_aj) * Omega * diag(sigma_aj)
+Sigma = quad_form_diag(Omega, sigma_aj);
 
-// derived correlation matrix (cholesky factor times transpose of cholesky factor)
-Rho = L_Rho * L_Rho';
-
-// derived covariance matrix (cholesky factor of cov matrix times transpose of cholesky factor of cov matrix)
-Sigma = diag_pre_multiply(sigma_aj, L_Rho) * diag_pre_multiply(sigma_aj, L_Rho)'
 
 // Orthogonal regression slope from Dave Miller in Slack General Channel ~ Sep 3, 2019
-// \beta = \frac{\sigma_{x} - \sigma_{y} + \sqrt{(\sigma_{x} - \sigma_{y})^{2} + 4 \sigma_{xy}}}{2 \sqrt{\sigma_{xy}}}
+// see links about for derivation of intercept parameter
 // Sigma[2,1] is cov_xy
-beta = (sigma_aj[1] - sigma_aj[2] + sqrt((sigma_aj[1] - sigma_aj[2])^2 + 4 * Sigma[2,1])) / 2 * sqrt(Sigma[2,1])
+beta = (sigma_aj[1] - sigma_aj[2] + sqrt((sigma_aj[1] - sigma_aj[2])^2 + 4 * Sigma[2,1])) / 2 * sqrt(Sigma[2,1]);
 }
 
 model {
 sigma_aj_raw ~ std_normal();
-// mu_y_raw ~ std_normal();
-// mu_arr_raw ~ std_normal();
-
-to_vector(z) ~ std_normal();
-L_Rho ~ lkj_corr_cholesky(1);
+Omega ~ lkj_corr(2);
 
 // observation model for arr
 arr ~ normal(mu_arr, sd_arr);
@@ -146,23 +157,32 @@ arr ~ normal(mu_arr, sd_arr);
 // observation model for juveniles
 y ~ normal(mu_y, sd_y);
 
+// estimate covariance matrix
+aj ~ multi_normal(zero, Sigma);
+
 }
 
 generated quantities {
 real y_rep[N];
+real y_bar;
+real x_bar;
+real alpha;
 
 y_rep = normal_rng(mu_y, sd_y);
+y_bar = mean(y);
+x_bar = mean(arr);
+alpha = y_bar - beta * x_bar;
 }
 "
 
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.99
-TREE_DEPTH <- 16
-STEP_SIZE <- 0.0001
+DELTA <- 0.95
+TREE_DEPTH <- 13
+STEP_SIZE <- 0.001
 CHAINS <- 4
-ITER <- 4000
+ITER <- 1000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = stanmodel1,
@@ -172,12 +192,9 @@ fit <- rstan::stan(model_code = stanmodel1,
                    cores = CHAINS,
                    pars = c('alpha',
                             'beta',
-                            'ab',
-                            'mu_alpha',
-                            'mu_beta',
-                            'sigma_sp',
-                            'Rho',
-                            'sigma',
+                            'sigma_aj',
+                            'Omega',
+                            'Sigma',
                             'mu_arr',
                             'mu_y',
                             'y_rep'), 
@@ -187,9 +204,12 @@ fit <- rstan::stan(model_code = stanmodel1,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
+
+
+
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_arr_', juv_date))
 saveRDS(fit, file = paste0('juv-arr-stan-output-', juv_date, '.rds'))
-saveRDS(mrg_f2, file = paste0('mrg-data-juv-', juv_date, '.rds'))
+#saveRDS(mrg_f2, file = paste0('mrg-data-juv-', juv_date, '.rds'))
 #fit <- readRDS(paste0('juv-arr-stan-output-', juv_date, '.rds'))
 
 num_diverge <- rstan::get_num_divergent(fit)
