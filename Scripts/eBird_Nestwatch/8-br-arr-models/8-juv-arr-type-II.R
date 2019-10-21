@@ -46,13 +46,15 @@ library(MCMCvis)
 
 #juveniles hitting nets - MAPS
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', juv_master_dir))
+#setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', juv_master_dir))
+setwd(paste0('~/Google_Drive/', juv_master_dir))
 
 #read in 
 juvs_master <- readRDS(paste0(juv_master_dir, '.rds'))
 
 #master arrival data (from IAR output)
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
+#setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', arr_master_dir))
+setwd(paste0('~/Google_Drive/', arr_master_dir))
 
 arr_master <- readRDS(paste0(arr_master_dir, '.rds'))
 
@@ -79,9 +81,7 @@ DATA <- list(y = mrg_f2$juv_mean,
              sd_arr = mrg_f2$sd_post_IAR,
              N = NROW(mrg_f2),
              sp = sp_idx,
-             Nsp = length(unique(sp_idx)),
-             zero = rep(0, 2))#,
-             #aj = cbind(mrg_f2$juv_mean, mrg_f2$mean_post_IAR))
+             Nsp = length(unique(sp_idx)))
 
 
 # Latex for orthogonal slope (specific case of Deming regression where errors are known, I believe):
@@ -103,14 +103,13 @@ DATA <- list(y = mrg_f2$juv_mean,
 
 stanmodel1 <- "
 data {
-int<lower=0> N;                      // number of data points
+int<lower=0> N;                        // number of data points
 vector<lower=0>[N] y;                  // response
 vector<lower=0>[N] sd_y;               // uncertainty in response
 vector<lower=0>[N] arr;
 vector<lower=0>[N] sd_arr;
-vector[2] zero;                  // vector of 0s for multinormal
-int<lower=0> sp[N];              
-int<lower=0> Nsp;
+// int<lower=0> sp[N];              
+// int<lower=0> Nsp;
 }
 
 parameters {
@@ -118,6 +117,7 @@ vector[N] mu_y;
 vector[N] mu_arr;
 vector<lower=0>[2] sigma_aj_raw;
 corr_matrix[2] Omega;                       // corr matrix
+vector[2] gamma_raw;
 }
 
 transformed parameters {
@@ -125,10 +125,14 @@ vector[2] aj[N];                                  // matrix for arr and juv
 cov_matrix[2] Sigma;                              // covariance matrix
 real beta;                                        // orthogonal slope
 vector<lower=0>[2] sigma_aj;                      // sd for arr and juv
+vector[2] gamma;                                  // means for MVN
 
 // sd of arrival and juv respectively
-sigma_aj[1] = sigma_aj_raw[1] * 40;
-sigma_aj[2] = sigma_aj_raw[2] * 40;
+sigma_aj[1] = sigma_aj_raw[1] * 20;
+sigma_aj[2] = sigma_aj_raw[2] * 20;
+
+gamma[1] = gamma_raw[1] * 30 + 200;      // prior mean juv
+gamma[2] = gamma_raw[2] * 30 + 125;      // prior mean arr
 
 // fill aj matrix with arr and juv values - 2nd dim is 'vector' in mixed object
 for (i in 1:N)
@@ -150,6 +154,8 @@ beta = (sigma_aj[1] - sigma_aj[2] + sqrt((sigma_aj[1] - sigma_aj[2])^2 + 4 * Sig
 model {
 sigma_aj_raw ~ std_normal();
 Omega ~ lkj_corr(2);
+gamma_raw  ~ std_normal();
+
 
 // observation model for arr
 arr ~ normal(mu_arr, sd_arr);
@@ -158,7 +164,7 @@ arr ~ normal(mu_arr, sd_arr);
 y ~ normal(mu_y, sd_y);
 
 // estimate covariance matrix
-aj ~ multi_normal(zero, Sigma);
+aj ~ multi_normal(gamma, Sigma);
 
 }
 
@@ -181,7 +187,7 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.95
 TREE_DEPTH <- 13
 STEP_SIZE <- 0.001
-CHAINS <- 4
+CHAINS <- 3
 ITER <- 1000
 
 tt <- proc.time()
@@ -192,6 +198,8 @@ fit <- rstan::stan(model_code = stanmodel1,
                    cores = CHAINS,
                    pars = c('alpha',
                             'beta',
+                            'gamma',
+                            'aj',
                             'sigma_aj',
                             'Omega',
                             'Sigma',
@@ -203,6 +211,27 @@ fit <- rstan::stan(model_code = stanmodel1,
                                   stepsize = STEP_SIZE))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
+
+
+MCMCsummary(fit, params = c('alpha', 'beta', 'gamma'))
+
+aj <- MCMCvis::MCMCpstr(fit, params = 'aj')[[1]]
+
+mu_arr <- MCMCvis::MCMCpstr(fit, params = 'mu_arr')[[1]]
+mu_y <- MCMCvis::MCMCpstr(fit, params = 'mu_y')[[1]]
+
+
+
+alpha <- MCMCvis::MCMCpstr(fit, params = 'alpha')[[1]]
+beta <- MCMCvis::MCMCpstr(fit, params = 'beta')[[1]]
+tt <- cbind(DATA$y,DATA$arr)
+
+tt - aj
+
+
+plot(0,0, xlim = c(-1000, 1000), ylim = c(-1000, 1000))
+abline(a = alpha, b = beta)
+points(tt)
 
 
 
