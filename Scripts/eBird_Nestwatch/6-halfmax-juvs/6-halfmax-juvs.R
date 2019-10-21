@@ -69,7 +69,7 @@ CHAINS <- 4
 #read in - RDS create with 1-query-db.R in wing_chord_changes project
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
-data_p <- readRDS('MAPS-age-filled-', MAPS_date, '.rds')
+data_p <- readRDS(paste0('MAPS-age-filled-', MAPS_date, '.rds'))
 colnames(data_p)[grep('sci_name', colnames(data_p))] <- 'species'
 #add underscore to species naems
 data_p$species <- gsub(' ', '_', data_p$species)
