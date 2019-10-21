@@ -116,56 +116,58 @@ parameters {
 vector[N] mu_y;
 vector[N] mu_arr;
 vector<lower=0>[2] sigma_aj_raw;
-corr_matrix[2] Omega;                       // corr matrix
-vector[2] gamma_raw;
+cholesky_factor_corr[2] L_Rho;                       // corr matrix
+real gamma_raw;
+real theta_raw;
+matrix[2, N] z;
 }
 
 transformed parameters {
-vector[2] aj[N];                                  // matrix for arr and juv
+cholesky_factor_corr[2] L_Sigma;
 cov_matrix[2] Sigma;                              // covariance matrix
-real beta;                                        // orthogonal slope
+corr_matrix[2] Rho;
 vector<lower=0>[2] sigma_aj;                      // sd for arr and juv
-vector[2] gamma;                                  // means for MVN
+real gamma;
+real theta;
+matrix[N, 2] aj;
 
 // sd of arrival and juv respectively
 sigma_aj[1] = sigma_aj_raw[1] * 20;
 sigma_aj[2] = sigma_aj_raw[2] * 20;
 
-gamma[1] = gamma_raw[1] * 30 + 200;      // prior mean juv
-gamma[2] = gamma_raw[2] * 30 + 125;      // prior mean arr
+// cholesky factor of covariance matrix (i.e., diagonal matrix of scale times cholesky factor of correlation matrix) multiplied by z score
+L_Sigma = diag_pre_multiply(sigma_aj, L_Rho);
+aj = (L_Sigma * z)';
 
-// fill aj matrix with arr and juv values - 2nd dim is 'vector' in mixed object
-for (i in 1:N)
-{
-  aj[i, 1] = mu_y[i];
-  aj[i, 2] = mu_arr[i];
-}
+// derived covariance matrix - implies Sigma = L_Sigma * L_Sigma';
+Sigma = multiply_lower_tri_self_transpose(L_Sigma);
+Rho = multiply_lower_tri_self_transpose(L_Rho);
 
-// derived covariance matrix - diag(sigma_aj) * Omega * diag(sigma_aj)
-Sigma = quad_form_diag(Omega, sigma_aj);
+gamma = gamma_raw * 30 + 200;      // prior mean juv
+theta = theta_raw * 30 + 125;      // prior mean arr
 
 
-// Orthogonal regression slope from Dave Miller in Slack General Channel ~ Sep 3, 2019
-// see links about for derivation of intercept parameter
-// Sigma[2,1] is cov_xy
-beta = (sigma_aj[1] - sigma_aj[2] + sqrt((sigma_aj[1] - sigma_aj[2])^2 + 4 * Sigma[2,1])) / 2 * sqrt(Sigma[2,1]);
+mu_y2 = mu_y;
+mu_arr2 = mu_arr;
+
+mu_y2 = gamma + aj[,1];
+mu_arr2 = theta + aj[,2];
+
+
 }
 
 model {
 sigma_aj_raw ~ std_normal();
-Omega ~ lkj_corr(2);
-gamma_raw  ~ std_normal();
-
+gamma_raw ~ std_normal();
+theta_raw ~ std_normal();
+to_vector(z) ~ std_normal();
+L_Rho ~ lkj_corr_cholesky(1);
 
 // observation model for arr
 arr ~ normal(mu_arr, sd_arr);
 
 // observation model for juveniles
 y ~ normal(mu_y, sd_y);
-
-// estimate covariance matrix
-aj ~ multi_normal(gamma, Sigma);
-
 }
 
 generated quantities {
@@ -173,8 +175,16 @@ real y_rep[N];
 real y_bar;
 real x_bar;
 real alpha;
+real beta;
 
 y_rep = normal_rng(mu_y, sd_y);
+
+// Orthogonal regression slope from Dave Miller in Slack General Channel ~ Sep 3, 2019
+// see links about for derivation of intercept parameter
+// Sigma[2,1] is cov_xy
+
+beta = (sigma_aj[1] - sigma_aj[2] + sqrt((sigma_aj[1] - sigma_aj[2])^2 + 4 * Sigma[2,1])) / 2 * sqrt(Sigma[2,1]);
+
 y_bar = mean(y);
 x_bar = mean(arr);
 alpha = y_bar - beta * x_bar;
@@ -199,9 +209,10 @@ fit <- rstan::stan(model_code = stanmodel1,
                    pars = c('alpha',
                             'beta',
                             'gamma',
+                            'theta',
                             'aj',
                             'sigma_aj',
-                            'Omega',
+                            'Rho',
                             'Sigma',
                             'mu_arr',
                             'mu_y',
