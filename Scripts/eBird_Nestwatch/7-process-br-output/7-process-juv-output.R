@@ -18,12 +18,12 @@ dir <- '~/Google_Drive/R/'
 # db/juv query dir ------------------------------------------------------------
 
 #input dir
-juv_date <- '2019-10-15'
+juv_date <- '2019-10-21'
 juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', juv_date)
 
 
 #output dir
-br_arr_dir <- 'br_arr_2019-10-15'
+br_arr_dir <- 'br_arr_2019-10-21'
 juv_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date)
 
 

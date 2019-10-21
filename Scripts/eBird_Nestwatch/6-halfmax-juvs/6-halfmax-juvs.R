@@ -23,8 +23,10 @@ dir <- '/labs/Tingley/phenomismatch/'
 # other dir ------------------------------------------------------------
 
 #run date
-RUN_DATE <- '2019-10-15'
+RUN_DATE <- '2019-10-21'
 
+#MAPS query date
+MAPS_date <- '2019-10-18'
 
 
 # load packages -----------------------------------------------------------
@@ -67,7 +69,7 @@ CHAINS <- 4
 #read in - RDS create with 1-query-db.R in wing_chord_changes project
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
-data_p <- readRDS('MAPS-age-filled.rds')
+data_p <- readRDS('MAPS-age-filled-', MAPS_date, '.rds')
 colnames(data_p)[grep('sci_name', colnames(data_p))] <- 'species'
 #add underscore to species naems
 data_p$species <- gsub(' ', '_', data_p$species)
@@ -261,6 +263,7 @@ halfmax_df <- data.frame(species = args,
                          # n1W = NA,
                          n0 = NA,
                          n0i = NA,
+                         njd = NA,
                          njd1 = NA,
                          njd0 = NA,
                          njd0i = NA,
