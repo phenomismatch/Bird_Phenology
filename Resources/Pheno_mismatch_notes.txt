@@ -12,53 +12,6 @@ Calculating mismatch -> caterpillar curve (abundance/biomass on y, time on x) an
 *Run arr/br model one species - cell random effect - is the effect of lat driving relationship between arr and br? (arrival predicts actual dates but not anomalies)
 
 
-###
-9
-###
-*Model change in br over lat/time and interaction
-  -each species y ~ N(alpha_j + beta_j * year); beta_j = alpha2 + beta2 * lat
-*Model change in arr over lat/time and interaction
-  -run arrival model with all years of data, not just matching BS
-  -each species y ~ N(alpha_j + beta_j * year); beta_j = alpha2 + beta2 * lat
-  -could be fit jointly (i = cell, j = year, k = species:
-    y[i,j,k] ~ N(alpha[j,k] + beta[j,k] * year[i,j,k])
-    beta[j,k] = alpha2[k] + beta2[k] * lat[i,j,k]
-    for each k:
-      for each j:
-        alpha[j,k] ~ N(mu_alpha[k], sigma_alpha[k])
-      alpha2[k] ~ N(0, 10)
-      beta2[k] ~ N(0, 10)
-      mu_alpha[k] ~ N(mu_mu_alpha, sigma_mu_alpha)
-      sigma_alpha ~ HN(mu_sigma_alpha, sigma_sigma_alpha)
-    mu_mu_alpha ~ N(0, 10)
-    sigma_mu_alpha ~ HN(0, 10)
-    mu_sigma_alpha ~ N(0, 10)
-    sigma_sigma_alpha ~ HN(0, 10)
-
-*Check differences between y_true from br_arr and y_true from br_time
-*Could get derived qty for y_true and x_true from above models - then model change in diff (controlling for arrival)
-
-
-
-*Generate qty: difference between ARR and BR -> birds compress the wait period later in the season (evidenced by the slope - breeding advances at a slower rate than arrival within a given season); has this interval changed over time (can model this is a few data-rich species - year effect on slope parameter)?
-Diff_arr_br ~ alpha_j + beta1_j * year + beta2_j * arr #where j is species
-
-
-
-*Aggregate MAPS cells and test logit models for MAPS breeding
-*Run fat ~ lat/time
-
-####
-*lat differences in territory - leapfrogging migratory strategies
-*Pete Mara - Kriten Ruegg
-  -wood/sqainsons thrush
-####
-
-*For 7 - maybe run additional models with term that includes number of breeding obs recorded, just to make sure that number of people recording breeders has risen consistently with the number of eBird surveys - restrict 7 run by years? Missing IAR ARR could be informed by existing covariates at those positions
-
-
-
-
 Demographics
 ============
 *Spatially explicit integrated population model
