@@ -374,25 +374,25 @@ for (j in 1:nyr)
       num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
       #rerun model if things didn't go well
-      # while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
-      # {
-      #   DELTA <- DELTA + 0.01
-      #   TREE_DEPTH <- TREE_DEPTH + 1
-      #   
-      #   fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj) + shr,
-      #                              data = cyspdata,
-      #                              family = binomial(link = "logit"),
-      #                              algorithm = 'sampling',
-      #                              iter = ITER,
-      #                              chains = CHAINS,
-      #                              cores = CHAINS,
-      #                              adapt_delta = DELTA,
-      #                              control = list(max_treedepth = TREE_DEPTH))
-      #   
-      #   num_diverge <- rstan::get_num_divergent(fit2$stanfit)
-      #   num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
-      #   num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
-      # }
+      while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
+      {
+        DELTA <- DELTA + 0.01
+        TREE_DEPTH <- TREE_DEPTH + 1
+
+        fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj) + shr,
+                                   data = cyspdata,
+                                   family = binomial(link = "logit"),
+                                   algorithm = 'sampling',
+                                   iter = ITER,
+                                   chains = CHAINS,
+                                   cores = CHAINS,
+                                   adapt_delta = DELTA,
+                                   control = list(max_treedepth = TREE_DEPTH))
+
+        num_diverge <- rstan::get_num_divergent(fit2$stanfit)
+        num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
+        num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
+      }
       
       halfmax_df$num_diverge[counter] <- num_diverge
       halfmax_df$num_tree[counter] <- num_tree
