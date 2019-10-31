@@ -3,6 +3,8 @@
 #
 ######################  
 
+#29 days Lay -> Fledge (median from Nestwatch across all species)
+#16 days Lay -> Hatch (median from Nestwatch across all species)
 
 # top-level dir ---------------------------------------------------------------
 
@@ -15,9 +17,9 @@ dir <- '/labs/Tingley/phenomismatch/'
 # query dir ---------------------------------------------------------------
 
 #read in ebird breeding code data
-DATE_BC <- '2019-02-12'
+DATE_BC <- '2019-10-17'
 
-RUN_DATE <- '2019-03-06'
+RUN_DATE <- '2019-10-31'
 
 
 # model settings ----------------------------------------------------------
@@ -58,7 +60,7 @@ args <- commandArgs(trailingOnly = TRUE)
 # read in data ------------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', DATE_BC))
-spdata <- readRDS(paste0('ebird_NA_breeding_cat_', args, '.rds'))
+spdata <- readRDS(paste0('ebird_NA_breeding_code_', args, '.rds'))
 
 
 
@@ -102,7 +104,7 @@ if (length(g_ind) == 0)
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
 sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
 #crop to area of interest
-sp_rng2 <- raster::crop(sp_rng, extent(-95, -50, 24, 90))
+sp_rng2 <- raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
 
 #filter by breeding (2) range - need to convert spdf to sp
 nrng <- sp_rng2[which(sp_rng2$SEASONAL == 2),]
@@ -231,11 +233,24 @@ nyr <- length(years)
 
 # fit model ---------------------------------------------------------
 
-#Breeding categories - http://www.ctbirdatlas.org/Surveys-Breeding-codes.htm
-#C1 - bird observed, not breeding (though there are many surveys without a breeding category which I believe would fulfill C1)
-#C2 - breeding possible
-#C3 - breeding probable
-#C4 - breeding confirmed
+#Breeding codes
+#FL = Recently fledged young - F
+#NY = Nest with young - Y
+#FY = Feeding young - Y
+#CS = Carrying fecal sac - Y
+#CF = Carrying food - Y
+#DD = Distraction display -Y
+#NE = Nest with egg - E
+#ON = Occupied nest - E
+#PE = Brood patch - E
+
+#vvvvvvvvvvvvvvvvvvvvvv
+
+#0 - bird not observed
+#NA - bird observed but not recorded breeding
+#F - fledge stage code (subtract 29)
+#Y - young stage code (subtract 16)
+#E - egg stage code
 
 t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
 colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
@@ -253,6 +268,7 @@ halfmax_df <- data.frame(species = args,
                          n1W = NA,
                          n0 = NA,
                          n0i = NA,
+                         njd = NA,
                          njd1 = NA,
                          njd0 = NA,
                          njd0i = NA,
@@ -274,45 +290,50 @@ for (j in 1:nyr)
   
   for (k in 1:ncell)
   {
-    #k <- 32
+    #k <- 22
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
     
-    #new column with 'probable' or 'confirmed' breeding
-    cyspdata$br <- as.numeric(cyspdata$bba_category == 'C3' | cyspdata$bba_category == 'C4')
+    #new column with dates to egg lay date
+    cyspdata$br <- as.numeric(cyspdata$breeding_code == 'F' | 
+                                cyspdata$breeding_code == 'Y' |
+                                cyspdata$breeding_code == 'E')
     
     #remove instances where bird was not observed
     # to.rm <- which(cyspdata$br == 0)
     # cyspdata2 <- cyspdata[-to.rm,]
     
-    #sample only some breeding obs to look at feasibility of lower threshold (half original)
-    # breeds <- which(cyspdata$br == 1)
-    # stm <- sample(which(cyspdata$br == 1), 10)
-    # cyspdata2 <- cyspdata[-stm,]
-    
     #bird not seen - fill with zeros
     na.ind <- which(is.na(cyspdata$br))
     cyspdata$br[na.ind] <- 0
+    
+    #adjust date based on breeding code
+    cyspdata$jday_adj <- cyspdata$jday
+    F_idx <- which(cyspdata$breeding_code == 'F') #-29
+    Y_idx <- which(cyspdata$breeding_code == 'Y') #-16
+    cyspdata$jday_adj[F_idx] <- cyspdata$jday[F_idx] - 29
+    cyspdata$jday_adj[Y_idx] <- cyspdata$jday[Y_idx] - 16
     
     #number of surveys where breeding was detected (confirmed or probable)
     n1 <- sum(cyspdata$br)
     #number of surveys where breeding was not detected (bird not seen breeding or not seen)
     n0 <- sum(cyspdata$br == 0)
     #number of detections that came before jday 60
-    n1W <- sum(cyspdata$br * as.numeric(cyspdata$jday < 60))
+    n1W <- sum(cyspdata$br * as.numeric(cyspdata$jday_adj < 60))
     #number of unique days with detections
-    njd1 <- length(unique(cyspdata$jday[which(cyspdata$br == 1)]))
+    njd1 <- length(unique(cyspdata$jday_adj[which(cyspdata$br == 1)]))
     #number of unique days with non-detection
-    njd0 <- length(unique(cyspdata$jday[which(cyspdata$br == 0)]))
-    
+    njd0 <- length(unique(cyspdata$jday_adj[which(cyspdata$br == 0)]))
+    #number of total unique days
+    njd <- length(unique(cydata$day))
     
     if (n1 > 0)
     {
       #number of unique days of non-detections before first detection
-      njd0i <- length(unique(cyspdata$jday[which(cyspdata$br == 0 & cyspdata$jday < 
-                                                 min(cyspdata$jday[which(cyspdata$br == 1)]))]))
+      njd0i <- length(unique(cyspdata$jday_adj[which(cyspdata$br == 0 & cyspdata$jday_adj < 
+                                                 min(cyspdata$jday_adj[which(cyspdata$br == 1)]))]))
       #number of non-detections before first detection
       n0i <- length(which(cyspdata$br == 0 & 
-                            cyspdata$jday < min(cyspdata$jday[which(cyspdata$br == 1)])))
+                            cyspdata$jday_adj < min(cyspdata$jday_adj[which(cyspdata$br == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
@@ -322,6 +343,7 @@ for (j in 1:nyr)
     halfmax_df$n1W[counter] <- n1W
     halfmax_df$n0[counter] <- n0
     halfmax_df$n0i[counter] <- n0i
+    halfmax_df$njd[counter] <- njd
     halfmax_df$njd1[counter] <- njd1
     halfmax_df$njd0[counter] <- njd0
     halfmax_df$njd0i[counter] <- njd0i
@@ -333,13 +355,10 @@ for (j in 1:nyr)
     TREE_DEPTH <- 15
     
     
-    #different thresholds from arrival models
-    #if (n1 > 20 & n1W < (n1/50) & n0 > 29 & njd1 > 15 & njd0i > 29)
-    
     #same thresholds as arrival models
-    if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
+    if (n1 > 29 & n1W < (n1 / 50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     {
-      fit2 <- rstanarm::stan_gamm4(br ~ s(jday) + shr,
+      fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj) + shr,
                                  data = cyspdata,
                                  family = binomial(link = "logit"),
                                  algorithm = 'sampling',
@@ -360,7 +379,7 @@ for (j in 1:nyr)
       #   DELTA <- DELTA + 0.01
       #   TREE_DEPTH <- TREE_DEPTH + 1
       #   
-      #   fit2 <- rstanarm::stan_gamm4(br ~ s(jday) + shr,
+      #   fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj) + shr,
       #                              data = cyspdata,
       #                              family = binomial(link = "logit"),
       #                              algorithm = 'sampling',
@@ -382,8 +401,8 @@ for (j in 1:nyr)
       halfmax_df$tree_depth[counter] <- TREE_DEPTH
       
       #generate predict data
-      predictDays <- range(cyspdata$jday)[1]:range(cyspdata$jday)[2]
-      newdata <- data.frame(jday = predictDays, shr = 0)
+      predictDays <- range(cyspdata$jday_adj)[1]:range(cyspdata$jday_adj)[2]
+      newdata <- data.frame(jday_adj = predictDays, shr = 0)
       
       #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
@@ -415,7 +434,7 @@ for (j in 1:nyr)
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
       cyspdata$br[which(cyspdata$br == 1)] <- max(UCI_dfit)
-      points(cyspdata$jday, cyspdata$br, col = rgb(0,0,0,0.25))
+      points(cyspdata$jday_adj, cyspdata$br, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
@@ -438,7 +457,7 @@ for (j in 1:nyr)
 
 #save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
-saveRDS(halfmax_df, file = paste0('halfmax_df_breeding_', args, '.rds'))
+saveRDS(halfmax_df, file = paste0('halfmax_breeding_', args, '.rds'))
 
 
 
