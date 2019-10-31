@@ -1,7 +1,7 @@
 ######################
-# 7 - proces juv GAM output
+# 8 - process juv GAM output
 #
-# Aggeregate posterior info and diagnostic info from 5-halfmax-juvs.R to be used in arr ~ br model
+# Aggregate posterior info and diagnostic info from 6-halfmax-juvs.R
 #
 ######################
 
@@ -23,7 +23,6 @@ juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', juv_date)
 
 
 #output dir
-br_arr_dir <- 'br_arr_2019-10-21'
 juv_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date)
 
 
