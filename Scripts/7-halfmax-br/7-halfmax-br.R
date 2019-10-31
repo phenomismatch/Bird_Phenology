@@ -324,7 +324,7 @@ for (j in 1:nyr)
     #number of unique days with non-detection
     njd0 <- length(unique(cyspdata$jday_adj[which(cyspdata$br == 0)]))
     #number of total unique days
-    njd <- length(unique(cydata$day))
+    njd <- length(unique(cyspdata$day))
     
     if (n1 > 0)
     {
