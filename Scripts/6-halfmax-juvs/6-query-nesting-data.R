@@ -395,7 +395,7 @@ if (length(m_sp2) > 0)
     #FY = Feeding young - Y
     #CS = Carrying fecal sac - Y
     #CF = Carrying food - Y
-    #DD = Distraction display -Y
+    #DD = Distraction display - Y
     #NE = Nest with egg - E
     #ON = Occupied nest - E
     #PE = Brood patch - E

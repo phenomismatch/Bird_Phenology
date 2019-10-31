@@ -1,6 +1,7 @@
 ######################
 # 6 - GAM model juvs MAPS
 #
+# run for all cells (in and out of study area)
 ######################
 
 
