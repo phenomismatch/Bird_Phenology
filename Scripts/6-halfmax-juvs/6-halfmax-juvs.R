@@ -330,7 +330,7 @@ for (j in 1:nyrs)
     DELTA <- 0.95
     TREE_DEPTH <- 15
     
-    #br thresholds
+    #arr thresholds
     #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
     
     if (n1 > 4 & n0 > 4 & njd0i > 2 & njd1 > 2 & njd > 9)
