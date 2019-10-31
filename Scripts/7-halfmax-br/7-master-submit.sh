@@ -8,7 +8,7 @@ do
   temp="${name%\"}"
   temp="${temp#\"}"
   sbatch species/7-$temp.sh
-done < ../../../Data/IAR_species_list.txt
-#done < ../../../Data/test_species_list.txt
+done < ../../Data/IAR_species_list.txt
+#done < ../../Data/test_species_list.txt
 
-cp 7-halfmax-br.R ../../../Data/Processed/halfmax_breeding_$DATE/7-halfmax-br-$DATE.R
+cp 7-halfmax-br.R ../../Data/Processed/halfmax_breeding_$DATE/7-halfmax-br-$DATE.R

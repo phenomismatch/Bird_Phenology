@@ -34,4 +34,4 @@ singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscrip
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/6-$temp.sh"
-done < ../../../Data/IAR_species_list.txt
+done < ../../Data/IAR_species_list.txt
