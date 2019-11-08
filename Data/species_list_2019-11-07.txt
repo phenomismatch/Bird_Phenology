@@ -1,0 +1,6 @@
+"Vireo_olivaceus"
+"Setophaga_magnolia"
+"Empidonax_virescens"
+"Seiurus_aurocapilla"
+"Setophaga_ruticilla"
+"Setophaga_americana"
