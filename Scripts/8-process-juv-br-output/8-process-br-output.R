@@ -18,7 +18,7 @@ dir <- '~/Google_Drive/R/'
 # db/br query dir ------------------------------------------------------------
 
 #input dir
-br_date <- '2019-10-21'
+br_date <- '2019-10-31'
 br_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', br_date)
 
 
@@ -204,7 +204,7 @@ to.NA <- which(diagnostics_frame$num_diverge > 0 |
                  diagnostics_frame$num_BFMI > 0 |
                  diagnostics_frame$br_sd > 10)
 
-# #34% of cells are bad
+#1% of cells are bad
 # length(to.NA)/sum(!is.na(diagnostics_frame$br_mean))
 # diagnostics_frame[to.NA,c('species', 'cell', 'year',
 #                            'br_mean', 'br_sd', 'min_neff', 'num_diverge')]

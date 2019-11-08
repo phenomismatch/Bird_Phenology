@@ -23,7 +23,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # other dir ------------------------------------------------------------
 
 #run date
-RUN_DATE <- '2019-10-21'
+RUN_DATE <- '2019-11-07'
 
 #MAPS query date
 MAPS_date <- '2019-10-18'
@@ -74,7 +74,7 @@ colnames(data_p)[grep('sci_name', colnames(data_p))] <- 'species'
 #add underscore to species naems
 data_p$species <- gsub(' ', '_', data_p$species)
 
-data <- dplyr::filter(data_p, species == args)
+data <- dplyr::filter(data_p, species == args, day <= 220)
 
 
 # create grid -------------------------------------------------------------

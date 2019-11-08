@@ -9,19 +9,19 @@
 #SBATCH --mem=25G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_2019-10-21/hm-juvs-Melospiza_georgiana.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_2019-10-21/hm-juvs-Melospiza_georgiana.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_2019-11-07/hm-juvs-Melospiza_georgiana.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_2019-11-07/hm-juvs-Melospiza_georgiana.err #STDERR
 
 #echos name of node
 echo `hostname`
 
 #load R module and run script
 # module load R/3.5.2
-# Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/6-halfmax-juvs/6-halfmax-juvs.R Melospiza_georgiana
+# Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/6-halfmax-juvs/6-halfmax-juvs.R Melospiza_georgiana
 
 #until singularity is sorted
 module load singularity/3.0.2
-singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/eBird_Nestwatch/6-halfmax-juvs/6-halfmax-juvs.R Melospiza_georgiana
+singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/6-halfmax-juvs/6-halfmax-juvs.R Melospiza_georgiana
 
 
 #displays amount of memory used
