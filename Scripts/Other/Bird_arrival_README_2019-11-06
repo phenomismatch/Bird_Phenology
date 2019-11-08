@@ -1,0 +1,25 @@
+#README - Bird arrival
+
+species
+cell
+year
+mig_cell - whether the cell overlaps the migratory range of the species
+breed_cell - whether the cell overlaps the breeding range of the species
+cell_lat
+cell_lon
+mean_pre_IAR - pre-spatial model estimate of arrival
+sd_pre_IAR - pre-spatial model arrival uncertainty
+mean_pre_IAR - post-spatial model estimate of arrival
+sd_pre_IAR - post-spatial model arrival uncertainty
+F_prcp - Feb mean daily precip
+M_prcp - Mar mean daily precip
+A_prcp - Apr mean daily precip
+FMA_prcp - Feb, Mar, Apr mean daily precip
+F_tmax - Feb mean daily max temp
+M_tmax - Mar mean daily max temp
+A_tmax - Apr mean daily max temp
+FMA_tmax - Feb, Mar, Apr mean daily max temp
+F_tmin - Feb mean daily min temp
+M_tmin - Mar mean daily min temp
+A_tmin - Apr mean daily min temp
+FMA_tmin - Feb, Mar, Apr mean daily min temp
