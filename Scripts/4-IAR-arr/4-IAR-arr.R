@@ -37,17 +37,17 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/labs/Tingley/phenomismatch/'
+#dir <- '/labs/Tingley/phenomismatch/'
 
 
 
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'IAR_output_2019-06-10'
+IAR_out_dir <- 'IAR_output_2019-11-12'
 
 
 
@@ -77,21 +77,12 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 # species arg -----------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Icterus_spurius')
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
-#args <- as.character('Vireo_olivaceus')
+args <- as.character('Vireo_olivaceus')
 
-
-#species for which one cell had to be dropped, bc it did not border any others
-#args <- as.character('Cistothorus_palustris')
-#args <- as.character('Setophaga_dominica')
-#args <- as.character('Melospiza_lincolnii')
-#args <- as.character('Zonotrichia_leucophrys')
-#args <- as.character('Bombycilla_cedrorum')
-#args <- as.character('Coccyzus_americanus')
-#args <- as.character('Vireo_bellii')
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -145,7 +136,7 @@ DROP <- FALSE
 s_cols <- apply(adjacency_matrix, 2, function(x) sum(x, na.rm = TRUE))
 s_rows <- apply(adjacency_matrix, 1, function(x) sum(x, na.rm = TRUE))
 to.rm.ind <- which((s_cols + s_rows) == 0)
-  
+
 if (length(to.rm.ind) > 0)
 {
   DROP <- cells[to.rm.ind]
@@ -200,33 +191,33 @@ scaling_factor <- exp(mean(log(diag(Q_inv))))
 # create Stan data object -------------------------------------------------
 
 #create and fill sds, obs, data for PPC, and temp
-sigma_y_in <- matrix(nrow = ncell, ncol = nyr)
-y_obs_in <- matrix(nrow = ncell, ncol = nyr)
-y_PPC <- rep(NA, ncell * nyr)
+sigma_y_in <- matrix(nrow = nyr, ncol = ncell)
+y_obs_in <- matrix(nrow = nyr, ncol = ncell)
+y_PPC <- rep(NA, nyr * ncell)
 
 #number of observation and NAs for each year
 len_y_obs_in <- rep(NA, nyr)
 len_y_mis_in <- rep(NA, nyr)
 
 #indices for observed and missing
-ii_obs_in <- matrix(NA, nrow = ncell, ncol = nyr)
-ii_mis_in <- matrix(NA, nrow = ncell, ncol = nyr)
+ii_obs_in <- matrix(NA, nrow = nyr, ncol = ncell)
+ii_mis_in <- matrix(NA, nrow = nyr, ncol = ncell)
 
 #counter to fill y_PPC
 counter <- 1
-for (j in 1:nyr)
+for (i in 1:nyr)
 {
   #j <- 16
-  temp_yr <- dplyr::filter(f_out, year == years[j])
+  temp_yr <- dplyr::filter(f_out, year == years[i])
   
   #don't need to manipulate position of sigmas
-  sigma_y_in[,j] <- temp_yr$HM_sd
+  sigma_y_in[i,] <- temp_yr$HM_sd
   
-  for (n in 1:ncell)
+  for (j in 1:ncell)
   {
     #n <- 1
     #matrix with observed values with NAs
-    y_PPC[counter] <- temp_yr$HM_mean[n]
+    y_PPC[counter] <- temp_yr$HM_mean[j]
     counter <- counter + 1
   }
   
@@ -244,19 +235,19 @@ for (j in 1:nyr)
     t_mis_in <- c(which(is.na(temp_yr$HM_mean)), rep(NA, length(no_na)))
     
     #fill objects
-    ii_obs_in[,j] <- t_obs_in
-    ii_mis_in[,j] <- t_mis_in
-    y_obs_in[,j] <- t_y_obs_in
+    ii_obs_in[i,] <- t_obs_in
+    ii_mis_in[i,] <- t_mis_in
+    y_obs_in[i,] <- t_y_obs_in
   } else {
     #no NAs to end (no mimssing values)
-    y_obs_in[,j] <- no_na
-    ii_mis_in[,j] <- which(!is.na(temp_yr$HM_mean))
-    y_obs_in[,j] <- which(is.na(temp_yr$HM_mean))
+    y_obs_in[i,] <- no_na
+    ii_mis_in[i,] <- which(!is.na(temp_yr$HM_mean))
+    y_obs_in[i,] <- which(is.na(temp_yr$HM_mean))
   }
   
   #length of data/miss for each year
-  len_y_obs_in[j] <- length(no_na)
-  len_y_mis_in[j] <- ncell - length(no_na)
+  len_y_obs_in[i] <- length(no_na)
+  len_y_mis_in[i] <- ncell - length(no_na)
 }
 
 
@@ -269,9 +260,9 @@ ii_mis_in[which(is.na(ii_mis_in), arr.ind = TRUE)] <- 0
 
 
 #create data list for Stan
-DATA <- list(J = nyr,
+DATA <- list(J = ncell,
              cells = cells,
-             N = ncell, 
+             N = nyr, 
              NJ = nyr * ncell,
              N_obs = len_y_obs_in,
              N_mis = len_y_mis_in,
@@ -290,21 +281,21 @@ DATA <- list(J = nyr,
 
 # Stan model --------------------------------------------------------------
 
-#cells in rows
-#years in columns
+#years in rows
+#cells in columns
 
 IAR_2 <- '
 data {
-int<lower = 0> J;                                     // number of years      
-int<lower = 0> N;                                     // number of cells
+int<lower = 0> N;                                     // number of years      
+int<lower = 0> J;                                     // number of cells
 int<lower = 0> NJ;                                    // number of cell/years
-int<lower = 0> N_obs[J];                              // number of non-missing for each year
-int<lower = 0> N_mis[J];                              // number missing for each year
+int<lower = 0> N_obs[N];                              // number of non-missing for each year
+int<lower = 0> N_mis[N];                              // number missing for each year
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
-int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
-int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
-real<lower = 0, upper = 200> y_obs[N, J];             // observed response data (add NAs to end)
-real<lower = 0> sigma_y[N, J];                        // observed sd of data (observation error)
+int<lower = 1, upper = J> node1[N_edges];             // node1[i] adjacent to node2[i]
+int<lower = 1, upper = J> node2[N_edges];             // and node1[i] < node2[i]
+vector[J] y_obs[N];                                   // observed response data (add NAs to end)
+vector<lower = 0>[J] sigma_y[N];                      // observed sd of data (observation error)
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
@@ -312,34 +303,36 @@ vector<lower = 24, upper = 90>[N] lat;
 }
 
 parameters {
-real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
+// real<lower = 1, upper = 200> y_mis[N, J];             // missing response data
+vector[J] y_mis[N];
 real alpha_gamma_raw;
 real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
-vector[N] gamma_raw;
-matrix[N, J] phi;                                     // spatial error component (scaled to N(0,1))
-matrix[N, J] theta;                                   // non-spatial error component (scaled to N(0,1))
+vector[j] gamma_raw;
+vector[J] phi[N];                                     // spatial error component (scaled to N(0,1))
+vector[J] theta[N];                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
-vector[J] sigma_nu_raw;
-vector[J] beta0_raw;
+vector[N] sigma_nu_raw;
+vector[N] beta0_raw;
 real mu_sn_raw;
 real<lower = 0> sigma_beta0_raw;
 real<lower = 0> sigma_sn_raw;
 }
 
 transformed parameters {
-real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
-vector[N] gamma;
+// real<lower = 0, upper = 200> y[N, J];                 // response data to be modeled
+vector[J] y[N];
+vector[J] gamma;
 real alpha_gamma;
 real beta_gamma;
 real<lower = 0> sigma_gamma;
-vector[N] mu_gamma;
-vector<lower = 0>[J] sigma_nu;
-matrix[N, J] y_true;
-matrix[N, J] nu;                            // spatial and non-spatial component
+vector[J] mu_gamma;
+vector<lower = 0>[N] sigma_nu;
+vector[J] y_true[N];
+vector[J] nu[N];                                      // spatial and non-spatial component
 real mu_sn;
 real<lower = 0> sigma_beta0;
-vector[J] beta0;
+vector[N] beta0;
 real<lower = 0> sigma_sn;
 
 alpha_gamma = alpha_gamma_raw * 60;
@@ -352,17 +345,17 @@ sigma_sn = sigma_sn_raw * 0.5;
 mu_gamma = alpha_gamma + beta_gamma * lat;
 gamma = gamma_raw * sigma_gamma + mu_gamma;
 beta0 = beta0_raw * sigma_beta0;
-sigma_nu = exp(sigma_nu_raw * sigma_sn + mu_sn);    //implies sigma_nu[j] ~ lognormal(mu_sn, sigma_sn) 
+sigma_nu = exp(sigma_nu_raw * sigma_sn + mu_sn);    //implies sigma_nu[i] ~ lognormal(mu_sn, sigma_sn) 
 
-for (j in 1:J)
+for (i in 1:N)
 {
-  nu[,j] = sqrt(1 - rho) * theta[,j] + sqrt(rho / scaling_factor) * phi[,j]; // combined spatial/non-spatial
+  nu[i] = sqrt(1 - rho) * theta[i] + sqrt(rho / scaling_factor) * phi[i]; // combined spatial/non-spatial
   
-  y_true[,j] = beta0[j] + gamma + nu[,j] * sigma_nu[j];
+  y_true[j] = beta0[i] + gamma + nu[i] * sigma_nu[i];
 
   // indexing to avoid NAs  
-  y[ii_obs[1:N_obs[j], j], j] = y_obs[1:N_obs[j], j];
-  y[ii_mis[1:N_mis[j], j], j] = y_mis[1:N_mis[j], j];
+  y[i, ii_obs[i, 1:N_obs[i]]] = y_obs[i, 1:N_obs[i]];
+  y[i, ii_mis[i, 1:N_mis[i]]] = y_mis[i, 1:N_mis[i]];
 }
 }
 
@@ -381,20 +374,19 @@ mu_sn_raw ~ std_normal();
 sigma_sn_raw ~ std_normal();
 
 
-for (j in 1:J)
+for (i in 1:N)
 {
-  theta[,j] ~ std_normal();
-  target += -0.5 * dot_self(phi[node1, j] - phi[node2, j]);
-  sum(phi[,j]) ~ normal(0, 0.001 * N);
+  theta[j] ~ std_normal();
+  target += -0.5 * dot_self(phi[i, node1] - phi[i, node2]);
+  sum(phi[i]) ~ normal(0, 0.001 * N);
   
-  y[,j] ~ normal(y_true[,j], sigma_y[,j]);
+  y[i] ~ normal(y_true[i], sigma_y[i]);
 }
 
 }
 
 generated quantities {
 
-// real y_rep[N, J];
 vector[NJ] y_rep;
 int<lower = 0> counter;
 
@@ -408,7 +400,6 @@ for (j in 1:J)
   }
 }
 }'
-
 
 
 # Run model ---------------------------------------------------------------
@@ -428,10 +419,21 @@ fit <- rstan::stan(model_code = IAR_2,
             chains = CHAINS,
             iter = ITER,
             cores = CHAINS,
-            pars = c('sigma_beta0', 'beta0',
-                     'alpha_gamma', 'beta_gamma', 'sigma_gamma', 'gamma',
-                     'sigma_nu', 'mu_sn', 'sigma_sn', 'rho', 'nu', 'theta', 'phi',
-                     'y_true', 'y_rep'),
+            pars = c('sigma_beta0', 
+                     'beta0',
+                     'alpha_gamma', 
+                     'beta_gamma', 
+                     'sigma_gamma', 
+                     'gamma',
+                     'sigma_nu', 
+                     'mu_sn', 
+                     'sigma_sn', 
+                     'rho', 
+                     'nu', 
+                     'theta', 
+                     'phi',
+                     'y_true', 
+                     'y_rep'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
@@ -562,7 +564,7 @@ dev.off()
 # write model results to file ---------------------------------------------
 
 options(max.print = 5e6)
-sink(paste0(args, '-', IAR_out_date, '-iar-stan_results.txt'))
+sink(paste0(args, '-iar-stan_results-', IAR_out_date, '.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -637,12 +639,12 @@ nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
 
 
 #create output image dir if it doesn't exist
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date)),
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_dir)),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_dir)),
        FALSE)
 
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_date))
+setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_dir))
 
 #loop plots for each year
 for (i in 1:length(years))
@@ -693,8 +695,8 @@ for (i in 1:length(years))
   
   
   #post-IAR
-  t_med_fit <- med_fit[,i]
-  t_sd_fit <- sd_fit[,i]
+  t_med_fit <- med_fit[i,]
+  t_sd_fit <- sd_fit[i,]
   
   #median of mu and sd of mu
   m_fit <- data.frame(med_mu = t_med_fit, sd_mu = t_sd_fit, cell = cells)
@@ -753,7 +755,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_alpha_gamma.pdf'))
+                   filename = paste0(args, '-trace-alpha_gamma-', IAR_out_date, '.pdf'))
 
 #beta_gamma ~ normal(2, 3)
 PR <- rnorm(10000, 2, 3)
@@ -761,7 +763,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'beta_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_beta_gamma.pdf'))
+                   filename = paste0(args, '-trace-beta_gamma-', IAR_out_date, '.pdf'))
 
 #sigma_gamma ~ halfnormal(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -770,7 +772,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_gamma.pdf'))
+                   filename = paste0(args, '-trace-sigma_gamma-', IAR_out_date, '.pdf'))
 
 #mu_sn ~ halfnormal(0, 1.5)
 PR <- rnorm(10000, 0, 1.5)
@@ -778,7 +780,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'mu_sn',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_mu_sn.pdf'))
+                   filename = paste0(args, '-trace-mu_sn-', IAR_out_date, '.pdf'))
 
 #sigma_sn ~ halfnormal(0, 1.5)
 PR <- rnorm(10000, 0, 05)
@@ -786,7 +788,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_sn',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_sn.pdf'))
+                   filename = paste0(args, '-trace-sigma_sn-', IAR_out_date, '.pdf'))
 
 #rho ~ beta(0.5, 0.5)
 PR <- rbeta(10000, 0.5, 0.5)
@@ -794,7 +796,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'rho',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_rho.pdf'))
+                   filename = paste0(args, '-trace-rho-', IAR_out_date, '.pdf'))
 
 #sigma_beta0 ~ HN(0, 5)
 PR_p <- rnorm(10000, 0, 5)
@@ -803,7 +805,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta0',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-', IAR_out_date, '-trace_sigma_beta0.pdf'))
+                   filename = paste0(args, '-trace-sigma_beta0-', IAR_out_date, '.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
@@ -813,5 +815,3 @@ if ('Rplots.pdf' %in% list.files())
 
 
 print('I completed!')
-
-

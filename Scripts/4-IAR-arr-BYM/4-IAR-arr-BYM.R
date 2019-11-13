@@ -281,8 +281,8 @@ int<lower = 0> NJ;                                    // number of cell/years
 int<lower = 0> N_obs[N];                              // number of non-missing for each year
 int<lower = 0> N_mis[N];                              // number missing for each year
 int<lower = 0> N_edges;                               // number of edges in adjacency matrix
-int<lower = 1, upper = N> node1[N_edges];             // node1[i] adjacent to node2[i]
-int<lower = 1, upper = N> node2[N_edges];             // and node1[i] < node2[i]
+int<lower = 1, upper = J> node1[N_edges];             // node1[i] adjacent to node2[i]
+int<lower = 1, upper = J> node2[N_edges];             // and node1[i] < node2[i]
 vector[J] y_obs[N];                                   // observed response data (add NAs to end)
 vector<lower = 0>[J] sigma_y[N];                      // observed sd of data (observation error)
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
@@ -291,7 +291,8 @@ vector<lower = 24, upper = 90>[J] lat;
 }
 
 parameters {
-vector[J] y_mis[N];                                     // missing response data
+// real y_mis[N, J];                                     // missing response data
+vector[J] y_mis[N];
 real alpha_gamma_raw;
 real beta_gamma_raw;                                  // effect of latitude
 real<lower = 0> sigma_gamma_raw;
@@ -305,7 +306,8 @@ real<lower = 0> sigma_y_true_raw;
 }
 
 transformed parameters {
-vector[J] y[N];                 // response data to be modeled
+// real y[N, J];                 // response data to be modeled
+vector[J] y[N];
 vector[J] gamma;
 real alpha_gamma;
 real beta_gamma;
@@ -335,8 +337,8 @@ for (i in 1:N)
   y_true[i] = y_true_raw[i] * sigma_y_true + beta0[i] + gamma + phi[i] * sigma_phi;
   
   // indexing to avoid NAs  
-  y[i, ii_obs[1:N_obs[i], i]] = y_obs[i, 1:N_obs[i]];
-  y[i, ii_mis[1:N_mis[i], i]] = y_mis[i, 1:N_mis[i]];
+  y[i, ii_obs[i, 1:N_obs[i]]] = y_obs[i, 1:N_obs[i]];
+  y[i, ii_mis[i, 1:N_mis[i]]] = y_mis[i, 1:N_mis[i]];
 }
 }
 
@@ -390,8 +392,8 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.97
 TREE_DEPTH <- 17
 STEP_SIZE <- 0.0003
-CHAINS <- 6
-ITER <- 10000
+CHAINS <- 4
+ITER <- 2000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
