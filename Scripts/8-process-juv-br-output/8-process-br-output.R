@@ -18,7 +18,7 @@ dir <- '~/Google_Drive/R/'
 # db/br query dir ------------------------------------------------------------
 
 #input dir
-br_date <- '2019-10-31'
+br_date <- '2019-11-07'
 br_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', br_date)
 
 

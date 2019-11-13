@@ -71,7 +71,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
 
 data_p <- readRDS(paste0('MAPS-age-filled-', MAPS_date, '.rds'))
 colnames(data_p)[grep('sci_name', colnames(data_p))] <- 'species'
-#add underscore to species naems
+#add underscore to species names
 data_p$species <- gsub(' ', '_', data_p$species)
 
 data <- dplyr::filter(data_p, species == args, day <= 220)
