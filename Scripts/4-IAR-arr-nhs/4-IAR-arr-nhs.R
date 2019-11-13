@@ -31,17 +31,17 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/labs/Tingley/phenomismatch/'
+dir <- '/labs/Tingley/phenomismatch/'
 
 
 
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'nhs_output_2019-11-12'
+IAR_out_dir <- 'nhs_output_2019-11-13'
 
 
 
@@ -71,11 +71,11 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 # species arg -----------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Icterus_spurius')
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
-args <- as.character('Vireo_olivaceus')
+#args <- as.character('Vireo_olivaceus')
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -395,10 +395,10 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.97
-TREE_DEPTH <- 18
+TREE_DEPTH <- 17
 STEP_SIZE <- 0.0003
 CHAINS <- 6
-ITER <- 10000
+ITER <- 8000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
