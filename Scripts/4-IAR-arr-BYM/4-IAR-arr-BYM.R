@@ -10,9 +10,11 @@
 # y_{true[i,j]} \sim N(\mu_{[i,j]}, \sigma_{y_true})
 # \mu_{[i,j]} = \beta_{0[i]} + \gamma_{[j]} + \phi_{[i,j]} * sigma_phi[i]
 # \beta_{0[i]} \sim N(0, \sigma_{\beta_{0}})
-# \gamma_{[j]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
+# \gamma_{[j]} \sim N(\mu_{\gamma[j]}, \sigma_{\gamma})
 # \mu_{\gamma[j]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[j]}
-# \sigma_{\phi[i]} \sim LN(\mu_{\sigma_{\phi}}, \sigma_{\sigma_{\phi}})
+# \sigma_{\phi} \sim HN(0, 5)
+# \phi_{[i,j]} \sim N(0, [D - W]^{-1})
+# \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
 ######################
 
 #Stan resources:
@@ -36,7 +38,7 @@ dir <- '~/Google_Drive/R/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'BYM_output_2019-11-12'
+IAR_out_dir <- 'bym_output_2019-11-12'
 
 
 
@@ -392,8 +394,8 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.97
 TREE_DEPTH <- 17
 STEP_SIZE <- 0.0003
-CHAINS <- 4
-ITER <- 2000
+CHAINS <- 6
+ITER <- 10000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -421,10 +423,10 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
+saveRDS(fit, file = paste0(args, '-iar-stan_output-', IAR_out_date, '.rds'))
 
 #save data to RDS (has which cells are modeled)
-saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
+saveRDS(DATA, file = paste0(args, '-iar-stan_input-',  IAR_out_date, '.rds'))
 
 
 # Calc diagnostics ---------------------------------------------------
@@ -543,7 +545,7 @@ dev.off()
 
 options(max.print = 5e6)
 sink(paste0(args, '-iar-stan_results-', IAR_out_date, '.txt'))
-cat(paste0('BYM results ', args, ' \n'))
+cat(paste0('bym results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))

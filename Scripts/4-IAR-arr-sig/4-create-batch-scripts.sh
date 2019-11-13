@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-05-26"
+DATE="2019-11-12"
 
 while read name
 do
@@ -8,7 +8,7 @@ do
   temp="${temp#\"}"
   echo "#!/bin/bash
 
-#SBATCH --job-name=iar-$temp
+#SBATCH --job-name=sig-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 6 #cpus
@@ -17,8 +17,8 @@ do
 #SBATCH --mem=15G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_$DATE/$temp-iar.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_$DATE/$temp-iar.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/sig_output_$DATE/$temp-sig.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/sig_output_$DATE/$temp-sig.err #STDERR
 
 #echos name of node
 echo \`hostname\`
@@ -29,8 +29,8 @@ echo \`hostname\`
 
 #until singularity is sorted
 module load singularity/3.0.2
-singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/4-IAR-arr/4-IAR-arr.R $temp
+singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/4-IAR-arr-sig/4-IAR-arr-sig.R $temp
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/4-$temp.sh"
-done < ../../Data/IAR_species_list.txt
+done < ../../Data/test_species_list.txt

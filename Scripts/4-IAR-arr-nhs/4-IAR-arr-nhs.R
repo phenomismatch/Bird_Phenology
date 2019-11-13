@@ -4,26 +4,20 @@
 # Fit IAR model
 #
 # VVV MODEL VVV
-# i = cell
-# j = year
+# i = year
+# j = cell
 # y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
 # y_{true[i,j]} = \beta_{0[j]} + \gamma_{[i]} + \nu_{[i,j]} * \sigma_{\nu[j]}
-# \beta_{0[j]} \sim N(0, \sigma_{\beta_{0}})
-# \gamma_{[i]} \sim N(\mu_{\gamma[i]}, \sigma_{\gamma})
-# \mu_{\gamma[i]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[i]}
+# \beta_{0[i]} \sim N(0, \sigma_{\beta_{0}})
+# \gamma_{[j]} \sim N(\mu_{\gamma[j]}, \sigma_{\gamma})
+# \mu_{\gamma[j]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[j]}
 # \nu_{[i,j]} = \sqrt{1 - \rho} * \theta[i,j] + \sqrt{\frac{\rho}{sf}} * \phi_{[i,j]}
-# \sigma_{\nu[j]} \sim LN(\mu_{\sigma_{\nu}}, \sigma_{\sigma_{\nu}})
+# \sigma_{\nu} \sim HN(0, 5)
 # \alpha_{\gamma} \sim N(0, 50)
 # \beta_{\gamma} \sim N(2, 3)
 # \sigma_{\gamma} \sim HN(0, 5)
-# \mu_{\sigma_{\nu}} \sim N(0, 1.5)
-# \sigma_{\sigma_{\nu}} \sim N(0, 0.5)
 # \phi_{[i,j]} \sim N(0, [D - W]^{-1})
 # \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
-
-
-#Joint distribution
-#[\beta_{0_{y}}, \gamma_{c}, \rho, \theta_{cy}, \phi_{cy}, \sigma_{\nu_{y}}, \sigma_{\beta_{0}}, \alpha_{\gamma}, \beta_{\gamma}, \mu_{\sigma_{\nu}}, \sigma_{\sigma_{\nu}} | y_{obs_{cy}}, \sigma_{y_{cy}}] \propto \prod [y_{obs_{cy}}, \sigma_{y_{cy}} | \beta_{0_{y}}, \gamma_{c}, \rho, \theta_{cy}, \phi_{cy}, \sigma_{\nu_{y}}]  [\beta_{0_{y}} | \sigma_{\beta_{0}}] [\gamma_{c} | \alpha_{\gamma}, \beta_{\gamma}] [\sigma_{\nu_{y}} | \mu_{\sigma_{\nu}}, \sigma_{\sigma_{\nu}}][\sigma_{\beta_{0}}] [\alpha_{\gamma}] [\beta_{\gamma}][\rho][\theta_{cy}][\phi_{cy}][\mu_{\sigma_{\nu}}][\sigma_{\sigma_{\nu}}]
 ######################
 
 #Stan resources:
@@ -47,7 +41,7 @@ dir <- '~/Google_Drive/R/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'BYM_output_2019-11-12'
+IAR_out_dir <- 'nhs_output_2019-11-12'
 
 
 
@@ -299,7 +293,7 @@ vector<lower = 0>[J] sigma_y[N];                      // observed sd of data (ob
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
-vector<lower = 24, upper = 90>[N] lat;
+vector<lower = 24, upper = 90>[J] lat;
 }
 
 parameters {
@@ -308,15 +302,13 @@ vector[J] y_mis[N];
 real alpha_gamma_raw;
 real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
-vector[j] gamma_raw;
+vector[J] gamma_raw;
 vector[J] phi[N];                                     // spatial error component (scaled to N(0,1))
 vector[J] theta[N];                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
-vector[N] sigma_nu_raw;
+real<lower = 0> sigma_nu_raw;
 vector[N] beta0_raw;
-real mu_sn_raw;
 real<lower = 0> sigma_beta0_raw;
-real<lower = 0> sigma_sn_raw;
 }
 
 transformed parameters {
@@ -327,31 +319,27 @@ real alpha_gamma;
 real beta_gamma;
 real<lower = 0> sigma_gamma;
 vector[J] mu_gamma;
-vector<lower = 0>[N] sigma_nu;
+real<lower = 0> sigma_nu;
 vector[J] y_true[N];
 vector[J] nu[N];                                      // spatial and non-spatial component
-real mu_sn;
 real<lower = 0> sigma_beta0;
 vector[N] beta0;
-real<lower = 0> sigma_sn;
 
 alpha_gamma = alpha_gamma_raw * 60;
 beta_gamma = beta_gamma_raw * 3 + 2;
 sigma_gamma = sigma_gamma_raw * 5;
 sigma_beta0 = sigma_beta0_raw * 5;
-mu_sn = mu_sn_raw * 1.5;
-sigma_sn = sigma_sn_raw * 0.5;
 
 mu_gamma = alpha_gamma + beta_gamma * lat;
 gamma = gamma_raw * sigma_gamma + mu_gamma;
 beta0 = beta0_raw * sigma_beta0;
-sigma_nu = exp(sigma_nu_raw * sigma_sn + mu_sn);    //implies sigma_nu[i] ~ lognormal(mu_sn, sigma_sn) 
+sigma_nu = sigma_nu_raw * 5; 
 
 for (i in 1:N)
 {
   nu[i] = sqrt(1 - rho) * theta[i] + sqrt(rho / scaling_factor) * phi[i]; // combined spatial/non-spatial
   
-  y_true[j] = beta0[i] + gamma + nu[i] * sigma_nu[i];
+  y_true[i] = beta0[i] + gamma + nu[i] * sigma_nu;
 
   // indexing to avoid NAs  
   y[i, ii_obs[i, 1:N_obs[i]]] = y_obs[i, 1:N_obs[i]];
@@ -370,13 +358,11 @@ beta0_raw ~ std_normal();
 sigma_beta0_raw ~ std_normal();
 rho ~ beta(0.5, 0.5);
 sigma_nu_raw ~ std_normal();
-mu_sn_raw ~ std_normal();
-sigma_sn_raw ~ std_normal();
 
 
 for (i in 1:N)
 {
-  theta[j] ~ std_normal();
+  theta[i] ~ std_normal();
   target += -0.5 * dot_self(phi[i, node1] - phi[i, node2]);
   sum(phi[i]) ~ normal(0, 0.001 * N);
   
@@ -427,8 +413,6 @@ fit <- rstan::stan(model_code = IAR_2,
                             'sigma_gamma', 
                             'gamma',
                             'sigma_nu', 
-                            'mu_sn', 
-                            'sigma_sn', 
                             'rho', 
                             'nu', 
                             'theta', 
@@ -444,10 +428,10 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
+saveRDS(fit, file = paste0(args, '-iar-stan_output-', IAR_out_date, '.rds'))
 
 #save data to RDS (has which cells are modeled)
-saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
+saveRDS(DATA, file = paste0(args, '-iar-stan_input-',  IAR_out_date, '.rds'))
 
 
 # Calc diagnostics ---------------------------------------------------
@@ -566,7 +550,7 @@ dev.off()
 
 options(max.print = 5e6)
 sink(paste0(args, '-iar-stan_results-', IAR_out_date, '.txt'))
-cat(paste0('BYM results ', args, ' \n'))
+cat(paste0('nhs results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
@@ -775,21 +759,13 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-trace-sigma_gamma-', IAR_out_date, '.pdf'))
 
-#mu_sn ~ halfnormal(0, 1.5)
-PR <- rnorm(10000, 0, 1.5)
+#sigma_nu ~ halfnormal(0, 5)
+PR <- rnorm(10000, 0, 5)
 MCMCvis::MCMCtrace(fit,
-                   params = 'mu_sn',
+                   params = 'sigma_nu',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-trace-mu_sn-', IAR_out_date, '.pdf'))
-
-#sigma_sn ~ halfnormal(0, 1.5)
-PR <- rnorm(10000, 0, 05)
-MCMCvis::MCMCtrace(fit,
-                   params = 'sigma_sn',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args, '-trace-sigma_sn-', IAR_out_date, '.pdf'))
+                   filename = paste0(args, '-trace-sigma_nu-', IAR_out_date, '.pdf'))
 
 #rho ~ beta(0.5, 0.5)
 PR <- rbeta(10000, 0.5, 0.5)

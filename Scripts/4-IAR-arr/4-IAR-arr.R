@@ -299,7 +299,7 @@ vector<lower = 0>[J] sigma_y[N];                      // observed sd of data (ob
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
 real<lower = 0> scaling_factor;                       // scales variances of spatial effects (estimated from INLA)
-vector<lower = 24, upper = 90>[N] lat;
+vector<lower = 24, upper = 90>[J] lat;
 }
 
 parameters {
@@ -308,7 +308,7 @@ vector[J] y_mis[N];
 real alpha_gamma_raw;
 real beta_gamma_raw;                                       // effect of latitude
 real<lower = 0> sigma_gamma_raw;
-vector[j] gamma_raw;
+vector[J] gamma_raw;
 vector[J] phi[N];                                     // spatial error component (scaled to N(0,1))
 vector[J] theta[N];                                   // non-spatial error component (scaled to N(0,1))
 real<lower = 0, upper = 1> rho;                       // proportion unstructured vs spatially structured variance
@@ -351,7 +351,7 @@ for (i in 1:N)
 {
   nu[i] = sqrt(1 - rho) * theta[i] + sqrt(rho / scaling_factor) * phi[i]; // combined spatial/non-spatial
   
-  y_true[j] = beta0[i] + gamma + nu[i] * sigma_nu[i];
+  y_true[i] = beta0[i] + gamma + nu[i] * sigma_nu[i];
 
   // indexing to avoid NAs  
   y[i, ii_obs[i, 1:N_obs[i]]] = y_obs[i, 1:N_obs[i]];
@@ -376,7 +376,7 @@ sigma_sn_raw ~ std_normal();
 
 for (i in 1:N)
 {
-  theta[j] ~ std_normal();
+  theta[i] ~ std_normal();
   target += -0.5 * dot_self(phi[i, node1] - phi[i, node2]);
   sum(phi[i]) ~ normal(0, 0.001 * N);
   
@@ -443,10 +443,10 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-', IAR_out_date, '-iar-stan_output.rds'))
+saveRDS(fit, file = paste0(args, '-iar-stan_output-', IAR_out_date, '.rds'))
 
 #save data to RDS (has which cells are modeled)
-saveRDS(DATA, file = paste0(args, '-', IAR_out_date, '-iar-stan_input.rds'))
+saveRDS(DATA, file = paste0(args, '-iar-stan_input-',  IAR_out_date, '.rds'))
 
 
 # Calc diagnostics ---------------------------------------------------
@@ -782,8 +782,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-trace-mu_sn-', IAR_out_date, '.pdf'))
 
-#sigma_sn ~ halfnormal(0, 1.5)
-PR <- rnorm(10000, 0, 05)
+#sigma_sn ~ halfnormal(0, 0.5)
+PR <- rnorm(10000, 0, 0.5)
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_sn',
                    priors = PR,
