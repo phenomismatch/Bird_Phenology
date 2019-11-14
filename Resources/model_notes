@@ -1,0 +1,5 @@
+VerHoeff IAR model (with normal distribution - analagous to our situation):
+https://github.com/jayverhoef/spAReco/blob/master/inst/bugs/modelIAR.txt
+
+Morris BYM model BUGS (with poisson distribution):
+https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/bym_bugs.txt
