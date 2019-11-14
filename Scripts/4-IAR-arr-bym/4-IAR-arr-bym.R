@@ -1,5 +1,5 @@
 ######################
-# 4 - IAR model - NO LUMPED SPATIAL/NON-SPATIAL NO HIERARCHICAL SIGMA_NU
+# 4 - IAR model - NO LUMPED SPATIAL/NON-SPATIAL NO HIERARCHICAL SIGMA_PHI
 #
 # Fit IAR model
 #
@@ -45,14 +45,12 @@ IAR_out_dir <- 'bym_output_2019-11-13'
 # Load packages -----------------------------------------------------------
 
 library(rstan)
-library(INLA)
 library(geosphere)
 library(ggplot2)
 library(maps)
 library(dplyr)
 library(dggridR)
 library(MCMCvis)
-library(Matrix)
 #Also need to be installed, but not loaded: rgeos, maptools, mapproj
 
 
@@ -158,27 +156,6 @@ if (length(to.rm.ind) > 0)
 
 
 
-# Estimate scaling factor for BYM2 model with INLA ------------------------
-
-#Build the adjacency matrix using INLA library functions
-adj.matrix <- Matrix::sparseMatrix(i = ninds[,1], j = ninds[,2], x = 1, symmetric = TRUE)
-
-#The IAR precision matrix (note! This is singular)
-Q <- Matrix::Diagonal(ncell, Matrix::rowSums(adj.matrix)) - adj.matrix
-#Add a small jitter to the diagonal for numerical stability (optional but recommended)
-Q_pert <- Q + Matrix::Diagonal(ncell) * max(diag(Q)) * sqrt(.Machine$double.eps)
-
-# Compute the diagonal elements of the covariance matrix subject to the 
-# constraint that the entries of the ICAR sum to zero.
-# See the inla.qinv function help for further details.
-Q_inv <- INLA::inla.qinv(Q_pert, 
-                         constr = list(A = matrix(1, 1, ncell), e = 0))
-
-#Compute the geometric mean of the variances, which are on the diagonal of Q.inv
-scaling_factor <- exp(mean(log(diag(Q_inv))))
-
-
-
 # create Stan data object -------------------------------------------------
 
 #create and fill sds, obs, data for PPC, and temp
@@ -262,7 +239,6 @@ DATA <- list(J = ncell,
              node2 = ninds[,2],
              y_obs = y_obs_in,
              sigma_y = sigma_y_in,
-             scaling_factor = scaling_factor,
              ii_obs = ii_obs_in,
              ii_mis = ii_mis_in,
              lat = cellcenters$lat_deg,
@@ -293,7 +269,6 @@ vector<lower = 24, upper = 90>[J] lat;
 }
 
 parameters {
-// real y_mis[N, J];                                     // missing response data
 vector[J] y_mis[N];
 real alpha_gamma_raw;
 real beta_gamma_raw;                                  // effect of latitude
@@ -308,7 +283,6 @@ real<lower = 0> sigma_y_true_raw;
 }
 
 transformed parameters {
-// real y[N, J];                 // response data to be modeled
 vector[J] y[N];
 vector[J] gamma;
 real alpha_gamma;
@@ -374,9 +348,9 @@ vector[NJ] y_rep;
 int<lower = 0> counter;
 
 counter = 1;
-for (j in 1:J)
+for (n in 1:N)
 {
-  for (n in 1:N)
+  for (j in 1:J)
   {
   y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
   counter = counter + 1;
@@ -395,7 +369,7 @@ DELTA <- 0.97
 TREE_DEPTH <- 17
 STEP_SIZE <- 0.0003
 CHAINS <- 6
-ITER <- 8000
+ITER <- 3000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -450,7 +424,8 @@ accept_stat <- sapply(sampler_params,
 # Summaries ---------------------------------------------------------------
 
 #get summary of model output
-model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, round = 2, excl = 'y_rep')
+model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, 
+                                      round = 2, excl = 'y_rep')
 
 #extract Rhat and neff values
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
@@ -465,8 +440,8 @@ y_rep_ch <- MCMCvis::MCMCpstr(fit, params = 'y_rep', type = 'chains')[[1]]
 t_y_rep <- t(y_rep_ch)
 
 #remove NA vals
-na.y.rm <- which(is.na(y_PPC))
-n_y_PPC <- y_PPC[-na.y.rm]
+na.y.rm <- which(is.na(DATA$y_PPC))
+n_y_PPC <- DATA$y_PPC[-na.y.rm]
 n_y_rep <- t_y_rep[, -na.y.rm]
 
 #mean resid (pred - actual) for each datapoint
@@ -480,6 +455,7 @@ for (i in 1:length(n_y_PPC))
 #density overlay plot - first 100 iter
 #modified bayesplot::ppc_dens_overlay function
 tdata <- bayesplot::ppc_data(n_y_PPC, n_y_rep[1:100,])
+
 
 annotations <- data.frame(xpos = c(-Inf, -Inf),
                           ypos = c(Inf, Inf),
@@ -545,7 +521,7 @@ dev.off()
 
 options(max.print = 5e6)
 sink(paste0(args, '-iar-stan_results-', IAR_out_date, '.txt'))
-cat(paste0('bym results ', args, ' \n'))
+cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))

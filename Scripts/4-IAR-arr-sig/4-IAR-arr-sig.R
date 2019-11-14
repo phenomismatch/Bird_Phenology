@@ -397,9 +397,9 @@ vector[NJ] y_rep;
 int<lower = 0> counter;
 
 counter = 1;
-for (j in 1:J)
+for (n in 1:N)
 {
-  for (n in 1:N)
+  for (j in 1:J)
   {
   y_rep[counter] = normal_rng(y_true[n,j], tau_y[n,j]);
   counter = counter + 1;
