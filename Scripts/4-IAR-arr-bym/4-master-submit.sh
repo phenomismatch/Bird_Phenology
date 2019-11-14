@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATE="2019-11-14"
-mkdir /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/iar_output_$DATE
+mkdir /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_$DATE
 
 while read name
 do
@@ -10,4 +10,4 @@ do
   sbatch species/4-$temp.sh
 done < ../../Data/IAR_species_list.txt
 
-cp 4-IAR-arr-bym.R ../../Data/Processed/iar_output_$DATE/4-IAR-arr-bym-$DATE.R
+cp 4-IAR-arr-bym.R ../../Data/Processed/IAR_output_$DATE/4-IAR-arr-bym-$DATE.R
