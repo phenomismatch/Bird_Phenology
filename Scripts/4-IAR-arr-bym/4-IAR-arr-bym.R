@@ -8,13 +8,13 @@
 # j = cell
 # y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
 # y_{true[i,j]} \sim N(\mu_{[i,j]}, \sigma_{y_true})
-# \mu_{[i,j]} = \beta_{0[i]} + \gamma_{[j]} + \phi_{[i,j]} * sigma_phi[i]
+# \mu_{[i,j]} = \beta_{0[i]} + \gamma_{[j]} + \phi_{[i,j]} * sigma_phi
 # \beta_{0[i]} \sim N(0, \sigma_{\beta_{0}})
 # \gamma_{[j]} \sim N(\mu_{\gamma[j]}, \sigma_{\gamma})
 # \mu_{\gamma[j]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[j]}
 # \sigma_{\phi} \sim HN(0, 5)
 # \phi_{[i,j]} \sim N(0, [D - W]^{-1})
-# \forall j \in \left \{1, ..., J  \right \}; \sum_{i}{} \phi_{[i,j]} = 0
+# \sum_{j}{} \phi_{[i,j]} = 0
 ######################
 
 #Stan resources:
@@ -38,7 +38,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'bym_output_2019-11-13'
+IAR_out_dir <- 'IAR_output_2019-11-14'
 
 
 
@@ -309,7 +309,7 @@ beta0 = beta0_raw * sigma_beta0;
 // for each year, vectorize over cells
 for (i in 1:N)
 {
-  // mu = beta0 + gamma + phi * sigma_phi
+  // implies y_true ~ N(beta0 + gamma + phi * sigma_phi, sigma_y_true)
   y_true[i] = y_true_raw[i] * sigma_y_true + beta0[i] + gamma + phi[i] * sigma_phi;
   
   // indexing to avoid NAs  
@@ -335,11 +335,12 @@ for (i in 1:N)
   y_true_raw[i] ~ std_normal();
   // index array first (each year), then vector (for cells)
   target += -0.5 * dot_self(phi[i, node1] - phi[i, node2]);
+  // soft sum to 0 constraint
   sum(phi[i]) ~ normal(0, 0.001 * N);
   
+  // observation model for y
   y[i] ~ normal(y_true[i], sigma_y[i]);
 }
-
 }
 
 generated quantities {
