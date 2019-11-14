@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=bym-Catharus_fuscescens
+#SBATCH --job-name=2019-11-14-Catharus_fuscescens
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 6 #cpus
@@ -9,8 +9,8 @@
 #SBATCH --mem=15G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bym_output_2019-11-13/Catharus_fuscescens-bym.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bym_output_2019-11-13/Catharus_fuscescens-bym.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/iar_output_2019-11-14/Catharus_fuscescens-iar.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/iar_output_2019-11-14/Catharus_fuscescens-iar.err #STDERR
 
 #echos name of node
 echo `hostname`

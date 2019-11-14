@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-11-13"
+DATE="2019-11-14"
 
 while read name
 do
@@ -8,7 +8,7 @@ do
   temp="${temp#\"}"
   echo "#!/bin/bash
 
-#SBATCH --job-name=bym-$temp
+#SBATCH --job-name=$DATE-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 6 #cpus
@@ -17,8 +17,8 @@ do
 #SBATCH --mem=15G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bym_output_$DATE/$temp-bym.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bym_output_$DATE/$temp-bym.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/iar_output_$DATE/$temp-iar.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/iar_output_$DATE/$temp-iar.err #STDERR
 
 #echos name of node
 echo \`hostname\`
@@ -33,4 +33,4 @@ singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscrip
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/4-$temp.sh"
-done < ../../Data/test_species_list.txt
+done < ../../Data/IAR_species_list.txt
