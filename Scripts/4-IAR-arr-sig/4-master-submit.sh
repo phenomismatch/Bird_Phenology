@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-11-13"
+DATE="2019-11-19"
 mkdir /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/sig_output_$DATE
 
 while read name

@@ -9,8 +9,8 @@
 #SBATCH --mem=15G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/sig_output_2019-11-13/Vireo_olivaceus-sig.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/sig_output_2019-11-13/Vireo_olivaceus-sig.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/sig_output_2019-11-19/Vireo_olivaceus-sig.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/sig_output_2019-11-19/Vireo_olivaceus-sig.err #STDERR
 
 #echos name of node
 echo `hostname`
