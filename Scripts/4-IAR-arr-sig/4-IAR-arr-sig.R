@@ -264,7 +264,7 @@ int<lower = 0> N_edges;                               // number of edges in adja
 int<lower = 1, upper = J> node1[N_edges];             // node1[i] adjacent to node2[i]
 int<lower = 1, upper = J> node2[N_edges];             // and node1[i] < node2[i]
 vector[J] y_obs[N];                                   // observed response data (add NAs to end)
-vector<lower = 0>[J] sigma_y[N];                      // observed sd of data on log scale(observation error)
+vector[J] sigma_y[N];                      // observed sd of data on log scale(observation error)
 int<lower = 0> ii_obs[N, J];                          // indices of observed data
 int<lower = 0> ii_mis[N, J];                          // indices of missing data
 vector<lower = 24, upper = 90>[J] lat;
@@ -307,7 +307,7 @@ sigma_gamma = sigma_gamma_raw * 5;
 sigma_beta0 = sigma_beta0_raw * 5;
 sigma_y_true = sigma_y_true_raw * 5;
 sigma_phi = sigma_phi_raw * 5;
-sigma_tau = sigma_tau_raw * 0.5;
+sigma_tau = sigma_tau_raw * 0.2;
 
 mu_gamma = alpha_gamma + beta_gamma * lat;
 gamma = gamma_raw * sigma_gamma + mu_gamma;
