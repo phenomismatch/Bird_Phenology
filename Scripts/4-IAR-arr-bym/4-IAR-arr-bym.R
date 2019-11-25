@@ -395,6 +395,57 @@ fit <- rstan::stan(model_code = IAR_2,
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
+# Summaries ---------------------------------------------------------------
+
+#get summary of model output
+model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, 
+                                      round = 2, excl = 'y_rep')
+
+#extract Rhat and neff values
+rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
+neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
+
+
+
+# rerun if necessary ------------------------------------------------------
+
+#double iterations and run again
+while (max(rhat_output) > 1.03 & min(neff_output) < 400)
+{
+  
+  ITER <- ITER * 2
+  
+  tt <- proc.time()
+  fit <- rstan::stan(model_code = IAR_2,
+                     data = DATA,
+                     chains = CHAINS,
+                     iter = ITER,
+                     cores = CHAINS,
+                     pars = c('sigma_beta0', 
+                              'beta0',
+                              'alpha_gamma', 
+                              'beta_gamma', 
+                              'sigma_gamma', 
+                              'gamma',
+                              'phi',
+                              'sigma_phi',
+                              'sigma_y_true',
+                              'y_true', 
+                              'y_rep'),
+                     control = list(adapt_delta = DELTA,
+                                    max_treedepth = TREE_DEPTH,
+                                    stepsize = STEP_SIZE))
+  run_time <- (proc.time()[3] - tt[3]) / 60
+  
+  #get updated summary
+  model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, 
+                                        round = 2, excl = 'y_rep')
+  
+  #extract Rhat and neff values
+  rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
+  neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
+}
+
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
@@ -420,17 +471,6 @@ mn_treedepth <- sapply(sampler_params,
                        function(x) mean(x[, 'treedepth__']))
 accept_stat <- sapply(sampler_params,
                       function(x) mean(x[, 'accept_stat__']))
-
-
-# Summaries ---------------------------------------------------------------
-
-#get summary of model output
-model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, 
-                                      round = 2, excl = 'y_rep')
-
-#extract Rhat and neff values
-rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
-neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
 
 
 
