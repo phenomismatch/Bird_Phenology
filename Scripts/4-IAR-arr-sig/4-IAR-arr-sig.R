@@ -316,7 +316,7 @@ beta0 = beta0_raw * sigma_beta0;
 // for each year, vectorize over cells
 for (i in 1:N)
 {
-  // implies tau_y ~ LM(sigma_y, sigma_tau)
+  // implies tau_y ~ LN(sigma_y, sigma_tau)
   tau_y[i] = exp(tau_y_raw[i] * sigma_tau + sigma_y[i]);
 
   // implies y_true ~ N(beta0 + gamma + phi * sigma_phi, sigma_y_true)
