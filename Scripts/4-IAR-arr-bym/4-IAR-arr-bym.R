@@ -370,7 +370,7 @@ DELTA <- 0.97
 TREE_DEPTH <- 17
 STEP_SIZE <- 0.0003
 CHAINS <- 6
-ITER <- 3000
+ITER <- 5000
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR_2,
@@ -410,7 +410,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # rerun if necessary ------------------------------------------------------
 
 #double iterations and run again
-while (max(rhat_output) > 1.03 & min(neff_output) < 400)
+while (max(rhat_output) > 1.03 | min(neff_output) < 400)
 {
   
   ITER <- ITER * 2
