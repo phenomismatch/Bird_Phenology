@@ -18,8 +18,8 @@ dir <- '~/Google_Drive/R/'
 # other dir ---------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- '/Users/caseyyoungflesh/Desktop/Bird_Phenology_Offline/Data/Processed/IAR_output_2019-05-26'
-master_out_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_2019-05-26'
+IAR_out_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/IAR_output_2019-11-14'
+master_out_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_2019-11-14'
 
 
 # Load packages -----------------------------------------------------------
@@ -94,15 +94,15 @@ for (i in 1:length(species))
   setwd(IAR_out_dir)
   
   #if that species RDS object exists in dir
-  if (length(grep(paste0(sp, '-', IAR_out_date, '-iar-stan_output.rds'), list.files())) > 0)
+  if (length(grep(paste0(sp, '-iar-stan_output-', IAR_out_date, '.rds'), list.files())) > 0)
   {
     
     # filter and read in data -------------------------------------------------
     f_in_p <- dplyr::filter(df_master, species == sp & MODEL == TRUE)
     
     #read in IAR model output and input
-    t_fit <- readRDS(paste0(sp, '-', IAR_out_date, '-iar-stan_output.rds'))
-    t_data <- readRDS(paste0(sp, '-', IAR_out_date, '-iar-stan_input.rds'))
+    t_fit <- readRDS(paste0(sp, '-iar-stan_output-', IAR_out_date, '.rds'))
+    t_data <- readRDS(paste0(sp, '-iar-stan_input-', IAR_out_date, '.rds'))
     
     #only cells and years that were modeled (to account for any lone cells that were dropped in 4-IAR-arr.R)
     f_in <- dplyr::filter(f_in_p, cell %in% t_data$cells)
@@ -237,7 +237,7 @@ for (i in 1:length(species))
     #loop through years
     for (j in 1:length(t_years))
     {
-      #j <- 2
+      #j <- 1
       print(paste0('species: ', sp, ', ', 
                    'year: ', t_years[j]))
       
@@ -247,8 +247,8 @@ for (i in 1:length(species))
                          cell_lat = round(cellcenters$lat_deg, digits = 2), 
                          cell_lon = round(cellcenters$lon_deg, digits = 2),
                          t_f_in[,c('year', 'HM_mean', 'HM_sd')],
-                         mean_post_IAR = mean_fit[,j], 
-                         sd_post_IAR = sd_fit[,j],
+                         mean_post_IAR = mean_fit[j,], 
+                         sd_post_IAR = sd_fit[j,],
                          mean_gamma,
                          sd_gamma,
                          mean_beta0[j],
