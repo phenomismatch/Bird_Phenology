@@ -145,7 +145,7 @@ for (i in 1:length(species))
     
     #get filename and read in
     fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
-    sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+    sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
     
     #filter by breeding (2) range
     br_rng <- sp_rng[which(sp_rng$SEASONAL == 2),]
@@ -304,6 +304,7 @@ out_m3 <- dplyr::left_join(out_m2, dm_tmin, by = c('cell', 'year'))
 #remove zeros
 out_m4 <- out_m3[-c(min(which(is.na(out_m3$species))):NROW(out_m3)),]
 
+
 # write to file -----------------------------------------------------------
 
 #create dir if it does not exist
@@ -313,7 +314,7 @@ ifelse(!dir.exists(master_out_dir),
 
 setwd(master_out_dir)
 
-saveRDS(out_m3, file = paste0('arrival_master_', IAR_out_date, '.rds'))
+saveRDS(out_m4, file = paste0('arrival_master_', IAR_out_date, '.rds'))
 # saveRDS(alpha_gamma_post, file = paste0('arrival_alpha_gamma_post_', IAR_out_date, '.rds'))
 # saveRDS(beta_gamma_post, file = paste0('arrival_beta_gamma_post_', IAR_out_date, '.rds'))
 # saveRDS(arr_post, file = paste0('arrival_post_', IAR_out_date, '.rds'))
