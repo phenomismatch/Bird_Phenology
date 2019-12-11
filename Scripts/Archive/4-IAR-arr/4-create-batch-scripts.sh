@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-11-14"
+DATE="2019-11-13"
 
 while read name
 do
@@ -8,7 +8,7 @@ do
   temp="${temp#\"}"
   echo "#!/bin/bash
 
-#SBATCH --job-name=$DATE-$temp
+#SBATCH --job-name=iar-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 6 #cpus
@@ -33,5 +33,4 @@ singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscrip
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/4-$temp.sh"
-done < ../../Data/IAR_species_list.txt
-#done < ../../Data/species_list_2019-11-25.txt
+done < ../../Data/test_species_list.txt
