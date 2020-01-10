@@ -27,6 +27,7 @@ master_out_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master
 library(MCMCvis)
 library(dplyr)
 library(dggridR)
+library(reshape2)
 
 
 # setwd -------------------------------------------------------------------
@@ -286,23 +287,190 @@ for (i in 1:length(species))
 } #end species loop
 
 
+#remove zeros
+out2 <- out[-c(min(which(is.na(out$species))):NROW(out)),]
 
+
+#######################
+#remove daymet cols - no need to run this when running script from begining
+cn_o <- colnames(out2)
+to.rm <- c(grep('prcp', cn_o), grep('tmin', cn_o), grep('tmax', cn_o))
+out2 <- out2[,-to.rm]
+#######################
 
 # merge daymet ------------------------------------------------------------
 
-#daymet processed with 4b-extract-daymet/
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
+# #daymet processed with 4b-extract-daymet/
+# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/daymet'))
+# 
+# dm_prcp <- readRDS('daymet_hex_prcp.rds')
+# dm_tmax <- readRDS('daymet_hex_tmax.rds')
+# dm_tmin <- readRDS('daymet_hex_tmin.rds')
+# 
+# out_m1 <- dplyr::left_join(out2, dm_prcp, by = c('cell', 'year'))
+# out_m2 <- dplyr::left_join(out_m1, dm_tmax, by = c('cell', 'year'))
+# out_m3 <- dplyr::left_join(out_m2, dm_tmin, by = c('cell', 'year'))
 
-dm_prcp <- readRDS('daymet_hex_prcp.rds')
-dm_tmax <- readRDS('daymet_hex_tmax.rds')
-dm_tmin <- readRDS('daymet_hex_tmin.rds')
+setwd(paste0(dir, 'Bird_Phenology/Data/environment/RAW'))
 
-out_m1 <- dplyr::left_join(out, dm_prcp, by = c('cell', 'year'))
-out_m2 <- dplyr::left_join(out_m1, dm_tmax, by = c('cell', 'year'))
-out_m3 <- dplyr::left_join(out_m2, dm_tmin, by = c('cell', 'year'))
+#merge temp datasets
+temp_1 <- read.csv('1986to2000TminTmax.csv')
+temp_2 <- read.csv('2001to2018TminTmax.csv')
+temp_mrg <- dplyr::left_join(temp_1, temp_2)
 
-#remove zeros
-out_m4 <- out_m3[-c(min(which(is.na(out_m3$species))):NROW(out_m3)),]
+tmin_idx <- grep('tmin', colnames(temp_mrg))
+tmin <- temp_mrg[,c(1:3, tmin_idx)]
+tmax_idx <- grep('tmax', colnames(temp_mrg))
+tmax <- temp_mrg[,c(1:3, tmax_idx)]
+
+##tmin
+#get colnames
+cn_tmin <- colnames(tmin)
+#which colnames are year
+cn_tmin_idx <- grep('tmin', cn_tmin)
+#long format
+rs_tmin <- reshape2::melt(tmin, id = c('cell', 'x', 'y'))
+split_tmin <- strsplit(as.character(rs_tmin[,'variable']), '_')
+rs_tmin$month <- sapply(split_tmin, `[`, 1)
+rs_tmin$year <- as.numeric(sapply(split_tmin, `[`, 2))
+
+##tmax
+#get colnames
+cn_tmax <- colnames(tmax)
+#which colnames are year
+cn_tmax_idx <- grep('tmax', cn_tmax)
+#long format
+rs_tmax <- reshape2::melt(tmax, id = c('cell', 'x', 'y'))
+split_tmax <- strsplit(as.character(rs_tmax[,'variable']), '_')
+rs_tmax$month <- sapply(split_tmax, `[`, 1)
+rs_tmax$year <- as.numeric(sapply(split_tmax, `[`, 2))
+
+##precip
+precip <- read.csv('1986to2018Precip.csv')
+#get colnames
+cn_precip <- colnames(precip)
+#which colnames are year
+cn_precip_idx <- grep('precip', cn_precip)
+#long format
+rs_precip <- reshape2::melt(precip, id = c('cell', 'x', 'y'))
+split_precip <- strsplit(as.character(rs_precip[,'variable']), '_')
+rs_precip$month <- sapply(split_precip, `[`, 1)
+rs_precip$year <- as.numeric(sapply(split_precip, `[`, 2))
+
+#cast so that cell and year are long with month in cols
+rs_tmin_dc <- dcast(rs_tmin, cell + year ~ month)
+rs_tmax_dc <- dcast(rs_tmax, cell + year ~ month)
+rs_precip_dc <- dcast(rs_precip, cell + year ~ month)
+
+#rename cols
+colnames(rs_tmin_dc)[3:5] <- c('A_tmin', 'F_tmin', 'M_tmin')
+colnames(rs_tmax_dc)[3:5] <- c('A_tmax', 'F_tmax', 'M_tmax')
+colnames(rs_precip_dc)[3:5] <- c('A_prcp', 'F_prcp', 'M_prcp')
+
+#calculate FMA
+rs_tmin_dc$FMA_tmin <- apply(rs_tmin_dc[,3:5], 1, function(x) mean(x, na.rm = TRUE))
+rs_tmax_dc$FMA_tmax <- apply(rs_tmax_dc[,3:5], 1, function(x) mean(x, na.rm = TRUE))
+rs_precip_dc$FMA_prcp <- apply(rs_precip_dc[,3:5], 1, function(x) mean(x, na.rm = TRUE))
+
+#reorder cols
+rs_tmin_dc2 <- rs_tmin_dc[,c(1,2,4,5,3,6)]
+rs_tmax_dc2 <- rs_tmax_dc[,c(1,2,4,5,3,6)]
+rs_precip_dc2 <- rs_precip_dc[,c(1,2,4,5,3,6)]
+
+#change NaN to NA
+rs_tmin_dc2$FMA_tmin[which(is.nan(rs_tmin_dc2$FMA_tmin))] <- NA
+rs_tmax_dc2$FMA_tmax[which(is.nan(rs_tmax_dc2$FMA_tmax))] <- NA
+rs_precip_dc2$FMA_prcp[which(is.nan(rs_precip_dc2$FMA_prcp))] <- NA
+
+#save to RDS
+setwd(paste0(dir, 'Bird_Phenology/Data/environment/processed'))
+saveRDS(rs_tmin_dc2, 'pro_tmin.rds')
+saveRDS(rs_tmax_dc2, 'pro_tmax.rds')
+saveRDS(rs_precip_dc2, 'pro_prcp.rds')
+
+#merge daymet data to df
+out3 <- list(out2, rs_tmin_dc2, rs_tmax_dc2, rs_precip_dc2) %>% 
+  purrr::reduce(dplyr::left_join, by = c('cell', 'year'))
+
+
+# merge green-up ----------------------------------------------------------
+
+setwd(paste0(dir, 'Bird_Phenology/Data/environment/RAW'))
+gr <- read.csv('2001to2017_GreenUP_DOY.csv')
+
+#get colnames
+cn <- colnames(gr)
+#which colnames are year
+cn_idx <- grep('MODIS', cn)
+#long format
+rs_gr <- reshape2::melt(gr, id = c('cell', 'x', 'y'))
+#extract year
+rs_gr$year <- as.numeric(sapply(strsplit(as.character(rs_gr[,'variable']), '_'), 
+                                `[`, 2))
+
+#only cols of interest
+rs_gr2 <- rs_gr[,c(1,6,5)]
+#change colnames
+colnames(rs_gr2)[3] <- 'greenup'
+
+#save to RDS
+setwd(paste0(dir, 'Bird_Phenology/Data/environment/processed'))
+saveRDS(rs_gr2, 'pro_greenup.rds')
+
+#join with rest of data
+out4 <- dplyr::left_join(out3, rs_gr2)
+
+
+
+###############################
+#NAs where there shouldn't be - contact Naresh about this now
+#find out which cells are NA
+daymet_na <- unique(out4[which(is.na(out4$F_prcp)),c(2,5:6)])
+greenup_na <- unique(out4[which(is.na(out4$greenup)),c(2,5:6)])
+
+setwd('~/Desktop/')
+write.csv(daymet_na, 'NA_cells_daymet.csv', row.names = FALSE)
+write.csv(greenup_na, 'NA_cells_greenup.csv', row.names = FALSE)
+###############################
+
+
+#######################################
+# check Naresh values with previous daymet extraction ----------------------------
+
+tmin_i <- readRDS('daymet_hex_tmin.rds')
+colnames(tmin_i) <- c('cell', 'year', 'F', 'M', 'A', 'FMA')
+tmax_i <- readRDS('daymet_hex_tmax.rds')
+colnames(tmax_i) <- c('cell', 'year', 'F', 'M', 'A', 'FMA')
+prcp_i <- readRDS('daymet_hex_prcp.rds')
+colnames(prcp_i) <- c('cell', 'year', 'F', 'M', 'A', 'FMA')
+
+lj1 <- dplyr::left_join(out4, tmin_i)
+lj2 <- dplyr::left_join(out4, tmax_i)
+lj3 <- dplyr::left_join(out4, prcp_i)
+
+cor(lj1$F_tmin, lj1$F, use = 'complete.obs')
+cor(lj1$M_tmin, lj1$M, use = 'complete.obs')
+cor(lj1$A_tmin, lj1$A, use = 'complete.obs')
+cor(lj1$FMA_tmin, lj1$FMA, use = 'complete.obs')
+
+cor(lj1$F_tmax, lj2$F, use = 'complete.obs')
+cor(lj1$M_tmax, lj2$M, use = 'complete.obs')
+cor(lj1$A_tmax, lj2$A, use = 'complete.obs')
+cor(lj1$FMA_tmax, lj2$FMA, use = 'complete.obs')
+
+cor(lj1$F_prcp, lj3$F, use = 'complete.obs')
+cor(lj1$M_prcp, lj3$M, use = 'complete.obs')
+cor(lj1$A_prcp, lj3$A, use = 'complete.obs')
+cor(lj1$FMA_prcp, lj3$FMA, use = 'complete.obs')
+
+
+na.prcp <- which(is.na(out4$FMA_prcp))
+na.gu <- which(is.na(out4$greenup))
+
+na.mrg <- c(na.prcp, na.gu)
+head(out4[na.mrg[which(duplicated(na.mrg))],])
+tail(out4[na.mrg[which(!duplicated(na.mrg))],])
+#######################################
 
 
 # write to file -----------------------------------------------------------
