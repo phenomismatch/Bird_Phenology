@@ -224,6 +224,19 @@ if (length(to.NA) > 0)
 df_master <- diagnostics_frame[with(diagnostics_frame, order(species, year, cell)),]
 
 
+
+# add cell lat/lon --------------------------------------------------------
+
+#make hexgrid
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+#get hexgrid cell centers
+cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, df_master$cell)
+
+df_master$cell_lat <- round(cellcenters$lat_deg, digits = 2)
+df_master$cell_lon <- round(cellcenters$lon_deg, digits = 2)
+
+
 # write to RDS --------------------------------------------------
 
 dir.create(juv_master_dir)
