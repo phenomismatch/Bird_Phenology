@@ -335,8 +335,8 @@ for (i in 1:N)
   y_true_raw[i] ~ std_normal();
   // index array first (each year), then vector (for cells)
   target += -0.5 * dot_self(phi[i, node1] - phi[i, node2]);
-  // soft sum to 0 constraint
-  sum(phi[i]) ~ normal(0, 0.001 * N);
+  // soft sum to 0 constraint - J is number of phis
+  sum(phi[i]) ~ normal(0, 0.001 * J);
   
   // observation model for y
   y[i] ~ normal(y_true[i], sigma_y[i]);
