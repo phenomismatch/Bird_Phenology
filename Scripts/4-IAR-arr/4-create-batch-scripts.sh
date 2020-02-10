@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-11-14"
+DATE="2020-02-10"
 
 while read name
 do
@@ -15,8 +15,6 @@ do
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
 #SBATCH --mem=15G #memory requested
-#SBATCH --mail-type=END #when to send email (on job completion)
-#SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
 #SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_$DATE/$temp-iar.out #STDOUT
 #SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_$DATE/$temp-iar.err #STDERR
 

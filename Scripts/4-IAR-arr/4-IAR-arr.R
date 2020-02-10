@@ -38,7 +38,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'IAR_output_2019-11-14'
+IAR_out_dir <- 'IAR_output_2020-02-10'
 
 
 
@@ -251,7 +251,7 @@ DATA <- list(J = ncell,
 #years in rows
 #cells in columns
 
-IAR_2 <- '
+IAR <- '
 data {
 int<lower = 0> N;                                     // number of years
 int<lower = 0> J;                                     // number of cells
@@ -278,7 +278,7 @@ vector[J] phi[N];                                     // sptial error componenet
 real<lower = 0> sigma_phi_raw;
 vector[N] beta0_raw;
 real<lower = 0> sigma_beta0_raw;
-vector[J] y_true_raw[N];                              // J vectors (year) of length N (cells)
+vector[J] y_true_raw[N];                              // J vectors (years in rows) of length N (cells in cols)
 real<lower = 0> sigma_y_true_raw;
 }
 
@@ -295,12 +295,13 @@ real<lower = 0> sigma_phi;
 vector[N] beta0;
 real<lower = 0> sigma_y_true;
 
-alpha_gamma = alpha_gamma_raw * 60;
-beta_gamma = beta_gamma_raw * 3 + 2;
-sigma_gamma = sigma_gamma_raw * 5;
-sigma_beta0 = sigma_beta0_raw * 5;
-sigma_y_true = sigma_y_true_raw * 5;
-sigma_phi = sigma_phi_raw * 5;
+alpha_gamma = alpha_gamma_raw * 100;
+// beta_gamma = 3 represents 37 km / day (which matches speeds reported in lit and derived in La Sorte et al. 2013 Ecology)
+beta_gamma = beta_gamma_raw * 3 + 3;
+sigma_gamma = sigma_gamma_raw * 10;
+sigma_beta0 = sigma_beta0_raw * 10;
+sigma_y_true = sigma_y_true_raw * 10;
+sigma_phi = sigma_phi_raw * 10;
 
 mu_gamma = alpha_gamma + beta_gamma * lat;
 gamma = gamma_raw * sigma_gamma + mu_gamma;
@@ -366,14 +367,14 @@ for (n in 1:N)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.97
-TREE_DEPTH <- 17
-STEP_SIZE <- 0.0003
+DELTA <- 0.95
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.0005
 CHAINS <- 6
 ITER <- 5000
 
 tt <- proc.time()
-fit <- rstan::stan(model_code = IAR_2,
+fit <- rstan::stan(model_code = IAR,
             data = DATA,
             chains = CHAINS,
             iter = ITER,
@@ -745,24 +746,24 @@ for (i in 1:length(years))
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
 
-#alpha_gamma ~ normal(0, 60)
-PR <- rnorm(10000, 0, 60)
+#alpha_gamma ~ normal(0, 100)
+PR <- rnorm(10000, 0, 100)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-trace_alpha_gamma-', IAR_out_date, '.pdf'))
 
-#beta_gamma ~ normal(2, 3)
-PR <- rnorm(10000, 2, 3)
+#beta_gamma ~ normal(3, 3)
+PR <- rnorm(10000, 3, 3)
 MCMCvis::MCMCtrace(fit,
                    params = 'beta_gamma',
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args, '-trace_beta_gamma-', IAR_out_date, '.pdf'))
 
-#sigma_gamma ~ halfnormal(0, 5)
-PR_p <- rnorm(10000, 0, 5)
+#sigma_gamma ~ halfnormal(0, 10)
+PR_p <- rnorm(10000, 0, 10)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_gamma',
@@ -770,8 +771,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-trace_sigma_gamma-', IAR_out_date, '.pdf'))
 
-#sigma_beta0 ~ HN(0, 5)
-PR_p <- rnorm(10000, 0, 5)
+#sigma_beta0 ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta0',
@@ -779,8 +780,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-trace_sigma_beta0-', IAR_out_date, '.pdf'))
 
-#sigma_y_true ~ HN(0, 5)
-PR_p <- rnorm(10000, 0, 5)
+#sigma_y_true ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_y_true',
@@ -788,8 +789,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args, '-trace_sigma_y_true-', IAR_out_date, '.pdf'))
 
-#sigma_phi ~ HN(0, 5)
-PR_p <- rnorm(10000, 0, 5)
+#sigma_phi ~ HN(0, 10)
+PR_p <- rnorm(10000, 0, 10)
 PR <- PR_p[which(PR_p > 0)]
 MCMCvis::MCMCtrace(fit,
                    params = 'sigma_phi',
