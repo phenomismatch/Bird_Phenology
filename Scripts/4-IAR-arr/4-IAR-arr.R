@@ -411,13 +411,13 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # rerun if necessary ------------------------------------------------------
 
 #double iterations and run again
-while (max(rhat_output) > 1.03 | min(neff_output) < 400)
+while ((max(rhat_output) > 1.05 | min(neff_output) < 400) & ITER < 10001)
 {
   
   ITER <- ITER * 2
   
   tt <- proc.time()
-  fit <- rstan::stan(model_code = IAR_2,
+  fit <- rstan::stan(model_code = IAR,
                      data = DATA,
                      chains = CHAINS,
                      iter = ITER,
