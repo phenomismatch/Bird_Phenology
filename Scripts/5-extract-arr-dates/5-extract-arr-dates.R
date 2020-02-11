@@ -425,12 +425,12 @@ out4 <- dplyr::left_join(out3, rs_gr2)
 ###############################
 #NAs where there shouldn't be - contact Naresh about this now
 #find out which cells are NA
-daymet_na <- unique(out4[which(is.na(out4$F_prcp)),c(2,5:6)])
-greenup_na <- unique(out4[which(is.na(out4$greenup)),c(2,5:6)])
+out5 <- dplyr::filter(out4, year < 2017)
+daymet_na <- unique(out4[which(is.na(out5$F_prcp)),c(2,5:6)])
+greenup_na <- unique(out4[which(is.na(out5$greenup)),c(2,5:6)])
 
 setwd('~/Desktop/')
-write.csv(daymet_na, 'NA_cells_daymet.csv', row.names = FALSE)
-write.csv(greenup_na, 'NA_cells_greenup.csv', row.names = FALSE)
+write.csv(daymet_na, 'NA_cells.csv', row.names = FALSE)
 ###############################
 
 
