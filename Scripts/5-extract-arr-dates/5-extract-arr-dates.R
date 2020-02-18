@@ -27,7 +27,6 @@ master_out_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master
 library(MCMCvis)
 library(dplyr)
 library(dggridR)
-library(reshape2)
 
 
 # setwd -------------------------------------------------------------------
@@ -54,16 +53,17 @@ species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_
 # create empty dataframes to fill -----------------------------------------
 
 #combine pre and post IAR data for every year/cell that was modeled (including cell lat/lon)
-out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA,
-                                mig_cell = NA, breed_cell = NA,
-                                cell_lat = NA, cell_lon = NA,
-                                year = NA, mean_pre_IAR = NA, sd_pre_IAR = NA,
-                                mean_post_IAR = NA, sd_post_IAR = NA,
-                                mean_gamma = NA, sd_gamma = NA,
-                                mean_beta0 = NA, sd_beta0 = NA,
-                                mean_alpha_gamma = NA, sd_alpha_gamma = NA,
-                                mean_beta_gamma = NA, sd_beta_gamma = NA,
-                                num_diverge = NA, max_rhat = NA, min_neff = NA)
+out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
+                  mig_cell = NA, breed_cell = NA,
+                  cell_lat = NA, cell_lon = NA,
+                  year = NA, mean_pre_IAR = NA, sd_pre_IAR = NA,
+                  mean_post_IAR = NA, sd_post_IAR = NA,
+                  mean_gamma = NA, sd_gamma = NA,
+                  mean_beta0 = NA, sd_beta0 = NA,
+                  mean_alpha_gamma = NA, sd_alpha_gamma = NA,
+                  mean_beta_gamma = NA, sd_beta_gamma = NA,
+                  num_diverge = NA, max_rhat = NA, min_neff = NA,
+                  PPC_mn_bias = NA, PPC_mn_pval = NA)
 
 
 
@@ -220,6 +220,18 @@ for (i in 1:length(species))
     max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
     min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
     
+    #PPC
+    y_rep_ch <- MCMCvis::MCMCpstr(t_fit, params = 'y_rep', type = 'chains')[[1]]
+    t_y_rep <- t(y_rep_ch)
+    
+    #remove NA vals
+    na.y.rm <- which(is.na(t_data$y_PPC))
+    n_y_PPC <- t_data$y_PPC[-na.y.rm]
+    n_y_rep <- t_y_rep[, -na.y.rm]
+
+    PPC_mn_bias <- mean(n_y_rep) - mean(n_y_PPC)
+    PPC_mn_pval <- sum(n_y_PPC > apply(n_y_rep, 2, mean)) / NROW(n_y_rep)
+    
     # #extract posteriors for arrival dates
     # yt_ch <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', type = 'chains')[[1]]
     # #colnames for posterior df
@@ -260,7 +272,9 @@ for (i in 1:length(species))
                          sd_beta_gamma,
                          num_diverge,
                          max_rhat,
-                         min_neff)
+                         min_neff,
+                         PPC_mn_bias,
+                         PPC_mn_pval)
       
       colnames(t_full)[c(8,9,14,15)] <- c('mean_pre_IAR', 'sd_pre_IAR', 'mean_beta0', 'sd_beta0')
      
