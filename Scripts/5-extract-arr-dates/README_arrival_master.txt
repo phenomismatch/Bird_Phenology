@@ -58,26 +58,3 @@ max_rhat - maximum Rhat value for any parameter from the IAR model.
 
 min_neff - minimum number of effective samples for any parameter from the IAR model.
 
-F_precp - Feb mean precipitation (derived from daily resolution data) for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
-
-M_precp - March mean daily precipitation for a given hex cell in a given year
-
-A_precp - April mean daily precipitation for a given hex cell in a given year
-
-FMA_precp - Feb-April mean daily precipitation for a given hex cell in a given year
-
-F_tmax - Feb mean daily max temperature (derived from daily resolution data) for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
-
-M_tmax - March mean daily max temperature for a given hex cell in a given year
-
-A_tmax - April mean daily max temperature for a given hex cell in a given year
-
-FMA_tmax - Feb-April mean daily max temperature for a given hex cell in a given year
-
-F_tmin - Feb mean daily min temperature (derived from daily resolution data) for a given hex cell in a given year - derived from daymet (https://daac.ornl.gov/cgi-bin/dsviewer.pl?ds_id=1391)
-
-M_tmin - March mean daily min temperature for a given hex cell in a given year
-
-A_tmin - April mean daily min temperature for a given hex cell in a given year
-
-FMA_tmin - Feb-April mean daily min temperature for a given hex cell in a given year
