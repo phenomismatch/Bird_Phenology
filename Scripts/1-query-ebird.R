@@ -6,7 +6,7 @@
 # Creates directory of processed data (rds file for each species) and copy of this 
 # ... script (for reproducability) in /Data/Processed/eBird_query_<DATE>
 #
-# Runtime: 10-11 hours using 4 cores - could be sped if run on on Xanadu?
+# Runtime: 10-11 hours using 4 cores
 ####################
 
 
@@ -186,14 +186,11 @@ rm(data)
 
 
 
-# add jday and shr ---------------------------------------------------
+# add jday ---------------------------------------------------
 
 #julian day
 cn_id <- grep('day', colnames(data2))
 colnames(data2)[cn_id] <- 'jday'
-
-#scaled effort hours
-data2$shr <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
 
 
 
@@ -262,7 +259,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   
   sdata <- dplyr::select(data2, 
                          event_id, year, jday,
-                         shr, cell, species_list_i[i,1])
+                         duration_minutes, cell, species_list_i[i,1])
   
   names(sdata)[6] <- "detect"
   sdata['species'] <- species_list_i[i,1]
@@ -333,7 +330,7 @@ if (length(m_sp2) > 0)
     
     sdata <- dplyr::select(data2, 
                            event_id, year, jday,
-                           shr, cell, m_sp2[i])
+                           duration_minutes, cell, m_sp2[i])
     
     names(sdata)[6] <- "detect"
     sdata['species'] <- m_sp2[i]
