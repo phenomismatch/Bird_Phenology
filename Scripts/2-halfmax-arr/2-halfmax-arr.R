@@ -29,7 +29,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # db query dir ------------------------------------------------------------
 
 db_dir <- 'eBird_query_2019-05-03'
-RUN_DATE <- '2019-05-03'
+RUN_DATE <- '2020-02-20'
 
 
 # model settings ----------------------------------------------------------
@@ -75,6 +75,8 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Ammospiza_nelsoni'
 #args <- 'Bombycilla_cedrorum'
 #args <- 'Tyrannus_tyrannus'
+#args <- 'Catharus_ustulatus'
+#args <- 'Antrostomus_vociferus'
 
 
 # import processed data ---------------------------------------------------
@@ -222,11 +224,13 @@ if (NROW(nrng@data) > 0)
                            cell = NA, 
                            max_Rhat = NA,
                            min_neff = NA,
+                           sdm = NA,
                            num_diverge = NA,
                            num_tree = NA,
                            num_BFMI = NA,
                            delta = NA,
                            tree_depth = NA,
+                           t_iter = NA,
                            n1 = NA,
                            n1W = NA,
                            n0 = NA,
@@ -262,11 +266,13 @@ halfmax_df <- data.frame(species = args,
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
+                         sdm = NA,
                          num_diverge = NA,
                          num_tree = NA,
                          num_BFMI = NA,
                          delta = NA,
                          tree_depth = NA,
+                         t_iter = NA,
                          n1 = NA,
                          n1W = NA,
                          n0 = NA,
@@ -289,12 +295,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 11
+  #j <- 16
   yspdata <- spdata2[which(spdata2$year == years[j]), ]
   
   for (k in 1:ncell)
   {
-    #k <- 85
+    #k <- 16
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
@@ -332,6 +338,9 @@ for (j in 1:nyr)
     halfmax_df$njd0[counter] <- njd0
     halfmax_df$njd0i[counter] <- njd0i
     
+    #center effort (to make sure supplying value of 0 in post-model prediction is meaningful)
+    #cyspdata$shr <- scale(cyspdata$duration_minutes, scale = FALSE)[,1]
+    
     #defaults for rstanarm are 0.95 and 15
     DELTA <- 0.95
     TREE_DEPTH <- 15
@@ -353,11 +362,10 @@ for (j in 1:nyr)
       num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
       num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
-      #rerun model if things didn't go well
+      #rerun model if divergences occurred
       while (sum(c(num_diverge, num_BFMI)) > 0 & DELTA <= 0.98)
       {
         DELTA <- DELTA + 0.01
-        TREE_DEPTH <- TREE_DEPTH + 1
 
         fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr,
                                    data = cyspdata,
@@ -374,11 +382,43 @@ for (j in 1:nyr)
         num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       }
       
+      max_Rhat <- round(max(summary(fit2)[, 'Rhat']), 2)
+      min_neff <- min(summary(fit2)[, 'n_eff'])
+      
+      #total # of iter
+      TITER <- ITER
+      
+      #rerun model if low neff or high Rhat
+      while (num_diverge == 0 & (max_Rhat > 1.05 | min_neff < 350) & 
+             (TITER < (ITER * 2) + 1))
+      {
+        TITER <- TITER * 2
+        
+        fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr,
+                                     data = cyspdata,
+                                     family = binomial(link = "logit"),
+                                     algorithm = 'sampling',
+                                     iter = ITER,
+                                     chains = CHAINS,
+                                     cores = CHAINS,
+                                     adapt_delta = DELTA,
+                                     control = list(max_treedepth = TREE_DEPTH))
+        
+        num_diverge <- rstan::get_num_divergent(fit2$stanfit)
+        num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
+        num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
+        max_Rhat <- round(max(summary(fit2)[, 'Rhat']), 2)
+        min_neff <- min(summary(fit2)[, 'n_eff'])
+      }
+      
       halfmax_df$num_diverge[counter] <- num_diverge
       halfmax_df$num_tree[counter] <- num_tree
       halfmax_df$num_BFMI[counter] <- num_BFMI
       halfmax_df$delta[counter] <- DELTA
       halfmax_df$tree_depth[counter] <- TREE_DEPTH
+      halfmax_df$t_iter[counter] <- TITER
+      halfmax_df$max_Rhat[counter] <- max_Rhat
+      halfmax_df$min_neff[counter] <- min_neff
       
       #generate predict data
       predictDays <- range(cyspdata$jday)[1]:range(cyspdata$jday)[2]
@@ -388,31 +428,81 @@ for (j in 1:nyr)
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
       
+      #day at which probability of occurence is is half local maximum value
       for (L in 1:((ITER/2)*CHAINS))
       {
-        #L <- 1
+        #L <- 14
         rowL <- as.vector(dfit[L,])
-        halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
+        #first detection
+        fd <- min(cyspdata$jday[which(cyspdata$detect == 1)])
+        #local maximum(s)
+        #from: stackoverflow.com/questions/6836409/finding-local-maxima-and-minima
+        lmax <- which(diff(sign(diff(rowL))) == -2) + 1
+        #first local max to come after first detection
+        flm <- which(lmax > fd)
+        if (length(flm) > 0)
+        {
+          #first local max to come after first detection
+          lmax2 <- lmax[min(flm)]
+        } else {
+          lmax2 <- which.max(rowL)
+        }
+        #position of min value before max - typically, where 0 is
+        lmin <- which.min(rowL[1:lmax2])
+        #value at local max - value at min (typically 0)
+        dmm <- rowL[lmax2] - rowL[lmin]
+        #all positions less than or equal to half diff between max and min
+        tlm <- which(rowL <= ((dmm/2) + rowL[lmin]))
+        #which of these come before max and after min
+        vgm <- which(tlm < lmax2 & tlm > lmin)
+        #insert halfmax (1 for situations where max is a jday = 1)
+        if (length(vgm) > 0)
+        {
+          halfmax_fit[L] <- predictDays[max(vgm)]
+        } else {
+          halfmax_fit[L] <- 1
+        }
       }
       
-      ########################
-      #PLOT MODEL FIT AND DATA
-
+      #model fit
       mn_dfit <- apply(dfit, 2, mean)
       LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
       UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+      
+      #check second derivative of mn model fit has a min (a hump exists in the fit)
+      sdm <- sum(diff(sign(diff(mn_dfit))) == -2)
+      if (sdm > 0)
+      {
+        halfmax_df$sdm[counter] <- TRUE
+      } else {
+        halfmax_df$sdm[counter] <- FALSE
+      }
+      
+      #estimated halfmax
       mn_hm <- mean(halfmax_fit)
       LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+      
+      #fill df with halfmax iter
+      cndf <- colnames(halfmax_df)
+      iter_ind <- grep('iter', cndf)
+      to.rm <- which(cndf == 't_iter')
+      #remove t_iter col
+      halfmax_df[counter, iter_ind[-which(iter_ind == to.rm)]] <- halfmax_fit
+      
+      
+      ########################
+      #PLOT MODEL FIT AND DATA
       
       pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-           xlab = 'Julian Day', ylab = 'Detection Probability')
+           xlab = 'Julian Day', ylab = 'Probability of occurrence')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
-      cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
+      dd <- cyspdata$detect
+      dd[which(dd == 1)] <- max(UCI_dfit)
       points(cyspdata$jday, cyspdata$detect, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
@@ -435,7 +525,7 @@ for (j in 1:nyr)
       # plot(predictDays, UCI_dfit, type = 'l', col = 'white', lty = 2, lwd = 5,
       #      ylim = c(0, max(UCI_dfit)),
       #      #main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-      #      #xlab = 'Julian Day', ylab = 'Detection Probability',
+      #      #xlab = 'Julian Day', ylab = 'Probability of occurrence',
       #      tck = 0, ann = FALSE, xaxt = 'n', yaxt = 'n')
       # # lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 5)
       # # lines(predictDays, mn_dfit, lwd = 5)
@@ -449,27 +539,30 @@ for (j in 1:nyr)
       # #        col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
       # #        lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       # dev.off()
-      ########################
       
-      iter_ind <- grep('iter', colnames(halfmax_df))
-      halfmax_df[counter,iter_ind] <- halfmax_fit
-      halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, 'Rhat']), 2)
-      halfmax_df$min_neff[counter] <- min(summary(fit2)[, 'n_eff'])
+      
+      # #alternative visualization
+      pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
+      plot(NA, xlim = c(0, 200), ylim = c(0, quantile(dfit, 0.999)),
+           xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        lines(as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+      }
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
+      }
+      dev.off()
+      ########################
     }
     counter <- counter + 1
   } #k
 } #j
 
 
-#################################################
-#################################################
-#combine initial and new
-TOUT <- rbind(halfmax_df_initial, halfmax_df)
 #order by year then cell
-OUT <- TOUT[order(TOUT[,'year'], TOUT[,'cell']),]
-#OUT <- halfmax_df
-#################################################
-#################################################
+OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
 
 
 #save to rds object
