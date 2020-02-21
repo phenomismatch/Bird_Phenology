@@ -68,7 +68,7 @@ cxn <- DBI::dbConnect(pg,
 # create query dir and navigate there -------------------------------------------
 
 
-query_dir_path <- paste0('Processed/eBird_query_', Sys.Date())
+query_dir_path <- paste0('Processed/eBird_arrival_query_', Sys.Date())
 
 dir.create(query_dir_path)
 setwd(query_dir_path)
@@ -264,7 +264,7 @@ foreach::foreach(i = 1:nsp) %dopar%
   names(sdata)[6] <- "detect"
   sdata['species'] <- species_list_i[i,1]
   
-  saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', species_list_i[i,1], '.rds'))
+  saveRDS(sdata, file = paste0('ebird_arrival_query_', species_list_i[i,1], '.rds'))
   DBI::dbDisconnect(cxn)
 }
 proc.time() - tt
@@ -335,7 +335,7 @@ if (length(m_sp2) > 0)
     names(sdata)[6] <- "detect"
     sdata['species'] <- m_sp2[i]
     
-    saveRDS(sdata, file = paste0('ebird_NA_phen_proc_', m_sp[i], '.rds'))
+    saveRDS(sdata, file = paste0('ebird_arrival_query_', m_sp[i], '.rds'))
   }
 }
 
