@@ -220,7 +220,8 @@ if (NROW(nrng@data) > 0)
                            cell = NA, 
                            max_Rhat = NA,
                            min_neff = NA,
-                           sdm = NA,
+                           mlmax = NA,
+                           slmax = NA,
                            num_diverge = NA,
                            num_tree = NA,
                            num_BFMI = NA,
@@ -282,7 +283,8 @@ halfmax_df <- data.frame(species = args,
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
-                         sdm = NA,
+                         mlmax = NA,
+                         slmax = NA,
                          num_diverge = NA,
                          num_tree = NA,
                          num_BFMI = NA,
@@ -417,11 +419,10 @@ for (j in 1:nyr)
       #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
-      
-      #day at which probability of occurence is is half local maximum value
+      tlmax <- rep(NA, ((ITER/2)*CHAINS))
+      #day at which probability of juv capture is half local maximum value
       for (L in 1:((ITER/2)*CHAINS))
       {
-        #L <- 14
         rowL <- as.vector(dfit[L,])
         #first juv capture
         fd <- min(cyspdata$jday[which(cyspdata$juv == 1)])
@@ -434,8 +435,11 @@ for (j in 1:nyr)
         {
           #first local max to come after first juv capture
           lmax2 <- lmax[min(flm)]
+          tlmax[L] <- TRUE
         } else {
+          #no local max
           lmax2 <- which.max(rowL)
+          tlmax[L] <- FALSE
         }
         #position of min value before max - typically, where 0 is
         lmin <- which.min(rowL[1:lmax2])
@@ -454,18 +458,21 @@ for (j in 1:nyr)
         }
       }
       
+      #number of iterations that had local max
+      halfmax_df$slmax[counter] <- sum(tlmax)
+      
       #model fit
       mn_dfit <- apply(dfit, 2, mean)
       LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
       UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
       
-      #check second derivative of mn model fit has a min (a hump exists in the fit)
-      sdm <- sum(diff(sign(diff(mn_dfit))) == -2)
-      if (sdm > 0)
+      #check whether local max exists for mean model fit
+      mlmax <- sum(diff(sign(diff(mn_dfit))) == -2)
+      if (mlmax > 0)
       {
-        halfmax_df$sdm[counter] <- TRUE
+        halfmax_df$mlmax[counter] <- TRUE
       } else {
-        halfmax_df$sdm[counter] <- FALSE
+        halfmax_df$mlmax[counter] <- FALSE
       }
       
       #estimated halfmax
@@ -542,10 +549,12 @@ for (j in 1:nyr)
   } #k
 } #j
 
+#order by year then cell
+OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
 
 #save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_juvs_', RUN_DATE))
-saveRDS(halfmax_df, file = paste0('halfmax_juvs_', args, '.rds'))
+saveRDS(OUT, file = paste0('halfmax_juvs_', args, '.rds'))
 
 
 
