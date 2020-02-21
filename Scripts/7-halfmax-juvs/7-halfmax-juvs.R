@@ -212,6 +212,34 @@ if (NROW(nrng@data) > 0)
   rm(data)
   
 } else {
+  #write blank .rds file
+  t_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
+  colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
+  halfmax_df <- data.frame(species = args, 
+                           year = NA, 
+                           cell = NA, 
+                           max_Rhat = NA,
+                           min_neff = NA,
+                           sdm = NA,
+                           num_diverge = NA,
+                           num_tree = NA,
+                           num_BFMI = NA,
+                           delta = NA,
+                           tree_depth = NA,
+                           t_iter = NA,
+                           n1 = NA,
+                           # n1W = NA,
+                           n0 = NA,
+                           n0i = NA,
+                           njd = NA,
+                           njd1 = NA,
+                           njd0 = NA,
+                           njd0i = NA,
+                           t_mat)
+  
+  #save to rds object
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('halfmax_juvs_', args, '.rds'))
   stop('Range not suitable for modeling!')
 }
 
