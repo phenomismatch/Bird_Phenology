@@ -277,6 +277,7 @@ halfmax_df <- data.frame(species = args,
                          n1W = NA,
                          n0 = NA,
                          n0i = NA,
+                         njd = NA,
                          njd1 = NA,
                          njd0 = NA,
                          njd0i = NA,
@@ -296,14 +297,14 @@ counter <- 1
 for (j in 1:nyr)
 {
   #j <- 16
-  yspdata <- spdata2[which(spdata2$year == years[j]), ]
+  yspdata <- dplyr::filter(spdata2, year == years[j])
   
   for (k in 1:ncell)
   {
     #k <- 16
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
-    cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
+    cyspdata <- dplyr::filter(yspdata, cell == cells[k])
     
     #number of surveys where species was detected
     n1 <- sum(cyspdata$detect)
@@ -315,7 +316,8 @@ for (j in 1:nyr)
     njd1 <- length(unique(cyspdata$jday[which(cyspdata$detect == 1)]))
     #number of unique days with non-detection
     njd0 <- length(unique(cyspdata$jday[which(cyspdata$detect == 0)]))
-    
+    #number of total unique days
+    njd <- length(unique(cyspdata$jday))
     
     if (n1 > 0)
     {
@@ -334,6 +336,7 @@ for (j in 1:nyr)
     halfmax_df$n1W[counter] <- n1W
     halfmax_df$n0[counter] <- n0
     halfmax_df$n0i[counter] <- n0i
+    halfmax_df$njd[counter] <- njd
     halfmax_df$njd1[counter] <- njd1
     halfmax_df$njd0[counter] <- njd0
     halfmax_df$njd0i[counter] <- njd0i
@@ -385,38 +388,12 @@ for (j in 1:nyr)
       max_Rhat <- round(max(summary(fit2)[, 'Rhat']), 2)
       min_neff <- min(summary(fit2)[, 'n_eff'])
       
-      #total # of iter
-      TITER <- ITER
-      
-      #rerun model if low neff or high Rhat
-      while (num_diverge == 0 & (max_Rhat > 1.05 | min_neff < 350) & 
-             (TITER < (ITER * 2) + 1))
-      {
-        TITER <- TITER * 2
-        
-        fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr,
-                                     data = cyspdata,
-                                     family = binomial(link = "logit"),
-                                     algorithm = 'sampling',
-                                     iter = ITER,
-                                     chains = CHAINS,
-                                     cores = CHAINS,
-                                     adapt_delta = DELTA,
-                                     control = list(max_treedepth = TREE_DEPTH))
-        
-        num_diverge <- rstan::get_num_divergent(fit2$stanfit)
-        num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
-        num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
-        max_Rhat <- round(max(summary(fit2)[, 'Rhat']), 2)
-        min_neff <- min(summary(fit2)[, 'n_eff'])
-      }
-      
       halfmax_df$num_diverge[counter] <- num_diverge
       halfmax_df$num_tree[counter] <- num_tree
       halfmax_df$num_BFMI[counter] <- num_BFMI
       halfmax_df$delta[counter] <- DELTA
       halfmax_df$tree_depth[counter] <- TREE_DEPTH
-      halfmax_df$t_iter[counter] <- TITER
+      halfmax_df$t_iter[counter] <- ITER
       halfmax_df$max_Rhat[counter] <- max_Rhat
       halfmax_df$min_neff[counter] <- min_neff
       
@@ -503,7 +480,7 @@ for (j in 1:nyr)
       lines(predictDays, mn_dfit, lwd = 2)
       dd <- cyspdata$detect
       dd[which(dd == 1)] <- max(UCI_dfit)
-      points(cyspdata$jday, cyspdata$detect, col = rgb(0,0,0,0.25))
+      points(cyspdata$jday, dd, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)

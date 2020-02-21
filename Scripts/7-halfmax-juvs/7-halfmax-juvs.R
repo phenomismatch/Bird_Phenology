@@ -241,24 +241,26 @@ if (length(to.na) > 0)
 years <- sort(unique(m_mf2$year))
 cells <- sort(unique(m_mf2$cell))
 ncell <- length(cells)
-nyrs <- length(years)
+nyr <- length(years)
 
 
 
 # setup data object -------------------------------------------------------
 
-t_mat <- matrix(data = NA, nrow = ncell*nyrs, ncol = ((ITER/2)*CHAINS))
+t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
 colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
 halfmax_df <- data.frame(species = args, 
                          year = rep(years, each = ncell), 
-                         cell = rep(cells, nyrs), 
+                         cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
+                         sdm = NA,
                          num_diverge = NA,
                          num_tree = NA,
                          num_BFMI = NA,
                          delta = NA,
                          tree_depth = NA,
+                         t_iter = NA,
                          n1 = NA,
                          # n1W = NA,
                          n0 = NA,
@@ -280,39 +282,39 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/juvs_', RUN_DATE))
 
 #loop through each species, year, cell and extract half-max parameter
 counter <- 1
-for (j in 1:nyrs)
+for (j in 1:nyr)
 {
   #j <- 5
-  ydata <- dplyr::filter(m_mf2, year == years[j])
+  yspdata <- dplyr::filter(m_mf2, year == years[j])
   
   for (k in 1:ncell)
   {
     #k <- 62
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
-    cydata <- dplyr::filter(ydata, cell == cells[k])
+    cyspdata <- dplyr::filter(yspdata, cell == cells[k])
     
-    #number of surveys where brood patch was detected
-    n1 <- sum(cydata$juv)
-    #number of surveys where brood patch was not detected
-    n0 <- sum(cydata$juv == 0)
+    #number of surveys where juvs were captured
+    n1 <- sum(cyspdata$juv)
+    #number of surveys where juvs were not captured (but adult was)
+    n0 <- sum(cyspdata$juv == 0)
     # #number of detections that came before jday 60
-    # n1W <- sum(cydata$juv * as.numeric(cydata$day < 60))
-    #number of unique days with detections
-    njd1 <- length(unique(cydata$day[which(cydata$juv == 1)]))
-    #number of unique days with non-detection
-    njd0 <- length(unique(cydata$day[which(cydata$juv == 0)]))
+    # n1W <- sum(cyspdata$juv * as.numeric(cyspdata$day < 60))
+    #number of unique days with juv captures
+    njd1 <- length(unique(cyspdata$day[which(cyspdata$juv == 1)]))
+    #number of unique days with no juv captures (but adults captures)
+    njd0 <- length(unique(cyspdata$day[which(cyspdata$juv == 0)]))
     #number of total unique days
-    njd <- length(unique(cydata$day))
+    njd <- length(unique(cyspdata$day))
     
     if (n1 > 0)
     {
-      #number of unique days of non-detections before first detection
-      njd0i <- length(unique(cydata$day[which(cydata$juv == 0 & cydata$day < 
-                                                min(cydata$day[which(cydata$juv == 1)]))]))
-      #number of non-detections before first detection
-      n0i <- length(which(cydata$juv == 0 & 
-                            cydata$day < min(cydata$day[which(cydata$juv == 1)])))
+      #number of unique days of adult captures before first juv capture
+      njd0i <- length(unique(cyspdata$day[which(cyspdata$juv == 0 & cyspdata$day < 
+                                                min(cyspdata$day[which(cyspdata$juv == 1)]))]))
+      #number of adult captures before first juv capture
+      n0i <- length(which(cyspdata$juv == 0 & 
+                            cyspdata$day < min(cyspdata$day[which(cyspdata$juv == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
@@ -331,13 +333,10 @@ for (j in 1:nyrs)
     DELTA <- 0.95
     TREE_DEPTH <- 15
     
-    #arr thresholds
-    #if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
-    
     if (n1 > 4 & n0 > 4 & njd0i > 2 & njd1 > 2 & njd > 9)
     {
       fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
-                                   data = cydata,
+                                   data = cyspdata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
                                    iter = ITER,
@@ -351,14 +350,13 @@ for (j in 1:nyrs)
       num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
       num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
-      #rerun model if things didn't go well
-      while (sum(num_diverge) > 0 & DELTA <= 0.98)
+      #rerun model if divergences occurred
+      while (sum(c(num_diverge, num_BFMI)) > 0 & DELTA <= 0.98)
       {
         DELTA <- DELTA + 0.01
-        TREE_DEPTH <- TREE_DEPTH + 1
         
         fit2 <- rstanarm::stan_gamm4(juv ~ s(day),
-                                     data = cydata,
+                                     data = cyspdata,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',
                                      iter = ITER,
@@ -372,39 +370,91 @@ for (j in 1:nyrs)
         num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       }
       
+      max_Rhat <- round(max(summary(fit2)[, 'Rhat']), 2)
+      min_neff <- min(summary(fit2)[, 'n_eff'])
+      
       halfmax_df$num_diverge[counter] <- num_diverge
       halfmax_df$num_tree[counter] <- num_tree
       halfmax_df$num_BFMI[counter] <- num_BFMI
       halfmax_df$delta[counter] <- DELTA
       halfmax_df$tree_depth[counter] <- TREE_DEPTH
+      halfmax_df$t_iter[counter] <- ITER
+      halfmax_df$max_Rhat[counter] <- max_Rhat
+      halfmax_df$min_neff[counter] <- min_neff
       
       #generate predict data
-      predictDays <- range(cydata$day)[1]:range(cydata$day)[2]
+      predictDays <- range(cyspdata$day)[1]:range(cyspdata$day)[2]
       newdata <- data.frame(day = predictDays)
       
       #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
       
+      #day at which probability of occurence is is half local maximum value
       for (L in 1:((ITER/2)*CHAINS))
       {
-        #L <- 1
+        #L <- 14
         rowL <- as.vector(dfit[L,])
-        halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
+        #first juv capture
+        fd <- min(cyspdata$jday[which(cyspdata$juv == 1)])
+        #local maximum(s)
+        #from: stackoverflow.com/questions/6836409/finding-local-maxima-and-minima
+        lmax <- which(diff(sign(diff(rowL))) == -2) + 1
+        #first local max to come after first juv capture
+        flm <- which(lmax > fd)
+        if (length(flm) > 0)
+        {
+          #first local max to come after first juv capture
+          lmax2 <- lmax[min(flm)]
+        } else {
+          lmax2 <- which.max(rowL)
+        }
+        #position of min value before max - typically, where 0 is
+        lmin <- which.min(rowL[1:lmax2])
+        #value at local max - value at min (typically 0)
+        dmm <- rowL[lmax2] - rowL[lmin]
+        #all positions less than or equal to half diff between max and min
+        tlm <- which(rowL <= ((dmm/2) + rowL[lmin]))
+        #which of these come before max and after min
+        vgm <- which(tlm < lmax2 & tlm > lmin)
+        #insert halfmax (1 for situations where max is a jday = 1)
+        if (length(vgm) > 0)
+        {
+          halfmax_fit[L] <- predictDays[max(vgm)]
+        } else {
+          halfmax_fit[L] <- 1
+        }
       }
+      
+      #model fit
+      mn_dfit <- apply(dfit, 2, mean)
+      LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
+      UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+      
+      #check second derivative of mn model fit has a min (a hump exists in the fit)
+      sdm <- sum(diff(sign(diff(mn_dfit))) == -2)
+      if (sdm > 0)
+      {
+        halfmax_df$sdm[counter] <- TRUE
+      } else {
+        halfmax_df$sdm[counter] <- FALSE
+      }
+      
+      #estimated halfmax
+      mn_hm <- mean(halfmax_fit)
+      LCI_hm <- quantile(halfmax_fit, probs = 0.025)
+      UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+      
+      #fill df with halfmax iter
+      cndf <- colnames(halfmax_df)
+      iter_ind <- grep('iter', cndf)
+      to.rm <- which(cndf == 't_iter')
+      #remove t_iter col
+      halfmax_df[counter, iter_ind[-which(iter_ind == to.rm)]] <- halfmax_fit
       
       ########################
       #PLOT MODEL FIT AND DATA
       
-      cydata2 <- cydata
-      #summary(fit2)
-      mn_dfit <- apply(dfit, 2, mean)
-      LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
-      UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
-      mn_hm <- mean(halfmax_fit)
-      LCI_hm <- quantile(halfmax_fit, probs = 0.025)
-      UCI_hm <- quantile(halfmax_fit, probs = 0.975)
-
       pdf(paste0(args, '_', years[j], '_', cells[k], '_juvs.pdf'))
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
@@ -412,15 +462,16 @@ for (j in 1:nyrs)
            xlab = 'Julian Day', ylab = 'Juvenile capture probability')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
-      cydata2$juv[which(cydata2$juv == 1)] <- max(UCI_dfit)
-      points(cydata2$day, cydata2$juv, col = rgb(0,0,0,0.25))
+      dd <- cyspdata$juv
+      dd[which(dd == 1)] <- max(UCI_dfit)
+      points(cyspdata$day, dd, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
-      # legend('topleft',
-      #        legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
-      #        col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
-      #        lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
+      legend('topleft',
+             legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
+             col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
+             lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
       
       # #plot code for presentation
@@ -428,12 +479,13 @@ for (j in 1:nyrs)
       # plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 5,
       #      ylim = c(0, max(UCI_dfit)),
       #      #main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-      #      #xlab = 'Julian Day', ylab = 'Detection Probability',
+      #      #xlab = 'Julian Day', ylab = 'Juvenile capture probability',
       #      tck = 0, ann = FALSE, xaxt = 'n', yaxt = 'n')
       # lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 5)
       # lines(predictDays, mn_dfit, lwd = 5)
-      # cydata$juv[which(cydata$juv == 1)] <- max(UCI_dfit)
-      # points(cydata$day, cydata$juv, col = rgb(0,0,0,0.25), cex = 2)
+      # dd <- cyspdata$juv
+      # dd[which(dd == 1)] <- max(UCI_dfit)
+      # points(cyspdata$day, dd, col = rgb(0,0,0,0.25), cex = 2)
       # abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 5)
       # abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
       # abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
@@ -442,17 +494,25 @@ for (j in 1:nyrs)
       # #       col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
       # #       lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       # dev.off()
-      ########################
       
-      iter_ind <- grep('iter', colnames(halfmax_df))
-      halfmax_df[counter,iter_ind] <- halfmax_fit
-      halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
-      halfmax_df$min_neff[counter] <- min(summary(fit2)[, "n_eff"])
+      # #alternative visualization
+      pdf(paste0(args, '_', years[j], '_', cells[k], '_juv_realizations.pdf'))
+      plot(NA, xlim = c(0, 200), ylim = c(0, quantile(dfit, 0.999)),
+           xlab = 'Julian Day', ylab = 'Juvenile capture probability')
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        lines(as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+      }
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
+      }
+      dev.off()
+      ########################
     }
     counter <- counter + 1
   } #k
 } #j
-
 
 
 #save to rds object
