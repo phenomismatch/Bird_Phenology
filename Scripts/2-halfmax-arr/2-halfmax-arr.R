@@ -228,7 +228,7 @@ if (NROW(nrng@data) > 0)
                            max_Rhat = NA,
                            min_neff = NA,
                            mlmax = NA,
-                           slmax = NA,
+                           plmax = NA,
                            num_diverge = NA,
                            num_tree = NA,
                            num_BFMI = NA,
@@ -272,7 +272,7 @@ halfmax_df <- data.frame(species = args,
                          max_Rhat = NA,
                          min_neff = NA,
                          mlmax = NA,
-                         slmax = NA,
+                         plmax = NA,
                          num_diverge = NA,
                          num_tree = NA,
                          num_BFMI = NA,
@@ -450,7 +450,7 @@ for (j in 1:nyr)
       }
       
       #number of iterations that had local max
-      halfmax_df$slmax[counter] <- sum(tlmax)
+      halfmax_df$plmax[counter] <- round(sum(tlmax)/((ITER/2)*CHAINS), 3)
       
       #model fit
       mn_dfit <- apply(dfit, 2, mean)
@@ -477,7 +477,6 @@ for (j in 1:nyr)
       to.rm <- which(cndf == 't_iter')
       #remove t_iter col
       halfmax_df[counter, iter_ind[-which(iter_ind == to.rm)]] <- halfmax_fit
-      
       
       ########################
       #PLOT MODEL FIT AND DATA
@@ -528,20 +527,19 @@ for (j in 1:nyr)
       # #        lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       # dev.off()
       
-      
       # #alternative visualization
-      pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
-      plot(NA, xlim = c(0, 200), ylim = c(0, quantile(dfit, 0.999)),
-           xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
-      for (L in 1:((ITER/2)*CHAINS))
-      {
-        lines(as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
-      }
-      for (L in 1:((ITER/2)*CHAINS))
-      {
-        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
-      }
-      dev.off()
+      # pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
+      # plot(NA, xlim = c(0, 200), ylim = c(0, quantile(dfit, 0.999)),
+      #      xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
+      # for (L in 1:((ITER/2)*CHAINS))
+      # {
+      #   lines(as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+      # }
+      # for (L in 1:((ITER/2)*CHAINS))
+      # {
+      #   abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
+      # }
+      # dev.off()
       ########################
     }
     counter <- counter + 1

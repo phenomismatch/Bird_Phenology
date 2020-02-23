@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-05-03"
+DATE="2020-02-XX"
 
 while read name
 do
@@ -17,8 +17,8 @@ do
 #SBATCH --mem=25G #memory requested
 #SBATCH --mail-type=END #when to send email (on job completion)
 #SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE/hm-arr-$temp.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_species_$DATE/hm-arr-$temp.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_$DATE/hm-arr-$temp.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_$DATE/hm-arr-$temp.err #STDERR
 
 #echos name of node
 echo \`hostname\`

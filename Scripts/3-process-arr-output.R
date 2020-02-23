@@ -90,7 +90,7 @@ for (i in 1:nsp)
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
                                     mlmax = na_reps,
-                                    slmax = na_reps,
+                                    plmax = na_reps,
                                     num_diverge = na_reps,
                                     num_tree = na_reps,
                                     num_BFMI = na_reps,
@@ -139,8 +139,8 @@ for (i in 1:nsp)
         diagnostics_frame$max_Rhat[counter] <- tt_halfmax2$max_Rhat
         #did mean have local max
         diagnostics_frame$mlmax[counter] <- tt_halfmax2$mlmax
-        #number of iter with local max
-        diagnostics_frame$slmax[counter] <- tt_halfmax2$slmax
+        #percent of iter with local max
+        diagnostics_frame$plmax[counter] <- tt_halfmax2$plmax
         diagnostics_frame$num_diverge[counter] <- tt_halfmax2$num_diverge
         diagnostics_frame$num_tree[counter] <- tt_halfmax2$num_tree
         diagnostics_frame$num_BFMI[counter] <- tt_halfmax2$num_BFMI
