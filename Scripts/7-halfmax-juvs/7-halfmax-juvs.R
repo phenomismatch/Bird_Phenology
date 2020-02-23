@@ -221,7 +221,7 @@ if (NROW(nrng@data) > 0)
                            max_Rhat = NA,
                            min_neff = NA,
                            mlmax = NA,
-                           slmax = NA,
+                           plmax = NA,
                            num_diverge = NA,
                            num_tree = NA,
                            num_BFMI = NA,
@@ -284,7 +284,7 @@ halfmax_df <- data.frame(species = args,
                          max_Rhat = NA,
                          min_neff = NA,
                          mlmax = NA,
-                         slmax = NA,
+                         plmax = NA,
                          num_diverge = NA,
                          num_tree = NA,
                          num_BFMI = NA,
@@ -459,7 +459,7 @@ for (j in 1:nyr)
       }
       
       #number of iterations that had local max
-      halfmax_df$slmax[counter] <- sum(tlmax)
+      halfmax_df$plmax[counter] <- round(sum(tlmax)/((ITER/2)*CHAINS), 3)
       
       #model fit
       mn_dfit <- apply(dfit, 2, mean)
