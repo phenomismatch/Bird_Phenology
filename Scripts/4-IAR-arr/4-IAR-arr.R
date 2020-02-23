@@ -270,40 +270,27 @@ vector<lower = 24, upper = 90>[J] lat;
 
 parameters {
 vector[J] y_mis[N];
-real alpha_gamma_raw;
-real beta_gamma_raw;                                  // effect of latitude
-real<lower = 0> sigma_gamma_raw;
+real alpha_gamma;
+real beta_gamma;                                  // effect of latitude
+real<lower = 0> sigma_gamma;
 vector[J] gamma_raw;
 vector[J] phi[N];                                     // sptial error componenet
-real<lower = 0> sigma_phi_raw;
+real<lower = 0> sigma_phi;
 vector[N] beta0_raw;
-real<lower = 0> sigma_beta0_raw;
-vector[J] y_true_raw[N];                              // J vectors (years in rows) of length N (cells in cols)
-real<lower = 0> sigma_y_true_raw;
+real<lower = 0> sigma_beta0;
+vector[J] y_true_raw[N];                           // J vectors (years in rows) of length N (cells in cols)
+real<lower = 0> sigma_y_true;
 }
 
 transformed parameters {
 vector[J] y[N];
 vector[J] gamma;
-real alpha_gamma;
-real beta_gamma;
-real<lower = 0> sigma_gamma;
 vector[J] mu_gamma;
 vector[J] y_true[N];
-real<lower = 0> sigma_beta0;
-real<lower = 0> sigma_phi;
 vector[N] beta0;
-real<lower = 0> sigma_y_true;
-
-alpha_gamma = alpha_gamma_raw * 100;
-// beta_gamma = 3 represents 37 km / day (which matches speeds reported in lit and derived in La Sorte et al. 2013 Ecology)
-beta_gamma = beta_gamma_raw * 3 + 3;
-sigma_gamma = sigma_gamma_raw * 10;
-sigma_beta0 = sigma_beta0_raw * 10;
-sigma_y_true = sigma_y_true_raw * 10;
-sigma_phi = sigma_phi_raw * 10;
 
 mu_gamma = alpha_gamma + beta_gamma * lat;
+// implies gamma ~ N(mu_gamma, sigma_gamma)
 gamma = gamma_raw * sigma_gamma + mu_gamma;
 beta0 = beta0_raw * sigma_beta0;
 
@@ -320,23 +307,25 @@ for (i in 1:N)
 }
 
 model {
+// priors for non-centered parameters
+alpha_gamma ~ normal(0, 100);
+// beta_gamma = 3 represents 37 km / day (which matches speeds reported in lit and derived in La Sorte et al. 2013 Ecology)
+beta_gamma ~ normal(3, 3);
+sigma_gamma ~ normal(0, 10);
+sigma_beta0 ~ normal(0, 10);
+sigma_y_true ~ normal(0, 10);
+sigma_phi ~ normal(0, 10);
 
-// priors
-alpha_gamma_raw ~ std_normal();       // faster than normal(0, 1)
-beta_gamma_raw ~ std_normal();
-sigma_gamma_raw ~ std_normal();
+// priors for centered parameters
 gamma_raw ~ std_normal();
 beta0_raw ~ std_normal();
-sigma_beta0_raw ~ std_normal();
-sigma_phi_raw ~ std_normal();
-sigma_y_true_raw ~ std_normal();
 
 for (i in 1:N)
 {
   y_true_raw[i] ~ std_normal();
   // index array first (each year), then vector (for cells)
   target += -0.5 * dot_self(phi[i, node1] - phi[i, node2]);
-  // soft sum to 0 constraint - J is number of phis
+  // soft sum to 0 constraint - J is number of phis per year
   sum(phi[i]) ~ normal(0, 0.001 * J);
   
   // observation model for y
