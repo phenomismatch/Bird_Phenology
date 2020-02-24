@@ -308,6 +308,10 @@ for (i in 1:N)
 
 model {
 // priors for non-centered parameters
+gamma_raw ~ std_normal();
+beta0_raw ~ std_normal();
+
+// priors for centered parameters
 alpha_gamma ~ normal(0, 100);
 // beta_gamma = 3 represents 37 km / day (which matches speeds reported in lit and derived in La Sorte et al. 2013 Ecology)
 beta_gamma ~ normal(3, 3);
@@ -315,10 +319,6 @@ sigma_gamma ~ normal(0, 10);
 sigma_beta0 ~ normal(0, 10);
 sigma_y_true ~ normal(0, 10);
 sigma_phi ~ normal(0, 10);
-
-// priors for centered parameters
-gamma_raw ~ std_normal();
-beta0_raw ~ std_normal();
 
 for (i in 1:N)
 {
