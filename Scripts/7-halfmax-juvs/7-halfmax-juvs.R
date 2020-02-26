@@ -50,6 +50,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Zonotrichia_albicollis'
 #args <- 'Setophaga_petechia'
 #args <- 'Ammospiza_nelsoni'
+#args <- 'Seiurus_aurocapilla'
 
 
 
@@ -74,8 +75,9 @@ colnames(data_p)[grep('sci_name', colnames(data_p))] <- 'species'
 #add underscore to species names
 data_p$species <- gsub(' ', '_', data_p$species)
 
-data <- dplyr::filter(data_p, species == args, day <= 220)
-
+#WHY WAS THIS RESTRICTED TO 220 PREVIOUSLY?
+#data <- dplyr::filter(data_p, species == args, day <= 220)
+data <- dplyr::filter(data_p, species == args)
 
 # create grid -------------------------------------------------------------
 
@@ -254,8 +256,8 @@ if (NROW(m_mf) == 0)
 
 #add col for juveniles (1 = juv, 0 = adult)
 m_mf$juv <- NA
-m_mf$juv[which(m_mf$age == 2)] <- 1 #exclude young bird incapable of flight
-m_mf$juv[-which(m_mf$true_age == 0)] <- 0
+m_mf$juv[which(m_mf$age == 2)] <- 1 #hatching year bird
+m_mf$juv[-which(m_mf$age == 2)] <- 0
 
 #exclude young bird incapable of flight
 to.na <- which(m_mf$age == 4)
@@ -266,12 +268,13 @@ if (length(to.na) > 0)
   m_mf2 <- m_mf
 }
 
+#all band_ids numeric
+m_mf2$band_id <- as.numeric(m_mf2$band_id)
 
 years <- sort(unique(m_mf2$year))
 cells <- sort(unique(m_mf2$cell))
 ncell <- length(cells)
 nyr <- length(years)
-
 
 
 # setup data object -------------------------------------------------------
@@ -314,37 +317,65 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/juvs_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 5
+  #j <- 27
   yspdata <- dplyr::filter(m_mf2, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 62
+    #k <- 5
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- dplyr::filter(yspdata, cell == cells[k])
     
+    #adults
+    cyspdata_0 <- dplyr::filter(cyspdata, juv == 0)
+    #juvs
+    cyspdata_1 <- dplyr::filter(cyspdata, juv == 1)
+    
+    #only first capture for each juv
+    ujuv <- unique(as.numeric(cyspdata_1$band_id))
+    jidx <- rep(NA, length(ujuv))
+    tna <- c()
+    if (length(ujuv) > 0)
+    {
+      for (b in 1:length(ujuv))
+      {
+        #b <- 43
+        tidx <- which(cyspdata_1$band_id == ujuv[b])
+        if (length(tidx) > 1)
+        {
+          #first day obs idx
+          jidx[b] <- tidx[which.min(cyspdata_1$day[tidx])]
+        } else {
+          jidx[b] <- tidx
+        }
+      }
+    }
+    
+    #bind adult and juv data together
+    cyspdata_j <- rbind(cyspdata_0, cyspdata_1[jidx,])
+    
     #number of surveys where juvs were captured
-    n1 <- sum(cyspdata$juv)
+    n1 <- sum(cyspdata_j$juv)
     #number of surveys where juvs were not captured (but adult was)
-    n0 <- sum(cyspdata$juv == 0)
+    n0 <- sum(cyspdata_j$juv == 0)
     # #number of detections that came before jday 60
-    # n1W <- sum(cyspdata$juv * as.numeric(cyspdata$day < 60))
+    # n1W <- sum(cyspdata_j$juv * as.numeric(cyspdata_j$day < 60))
     #number of unique days with juv captures
-    njd1 <- length(unique(cyspdata$day[which(cyspdata$juv == 1)]))
+    njd1 <- length(unique(cyspdata_j$day[which(cyspdata_j$juv == 1)]))
     #number of unique days with no juv captures (but adults captures)
-    njd0 <- length(unique(cyspdata$day[which(cyspdata$juv == 0)]))
+    njd0 <- length(unique(cyspdata_j$day[which(cyspdata_j$juv == 0)]))
     #number of total unique days
-    njd <- length(unique(cyspdata$day))
+    njd <- length(unique(cyspdata_j$day))
     
     if (n1 > 0)
     {
       #number of unique days of adult captures before first juv capture
-      njd0i <- length(unique(cyspdata$day[which(cyspdata$juv == 0 & cyspdata$day < 
-                                                min(cyspdata$day[which(cyspdata$juv == 1)]))]))
+      njd0i <- length(unique(cyspdata_j$day[which(cyspdata_j$juv == 0 & cyspdata_j$day < 
+                                                    min(cyspdata_j$day[which(cyspdata_j$juv == 1)]))]))
       #number of adult captures before first juv capture
-      n0i <- length(which(cyspdata$juv == 0 & 
-                            cyspdata$day < min(cyspdata$day[which(cyspdata$juv == 1)])))
+      n0i <- length(which(cyspdata_j$juv == 0 & 
+                            cyspdata_j$day < min(cyspdata_j$day[which(cyspdata_j$juv == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
@@ -366,7 +397,7 @@ for (j in 1:nyr)
     if (n1 > 4 & n0 > 4 & njd0i > 2 & njd1 > 2 & njd > 9)
     {
       fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
-                                   data = cyspdata,
+                                   data = cyspdata_j,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
                                    iter = ITER,
@@ -386,7 +417,7 @@ for (j in 1:nyr)
         DELTA <- DELTA + 0.01
         
         fit2 <- rstanarm::stan_gamm4(juv ~ s(day),
-                                     data = cyspdata,
+                                     data = cyspdata_j,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',
                                      iter = ITER,
@@ -413,7 +444,7 @@ for (j in 1:nyr)
       halfmax_df$min_neff[counter] <- min_neff
       
       #generate predict data
-      predictDays <- range(cyspdata$day)[1]:range(cyspdata$day)[2]
+      predictDays <- range(cyspdata_j$day)[1]:range(cyspdata_j$day)[2]
       newdata <- data.frame(day = predictDays)
       
       #predict response
@@ -423,38 +454,42 @@ for (j in 1:nyr)
       #day at which probability of juv capture is half local maximum value
       for (L in 1:((ITER/2)*CHAINS))
       {
+        #L <- 1
         rowL <- as.vector(dfit[L,])
         #first juv capture
-        fd <- min(cyspdata$jday[which(cyspdata$juv == 1)])
+        fd <- min(cyspdata_j$day[which(cyspdata_j$juv == 1)])
         #local maximum(s)
         #from: stackoverflow.com/questions/6836409/finding-local-maxima-and-minima
-        lmax <- which(diff(sign(diff(rowL))) == -2) + 1
+        lmax_idx <- which(diff(sign(diff(rowL))) == -2) + 1
+        lmax <- predictDays[lmax_idx]
         #first local max to come after first juv capture
         flm <- which(lmax > fd)
         if (length(flm) > 0)
         {
           #first local max to come after first juv capture
+          lmax2_idx <- lmax_idx[min(flm)]
           lmax2 <- lmax[min(flm)]
           tlmax[L] <- TRUE
         } else {
           #no local max
-          lmax2 <- which.max(rowL)
+          lmax2_idx <- which.max(rowL)
+          lmax2 <- predictDays[which.max(rowL)]
           tlmax[L] <- FALSE
         }
         #position of min value before max - typically, where 0 is
-        lmin <- which.min(rowL[1:lmax2])
+        lmin_idx <- which.min(rowL[1:lmax2_idx])
         #value at local max - value at min (typically 0)
-        dmm <- rowL[lmax2] - rowL[lmin]
+        dmm <- rowL[lmax2_idx] - rowL[lmin_idx]
         #all positions less than or equal to half diff between max and min
-        tlm <- which(rowL <= ((dmm/2) + rowL[lmin]))
+        tlm <- which(rowL <= ((dmm/2) + rowL[lmin_idx]))
         #which of these come before max and after min
-        vgm <- which(tlm < lmax2 & tlm > lmin)
-        #insert halfmax (1 for situations where max is a jday = 1)
+        vgm <- which(tlm < lmax2_idx & tlm > lmin_idx)
+        #insert halfmax (first day for situations where max is a jday = 1)
         if (length(vgm) > 0)
         {
           halfmax_fit[L] <- predictDays[max(vgm)]
         } else {
-          halfmax_fit[L] <- 1
+          halfmax_fit[L] <- predictDays[1]
         }
       }
       
@@ -497,9 +532,9 @@ for (j in 1:nyr)
            xlab = 'Julian Day', ylab = 'Juvenile capture probability')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
-      dd <- cyspdata$juv
+      dd <- cyspdata_j$juv
       dd[which(dd == 1)] <- max(UCI_dfit)
-      points(cyspdata$day, dd, col = rgb(0,0,0,0.25))
+      points(cyspdata_j$day, dd, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
@@ -518,9 +553,9 @@ for (j in 1:nyr)
       #      tck = 0, ann = FALSE, xaxt = 'n', yaxt = 'n')
       # lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 5)
       # lines(predictDays, mn_dfit, lwd = 5)
-      # dd <- cyspdata$juv
+      # dd <- cyspdata_j$juv
       # dd[which(dd == 1)] <- max(UCI_dfit)
-      # points(cyspdata$day, dd, col = rgb(0,0,0,0.25), cex = 2)
+      # points(cyspdata_j$day, dd, col = rgb(0,0,0,0.25), cex = 2)
       # abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 5)
       # abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
       # abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
@@ -532,11 +567,12 @@ for (j in 1:nyr)
       
       # #alternative visualization
       pdf(paste0(args, '_', years[j], '_', cells[k], '_juv_realizations.pdf'))
-      plot(NA, xlim = c(0, 200), ylim = c(0, quantile(dfit, 0.999)),
+      plot(NA, xlim = c(range(cyspdata_j$day)[1], range(cyspdata_j$day)[2]), ylim = c(0, quantile(dfit, 0.999)),
            xlab = 'Julian Day', ylab = 'Juvenile capture probability')
       for (L in 1:((ITER/2)*CHAINS))
       {
-        lines(as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+        #L <- 1
+        lines(range(cyspdata_j$day)[1]:range(cyspdata_j$day)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
       }
       for (L in 1:((ITER/2)*CHAINS))
       {

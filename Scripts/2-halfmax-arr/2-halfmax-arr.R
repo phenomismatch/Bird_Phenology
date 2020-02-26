@@ -419,33 +419,36 @@ for (j in 1:nyr)
         fd <- min(cyspdata$jday[which(cyspdata$detect == 1)])
         #local maximum(s)
         #from: stackoverflow.com/questions/6836409/finding-local-maxima-and-minima
-        lmax <- which(diff(sign(diff(rowL))) == -2) + 1
+        lmax_idx <- which(diff(sign(diff(rowL))) == -2) + 1
+        lmax <- predictDays[lmax_idx]
         #first local max to come after first detection
         flm <- which(lmax > fd)
         if (length(flm) > 0)
         {
           #first local max to come after first detection
+          lmax2_idx <- lmax_idx[min(flm)]
           lmax2 <- lmax[min(flm)]
           tlmax[L] <- TRUE
         } else {
           #no local max
-          lmax2 <- which.max(rowL)
+          lmax2_idx <- which.max(rowL)
+          lmax2 <- predictDays[which.max(rowL)]
           tlmax[L] <- FALSE
         }
         #position of min value before max - typically, where 0 is
-        lmin <- which.min(rowL[1:lmax2])
+        lmin_idx <- which.min(rowL[1:lmax2_idx])
         #value at local max - value at min (typically 0)
-        dmm <- rowL[lmax2] - rowL[lmin]
+        dmm <- rowL[lmax2_idx] - rowL[lmin_idx]
         #all positions less than or equal to half diff between max and min
-        tlm <- which(rowL <= ((dmm/2) + rowL[lmin]))
+        tlm <- which(rowL <= ((dmm/2) + rowL[lmin_idx]))
         #which of these come before max and after min
-        vgm <- which(tlm < lmax2 & tlm > lmin)
-        #insert halfmax (1 for situations where max is a jday = 1)
+        vgm <- which(tlm < lmax2_idx & tlm > lmin_idx)
+        #insert halfmax (first day for situations where max is a jday = 1)
         if (length(vgm) > 0)
         {
           halfmax_fit[L] <- predictDays[max(vgm)]
         } else {
-          halfmax_fit[L] <- 1
+          halfmax_fit[L] <- predictDays[1]
         }
       }
       
@@ -529,11 +532,11 @@ for (j in 1:nyr)
       
       # #alternative visualization
       # pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
-      # plot(NA, xlim = c(0, 200), ylim = c(0, quantile(dfit, 0.999)),
+      # plot(NA, xlim = c(range(cyspdata$jday)[1]:range(cyspdata$jday)[2]), ylim = c(0, quantile(dfit, 0.999)),
       #      xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
       # for (L in 1:((ITER/2)*CHAINS))
       # {
-      #   lines(as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+      #   lines(range(cyspdata$jday)[1]:range(cyspdata$jday)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
       # }
       # for (L in 1:((ITER/2)*CHAINS))
       # {
