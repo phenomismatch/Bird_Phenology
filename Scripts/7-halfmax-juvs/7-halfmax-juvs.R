@@ -120,7 +120,7 @@ if (length(g_ind) == 0)
 
 #get filename and read in
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
-sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
 #crop to area of interest
 #raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
 #full range

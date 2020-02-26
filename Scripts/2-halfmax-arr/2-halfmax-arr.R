@@ -78,6 +78,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Tyrannus_tyrannus'
 #args <- 'Catharus_ustulatus'
 #args <- 'Antrostomus_vociferus'
+#args <- 'Junco_hyemalis'
 
 
 # import processed data ---------------------------------------------------
@@ -127,7 +128,7 @@ if (length(g_ind) == 0)
 
 #get filename and read in
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
-sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
 #crop to area of interest
 sp_rng2 <- raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
 
