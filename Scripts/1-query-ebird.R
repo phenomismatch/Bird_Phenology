@@ -21,7 +21,7 @@ tt <- proc.time()
 # top-level dir --------------------------------------------------------------
 
 dir <- '~/Google_Drive/R/'
-
+date <- Sys.Date() 
 
 # Load packages -----------------------------------------------------------
 
@@ -68,7 +68,7 @@ cxn <- DBI::dbConnect(pg,
 # create query dir and navigate there -------------------------------------------
 
 
-query_dir_path <- paste0('Processed/eBird_arrival_query_', Sys.Date())
+query_dir_path <- paste0('Processed/eBird_arrival_query_', date)
 
 dir.create(query_dir_path)
 setwd(query_dir_path)
@@ -214,7 +214,7 @@ data2[species_list_i[,1]] <- NA
 
 nsp <- NROW(species_list_i)
 
-#run in parallel with 7 logical cores
+#run in parallel with 4 logical cores
 doParallel::registerDoParallel(cores = 4)
 
 tt <- proc.time()
@@ -232,7 +232,9 @@ foreach::foreach(i = 1:nsp) %dopar%
                         port = 5432, 
                         dbname = "sightings")
   
-  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id
+  temp <- DBI::dbGetQuery(cxn, paste0("SELECT event_id, 
+                                      count_json ->> 'BREEDING_BIRD_ATLAS_CODE' AS bba_code, 
+                                      count_json ->> 'BREEDING_BIRD_ATLAS_CATEGORY' AS bba_category
                                       FROM events
                                       INNER JOIN places USING (place_id)
                                       INNER JOIN counts USING (event_id)
@@ -344,7 +346,7 @@ if (length(m_sp2) > 0)
 # copy script to query folder for records ---------------------------------
 
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/1-query-ebird.R ', 
-              dir, 'Bird_Phenology/Data/', query_dir_path, '/1-query-ebird-', Sys.Date(), '.R'))
+              dir, 'Bird_Phenology/Data/', query_dir_path, '/1-query-ebird-', date, '.R'))
 
 
 proc.time() - tt
