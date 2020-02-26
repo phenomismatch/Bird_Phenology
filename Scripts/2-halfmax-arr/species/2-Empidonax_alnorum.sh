@@ -6,7 +6,7 @@
 #SBATCH -c 4 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=25G #memory requested
+#SBATCH --mem=50G #memory requested
 #SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_2020-02-26/hm-arr-Empidonax_alnorum.out #STDOUT
 #SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_2020-02-26/hm-arr-Empidonax_alnorum.err #STDERR
 
