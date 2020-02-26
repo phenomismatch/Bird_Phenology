@@ -338,9 +338,20 @@ if (length(m_sp2) > 0)
     sdata['species'] <- m_sp2[i]
     
     saveRDS(sdata, file = paste0('ebird_arrival_query_', m_sp[i], '.rds'))
+    DBI::dbDisconnect(cxn)
   }
 }
 
+
+
+# check all files were created --------------------------------------------
+
+if ((as.numeric(system(paste0('ls | wc -l'), intern = TRUE)) - 1) == nsp)
+{
+  print('All files created!')
+} else {
+  print('Missing files!')
+}
 
 
 # copy script to query folder for records ---------------------------------
