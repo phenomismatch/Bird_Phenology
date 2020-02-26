@@ -28,10 +28,9 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_query_2019-05-03'
-#db_dir <- 'eBird_arrival_query_2019-05-03'
+db_dir <- 'eBird_arrival_query_2020-02-25'
 
-RUN_DATE <- '2020-02-20'
+RUN_DATE <- '2020-02-26'
 
 
 # model settings ----------------------------------------------------------
@@ -86,8 +85,7 @@ args <- commandArgs(trailingOnly = TRUE)
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
 
 #import data for species
-spdata <- readRDS(paste0('ebird_NA_phen_proc_', args, '.rds'))
-#spdata <- readRDS(paste0('ebird_arrival_query_', args, '.rds'))
+spdata <- readRDS(paste0('ebird_arrival_query_', args, '.rds'))
 
 
 
@@ -302,7 +300,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 16
+  #j <- 1
   yspdata <- dplyr::filter(spdata2, year == years[j])
   
   for (k in 1:ncell)
@@ -348,13 +346,13 @@ for (j in 1:nyr)
     halfmax_df$njd0i[counter] <- njd0i
     
     #center effort (to make sure supplying value of 0 in post-model prediction is meaningful)
-    #cyspdata$shr <- scale(cyspdata$duration_minutes, scale = FALSE)[,1]
+    cyspdata$shr <- scale(cyspdata$duration_minutes, scale = FALSE)[,1]
     
     #defaults for rstanarm are 0.95 and 15
     DELTA <- 0.95
     TREE_DEPTH <- 15
     
-    if (n1 > 29 & n1W < (n1/50) & n0 > 29 & njd0i > 29 & njd1 > 19)
+    if (n1 > 19 & n1W < (n1/50) & n0 > 19 & njd0i > 19 & njd1 > 9)
     {
       fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr, 
                                  data = cyspdata,
@@ -552,7 +550,6 @@ for (j in 1:nyr)
 
 #order by year then cell
 OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
-
 
 #save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_arrival_', RUN_DATE))
