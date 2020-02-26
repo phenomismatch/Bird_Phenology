@@ -259,11 +259,14 @@ halfmax_df <- data.frame(species = args,
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
                          min_neff = NA,
+                         mlmax = NA,
+                         plmax = NA,
                          num_diverge = NA,
                          num_tree = NA,
                          num_BFMI = NA,
                          delta = NA,
                          tree_depth = NA,
+                         t_iter = NA,
                          n1 = NA,
                          n1W = NA,
                          n0 = NA,
@@ -291,6 +294,8 @@ for (j in 1:nyr)
   for (k in 1:ncell)
   {
     #k <- 22
+    print(paste0('species: ', args, ', year: ', j, ', cell: ', k, ', br obs: ', n1))
+    
     cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
     
     #new column with dates to egg lay date
@@ -348,12 +353,12 @@ for (j in 1:nyr)
     halfmax_df$njd0[counter] <- njd0
     halfmax_df$njd0i[counter] <- njd0i
     
-    print(paste0('species: ', args, ', year: ', j, ', cell: ', k, ', br obs: ', n1))
+    #center effort (to make sure supplying value of 0 in post-model prediction is meaningful)
+    #cyspdata$shr <- scale(cyspdata$duration_minutes, scale = FALSE)[,1]
     
     #defaults for rstanarm are 0.95 and 15
     DELTA <- 0.95
     TREE_DEPTH <- 15
-    
     
     #same thresholds as arrival models
     if (n1 > 29 & n1W < (n1 / 50) & n0 > 29 & njd0i > 29 & njd1 > 19)
@@ -374,10 +379,9 @@ for (j in 1:nyr)
       num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
       #rerun model if things didn't go well
-      while (sum(c(num_diverge, num_tree, num_BFMI)) > 0 & DELTA <= 0.98)
+      while (sum(c(num_diverge, num_BFMI)) > 0 & DELTA <= 0.98)
       {
         DELTA <- DELTA + 0.01
-        TREE_DEPTH <- TREE_DEPTH + 1
 
         fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj) + shr,
                                    data = cyspdata,
@@ -394,11 +398,17 @@ for (j in 1:nyr)
         num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       }
       
+      max_Rhat <- round(max(summary(fit2)[, 'Rhat']), 2)
+      min_neff <- min(summary(fit2)[, 'n_eff'])
+      
       halfmax_df$num_diverge[counter] <- num_diverge
       halfmax_df$num_tree[counter] <- num_tree
       halfmax_df$num_BFMI[counter] <- num_BFMI
       halfmax_df$delta[counter] <- DELTA
       halfmax_df$tree_depth[counter] <- TREE_DEPTH
+      halfmax_df$t_iter[counter] <- ITER
+      halfmax_df$max_Rhat[counter] <- max_Rhat
+      halfmax_df$min_neff[counter] <- min_neff
       
       #generate predict data
       predictDays <- range(cyspdata$jday_adj)[1]:range(cyspdata$jday_adj)[2]
@@ -407,13 +417,77 @@ for (j in 1:nyr)
       #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
-      
+      tlmax <- rep(NA, ((ITER/2)*CHAINS))
+      #day at which probability of occurence is half local maximum value
       for (L in 1:((ITER/2)*CHAINS))
       {
-        #L <- 3000
         rowL <- as.vector(dfit[L,])
-        halfmax_fit[L] <- predictDays[min(which(rowL > (max(rowL)/2)))]
+        #first detection
+        fd <- min(cyspdata$jday_adj[which(cyspdata$detect == 1)])
+        #local maximum(s)
+        #from: stackoverflow.com/questions/6836409/finding-local-maxima-and-minima
+        lmax_idx <- which(diff(sign(diff(rowL))) == -2) + 1
+        lmax <- predictDays[lmax_idx]
+        #first local max to come after first detection
+        flm <- which(lmax > fd)
+        if (length(flm) > 0)
+        {
+          #first local max to come after first detection
+          lmax2_idx <- lmax_idx[min(flm)]
+          lmax2 <- lmax[min(flm)]
+          tlmax[L] <- TRUE
+        } else {
+          #no local max
+          lmax2_idx <- which.max(rowL)
+          lmax2 <- predictDays[which.max(rowL)]
+          tlmax[L] <- FALSE
+        }
+        #position of min value before max - typically, where 0 is
+        lmin_idx <- which.min(rowL[1:lmax2_idx])
+        #value at local max - value at min (typically 0)
+        dmm <- rowL[lmax2_idx] - rowL[lmin_idx]
+        #all positions less than or equal to half diff between max and min
+        tlm <- which(rowL <= ((dmm/2) + rowL[lmin_idx]))
+        #which of these come before max and after min
+        vgm <- which(tlm < lmax2_idx & tlm > lmin_idx)
+        #insert halfmax (first day for situations where max is a jday = 1)
+        if (length(vgm) > 0)
+        {
+          halfmax_fit[L] <- predictDays[max(vgm)]
+        } else {
+          halfmax_fit[L] <- predictDays[1]
+        }
       }
+      
+      #number of iterations that had local max
+      halfmax_df$plmax[counter] <- round(sum(tlmax)/((ITER/2)*CHAINS), 3)
+      
+      #model fit
+      mn_dfit <- apply(dfit, 2, mean)
+      LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
+      UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
+      
+      #check whether local max exists for mean model fit
+      mlmax <- sum(diff(sign(diff(mn_dfit))) == -2)
+      if (mlmax > 0)
+      {
+        halfmax_df$mlmax[counter] <- TRUE
+      } else {
+        halfmax_df$mlmax[counter] <- FALSE
+      }
+      
+      #estimated halfmax
+      mn_hm <- mean(halfmax_fit)
+      LCI_hm <- quantile(halfmax_fit, probs = 0.025)
+      UCI_hm <- quantile(halfmax_fit, probs = 0.975)
+      
+      #fill df with halfmax iter
+      cndf <- colnames(halfmax_df)
+      iter_ind <- grep('iter', cndf)
+      to.rm <- which(cndf == 't_iter')
+      #remove t_iter col
+      halfmax_df[counter, iter_ind[-which(iter_ind == to.rm)]] <- halfmax_fit
+      
       
       ########################
       #PLOT MODEL FIT AND DATA
@@ -433,8 +507,9 @@ for (j in 1:nyr)
            xlab = 'Julian Day', ylab = 'Detection Probability')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
-      cyspdata$br[which(cyspdata$br == 1)] <- max(UCI_dfit)
-      points(cyspdata$jday_adj, cyspdata$br, col = rgb(0,0,0,0.25))
+      dd <- cyspdata$br
+      dd[which(dd == 1)] <- max(UCI_dfit)
+      points(cyspdata$jday_adj, dd, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
@@ -443,21 +518,32 @@ for (j in 1:nyr)
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
-      ########################
       
-      iter_ind <- grep('iter', colnames(halfmax_df))
-      halfmax_df[counter,iter_ind] <- halfmax_fit
-      halfmax_df$max_Rhat[counter] <- round(max(summary(fit2)[, "Rhat"]), 2)
-      halfmax_df$min_neff[counter] <- min(summary(fit2)[, "n_eff"])
+      # #alternative visualization
+      # pdf(paste0(args, '_', years[j], '_', cells[k], '_breeding_realizations.pdf'))
+      # plot(NA, xlim = c(range(cyspdata$jday_adj)[1]:range(cyspdata$jday_adj)[2]), ylim = c(0, quantile(dfit, 0.999)),
+      #      xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
+      # for (L in 1:((ITER/2)*CHAINS))
+      # {
+      #   lines(range(cyspdata$jday_adj)[1]:range(cyspdata$jday_adj)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+      # }
+      # for (L in 1:((ITER/2)*CHAINS))
+      # {
+      #   abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
+      # }
+      # dev.off()
+      ########################
     }
     counter <- counter + 1
   } #k
 } #j
 
+#order by year then cell
+OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
 
 #save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
-saveRDS(halfmax_df, file = paste0('halfmax_breeding_', args, '.rds'))
+saveRDS(OUT, file = paste0('halfmax_breeding_', args, '.rds'))
 
 
 
