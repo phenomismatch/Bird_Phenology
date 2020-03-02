@@ -1,5 +1,5 @@
 ####################
-# 6 - query nesting phenology data (eBird breeding codes, MAPS, and Nestwatch)
+# 6 - query nesting phenology data (eBird breeding codes and MAPS)
 #
 # *eBird breeding codes
 #   -0 if not observed in that survey at all (independent of breeding code)
@@ -12,6 +12,8 @@
 
 dir <- '~/Google_Drive/R/'
 
+run_date <- Sys.Date()
+
 
 # Load packages -----------------------------------------------------------
 
@@ -21,16 +23,6 @@ library(DBI)
 library(dggridR)
 library(doParallel)
 library(foreach)
-
-
-# import IAR data ---------------------------------------------------------
-
-# setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-# 
-# IAR_out_dir <- 'IAR_output_2018-11-12'
-# IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
-
-#IAR_data <- readRDS(paste0('master_arrival_', IAR_out_date, '.rds'))
 
 
 
@@ -48,7 +40,7 @@ species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ",
 # eBird breeding codes ----------------------------------------------------
 
 
-# access DB ---------------------------------------------------------------
+#access DB
 
 pass <- readLines('db_pass.txt')
 
@@ -62,19 +54,15 @@ cxn <- DBI::dbConnect(pg,
                       dbname = "sightings")
 
 
+#create query dir and navigate there
 
-# create query dir and navigate there -------------------------------------------
-
-
-query_dir_path <- paste0('Processed/breeding_cat_query_', Sys.Date())
+query_dir_path <- paste0('Processed/eBird_breeding_query_', run_date)
 
 dir.create(query_dir_path)
 setwd(query_dir_path)
 
 
-
-
-# filter dataset notes ----------------------------------------------------------
+#filter dataset notes
 
 #SQL FILTER BY:
 # * only ebird data
@@ -131,7 +119,7 @@ setwd(query_dir_path)
 
 
 
-# Query and filter - event_id ----------------------------------------------------
+#Query and filter - event_id
 
 #filter all unique event_ids that meet criteria - about 38 min to complete query
 #same conditions for query as for arrival data
@@ -168,10 +156,6 @@ rm(data)
 #add jday and shr
 cn_id <- grep('day', colnames(data2))
 colnames(data2)[cn_id] <- 'jday'
-
-
-#scaled effort hours
-data2$shr <- as.vector(scale((data2$duration_minutes/60), scale = FALSE))
 
 
 
@@ -319,12 +303,12 @@ foreach::foreach(i = 1:nsp) %dopar%
   
   sdata <- dplyr::select(data2, 
                          event_id, year, jday,
-                         shr, cell, species_list_i[i,1])
+                         duration_minutes, cell, species_list_i[i,1])
   
   names(sdata)[6] <- "breeding_code"
   sdata['species'] <- species_list_i[i,1]
   
-  saveRDS(sdata, file = paste0('ebird_NA_breeding_code_', species_list_i[i,1], '.rds'))
+  saveRDS(sdata, file = paste0('ebird_breeding_query_', species_list_i[i,1], '.rds'))
   
   DBI::dbDisconnect(cxn)
 }
@@ -469,12 +453,12 @@ if (length(m_sp2) > 0)
     
     sdata <- dplyr::select(data2, 
                            event_id, year, jday,
-                           shr, cell, m_sp[i])
+                           duration_minutes, cell, m_sp[i])
     
     names(sdata)[6] <- "breeding_code"
     sdata['species'] <- m_sp[i]
     
-    saveRDS(sdata, file = paste0('ebird_NA_breeding_code_', 
+    saveRDS(sdata, file = paste0('ebird_breeding_query_', 
                                  m_sp[i], '.rds'))
     
     DBI::dbDisconnect(cxn)
@@ -482,11 +466,21 @@ if (length(m_sp2) > 0)
 }
 
 
+# check all files were created --------------------------------------------
+
+if ((as.numeric(system(paste0('ls | wc -l'), intern = TRUE)) - 1) == nsp)
+{
+  print('All files created!')
+} else {
+  print('Missing files!')
+}
+
+
 # copy script to query folder for records ---------------------------------
 
-system(paste0('cp ', dir, 'Bird_Phenology/Scripts/ebird_Nestwatch/ebird_br_code/6-query-nesting-data.R ', 
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/6-query-nesting-data.R ', 
               dir, 'Bird_Phenology/Data/', query_dir_path, 
-              '/6-query-nesting-data-', Sys.Date(), '.R'))
+              '/6-query-nesting-data-', run_date, '.R'))
 
 
 proc.time() - tt
@@ -497,24 +491,10 @@ proc.time() - tt
 
 # MAPS obs - DB -----------------------------------------------------------
 
-
 dir <- '~/Google_Drive/R/'
-
-run_date <- '2019-10-18'
-
-# Load packages -----------------------------------------------------------
-
-library(dplyr)
-library(RPostgreSQL)
-library(DBI)
 
 
 # query DB ----------------------------------------------------------------
-
-
-setwd(paste0(dir, 'wing_chord_changes/Data/'))
-
-pass <- readLines('db_pass.txt')
 
 pg <- DBI::dbDriver("PostgreSQL")
 
@@ -662,108 +642,8 @@ for (i in 1:length(ids))
 }
 close(pb)
 
-#one time fill with feather wear to avoid refilling age data
-# qq <- readRDS('MAPS-age-filled.rds')
-# qq$feather_wear <- maps_data$feather_wear
-# setwd(paste0(dir, 'wing_chord_time_lat/Data/'))
-# saveRDS(qq, 'MAPS-age-filled.rds')
-
 
 #save RDS file
-setwd(paste0(dir, 'wing_chord_changes/Data/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/MAPS/'))
 saveRDS(maps_data, paste0('MAPS-age-filled-', run_date, '.rds'))
-
-
-
-
-
-
-
-# Nestwatch  ---------------------------------------------------------------
-
-#to derive time period between egg -> hatch -> fledge
-#query db
-
-setwd(paste0(dir, 'Bird_Phenology/Data/'))
-
-pass <- readLines('db_pass.txt')
-
-pg <- DBI::dbDriver("PostgreSQL")
-
-cxn <- DBI::dbConnect(pg, 
-                      user = "cyoungflesh", 
-                      password = pass, 
-                      host = "35.221.16.125", 
-                      port = 5432, 
-                      dbname = "sightings")
-
-
-nestwatch_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name,
-                                              event_id, count_id, count,
-                                              (event_json ->> 'FIRST_LAY_DT') AS lay,
-                                              (event_json ->> 'HATCH_DT') AS hatch,
-                                              (event_json ->> 'FLEDGE_DT') AS fledge,
-                                              (event_json ->> 'event_type') AS event_type,
-                                              (count_json ->> 'count_type') AS count_type
-                                              FROM places
-                                              JOIN events USING (place_id)
-                                              JOIN counts USING (event_id)
-                                              JOIN taxa USING (taxon_id)
-                                              WHERE events.dataset_id = 'nestwatch'
-                                              AND lng BETWEEN -95 AND -50
-                                              AND lat > 24;
-                                              "))
-
-
-
-#only keep entries that have dates - convert to julian day
-nestwatch_data$lay_j <- format(as.Date(nestwatch_data$lay, 
-                                        format = '%d-%b-%y'), '%j')
-nestwatch_data$hatch_j <- format(as.Date(nestwatch_data$hatch, 
-                                       format = '%d-%b-%y'), '%j')
-nestwatch_data$fledge_j <- format(as.Date(nestwatch_data$fledge, 
-                                       format = '%d-%b-%y'), '%j')
-
-
-nestwatch_data$sci_name <- gsub(' ', '_', nestwatch_data$sci_name)
-
-
-out <- data.frame(species = rep(NA, length(species_list_i[,1])),
-                  m_FH = NA,
-                  m_FL = NA,
-                  m_HL = NA,
-                  n_FH = NA,
-                  n_FL = NA,
-                  n_HL = NA)
-counter <- 1
-#get metrics from nestwatch data
-for (i in 1:length(species_list_i[,1]))
-{
-  #i <- 1
-  
-  #filter by species
-  sp <- species_list_i[i,1]
-  t_nw <- dplyr::filter(nestwatch_data, sci_name == sp)
-  
-  #fledge - hatch
-  FH <- as.numeric(t_nw$fledge_j) - as.numeric(t_nw$hatch_j)
-  FL <- as.numeric(t_nw$fledge_j) - as.numeric(t_nw$lay_j)
-  HL <- as.numeric(t_nw$hatch_j) - as.numeric(t_nw$lay_j)
-
-  out$species[counter] <- sp
-  out$m_FH[counter] <- median(FH, na.rm = TRUE)
-  out$m_FL[counter] <- median(FL, na.rm = TRUE)
-  out$m_HL[counter] <- median(HL, na.rm = TRUE)
-  out$n_FH[counter] <- sum(!is.na(FH))
-  out$n_FL[counter] <- sum(!is.na(FL))
-  out$n_HL[counter] <- sum(!is.na(HL))
-  
-  counter <- counter + 1
-}
-
-out2 <- dplyr::filter(out, n_FL > 10, n_HL > 10)
-median(out2$m_FH)
-median(out2$m_FL)
-median(out2$m_HL)
-
 
