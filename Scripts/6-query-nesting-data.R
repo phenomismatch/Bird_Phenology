@@ -30,7 +30,7 @@ library(foreach)
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
-species_list_i <- read.table(paste0('IAR_species_list.txt'), stringsAsFactors = FALSE)
+species_list_i <- read.table(paste0('eBird_species_list.txt'), stringsAsFactors = FALSE)
 
 #remove underscore and coerce to vector
 species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
@@ -323,8 +323,9 @@ nms <- c()
 for (i in 1:length(fls))
 {
   #i <- 1
-  nms <- c(nms, substr(fls[i], 23, (nchar(fls[i]) - 4)))
+  nms[i] <- strsplit(strsplit(fls[i], split = 'ebird_breeding_query_')[[1]][2], '.rds')[[1]][1]
 }
+
 
 #missed species
 m_sp <- species_list_i[which(!species_list_i[,1] %in% nms),1]
@@ -468,7 +469,7 @@ if (length(m_sp2) > 0)
 
 # check all files were created --------------------------------------------
 
-if ((as.numeric(system(paste0('ls | wc -l'), intern = TRUE)) - 1) == nsp)
+if (length(list.files()) == nsp)
 {
   print('All files created!')
 } else {
@@ -522,7 +523,8 @@ maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_nam
                                          (count_json ->> 'F')::int AS fat_content,
                                          (count_json ->> 'WNG')::float AS wing_chord,
                                          (count_json ->> 'WEIGHT')::float AS weight,
-                                         (count_json ->> 'N') AS standard_effort
+                                         (count_json ->> 'N') AS standard_effort,
+                                         (count_json ->> 'YS') AS yr_br_status
                                          FROM places
                                          JOIN events USING (place_id)
                                          JOIN counts USING (event_id)
@@ -533,18 +535,18 @@ maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_nam
                                          AND (count_json ->> 'N') in ('-', 'D', 'S', 'T', 'O', '+');
                                          "))
 
-#C (Capture code): Only codes N,R,U are used for analyses according to MAPS docs
-#N = newly banded bird
-#R = recaptured bird
-#U = unbanded bird
+#C (capture_code): Only codes N,R,U are used for analyses according to MAPS docs
+#N - newly banded bird
+#R - recaptured bird
+#U - unbanded bird
 
-#N (Indicator to include in productivity and survivorship analyses): Okay to use these for analyses that do not require to control for effort
-#0 = not caught at MAPS station
-#T = outside normaps MAPS operation for that station
-#S = caught within MAPS station boundary but not in a MAPS net
-#D = date outside of MAPS periods
-#- = record examined with current MAPS analytical procedure (taken to be standard capture methods)
-#+ = record examined with preliminary MAPS analytical procedure
+#N (standard_effort - Indicator to include in productivity and survivorship analyses): Okay to use these for analyses that do not require to control for effort
+#0 - not caught at MAPS station
+#T - outside normaps MAPS operation for that station
+#S - caught within MAPS station boundary but not in a MAPS net
+#D - date outside of MAPS periods
+#- - record examined with current MAPS analytical procedure (taken to be standard capture methods)
+#+ - record examined with preliminary MAPS analytical procedure
 
 #Age:
 #0 - unknown
@@ -562,13 +564,13 @@ maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_nam
 #U - unknown
 #X - unattempted
 
-#Cloacal protuberance:
+#CP (cloacal_pro - cloacal protuberance):
 #0 - none
 #1 - small
 #2 - medium
 #3 - large
 
-#Brood patch:
+#BP (brood_patch - Brood patch:
 #0 - none
 #1 - smooth
 #2 - vascularized
@@ -576,7 +578,7 @@ maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_nam
 #4 - wrinkled
 #5 - molting
 
-#Fat content:
+#F (fat_content):
 #0 - none
 #1 - trace
 #2 - light
@@ -585,6 +587,22 @@ maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_nam
 #5 - bulging
 #6 - greatly bulging
 #7 - very excessive
+
+#YS (yr_br_status - year specific breedin status):
+#B - breeder (at least one ind was summer resident at station)
+#L - likely breeder (at least one ind was suspected summer resident)
+#T - transient (station is within breeding rng of species, but no individual of the species was a summer resident at the station)
+#A - altitudinal disperser (species breeds only at lower elevations than that of the station and which disperses to higher elevations after breeding)
+#H - high altitudinal disperser (species breeds usually designated an altitudinal disperser. However, has resided during the height of the breeding season (not just during the post- breeding period) in a given year above its normal breeding elevation.
+#M - migrant (station is not within the breeding range of the species, and the species was not a summer resident)
+#E - extralimital breeder (one or more individuals of the species was a summer resident at the station, but the station lies outside of the normal breeding range of the species)
+#- - absent (no evidence of species in data; presumably absent from station during year in question)
+#? - uncertain species identification or band number (no breeding status assigned)
+## - station operated this year, but breeding status determinations were not made for species that were not captured; used only for species without capture records
+#D - species was only encountered at the station outside of the MAPS season, but the station lies within breeding range of the species.
+#W - species was only encountered at the station outside of the MAPS season, and the station lies outside of the breeding range of species.
+#@ - Breeding Status List is missing or incomplete for these species this year.
+
 
 
 # fill in true ages ------------------------------------------------------------
