@@ -1,7 +1,5 @@
 ######################
-# 4 - IAR model - NO LUMPED SPATIAL/NON-SPATIAL NO HIERARCHICAL SIGMA_PHI
-#
-# Fit IAR model
+# 4 - arr IAR model
 #
 # VVV MODEL VVV
 # i = year
@@ -71,6 +69,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- as.character('Catharus_minimus')
 #args <- as.character('Empidonax_virescens')
 #args <- as.character('Vireo_olivaceus')
+#args <- as.character('Agelaius_phoeniceus')
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -356,7 +355,7 @@ for (n in 1:N)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.95
+DELTA <- 0.90
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.0005
 CHAINS <- 6
@@ -405,7 +404,6 @@ while ((max(rhat_output) > 1.05 | min(neff_output) < 400) & ITER < 10001)
   
   ITER <- ITER * 2
   
-  tt <- proc.time()
   fit <- rstan::stan(model_code = IAR,
                      data = DATA,
                      chains = CHAINS,
