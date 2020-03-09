@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2019-11-07"
+DATE="2020-03-09"
 
 while read name
 do
@@ -15,8 +15,6 @@ do
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
 #SBATCH --mem=25G #memory requested
-#SBATCH --mail-type=END #when to send email (on job completion)
-#SBATCH --mail-user=casey.youngflesh@uconn.edu #email address for notification
 #SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_$DATE/hm-juvs-$temp.out #STDOUT
 #SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_$DATE/hm-juvs-$temp.err #STDERR
 
@@ -30,7 +28,6 @@ echo \`hostname\`
 #until singularity is sorted
 module load singularity/3.0.2
 singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/7-halfmax-juvs/7-halfmax-juvs.R $temp
-
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/7-$temp.sh"

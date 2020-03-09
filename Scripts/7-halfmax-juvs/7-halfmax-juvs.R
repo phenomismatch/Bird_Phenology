@@ -23,10 +23,10 @@ dir <- '/labs/Tingley/phenomismatch/'
 # other dir ------------------------------------------------------------
 
 #run date
-RUN_DATE <- '2019-11-07'
+RUN_DATE <- '2020-03-09'
 
 #MAPS query date
-MAPS_date <- '2019-10-18'
+MAPS_date <- '2020-03-03'
 
 
 # load packages -----------------------------------------------------------
@@ -68,7 +68,7 @@ CHAINS <- 4
 # read in data ------------------------------------------------------------
 
 #read in - RDS create with 1-query-db.R in wing_chord_changes project
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/MAPS/'))
 
 data_p <- readRDS(paste0('MAPS-age-filled-', MAPS_date, '.rds'))
 colnames(data_p)[grep('sci_name', colnames(data_p))] <- 'species'
@@ -259,8 +259,8 @@ m_mf$juv <- NA
 m_mf$juv[which(m_mf$age == 2)] <- 1 #hatching year bird
 m_mf$juv[-which(m_mf$age == 2)] <- 0
 
-#exclude young bird incapable of flight
-to.na <- which(m_mf$age == 4)
+#exclude young bird incapable of flight or missing band_id
+to.na <- which(m_mf$age == 4 | is.na(m_mf$band_id))
 if (length(to.na) > 0)
 {
   m_mf2 <- m_mf[-to.na,]  
@@ -322,10 +322,11 @@ for (j in 1:nyr)
   
   for (k in 1:ncell)
   {
-    #k <- 5
+    #k <- 1
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
-    cyspdata <- dplyr::filter(yspdata, cell == cells[k])
+    #filter by cell and breeding status for capture station
+    cyspdata <- dplyr::filter(yspdata, cell == cells[k], yr_br_status == 'B')
     
     #adults
     cyspdata_0 <- dplyr::filter(cyspdata, juv == 0)
@@ -572,7 +573,8 @@ for (j in 1:nyr)
       for (L in 1:((ITER/2)*CHAINS))
       {
         #L <- 1
-        lines(range(cyspdata_j$day)[1]:range(cyspdata_j$day)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+        lines(range(cyspdata_j$day)[1]:range(cyspdata_j$day)[2], as.vector(dfit[L,]), 
+              type = 'l', col = rgb(0,0,0,0.025))
       }
       for (L in 1:((ITER/2)*CHAINS))
       {
