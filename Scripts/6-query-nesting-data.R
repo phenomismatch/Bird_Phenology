@@ -1,10 +1,12 @@
 ####################
 # 6 - query nesting phenology data (eBird breeding codes and MAPS)
 #
-# *eBird breeding codes
+# *eBird breeding codes (run time: ~ 1 day)
 #   -0 if not observed in that survey at all (independent of breeding code)
 #   -NA if observed but no breeding code recorded
 #   -letter code if observed and breeding code recorded
+#
+# *MAPS age filled (run time: several days)
 ####################
 
 
@@ -26,7 +28,7 @@ library(foreach)
 
 
 
-# import IAR species list -----------------------------------------------------
+# import species list -----------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
@@ -118,7 +120,6 @@ setwd(query_dir_path)
 # HAS_MEDIA
 
 
-
 #Query and filter - event_id
 
 #filter all unique event_ids that meet criteria - about 38 min to complete query
@@ -159,7 +160,7 @@ colnames(data2)[cn_id] <- 'jday'
 
 
 
-# bin lat/lon to hex grid and add to data ---------------------------------------------------------
+# bin lat/lon to hex grid and add to data
 
 # Construct geospatial hexagonal grid
 
@@ -171,7 +172,7 @@ data2$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
 
 
 
-# query individual species, zero fill, and create RDS objects ----------------------------------
+# query individual species, zero fill, and create RDS objects
 
 data2[species_list_i[,1]] <- NA
 
@@ -316,7 +317,7 @@ proc.time() - tt
 
 
 
-# Find files that weren’t created -----------------------------------------
+# Find files that weren’t created
 
 fls <- list.files()
 nms <- c()
@@ -467,7 +468,7 @@ if (length(m_sp2) > 0)
 }
 
 
-# check all files were created --------------------------------------------
+# check all files were created
 
 if (length(list.files()) == nsp)
 {
@@ -477,7 +478,7 @@ if (length(list.files()) == nsp)
 }
 
 
-# copy script to query folder for records ---------------------------------
+# copy script to query folder for records
 
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/6-query-nesting-data.R ', 
               dir, 'Bird_Phenology/Data/', query_dir_path, 
@@ -495,7 +496,7 @@ proc.time() - tt
 dir <- '~/Google_Drive/R/'
 
 
-# query DB ----------------------------------------------------------------
+# query DB
 
 pg <- DBI::dbDriver("PostgreSQL")
 
@@ -506,7 +507,7 @@ cxn <- DBI::dbConnect(pg,
                       port = 5432,
                       dbname = "sightings")
 
-#Entire North America - only days 100-300
+#Entire North America, all species - only days 100-300
 
 maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name, event_id, started, ended,
                                          (count_json ->> 'ANET') AS anet,
@@ -605,7 +606,7 @@ maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_nam
 
 
 
-# fill in true ages ------------------------------------------------------------
+# fill in true ages
 
 #true_age 1 means 1 year old (born in previous season)
 
@@ -664,4 +665,11 @@ close(pb)
 #save RDS file
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/MAPS/'))
 saveRDS(maps_data, paste0('MAPS-age-filled-', run_date, '.rds'))
+
+
+# copy script to query folder for records
+
+system(paste0('cp ', dir, 'Bird_Phenology/Scripts/6-query-nesting-data.R ', 
+              dir, 'Bird_Phenology/Data/Processed/MAPS/',
+              '6-query-nesting-data-', run_date, '.R'))
 
