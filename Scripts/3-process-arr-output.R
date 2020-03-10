@@ -19,7 +19,7 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-hm_dir <- 'halfmax_arrival_2020-02-XX'
+hm_dir <- 'halfmax_arrival_2020-02-26'
 hm_date <- substr(hm_dir, start = 17, stop = 26)
 
 
@@ -194,6 +194,7 @@ diagnostics_frame2 <- diagnostics_frame
 ### add NA for both HM_mean and HM_sd if any of the following conditions are met
 #these params used for most recent IAR input run (as of 2020-02-XX)
 
+#filter by mlmax and plmax?
 to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
                  diagnostics_frame2$max_Rhat >= 1.05 |
                  diagnostics_frame2$min_neff < 350 |

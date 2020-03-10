@@ -18,7 +18,7 @@ dir <- '~/Google_Drive/R/'
 # db/juv query dir ------------------------------------------------------------
 
 #input dir
-juv_date <- '2019-11-07'
+juv_date <- '2020-03-09'
 juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', juv_date)
 
 
@@ -48,7 +48,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 # import eBird species list -----------------------------------------------------
 
-species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
+species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 
 #temporary filter out these species
@@ -109,7 +109,9 @@ for (i in 1:length(species))
                                     njd0i = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
-                                    nphen_bad = na_reps,
+                                    mlmax = na_reps,
+                                    plmax = na_reps,
+                                    t_iter = na_reps,
                                     delta = na_reps,
                                     tree_depth = na_reps,
                                     num_diverge = na_reps,
@@ -162,9 +164,12 @@ for (i in 1:length(species))
         #number of unique days of non-detections before first detection
         diagnostics_frame$njd0i[counter] <- tt_halfmax2$njd0i
         
-        diagnostics_frame$min_neff[counter] <- tt_halfmax2$min_neff
         diagnostics_frame$max_Rhat[counter] <- tt_halfmax2$max_Rhat
+        diagnostics_frame$min_neff[counter] <- tt_halfmax2$min_neff
+        diagnostics_frame$mlmax[counter] <- tt_halfmax2$mlmax
+        diagnostics_frame$plmax[counter] <- tt_halfmax2$plmax
         
+        diagnostics_frame$t_iter[counter] <- tt_halfmax2$t_iter
         diagnostics_frame$delta[counter] <- tt_halfmax2$delta
         diagnostics_frame$tree_depth[counter] <- tt_halfmax2$tree_depth
         diagnostics_frame$num_diverge[counter] <- tt_halfmax2$num_diverge
@@ -173,10 +178,6 @@ for (i in 1:length(species))
         
         iter_ind <- grep('iter', colnames(tt_halfmax2))
         halfmax_posterior <- as.numeric(tt_halfmax2[,iter_ind])
-        
-        #determine how many estimates are 1 and not 1 (estimates of 1 are bogus)
-        diagnostics_frame$nphen_bad[counter] <- sum(halfmax_posterior == 1)
-        #halfmax_posterior2 <- halfmax_posterior[which(halfmax_posterior != 1)]
         
         #calculate posterior mean and sd
         if (sum(!is.na(halfmax_posterior)) > 0)
@@ -198,11 +199,12 @@ for (i in 1:length(species))
 
 ### add NA for both juv_mean and juv_sd if any of the following conditions are met
 
+#filter by mlmax and plmax?
 to.NA <- which(diagnostics_frame$num_diverge > 0 | 
-                 diagnostics_frame$max_Rhat >= 1.1 |
-                 diagnostics_frame$min_neff < 200 |
+                 diagnostics_frame$max_Rhat >= 1.05 |
+                 diagnostics_frame$min_neff < 350 |
                  diagnostics_frame$num_BFMI > 0 |
-                 diagnostics_frame$juv_sd > 10)
+                 diagnostics_frame$juv_sd > 15)
 
 # #31% of cells are bad
 # length(to.NA)/sum(!is.na(diagnostics_frame$juv_mean))
