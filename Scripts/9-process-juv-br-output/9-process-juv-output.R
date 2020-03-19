@@ -82,7 +82,7 @@ for (i in 1:nsp)
 counter <- 1
 for (i in 1:length(species))
 {
-  #i <- 1
+  #i <- 5
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(juv_dir)
@@ -122,7 +122,7 @@ for (i in 1:length(species))
   #loop through years
   for (j in 1:length(years))
   {
-    #j <- 1
+    #j <- 24
     tt_halfmax1 <- dplyr::filter(temp_halfmax, 
                                  year == years[j])
     
@@ -133,7 +133,7 @@ for (i in 1:length(species))
     {
       for (k in 1:ncell)
       {
-        #k <- 1
+        #k <- 2
         
         diagnostics_frame$species[counter] <- species[i]
         diagnostics_frame$year[counter] <- years[j]
@@ -176,8 +176,11 @@ for (i in 1:length(species))
         diagnostics_frame$num_tree[counter] <- tt_halfmax2$num_tree
         diagnostics_frame$num_BFMI[counter] <- tt_halfmax2$num_BFMI
         
-        iter_ind <- grep('iter', colnames(tt_halfmax2))
-        halfmax_posterior <- as.numeric(tt_halfmax2[,iter_ind])
+        #posterior for halfmax
+        cndf <- colnames(tt_halfmax2)
+        iter_ind <- grep('iter', cndf)
+        to.rm <- which(cndf == 't_iter')
+        halfmax_posterior <- as.numeric(tt_halfmax2[,iter_ind[-which(iter_ind == to.rm)]])
         
         #calculate posterior mean and sd
         if (sum(!is.na(halfmax_posterior)) > 0)
@@ -199,17 +202,18 @@ for (i in 1:length(species))
 
 ### add NA for both juv_mean and juv_sd if any of the following conditions are met
 
-#filter by mlmax and plmax?
 to.NA <- which(diagnostics_frame$num_diverge > 0 | 
                  diagnostics_frame$max_Rhat >= 1.05 |
                  diagnostics_frame$min_neff < 350 |
                  diagnostics_frame$num_BFMI > 0 |
-                 diagnostics_frame$juv_sd > 15)
+                 diagnostics_frame$juv_sd > 15 | 
+                 diagnostics_frame$mlmax == FALSE) #must have hump
 
-# #31% of cells are bad
+# #50% of cells are bad
 # length(to.NA)/sum(!is.na(diagnostics_frame$juv_mean))
 # diagnostics_frame[to.NA,c('species', 'cell', 'year',
-#                            'juv_mean', 'juv_sd', 'min_neff', 'num_diverge')]
+#                           'juv_mean', 'juv_sd', 'min_neff', 
+#                           'num_diverge', 'max_Rhat', 'mlmax')]
 
 if (length(to.NA) > 0)
 {
