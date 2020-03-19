@@ -34,15 +34,74 @@ tt <- proc.time()
 library(dplyr)
 library(dggridR)
 library(sp)
+library(maptools)
+library(rgdal)
+library(rgeos)
 
 
-# Set wd ------------------------------------------------------------------
+# calculate grid/land overlap ---------------------------------------------
 
-setwd(paste0(dir, 'Bird_Phenology/Data/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/hex_grid_crop'))
+
+#read in cropped hex shp file
+hex_shp <- rgdal::readOGR('hex_grid_crop.shp')
+
+#load maps
+usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
+canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
+mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
+
+#combine maps
+combmap <- maps::map("world", c("USA", "Canada", "Mexico"), fill = TRUE, plot = FALSE)
+
+#make maps into spatial polygon object
+IDs <- sapply(strsplit(combmap$names, ":"), function(x) x[1])
+cmap <- maptools::map2SpatialPolygons(combmap, IDs = IDs, 
+                                      proj4string = CRS(proj4string(hex_shp)))
+
+#convert map to equal area projection
+cmap2 <- sp::spTransform(cmap, sp::CRS("+proj=laea +lat_0=0 +lon_0=-70 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"))
+
+#calculate overlap between each hex cell and map
+ovr_df <- data.frame(cell = as.numeric(as.character(hex_shp@data$cell)), per_ovr = NA)
+for (i in 1:length(hex_shp))
+{
+  #i <- 151 #676
+  #i <- 167 #734
+  #i <- 168 #735
+  #i <- 157 #703
+  #i <- 149 #674
+  
+  #just one hex cell
+  hex_spoly <- sp::SpatialPolygons(list(hex_shp@polygons[[i]]))
+  proj4string(hex_spoly) <- sp::CRS(proj4string(hex_shp))
+  
+  #tranform to equal area projection
+  hex_spoly2 <- sp::spTransform(hex_spoly, sp::CRS(proj4string(cmap2)))
+  
+  #plot(hex_spoly2, add = TRUE, col = 'red')
+  
+  #area of hex cell (should all be the same)
+  hex_area <- rgeos::gArea(hex_spoly2)
+  #get intersection of hex cell and map
+  int <- rgeos::gIntersection(hex_spoly2, cmap2)
+  if (!is.null(int))
+  {
+    #get area of intersection
+    ovr_area <- rgeos::gArea(int)
+  } else {
+    ovr_area <- 0
+  }
+  
+  #percent of hex cell that is covered by land
+  ovr_df$per_ovr[i] <- ovr_area / hex_area
+}
 
 
 
 # import eBird species list -----------------------------------------------------
+
+setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
@@ -214,6 +273,13 @@ if (length(to.NA) > 0)
 
 
 
+
+# combine data with overlap df --------------------------------------------
+
+diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
+
+
+
 # Filter data based on criteria -----------------------------------------------------------
 
 # Which species-years are worth modeling? At a bare minimum:
@@ -239,7 +305,7 @@ for (i in 1:length(species_list))
     
     print(i)
     #filter by species
-    t_sp <- dplyr::filter(diagnostics_frame2, species == species_list[i])
+    t_sp <- dplyr::filter(diagnostics_frame3, species == species_list[i])
     
     if (NROW(t_sp) > 0)
     {
