@@ -31,11 +31,14 @@ MAPS_date <- '2020-03-03'
 
 # load packages -----------------------------------------------------------
 
-library(dplyr)
-library(dggridR)
 library(rstanarm)
 library(rstan)
-
+library(dplyr)
+library(dggridR)
+library(sp)
+library(raster)
+library(rgeos)
+library(rgdal)
 
 
 # Get args fed to script --------------------------------------------------
@@ -97,8 +100,6 @@ hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 
 # filter cells by range  ---------------------------------------------------
 
-'%ni%' <- Negate('%in%')
-
 #reference key for species synonyms
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
 sp_key <- read.csv('species_filenames_key.csv')
@@ -121,10 +122,10 @@ if (length(g_ind) == 0)
 #get filename and read in
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
 sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
+#to avoid self-intersection problem
+sp_rng2 <- rgeos::gBuffer(sp_rng, byid = TRUE, width = 0)
 #crop to area of interest
-#raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
-#full range
-sp_rng2 <- sp_rng
+#raster::crop(sp_rng2, raster::extent(-95, -50, 24, 90))
 
 #filter by breeding (2) - need to convert spdf to sp
 nrng <- sp_rng2[which(sp_rng2$SEASONAL == 2),]
