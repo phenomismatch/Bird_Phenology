@@ -6,6 +6,30 @@ pairs_stan <- function(chain, stan_model, pars)
   pars <- extract(stan_model, pars = pars, permuted = F)
   df <- data.frame(energy[,chain], pars[,chain,])
   names(df)[1] <- "energy"
+  
+  
+  
+  # params_cp80 <- as.data.frame(extract(fit_cp80, permuted=FALSE))
+  # names(params_cp80) <- gsub("chain:1.", "", names(params_cp80), fixed = TRUE)
+  # names(params_cp80) <- gsub("[", ".", names(params_cp80), fixed = TRUE)
+  # names(params_cp80) <- gsub("]", "", names(params_cp80), fixed = TRUE)
+  # params_cp80$iter <- 1:10000
+  # 
+  # divergent <- get_sampler_params(fit_cp80, inc_warmup=FALSE)[[1]][,'divergent__']
+  # params_cp80$divergent <- divergent
+  # 
+  # div_params_cp <- params_cp80[params_cp80$divergent == 1,]
+  # nondiv_params_cp <- params_cp80[params_cp80$divergent == 0,]
+  # 
+  # par(mar = c(4, 4, 0.5, 0.5))
+  # plot(nondiv_params_cp$theta.1, log(nondiv_params_cp$tau),
+  #      col=c_dark, pch=16, cex=0.8, xlab="theta.1", ylab="log(tau)",
+  #      xlim=c(-20, 50), ylim=c(-6,4))
+  # points(div_params_cp$theta.1, log(div_params_cp$tau),
+  #        col="green", pch=16, cex=0.8)
+  
+  
+  
   GGally::ggpairs(df, title = paste0("Chain", chain), 
                   lower = list(continuous = GGally::wrap("points", alpha = 0.2)))                    
 }
