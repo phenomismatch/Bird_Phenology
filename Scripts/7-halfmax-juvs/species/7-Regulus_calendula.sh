@@ -7,8 +7,8 @@
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
 #SBATCH --mem=25G #memory requested
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_2020-03-09/hm-juvs-Regulus_calendula.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_2020-03-09/hm-juvs-Regulus_calendula.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_2020-03-24/hm-juvs-Regulus_calendula.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juvs_2020-03-24/hm-juvs-Regulus_calendula.err #STDERR
 
 #echos name of node
 echo `hostname`
