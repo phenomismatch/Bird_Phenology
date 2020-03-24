@@ -47,6 +47,9 @@ setwd(paste0(dir, 'Bird_Phenology/Data/hex_grid_crop'))
 #read in cropped hex shp file
 hex_shp <- rgdal::readOGR('hex_grid_crop.shp')
 
+#make hexgrid
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+
 #load maps
 usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
 canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
@@ -90,7 +93,7 @@ for (i in 1:length(hex_shp))
   }
   
   #percent of hex cell that is covered by land
-  ovr_df$per_ovr[i] <- ovr_area / hex_area
+  ovr_df$per_ovr[i] <- round(ovr_area / hex_area, 2)
 }
 
 
@@ -121,7 +124,6 @@ for (i in 1:nsp)
   tu_cells[i] <- length(unique(temp_halfmax$cell))
 }
 
-'%ni%' <- Negate('%in%')
 
 #reference key for species synonyms for ranges
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
@@ -277,6 +279,7 @@ for (i in 1:nsp)
     #j <- 1
     tt_halfmax1 <- dplyr::filter(temp_halfmax, 
                                  year == years[j])
+    
     if (ncell > 0)
     {
       for (k in 1:ncell)
@@ -348,39 +351,33 @@ for (i in 1:nsp)
 } # i - species
 
 
-#strip excess NAs
 
+# strip excess NAs --------------------------------------------------------
 
 #ADD HERE
 
 
-
-#add 'meets criteria' column
-diagnostics_frame$MODEL <- NA
-diagnostics_frame$shp_fname <- NA
-
-diagnostics_frame2 <- diagnostics_frame
-
+# filter by diagnostics ---------------------------------------------------
 
 ### add NA for both HM_mean and HM_sd if any of the following conditions are met
 #these params used for most recent IAR input run (as of 2020-02-XX)
 
 #filter by mlmax and plmax?
-to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
-                 diagnostics_frame2$max_Rhat >= 1.05 |
-                 diagnostics_frame2$min_neff < 350 |
-                 diagnostics_frame2$num_BFMI > 0 |
-                 diagnostics_frame2$HM_sd > 15)
+to.NA <- which(diagnostics_frame$num_diverge > 0 | 
+                 diagnostics_frame$max_Rhat >= 1.05 |
+                 diagnostics_frame$min_neff < 350 |
+                 diagnostics_frame$num_BFMI > 0 |
+                 diagnostics_frame$HM_sd > 15)
 
 # #XX% of cells are bad
-# length(to.NA)/sum(!is.na(diagnostics_frame2$HM_mean))
-# diagnostics_frame2[to.NA,c('species', 'cell', 'year',
+# length(to.NA)/sum(!is.na(diagnostics_frame$HM_mean))
+# diagnostics_frame[to.NA,c('species', 'cell', 'year',
 #                            'HM_mean', 'HM_sd', 'min_neff', 'num_diverge')]
 
 if (length(to.NA) > 0)
 {
-  diagnostics_frame2[to.NA,'HM_mean'] <- NA
-  diagnostics_frame2[to.NA,'HM_sd'] <- NA
+  diagnostics_frame[to.NA,'HM_mean'] <- NA
+  diagnostics_frame[to.NA,'HM_sd'] <- NA
 }
 
 
@@ -388,7 +385,7 @@ if (length(to.NA) > 0)
 
 # combine data with overlap df --------------------------------------------
 
-diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
+diagnostics_frame2 <- dplyr::left_join(diagnostics_frame, ovr_df, by = 'cell')
 
 
 
@@ -399,7 +396,7 @@ diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
 #     Species-years with at least 'NC' cells for those species
 
 NC <- 3
-
+diagnostics_frame2$MODEL <- NA
 df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
@@ -408,7 +405,7 @@ for (i in 1:length(species_list))
     
     print(i)
     #filter by species
-    t_sp <- dplyr::filter(diagnostics_frame3, species == species_list[i])
+    t_sp <- dplyr::filter(diagnostics_frame2, species == species_list[i])
     
     if (NROW(t_sp) > 0)
     {
