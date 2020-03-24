@@ -21,19 +21,20 @@ global <- dggridR::dgearthgrid(hexgrid6, frame = FALSE)
 global.cell <- data.frame(cell = sp::getSpPPolygonsIDSlots(global), 
                           row.names = sp::getSpPPolygonsIDSlots(global))
 #create SPDF
-global <- sp::SpatialPolygonsDataFrame(global, global.cell)
+global.spdf <- sp::SpatialPolygonsDataFrame(global, global.cell)
 
-
+cells <- as.numeric(as.vector.factor(global@data$cell))
+cells_spdf <- as.numeric(as.vector.factor(global.spdf@data$cell))
 
 # Fix line issues and crop ----------------------------------------------------
 
 #sort out lines issues - from here: https://github.com/r-barnes/dggridR/issues/35
 for (i in 1:length(global@polygons)) 
 {
-  if(max(global@polygons[[i]]@Polygons[[1]]@coords[,1]) - 
-     min(global@polygons[[i]]@Polygons[[1]]@coords[,1]) > 270) 
+  if(max(global.spdf@polygons[[i]]@Polygons[[1]]@coords[,1]) - 
+     min(global.spdf@polygons[[i]]@Polygons[[1]]@coords[,1]) > 270) 
   {
-      global@polygons[[i]]@Polygons[[1]]@coords[,1] <- (global@polygons[[i]]@Polygons[[1]]@coords[,1] + 360) %% 360
+      global.spdf@polygons[[i]]@Polygons[[1]]@coords[,1] <- (global.spdf@polygons[[i]]@Polygons[[1]]@coords[,1] + 360) %% 360
   }
 }
 
@@ -41,7 +42,7 @@ for (i in 1:length(global@polygons))
 # crop --------------------------------------------------------------------
 
 #get cell ids
-cells <- as.numeric(as.vector.factor(global@data$cell))
+cells <- as.numeric(as.vector.factor(global.spdf@data$cell))
 #get lat/lon of cell centers
 cell_centers <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
 
@@ -52,7 +53,7 @@ cell_idx <- which(cell_centers$lon_deg < -50 &
                     cell_centers$lat_deg < 90)
 
 #filter SPDF by idx
-out <- global[cell_idx,]
+out <- global.spdf[cell_idx,]
 
 
 # visualize on map --------------------------------------------------------

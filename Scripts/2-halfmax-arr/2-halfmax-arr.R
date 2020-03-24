@@ -80,6 +80,8 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Catharus_ustulatus'
 #args <- 'Antrostomus_vociferus'
 #args <- 'Junco_hyemalis'
+#args <- 'Dumetella_carolinensis'
+
 
 
 # import processed data ---------------------------------------------------
@@ -93,15 +95,14 @@ spdata <- readRDS(paste0('ebird_arrival_query_', args, '.rds'))
 
 # create grid -------------------------------------------------------------
 
+#make hexgrid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
 
-#get boundaries of all cells over earth
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/hex_grid_crop/'))
 
-#dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
 #read in grid
-hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
-
+hge <- rgdal::readOGR('hex_grid_crop.shp', verbose = FALSE)
+hge_cells <- as.numeric(as.character(hge@data[,1]))
 
 
 # filter cells by range  ---------------------------------------------------
@@ -128,21 +129,15 @@ if (length(g_ind) == 0)
 #get filename and read in
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
 sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
-#to avoid self-intersection problem
-sp_rng2 <- rgeos::gBuffer(sp_rng, byid = TRUE, width = 0)
-#crop to area of interest
-sp_rng3 <- raster::crop(sp_rng2, raster::extent(-95, -50, 24, 90))
 
 #filter by breeding (2) and migration (4) range - need to convert spdf to sp
-nrng <- sp_rng3[which(sp_rng3$SEASONAL == 2 | sp_rng3$SEASONAL == 4),]
+nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
 
 #filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
-nrng_rm <- sp_rng3[which(sp_rng3$SEASONAL == 1 | sp_rng3$SEASONAL == 3),]
+nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
 
 #remove unneeded objects
 rm(sp_rng)
-rm(sp_rng2)
-rm(sp_rng3)
 rm(fname)
 
 
@@ -155,20 +150,20 @@ if (NROW(nrng@data) > 0)
   #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
   poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
   tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
-  br_mig_cells <- as.numeric(tpoly[!duplicated(tpoly)])
+  br_mig_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
   
-  #bad cells - also exclude cells 812, 813, and 841 (Bahamas)
+  #bad cells
   if (length(nrng_rm) > 0)
   {
     nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
     sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
     poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
     tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
-    res_ovr_cells <- as.numeric(tpoly_rm[!duplicated(tpoly_rm)])
+    res_ovr_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
     
     #remove cells that appear in resident and overwinter range that also appear in breeding range
     cell_mrg <- c(br_mig_cells, res_ovr_cells)
-    to_rm <- c(cell_mrg[duplicated(cell_mrg)], 812, 813, 841)
+    to_rm <- c(cell_mrg[duplicated(cell_mrg)])
     
     rm(nrng_rm)
     rm(nrng_rm_sp)
@@ -176,7 +171,7 @@ if (NROW(nrng@data) > 0)
     
   } else {
     cell_mrg <- br_mig_cells
-    to_rm <- c(812, 813, 841)
+    to_rm <- NA
   }
   
   #remove unneeded objects
@@ -207,16 +202,13 @@ if (NROW(nrng@data) > 0)
   rm(cell_centers)
   rm(overlap_cells)
   
-  #cells only within the range that ebird surveys were filtered to
-  n_cc_df <- cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),]
-  cells <- n_cc_df$cell
+  cells <- cc_df$cell
   
   #retain rows that match selected cells
   spdata2 <- spdata[which(spdata$cell %in% cells),]
   
   #remove unneeded objects
   rm(cc_df)
-  rm(n_cc_df)
   rm(spdata)
   
 } else {

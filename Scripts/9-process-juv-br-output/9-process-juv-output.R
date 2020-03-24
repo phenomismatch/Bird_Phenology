@@ -42,16 +42,14 @@ library(rgeos)
 
 # calculate grid/land overlap ---------------------------------------------
 
-#get boundaries of all cells over earth
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
-
-#dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
-
 #make hexgrid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
 
+setwd(paste0(dir, 'Bird_Phenology/Data/hex_grid_crop/'))
+
 #read in grid
-hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
+hge <- rgdal::readOGR('hex_grid_crop.shp', verbose = FALSE)
+hge_cells <- as.numeric(as.character(hge@data[,1]))
 
 #load maps
 usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
@@ -70,21 +68,15 @@ cmap <- maptools::map2SpatialPolygons(combmap, IDs = IDs,
 cmap2 <- sp::spTransform(cmap, sp::CRS("+proj=laea +lat_0=0 +lon_0=-70 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"))
 
 #calculate overlap between each hex cell and map
-hge2 <- rgeos::gBuffer(hge, byid = TRUE, width = 0)
-hge_cr <- raster::crop(hge2, raster::extent(-180, -40, 20, 80))
-hge_cells <- as.numeric(rownames(hge_cr@data))
 ovr_df <- data.frame(cell = hge_cells, per_ovr = NA)
-for (i in 1:length(hge_cr))
+for (i in 2:length(hge))
 {
   #just one hex cell
-  hge_spoly <- sp::SpatialPolygons(list(hge_cr@polygons[[i]]))
-  proj4string(hge_spoly) <- sp::CRS(proj4string(hge_cr))
+  hge_spoly <- sp::SpatialPolygons(list(hge@polygons[[i]]))
+  proj4string(hge_spoly) <- sp::CRS(proj4string(hge))
   
-  #tranform to equal area projection - buffer to avoid self intersection issues
-  hge_spoly2 <- rgeos::gBuffer(sp::spTransform(hge_spoly, sp::CRS(proj4string(cmap2))),
-                               byid = TRUE, width = 0)
-  
-  #plot(hex_spoly2, add = TRUE, col = 'red')
+  #tranform to equal area projection
+  hge_spoly2 <- sp::spTransform(hge_spoly, sp::CRS(proj4string(cmap2)))
   
   #area of hex cell (should all be the same)
   hex_area <- rgeos::gArea(hge_spoly2)
@@ -101,7 +93,6 @@ for (i in 1:length(hge_cr))
   #percent of hex cell that is covered by land
   ovr_df$per_ovr[i] <- round(ovr_area / hex_area, 2)
 }
-
 
 
 # import eBird species list -----------------------------------------------------
@@ -136,10 +127,11 @@ for (i in 1:nsp)
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
 sp_key <- read.csv('species_filenames_key.csv')
 
+
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 1
+  #i <- 23
   
   #import halfmax estimates and diagnostics from GAM
   setwd(juv_dir)
@@ -192,21 +184,15 @@ for (i in 1:nsp)
   fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
   #read in shp file
   sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
-  #to avoid self-intersection problem
-  sp_rng2 <- rgeos::gBuffer(sp_rng, byid = TRUE, width = 0)
-  #crop to area of interest
-  sp_rng3 <- raster::crop(sp_rng2, raster::extent(-180, -40, 20, 80))
   
   #filter by breeding (2) range - need to convert spdf to sp
-  nrng <- sp_rng3[which(sp_rng3$SEASONAL == 2),]
+  nrng <- sp_rng[which(sp_rng$SEASONAL == 2),]
   
-  #filter by resident (1), non-breeding (3), and migration (4) to exclude these hex cells
-  nrng_rm <- sp_rng3[which(sp_rng3$SEASONAL == 1 | sp_rng3$SEASONAL == 3 | sp_rng3$SEASONAL == 4),]
+  #filter by resident (1), non-breeding (3), and migratory (4) ranges
+  nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3 | sp_rng$SEASONAL == 4),]
   
   #remove unneeded objects
   rm(sp_rng)
-  rm(sp_rng2)
-  rm(sp_rng3)
   
   #if there is a legitimate range
   if (NROW(nrng@data) > 0)
@@ -215,22 +201,22 @@ for (i in 1:nsp)
     nrng_sp <- sp::SpatialPolygons(nrng@polygons)
     sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
     #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
-    poly_int <- rgeos::gIntersects(hge_cr, nrng_sp, byid = TRUE)
+    poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
     tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
     br_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
     
-    #bad cells - also exclude cells 812, 813, and 841 (Bahamas)
+    #bad cells
     if (length(nrng_rm) > 0)
     {
       nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
       sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-      poly_int_rm <- rgeos::gIntersects(hge_cr, nrng_rm_sp, byid = TRUE)
+      poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
       tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
       res_ovr_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
       
       #remove cells that appear in resident and overwinter range that also appear in breeding range
       cell_mrg <- c(br_cells, res_ovr_cells)
-      to_rm <- c(cell_mrg[duplicated(cell_mrg)], 812, 813, 841)
+      to_rm <- c(cell_mrg[duplicated(cell_mrg)])
       
       rm(nrng_rm)
       rm(nrng_rm_sp)
@@ -238,7 +224,7 @@ for (i in 1:nsp)
       
     } else {
       cell_mrg <- br_cells
-      to_rm <- c(812, 813, 841)
+      to_rm <- NA
     }
     
     #remove unneeded objects
@@ -267,14 +253,11 @@ for (i in 1:nsp)
     rm(cell_centers)
     rm(overlap_cells)
     
-    #cells only within the range that ebird surveys were filtered to
-    n_cc_df <- cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),]
-    cells <- n_cc_df$cell
+    cells <- cc_df$cell
     ncell <- length(cells)
     
     #remove unneeded objects
     rm(cc_df)
-    rm(n_cc_df)
   } else {
     ncell <- NA
   } 
@@ -286,7 +269,7 @@ for (i in 1:nsp)
     tt_halfmax1 <- dplyr::filter(temp_halfmax, 
                                  year == years[j])
     
-    if (ncell > 0)
+    if (!is.na(ncell))
     {
       for (k in 1:ncell)
       {
@@ -359,35 +342,32 @@ for (i in 1:nsp)
 
 # strip excess NAs --------------------------------------------------------
 
-
-#ADD HERE
+to.rm <- min(which(is.na(diagnostics_frame$species))):NROW(diagnostics_frame)
+diagnostics_frame2 <- diagnostics_frame[-to.rm,]
 
 
 # filter bad results ------------------------------------------------------
 
 ### add NA for both juv_mean and juv_sd if any of the following conditions are met
 
-to.NA <- which(diagnostics_frame$num_diverge > 0 | 
-                 diagnostics_frame$max_Rhat >= 1.05 |
-                 diagnostics_frame$min_neff < 350 |
-                 diagnostics_frame$num_BFMI > 0 |
-                 diagnostics_frame$juv_sd > 15 | 
-                 diagnostics_frame$mlmax == FALSE) #must have hump
+to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
+                 diagnostics_frame2$max_Rhat >= 1.05 |
+                 diagnostics_frame2$min_neff < 350 |
+                 diagnostics_frame2$num_BFMI > 0 |
+                 diagnostics_frame2$juv_sd > 15 | 
+                 diagnostics_frame2$mlmax == FALSE) #must have hump
 
-# #50% of cells are bad
-# length(to.NA)/sum(!is.na(diagnostics_frame$juv_mean))
-# diagnostics_frame[to.NA,c('species', 'cell', 'year',
-#                           'juv_mean', 'juv_sd', 'min_neff', 
+# #53% of cells are bad
+# length(to.NA)/sum(!is.na(diagnostics_frame2$juv_mean))
+# diagnostics_frame2[to.NA,c('species', 'cell', 'year',
+#                           'juv_mean', 'juv_sd', 'min_neff',
 #                           'num_diverge', 'max_Rhat', 'mlmax')]
 
 if (length(to.NA) > 0)
 {
-  diagnostics_frame[to.NA,'juv_mean'] <- NA
-  diagnostics_frame[to.NA,'juv_sd'] <- NA
+  diagnostics_frame2[to.NA,'juv_mean'] <- NA
+  diagnostics_frame2[to.NA,'juv_sd'] <- NA
 }
-
-
-
 
 
 # combine data with overlap df --------------------------------------------
@@ -398,8 +378,7 @@ diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
 # order -------------------------------------------------------------------
 
 #order diagnostics frame by species, year, and cell #
-df_master <- diagnostics_frame[with(diagnostics_frame, order(species, year, cell)),]
-
+df_master <- diagnostics_frame3[with(diagnostics_frame3, order(species, year, cell)),]
 
 
 # add cell lat/lon --------------------------------------------------------
@@ -408,7 +387,7 @@ df_master <- diagnostics_frame[with(diagnostics_frame, order(species, year, cell
 cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, df_master$cell)
 
 df_master$cell_lat <- round(cellcenters$lat_deg, digits = 2)
-df_master$cell_lon <- round(cellcenters$lon_deg, digits = 2)
+df_master$cell_lng <- round(cellcenters$lon_deg, digits = 2)
 
 
 # write to RDS --------------------------------------------------
@@ -416,4 +395,4 @@ df_master$cell_lon <- round(cellcenters$lon_deg, digits = 2)
 dir.create(juv_master_dir)
 setwd(juv_master_dir)
 
-saveRDS(df_master, paste0('juv_master_', juv_date, '.rds'))
+saveRDS(df_master, paste0('juv_master_', juv_date, '2.rds'))

@@ -55,7 +55,7 @@ species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_
 #combine pre and post IAR data for every year/cell that was modeled (including cell lat/lon)
 out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
                   mig_cell = NA, breed_cell = NA,
-                  cell_lat = NA, cell_lon = NA,
+                  cell_lat = NA, cell_lng = NA,
                   year = NA, mean_pre_IAR = NA, sd_pre_IAR = NA,
                   mean_post_IAR = NA, sd_post_IAR = NA,
                   mean_gamma = NA, sd_gamma = NA,
@@ -74,7 +74,7 @@ out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA,
 # #create empty dataframe for posterior
 # arr_post <- cbind(data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
 #                              mig_cell = NA, breed_cell = NA, 
-#                              year = NA, cell_lat = NA, cell_lon = NA), iter_mat)
+#                              year = NA, cell_lat = NA, cell_lng = NA), iter_mat)
 # 
 # rm(iter_mat)
 # gc()
@@ -121,8 +121,6 @@ for (i in 1:length(species))
     # filter cells ------------------------------------------------------------
     
     #from 2-halfmax-arr.R
-    '%ni%' <- Negate('%in%')
-    
     #reference key for species synonyms
     setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
     sp_key <- read.csv('species_filenames_key.csv')
@@ -130,16 +128,14 @@ for (i in 1:length(species))
     #change dir to shp files
     setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
     
-    hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
-    
     #filter by breeding/migration cells
     #match species name to shp file name
-    g_ind <- grep(sp, sp_key$file_names_2016)
+    g_ind <- grep(args, sp_key$file_names_2016)
     
     #check for synonyms if there are no matches
     if (length(g_ind) == 0)
     {
-      g_ind2 <- grep(sp, sp_key$BL_Checklist_name)
+      g_ind2 <- grep(args, sp_key$BL_Checklist_name)
     } else {
       g_ind2 <- g_ind
     }
@@ -160,7 +156,7 @@ for (i in 1:length(species))
       #find intersections with code from here: https://gis.stackexchange.com/questions/1504/extracting-intersection-areas-in-r
       poly_int_br <- rgeos::gIntersects(hge, br_rng_sp, byid = TRUE)
       tpoly_br <- which(poly_int_br == TRUE, arr.ind = TRUE)[,2]
-      br_cells <- as.numeric(tpoly_br[!duplicated(tpoly_br)])
+      br_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
       #see which of these cells were actually used in modeling (don't overlap non-migratory/breeding ranges)
       br_cells_f <- br_cells[which(br_cells %in% t_cells)]
       #add to master
@@ -175,7 +171,7 @@ for (i in 1:length(species))
       sp::proj4string(mig_rng_sp) <- sp::CRS(sp::proj4string(mig_rng))
       poly_int_mig <- rgeos::gIntersects(hge, mig_rng_sp, byid = TRUE)
       tpoly_mig <- which(poly_int_mig == TRUE, arr.ind = TRUE)[,2]
-      mig_cells <- as.numeric(tpoly_mig[!duplicated(tpoly_mig)])
+      mig_cells <- hge_cells[as.numeric(tpoly_mig[!duplicated(tpoly_mig)])]
       mig_cells_f <- mig_cells[which(mig_cells %in% t_cells)]
       f_in$mig_cell <- f_in$cell %in% mig_cells_f
     } else {
@@ -258,7 +254,7 @@ for (i in 1:length(species))
       
       t_full <- data.frame(t_f_in[,c('species','cell', 'mig_cell', 'breed_cell')], 
                          cell_lat = round(cellcenters$lat_deg, digits = 2), 
-                         cell_lon = round(cellcenters$lon_deg, digits = 2),
+                         cell_lng = round(cellcenters$lon_deg, digits = 2),
                          t_f_in[,c('year', 'HM_mean', 'HM_sd')],
                          mean_post_IAR = mean_fit[j,], 
                          sd_post_IAR = sd_fit[j,],
@@ -284,7 +280,7 @@ for (i in 1:length(species))
       #run time is excessive due to mem constraints on desktop
       # t_post <- data.frame(t_f_in[,c('species','cell', 'mig_cell', 'breed_cell', 'year')], 
       #                      cell_lat = round(cellcenters$lat_deg, digits = 2), 
-      #                      cell_lon = round(cellcenters$lon_deg, digits = 2),
+      #                      cell_lng = round(cellcenters$lon_deg, digits = 2),
       #                      yt_ch[,j,])
       # colnames(t_post)[-c(1:7)] <- iter_lab
       # 

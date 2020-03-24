@@ -87,6 +87,40 @@ cell_grid <- dggridR::dgcellstogrid(hexgrid6, cells2)
 
 # ggplot ------------------------------------------------------------------
 
+# args <- 'XXXX'
+# #reference key for species synonyms
+# setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
+# sp_key <- read.csv('species_filenames_key.csv')
+# 
+# #change dir to shp files
+# setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+# 
+# #filter by breeding/migration cells
+# #match species name to shp file name
+# g_ind <- grep(args, sp_key$file_names_2016)
+# 
+# #check for synonyms if there are no matches
+# if (length(g_ind) == 0)
+# {
+#   g_ind2 <- grep(args, sp_key$BL_Checklist_name)
+# } else {
+#   g_ind2 <- g_ind
+# }
+# 
+# #get filename and read in
+# fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
+# sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
+# 
+# #filter by breeding (2) and migration (4) range - need to convert spdf to sp
+# nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
+# 
+# #filter by resident (1) and non-breeding (3) to exclude hex cells that contain 2/4 and 1/3
+# nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
+# 
+# nrng_sp <- sp::SpatialPolygons(nrng@polygons)
+# sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+
+
 p <- ggplot() +
   geom_path(data = usamap,
             aes(x = x, y = y), color = 'black', size = 0.5) +
@@ -96,6 +130,8 @@ p <- ggplot() +
             aes(x = x, y = y), color = 'black', size = 0.5) +
   coord_map("ortho", orientation = c(35, -80, 0),
             xlim = c(-105, -55), ylim = c(20, 66)) +
+  # geom_polygon(data = nrng_sp,
+  #              aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) +
   geom_polygon(data = cell_grid, aes(x = long, y = lat, group = group),
                alpha = 0.2) +
   # #highlight cell of interest
@@ -106,12 +142,12 @@ p <- ggplot() +
            label = n_cc_df$cell, col = 'blue', alpha = 0.8,
            size = 3) +
   geom_path(data = cell_grid, aes(x = long, y = lat, group = group),
-            alpha = 0.4, color = 'black') +
+            alpha = 0.1, color = 'black', size = 0.1) +
   theme_bw() +
   xlab('Longitude') +
   ylab('Latitude')
 
-
+p
 setwd('~/Desktop/')
 ggsave(plot = p,
        filename = 'cell_map.pdf')
