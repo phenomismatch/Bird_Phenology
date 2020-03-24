@@ -56,7 +56,8 @@ library(dplyr)
 library(dggridR)
 library(sp)
 library(raster)
-
+library(rgeos)
+library(rgdal)
 
 
 # Set wd ------------------------------------------------------------------
@@ -104,8 +105,6 @@ hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
 
 
 # filter cells by range  ---------------------------------------------------
-
-'%ni%' <- Negate('%in%')
 
 #reference key for species synonyms
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
