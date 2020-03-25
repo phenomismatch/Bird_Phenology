@@ -23,7 +23,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # other dir ------------------------------------------------------------
 
 #run date
-RUN_DATE <- '2020-03-24'
+RUN_DATE <- '2020-03-25'
 
 #MAPS query date
 MAPS_date <- '2020-03-03'
