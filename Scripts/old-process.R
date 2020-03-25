@@ -33,7 +33,7 @@ nsp <- length(species_list)
 out_old <- list()
 for (i in 1:nsp)
 {
-  #i <- 1
+  #i <- 39
   args <- species_list[i]
   print(args)
   
@@ -54,7 +54,7 @@ if (length(g_ind) == 0)
 
 #get filename and read in
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
-sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
+sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
 #crop to area of interest
 sp_rng2 <- raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
 
