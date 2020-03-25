@@ -124,8 +124,7 @@ sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
 #filter by breeding (2) - need to convert spdf to sp
 nrng <- sp_rng[which(sp_rng$SEASONAL == 2),]
 
-#filter by resident (1), non-breeding (3), and migration (4) to exclude hex cells that contain more than one type
-nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3 | sp_rng$SEASONAL == 4),]
+#do not exclude resident, non-breeding, and migration cells as breeding at station is a requirement for modeling
 
 #remove unneeded objects
 rm(sp_rng)
@@ -133,7 +132,7 @@ rm(fname)
 
 
 #if there is a legitimate range
-if (NROW(nrng@data) > 0)
+if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
 {
   #good cells
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
@@ -143,27 +142,7 @@ if (NROW(nrng@data) > 0)
   tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
   br_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
   
-  #bad cells
-  if (length(nrng_rm) > 0)
-  {
-    nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
-    sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-    poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
-    tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
-    res_ovr_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
-    
-    #remove cells that appear in resident and overwinter range that also appear in breeding range
-    cell_mrg <- c(br_cells, res_ovr_cells)
-    to_rm <- c(cell_mrg[duplicated(cell_mrg)])
-    
-    rm(nrng_rm)
-    rm(nrng_rm_sp)
-    rm(res_ovr_cells)
-    
-  } else {
-    cell_mrg <- br_cells
-    to_rm <- NA
-  }
+  to_rm <- c(812, 813, 841)
   
   #remove unneeded objects
   rm(hge)
@@ -180,7 +159,6 @@ if (NROW(nrng@data) > 0)
   
   #remove unneeded objects
   rm(br_cells)
-  rm(cell_mrg)
   rm(to_rm)
   
   #get cell centers
@@ -267,7 +245,7 @@ if (NROW(m_mf) == 0)
   #save to rds object
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', RUN_DATE))
   saveRDS(halfmax_df, file = paste0('halfmax_juvs_', args, '.rds'))
-  stop('No usable cells in breeding range!')
+  stop('No data in breeding range!')
 }
 
 

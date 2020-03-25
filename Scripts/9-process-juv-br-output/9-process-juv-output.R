@@ -146,6 +146,8 @@ for (i in 1:nsp)
                                     cell = na_reps,
                                     juv_mean = na_reps,
                                     juv_sd = na_reps,
+                                    breed_cell = na_reps,
+                                    mig_cell = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
                                     mlmax = na_reps,
@@ -188,8 +190,8 @@ for (i in 1:nsp)
   #filter by breeding (2) range - need to convert spdf to sp
   nrng <- sp_rng[which(sp_rng$SEASONAL == 2),]
   
-  #filter by resident (1), non-breeding (3), and migratory (4) ranges
-  nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3 | sp_rng$SEASONAL == 4),]
+  #filter by migratory (4) range
+  nrng_mig <- sp_rng[which(sp_rng$SEASONAL == 4),]
   
   #remove unneeded objects
   rm(sp_rng)
@@ -197,7 +199,7 @@ for (i in 1:nsp)
   #if there is a legitimate range
   if (NROW(nrng@data) > 0)
   {
-    #good cells
+    #br cells
     nrng_sp <- sp::SpatialPolygons(nrng@polygons)
     sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
     #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
@@ -205,27 +207,7 @@ for (i in 1:nsp)
     tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
     br_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
     
-    #bad cells
-    if (length(nrng_rm) > 0)
-    {
-      nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
-      sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-      poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
-      tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
-      res_ovr_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
-      
-      #remove cells that appear in resident and overwinter range that also appear in breeding range
-      cell_mrg <- c(br_cells, res_ovr_cells)
-      to_rm <- c(cell_mrg[duplicated(cell_mrg)])
-      
-      rm(nrng_rm)
-      rm(nrng_rm_sp)
-      rm(res_ovr_cells)
-      
-    } else {
-      cell_mrg <- br_cells
-      to_rm <- NA
-    }
+    to_rm <- c(812, 813, 841)
     
     #remove unneeded objects
     rm(nrng)
@@ -239,9 +221,22 @@ for (i in 1:nsp)
       overlap_cells <- br_cells
     }
     
+    #mig cells
+    if (length(nrng_mig) > 0)
+    {
+      nrng_mig_sp <- sp::SpatialPolygons(nrng_mig@polygons)
+      sp::proj4string(nrng_mig_sp) <- sp::CRS(sp::proj4string(nrng_mig))
+      poly_int_rm <- rgeos::gIntersects(hge, nrng_mig_sp, byid=TRUE)
+      tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
+      t_mig_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
+      #which mig cells are also breeding cells
+      mig_idx <- t_mig_cells %in% overlap_cells
+    }
+  
     #remove unneeded objects
     rm(br_cells)
-    rm(cell_mrg)
+    rm(nrng_mig)
+    rm(nrng_mig_sp)
     rm(to_rm)
     
     #get cell centers
@@ -251,10 +246,13 @@ for (i in 1:nsp)
     
     #remove unneeded objects
     rm(cell_centers)
-    rm(overlap_cells)
     
     cells <- cc_df$cell
     ncell <- length(cells)
+    #create df for breed/mig range
+    cell_df <- data.frame(cell = cells, breed_cell = TRUE, mig_cell = FALSE)
+    #fill mig range where appropriate
+    cell_df$mig_cell[mig_idx] <- TRUE
     
     #remove unneeded objects
     rm(cc_df)
@@ -279,6 +277,8 @@ for (i in 1:nsp)
         diagnostics_frame$year[counter] <- years[j]
         diagnostics_frame$cell[counter] <- cells[k]
         diagnostics_frame$shp_fname[counter] <- fname
+        diagnostics_frame$breed_cell[counter] <- cell_df$breed_cell[k]
+        diagnostics_frame$mig_cell[counter] <- cell_df$mig_cell[k]
         
         #get model fits
         tt_halfmax2 <- dplyr::filter(tt_halfmax1, 
