@@ -147,7 +147,7 @@ for (i in 1:nsp)
                                     juv_mean = na_reps,
                                     juv_sd = na_reps,
                                     breed_cell = na_reps,
-                                    mig_cell = na_reps,
+                                    other_cell = na_reps,
                                     shp_fname = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
@@ -191,8 +191,8 @@ for (i in 1:nsp)
   #filter by breeding (2) range - need to convert spdf to sp
   nrng <- sp_rng[which(sp_rng$SEASONAL == 2),]
   
-  #filter by migratory (4) range
-  nrng_mig <- sp_rng[which(sp_rng$SEASONAL == 4),]
+  #filter by resident (1), non-breeding (3), or migratory (4) range
+  nrng_mig <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3 | sp_rng$SEASONAL == 4),]
   
   #remove unneeded objects
   rm(sp_rng)
@@ -222,7 +222,7 @@ for (i in 1:nsp)
       overlap_cells <- br_cells
     }
     
-    #mig cells
+    #mig + other cells
     if (length(nrng_mig) > 0)
     {
       nrng_mig_sp <- sp::SpatialPolygons(nrng_mig@polygons)
@@ -236,7 +236,7 @@ for (i in 1:nsp)
       #insert NA if no mig cells in cropped grid
       if (length(dup_cell) > 0)
       {
-        #which mig cells are also breeding cells
+        #which mig + other cells are also breeding cells
         mig_idx <- which(overlap_cells  %in% dup_cell)
       } else {
         mig_idx <- NA
@@ -265,11 +265,11 @@ for (i in 1:nsp)
     cells <- cc_df$cell
     ncell <- length(cells)
     #create df for breed/mig range
-    cell_df <- data.frame(cell = cells, breed_cell = TRUE, mig_cell = FALSE)
+    cell_df <- data.frame(cell = cells, breed_cell = TRUE, other_cell = FALSE)
     #fill mig range where appropriate
     if (!is.na(mig_idx))
     {
-      cell_df$mig_cell[mig_idx] <- TRUE
+      cell_df$other_cell[mig_idx] <- TRUE
     }
     
     #remove unneeded objects
@@ -296,7 +296,7 @@ for (i in 1:nsp)
         diagnostics_frame$cell[counter] <- cells[k]
         diagnostics_frame$shp_fname[counter] <- fname[1]
         diagnostics_frame$breed_cell[counter] <- cell_df$breed_cell[k]
-        diagnostics_frame$mig_cell[counter] <- cell_df$mig_cell[k]
+        diagnostics_frame$other_cell[counter] <- cell_df$other_cell[k]
         
         #get model fits
         tt_halfmax2 <- dplyr::filter(tt_halfmax1, 
