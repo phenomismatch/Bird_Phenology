@@ -294,7 +294,7 @@ for (i in 1:nsp)
         diagnostics_frame$species[counter] <- species_list[i]
         diagnostics_frame$year[counter] <- years[j]
         diagnostics_frame$cell[counter] <- cells[k]
-        diagnostics_frame$shp_fname[counter] <- fname
+        diagnostics_frame$shp_fname[counter] <- fname[1]
         diagnostics_frame$breed_cell[counter] <- cell_df$breed_cell[k]
         diagnostics_frame$mig_cell[counter] <- cell_df$mig_cell[k]
         
@@ -375,8 +375,8 @@ to.NA <- which(diagnostics_frame2$num_diverge > 0 |
                  diagnostics_frame2$juv_sd > 15 | 
                  diagnostics_frame2$mlmax == FALSE) #must have hump
 
-# #53% of cells are bad
-# length(to.NA)/sum(!is.na(diagnostics_frame2$juv_mean))
+# #50% of cells are bad
+# length(to.NA) / sum(!is.na(diagnostics_frame2$juv_mean))
 # diagnostics_frame2[to.NA,c('species', 'cell', 'year',
 #                           'juv_mean', 'juv_sd', 'min_neff',
 #                           'num_diverge', 'max_Rhat', 'mlmax')]
@@ -413,4 +413,4 @@ df_master$cell_lng <- round(cellcenters$lon_deg, digits = 2)
 dir.create(juv_master_dir)
 setwd(juv_master_dir)
 
-saveRDS(df_master, paste0('juv_master_', juv_date, '2.rds'))
+saveRDS(df_master, paste0('juv_master_', juv_date, '.rds'))

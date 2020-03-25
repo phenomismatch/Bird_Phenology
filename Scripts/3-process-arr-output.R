@@ -278,7 +278,7 @@ for (i in 1:nsp)
         diagnostics_frame$species[counter] <- species_list[i]
         diagnostics_frame$year[counter] <- years[j]
         diagnostics_frame$cell[counter] <- cells[k]
-        diagnostics_frame$shp_fname[counter] <- fname
+        diagnostics_frame$shp_fname[counter] <- fname[1]
         
         #get model fits
         tt_halfmax2 <- dplyr::filter(tt_halfmax1, 
