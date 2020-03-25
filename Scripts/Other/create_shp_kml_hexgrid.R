@@ -23,8 +23,6 @@ global.cell <- data.frame(cell = sp::getSpPPolygonsIDSlots(global),
 #create SPDF
 global.spdf <- sp::SpatialPolygonsDataFrame(global, global.cell)
 
-cells <- as.numeric(as.vector.factor(global@data$cell))
-cells_spdf <- as.numeric(as.vector.factor(global.spdf@data$cell))
 
 # Fix line issues and crop ----------------------------------------------------
 
