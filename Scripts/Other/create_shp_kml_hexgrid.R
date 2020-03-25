@@ -53,14 +53,16 @@ cell_idx <- which(cell_centers$lon_deg < -50 &
 #filter SPDF by idx
 out <- global.spdf[cell_idx,]
 
+#combined features
+out_comb <- rgeos::gUnaryUnion(out)
+out_comb_spdf <- sp::SpatialPolygonsDataFrame(out_comb, data.frame(ID = 1))
 
 # visualize on map --------------------------------------------------------
 
 world <- data.frame(maps::map("world", plot = FALSE)[c("x", "y")])
 plot(world, type = 'l')
 lines(out, col = 'red')
-
-
+lines(out_comb_spdf, col = 'green')
 
 # save out files ----------------------------------------------------------
 
@@ -70,4 +72,10 @@ setwd('~/Desktop/')
 writeOGR(out, "hex_grid_crop.shp", "", "ESRI Shapefile")
 #save as kml file
 writeOGR(out, "hex_grid_crop.kml", "", "KML")
+
+#save as shp file
+writeOGR(out_comb_spdf, "hex_grid_crop_combine.shp", "", "ESRI Shapefile")
+#save as kml
+writeOGR(out_comb_spdf, "hex_grid_crop_combine.kml", "", "KML")
+
 
