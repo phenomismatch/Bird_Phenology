@@ -195,7 +195,7 @@ for (i in 1:nsp)
   rm(sp_rng)
 
   #if there is a legitimate range
-  if (NROW(nrng@data) > 0)
+  if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
   {
     #good cells
     nrng_sp <- sp::SpatialPolygons(nrng@polygons)
@@ -216,7 +216,7 @@ for (i in 1:nsp)
       
       #remove cells that appear in resident and overwinter range that also appear in breeding range
       cell_mrg <- c(br_mig_cells, res_ovr_cells)
-      to_rm <- c(cell_mrg[duplicated(cell_mrg)])
+      to_rm <- c(cell_mrg[duplicated(cell_mrg)], 812, 813, 841)
       
       rm(nrng_rm)
       rm(nrng_rm_sp)
@@ -224,7 +224,7 @@ for (i in 1:nsp)
       
     } else {
       cell_mrg <- br_mig_cells
-      to_rm <- NA
+      to_rm <- c(812, 813, 841)
     }
     
     #remove unneeded objects
@@ -269,7 +269,7 @@ for (i in 1:nsp)
     tt_halfmax1 <- dplyr::filter(temp_halfmax, 
                                  year == years[j])
     
-    if (ncell > 0)
+    if (!is.na(ncell))
     {
       for (k in 1:ncell)
       {
@@ -340,7 +340,6 @@ for (i in 1:nsp)
 } # i - species
 
 
-
 # strip excess NAs --------------------------------------------------------
 
 to.rm <- min(which(is.na(diagnostics_frame$species))):NROW(diagnostics_frame)
@@ -371,12 +370,9 @@ if (length(to.NA) > 0)
 }
 
 
-
-
 # combine data with overlap df --------------------------------------------
 
 diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
-
 
 
 # Filter data based on criteria -----------------------------------------------------------

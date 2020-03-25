@@ -142,7 +142,7 @@ rm(fname)
 
 
 #if there is a legitimate range
-if (NROW(nrng@data) > 0)
+if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
 {
   #good cells
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
@@ -163,7 +163,7 @@ if (NROW(nrng@data) > 0)
     
     #remove cells that appear in resident and overwinter range that also appear in breeding range
     cell_mrg <- c(br_mig_cells, res_ovr_cells)
-    to_rm <- c(cell_mrg[duplicated(cell_mrg)])
+    to_rm <- c(cell_mrg[duplicated(cell_mrg)], 812, 813, 841)
     
     rm(nrng_rm)
     rm(nrng_rm_sp)
@@ -171,7 +171,7 @@ if (NROW(nrng@data) > 0)
     
   } else {
     cell_mrg <- br_mig_cells
-    to_rm <- NA
+    to_rm <- c(812, 813, 841)
   }
   
   #remove unneeded objects
