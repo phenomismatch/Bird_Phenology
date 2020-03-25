@@ -128,5 +128,5 @@ if (NROW(nrng@data) > 0)
 }
 }
 
-setwd(paste0(dir, 'Data'))
-saveRDS(out, 'old-process.rds')
+setwd(paste0(dir, 'Bird_Phenology/Data'))
+saveRDS(out_old, 'old-process.rds')
