@@ -42,6 +42,7 @@ out <- list()
 for (i in 1:nsp)
 {
   #i <- 20
+  #i <- 44
   args <- species_list[i]
   
   print(args)
@@ -74,9 +75,8 @@ for (i in 1:nsp)
   rm(sp_rng)
   rm(fname)
   
-  
   #if there is a legitimate range
-  if (NROW(nrng@data) > 0)
+  if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
   {
     #good cells
     nrng_sp <- sp::SpatialPolygons(nrng@polygons)
@@ -131,5 +131,5 @@ for (i in 1:nsp)
 }
 
 setwd(paste0(dir, 'Bird_Phenology/Data'))
-saveRDS(out_old, 'old-process.rds')
+saveRDS(out_old, 'new-process.rds')
 
