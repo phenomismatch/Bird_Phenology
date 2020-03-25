@@ -2,6 +2,13 @@
 #dir <- '~/Google_Drive/R/'
 dir <- '/labs/Tingley/phenomismatch/'
 
+library(dplyr)
+library(dggridR)
+library(sp)
+library(raster)
+library(rgeos)
+library(rgdal)
+
 # create grid -------------------------------------------------------------
 
 hexgrid6 <- dggridR::dgconstruct(res = 6)
