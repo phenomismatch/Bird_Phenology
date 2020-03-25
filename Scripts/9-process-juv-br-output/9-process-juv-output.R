@@ -131,7 +131,7 @@ sp_key <- read.csv('species_filenames_key.csv')
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 20
+  #i <- 4
   
   #import halfmax estimates and diagnostics from GAM
   setwd(juv_dir)
@@ -232,8 +232,15 @@ for (i in 1:nsp)
       t_mig_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
       mrg <- c(t_mig_cells, overlap_cells)
       dup_cell <- mrg[which(duplicated(mrg))]
-      #which mig cells are also breeding cells
-      mig_idx <- which(overlap_cells  %in% dup_cell)
+      
+      #insert NA if no mig cells in cropped grid
+      if (length(dup_cell) > 0)
+      {
+        #which mig cells are also breeding cells
+        mig_idx <- which(overlap_cells  %in% dup_cell)
+      } else {
+        mig_idx <- NA
+      }
       
       rm(mrg)
       rm(dup_cell)
