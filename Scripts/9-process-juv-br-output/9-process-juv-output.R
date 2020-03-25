@@ -18,7 +18,7 @@ dir <- '~/Google_Drive/R/'
 # db/juv query dir ------------------------------------------------------------
 
 #input dir
-juv_date <- '2020-03-09'
+juv_date <- '2020-03-25'
 juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', juv_date)
 
 #output dir
@@ -131,7 +131,7 @@ sp_key <- read.csv('species_filenames_key.csv')
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 23
+  #i <- 20
   
   #import halfmax estimates and diagnostics from GAM
   setwd(juv_dir)
@@ -148,6 +148,7 @@ for (i in 1:nsp)
                                     juv_sd = na_reps,
                                     breed_cell = na_reps,
                                     mig_cell = na_reps,
+                                    shp_fname = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
                                     mlmax = na_reps,
@@ -197,7 +198,7 @@ for (i in 1:nsp)
   rm(sp_rng)
   
   #if there is a legitimate range
-  if (NROW(nrng@data) > 0)
+  if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
   {
     #br cells
     nrng_sp <- sp::SpatialPolygons(nrng@polygons)
@@ -229,14 +230,21 @@ for (i in 1:nsp)
       poly_int_rm <- rgeos::gIntersects(hge, nrng_mig_sp, byid=TRUE)
       tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
       t_mig_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
+      mrg <- c(t_mig_cells, overlap_cells)
+      dup_cell <- mrg[which(duplicated(mrg))]
       #which mig cells are also breeding cells
-      mig_idx <- t_mig_cells %in% overlap_cells
+      mig_idx <- which(overlap_cells  %in% dup_cell)
+      
+      rm(mrg)
+      rm(dup_cell)
+      rm(nrng_mig_sp)
+    } else {
+      mig_idx <- NA
     }
   
     #remove unneeded objects
     rm(br_cells)
     rm(nrng_mig)
-    rm(nrng_mig_sp)
     rm(to_rm)
     
     #get cell centers
@@ -252,7 +260,10 @@ for (i in 1:nsp)
     #create df for breed/mig range
     cell_df <- data.frame(cell = cells, breed_cell = TRUE, mig_cell = FALSE)
     #fill mig range where appropriate
-    cell_df$mig_cell[mig_idx] <- TRUE
+    if (!is.na(mig_idx))
+    {
+      cell_df$mig_cell[mig_idx] <- TRUE
+    }
     
     #remove unneeded objects
     rm(cc_df)
