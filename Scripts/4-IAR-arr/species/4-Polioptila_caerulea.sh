@@ -1,14 +1,14 @@
 #!/bin/bash
 
-#SBATCH --job-name=2020-02-10-Polioptila_caerulea
+#SBATCH --job-name=2020-04-15-Polioptila_caerulea
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 6 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
 #SBATCH --mem=15G #memory requested
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2020-02-10/Polioptila_caerulea-iar.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2020-02-10/Polioptila_caerulea-iar.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2020-04-15/Polioptila_caerulea-iar.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/IAR_output_2020-04-15/Polioptila_caerulea-iar.err #STDERR
 
 #echos name of node
 echo `hostname`
