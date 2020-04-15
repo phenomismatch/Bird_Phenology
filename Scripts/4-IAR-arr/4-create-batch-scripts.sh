@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2020-02-10"
+DATE="2020-04-15"
 
 while read name
 do
@@ -32,4 +32,3 @@ singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscrip
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/4-$temp.sh"
 done < ../../Data/IAR_species_list.txt
-#done < ../../Data/species_list_2019-11-25.txt

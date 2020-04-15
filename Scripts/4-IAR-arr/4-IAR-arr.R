@@ -35,8 +35,8 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 # db/hm query dir ------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- 'IAR_output_2020-02-10'
+IAR_in_dir <- 'IAR_input_2020-02-26'
+IAR_out_dir <- 'IAR_output_2020-04-15'
 
 
 
@@ -358,7 +358,7 @@ options(mc.cores = parallel::detectCores())
 DELTA <- 0.90
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.0005
-CHAINS <- 6
+CHAINS <- 4
 ITER <- 5000
 
 tt <- proc.time()
@@ -399,7 +399,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # rerun if necessary ------------------------------------------------------
 
 #double iterations and run again
-while ((max(rhat_output) > 1.05 | min(neff_output) < 400) & ITER < 10001)
+while ((max(rhat_output) > 1.05 | min(neff_output) < (CHAINS * 100)) & ITER < 10001)
 {
   
   ITER <- ITER * 2
@@ -473,6 +473,18 @@ na.y.rm <- which(is.na(DATA$y_PPC))
 n_y_PPC <- DATA$y_PPC[-na.y.rm]
 n_y_rep <- t_y_rep[, -na.y.rm]
 
+#PPC
+PPC_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
+{
+  out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+  print(out)
+}
+PPC_mn <- PPC_fun(mean)
+
+pdf(paste0(args, '_PPC_mn.pdf'))
+bayesplot::ppc_stat(n_y_PPC, n_y_rep, stat = 'mean')
+dev.off()
+
 #mean resid (pred - actual) for each datapoint
 ind_resid <- rep(NA, length(n_y_PPC))
 for (i in 1:length(n_y_PPC))
@@ -519,8 +531,6 @@ p <- ggplot(tdata) +
 
 ggsave(paste0(args, '_dens_overlay.pdf'), p)
 
-#bayesplot::ppc_intervals(n_y_PPC, y_rep[1:200,])
-#bayesplot::ppc_ribbon(n_y_PPC, y_rep[1:200,])
 
 #average yrep for each pnt
 yrm <- apply(n_y_rep, 2, mean)
@@ -539,12 +549,6 @@ hist(ind_resid, main = paste0(args),
 abline(v = 0, lty = 2, lwd = 3, col = 'red')
 dev.off()
 
-#PPC
-# bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'mean')
-# bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'max')
-# bayesplot::ppc_stat(n_y_PPC, n_t_y_rep, stat = 'min')
-# bayesplot::ppc_dens_overlay(n_y_PPC, n_t_y_rep[1:500,])
-
 
 # write model results to file ---------------------------------------------
 
@@ -552,6 +556,7 @@ options(max.print = 5e6)
 sink(paste0(args, '-iar-stan_results-', IAR_out_date, '.txt'))
 cat(paste0('IAR results ', args, ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
+cat(paste0('Iterations: ', ITER, ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
 cat(paste0('Max tree depth: ', TREE_DEPTH, ' \n'))
 cat(paste0('Step size: ', STEP_SIZE, ' \n'))
@@ -564,6 +569,7 @@ cat(paste0('Mean accept stat: ', round(mean(accept_stat), 2), ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
 cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
 cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
+cat(paste0('PPC (mean): ', round(PPC_mn, 3), ' \n'))
 print(model_summary)
 sink()
 

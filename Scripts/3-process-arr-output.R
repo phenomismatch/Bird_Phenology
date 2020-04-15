@@ -20,7 +20,6 @@ dir <- '~/Google_Drive/R/'
 # db/hm query dir ------------------------------------------------------------
 
 hm_dir <- 'halfmax_arrival_2020-02-26'
-hm_dir <- 'halfmax_species_2019-05-03'
 hm_date <- substr(hm_dir, start = 17, stop = 26)
 
 
@@ -29,13 +28,13 @@ hm_date <- substr(hm_dir, start = 17, stop = 26)
 tt <- proc.time()
 
 
-
 # Load packages -----------------------------------------------------------
 
 library(dplyr)
 library(dggridR)
 library(sp)
 library(maptools)
+library(raster)
 library(rgdal)
 library(rgeos)
 
@@ -131,7 +130,7 @@ sp_key <- read.csv('species_filenames_key.csv')
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 20
+  #i <- 1
   
   #import halfmax estimates and diagnostics from GAM
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
@@ -195,13 +194,13 @@ for (i in 1:nsp)
   rm(sp_rng)
 
   #if there is a legitimate range
-  if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
+  if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
   {
     #good cells
     nrng_sp <- sp::SpatialPolygons(nrng@polygons)
     sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
     #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
-    poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
+    poly_int <- rgeos::gIntersects(hge, nrng_sp, byid = TRUE)
     tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
     br_mig_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
   
@@ -210,7 +209,7 @@ for (i in 1:nsp)
     {
       nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
       sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-      poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
+      poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid = TRUE)
       tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
       res_ovr_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
       
@@ -351,17 +350,18 @@ diagnostics_frame2 <- diagnostics_frame[-to.rm,]
 ### add NA for both HM_mean and HM_sd if any of the following conditions are met
 #these params used for most recent IAR input run (as of 2020-02-XX)
 
-#filter by mlmax and plmax?
 to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
                  diagnostics_frame2$max_Rhat >= 1.05 |
-                 diagnostics_frame2$min_neff < 350 |
+                 diagnostics_frame2$min_neff < 400 |
                  diagnostics_frame2$num_BFMI > 0 |
-                 diagnostics_frame2$HM_sd > 15)
+                 diagnostics_frame2$HM_sd > 15 | 
+                 diagnostics_frame2$mlmax == FALSE) #must have hump
 
 # #XX% of cells are bad
 # length(to.NA)/sum(!is.na(diagnostics_frame2$HM_mean))
 # diagnostics_frame2[to.NA,c('species', 'cell', 'year',
-#                            'HM_mean', 'HM_sd', 'min_neff', 'num_diverge')]
+#                            'HM_mean', 'HM_sd', 'min_neff',
+#                            'num_diverge', 'max_Rhat', 'mlmax')]
 
 if (length(to.NA) > 0)
 {
@@ -459,7 +459,8 @@ saveRDS(df_master, paste0('IAR_input-', hm_date, '.rds'))
 species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))$species
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
-write.table(species_tm, file = paste0('IAR_species_list.txt'), row.names = FALSE, col.names = FALSE)
+write.table(species_tm, file = paste0('IAR_species_list.txt'), 
+            row.names = FALSE, col.names = FALSE)
 
 
 

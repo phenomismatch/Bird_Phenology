@@ -142,13 +142,13 @@ rm(fname)
 
 
 #if there is a legitimate range
-if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
+if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
 {
   #good cells
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
   sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
   #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
-  poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
+  poly_int <- rgeos::gIntersects(hge, nrng_sp, byid = TRUE)
   tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
   br_mig_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
   
@@ -157,7 +157,7 @@ if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
   {
     nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
     sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-    poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
+    poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid = TRUE)
     tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
     res_ovr_cells <- hge_cells[as.numeric(tpoly_rm[!duplicated(tpoly_rm)])]
     
