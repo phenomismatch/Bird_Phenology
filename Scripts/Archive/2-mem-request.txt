@@ -1,0 +1,12 @@
+For 2-arr
+
+25GB request EXCEPT the following (need 50GB):
+
+Empidonax_alnorum - ?FAIL - XXXX
+Empidonax_virescens - ?FAIL - XXXX
+Setophaga_americana - ?FAIL - XXXX
+Parkesia_noveboracensis - ?FAIL - XXXX
+
+
+
+
