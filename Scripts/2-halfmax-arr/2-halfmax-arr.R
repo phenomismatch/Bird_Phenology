@@ -432,7 +432,7 @@ for (j in 1:nyr)
         lmin_idx <- which.min(rowL[1:lmax2_idx])
         #value at local max - value at min (typically 0)
         dmm <- rowL[lmax2_idx] - rowL[lmin_idx]
-        #all positions less than or equal to half diff between max and min
+        #all positions less than or equal to half diff between max and min + value min
         tlm <- which(rowL <= ((dmm/2) + rowL[lmin_idx]))
         #which of these come before max and after min
         vgm <- which(tlm < lmax2_idx & tlm > lmin_idx)
