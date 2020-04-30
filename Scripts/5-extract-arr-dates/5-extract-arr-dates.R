@@ -51,13 +51,13 @@ species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_
 out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
                   mig_cell = NA, breed_cell = NA,
                   cell_lat = NA, cell_lng = NA,
-                  year = NA, mean_pre_IAR = NA, sd_pre_IAR = NA,
-                  mean_post_IAR = NA, sd_post_IAR = NA,
-                  mean_gamma = NA, sd_gamma = NA,
-                  mean_beta0 = NA, sd_beta0 = NA,
-                  mean_alpha_gamma = NA, sd_alpha_gamma = NA,
-                  mean_beta_gamma = NA, sd_beta_gamma = NA,
-                  num_diverge = NA, max_rhat = NA, min_neff = NA,
+                  year = NA, arr_GAM_mean = NA, arr_GAM_sd = NA,
+                  arr_IAR_mean = NA, arr_IAR_sd = NA,
+                  gamma_mean = NA, gamma_sd = NA,
+                  beta0_mean = NA, beta0_sd = NA,
+                  alpha_gamma_mean = NA, alpha_gamma_sd = NA,
+                  beta_gamma_mean = NA, beta_gamma_sd = NA,
+                  num_diverge = NA, max_Rhat = NA, min_neff = NA,
                   PPC_mn_bias = NA, PPC_mn_pval = NA)
 
 
@@ -198,7 +198,7 @@ for (i in 1:length(species))
     #diagnostics
     num_diverge <- rstan::get_num_divergent(t_fit)
     model_summary <- MCMCvis::MCMCsummary(t_fit, excl = 'y_rep', round = 3)
-    max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
+    max_Rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
     min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
     
     #PPC
@@ -250,7 +250,7 @@ for (i in 1:length(species))
                          beta_gamma_mean,
                          beta_gamma_sd,
                          num_diverge,
-                         max_rhat,
+                         max_Rhat,
                          min_neff,
                          PPC_mn_bias,
                          PPC_mn_pval)
@@ -273,6 +273,7 @@ for (i in 1:length(species))
 #remove zeros
 out2 <- out[-c(min(which(is.na(out$species))):NROW(out)),]
 
+dplyr::filter(df_master, max_Rhat > 1.01, MODEL == TRUE, !is.na(HM_mean))
 
 # write to file -----------------------------------------------------------
 

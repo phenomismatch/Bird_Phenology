@@ -385,7 +385,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # rerun if necessary ------------------------------------------------------
 
 #double iterations and run again
-while ((max(rhat_output) > 1.05 | min(neff_output) < (CHAINS * 100)) & ITER < 10001)
+while ((max(rhat_output) > 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 10001)
 {
   
   ITER <- ITER * 2
