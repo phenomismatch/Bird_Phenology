@@ -144,8 +144,8 @@ for (i in 1:nsp)
     diagnostics_frame <- data.frame(species = na_reps,
                                     year = na_reps,
                                     cell = na_reps,
-                                    juv_mean = na_reps,
-                                    juv_sd = na_reps,
+                                    juv_GAM_mean = na_reps,
+                                    juv_GAM_sd = na_reps,
                                     breed_cell = na_reps,
                                     other_cell = na_reps,
                                     shp_fname = na_reps,
@@ -347,8 +347,8 @@ for (i in 1:nsp)
           #calculate posterior mean and sd
           if (sum(!is.na(halfmax_posterior)) > 0)
           {
-            diagnostics_frame$juv_mean[counter] <- mean(halfmax_posterior)
-            diagnostics_frame$juv_sd[counter] <- sd(halfmax_posterior)
+            diagnostics_frame$juv_GAM_mean[counter] <- mean(halfmax_posterior)
+            diagnostics_frame$juv_GAM_sd[counter] <- sd(halfmax_posterior)
           }
         }
         counter <- counter + 1
@@ -366,25 +366,25 @@ diagnostics_frame2 <- diagnostics_frame[-to.rm,]
 
 # filter bad results ------------------------------------------------------
 
-### add NA for both juv_mean and juv_sd if any of the following conditions are met
+### add NA for both juv_GAM_mean and juv_GAM_sd if any of the following conditions are met
 
 to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
                  diagnostics_frame2$max_Rhat >= 1.05 |
                  diagnostics_frame2$min_neff < 350 |
                  diagnostics_frame2$num_BFMI > 0 |
-                 diagnostics_frame2$juv_sd > 15 | 
+                 diagnostics_frame2$juv_GAM_sd > 15 | 
                  diagnostics_frame2$mlmax == FALSE) #must have hump
 
 # #50% of cells are bad
-# length(to.NA) / sum(!is.na(diagnostics_frame2$juv_mean))
+# length(to.NA) / sum(!is.na(diagnostics_frame2$juv_GAM_mean))
 # diagnostics_frame2[to.NA,c('species', 'cell', 'year',
-#                           'juv_mean', 'juv_sd', 'min_neff',
+#                           'juv_GAM_mean', 'juv_GAM_sd', 'min_neff',
 #                           'num_diverge', 'max_Rhat', 'mlmax')]
 
 if (length(to.NA) > 0)
 {
-  diagnostics_frame2[to.NA,'juv_mean'] <- NA
-  diagnostics_frame2[to.NA,'juv_sd'] <- NA
+  diagnostics_frame2[to.NA,'juv_GAM_mean'] <- NA
+  diagnostics_frame2[to.NA,'juv_GAM_sd'] <- NA
 }
 
 

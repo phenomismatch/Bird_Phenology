@@ -6,6 +6,11 @@
 ######################
 
 
+#NEEDS TO BE UPDATED - what should be used as zeros (non-detections)
+#potentially some range filtering and field names
+
+
+
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop

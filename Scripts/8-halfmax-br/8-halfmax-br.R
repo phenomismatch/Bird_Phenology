@@ -6,6 +6,12 @@
 #29 days Lay -> Fledge (median from Nestwatch across all species)
 #16 days Lay -> Hatch (median from Nestwatch across all species)
 
+
+#NEEDS TO BE UPDATED - what should be used as zeros (non-detections)
+#potentially some range filtering and field names
+#shoulf reflect changes in halfmax-juv
+
+
 # top-level dir ---------------------------------------------------------------
 
 #dir <- '~/Google_Drive/R/'
