@@ -10,23 +10,23 @@
 #desktop/laptop
 dir <- '~/Google_Drive/R/'
 
-#Xanadu
-#dir <- '/labs/Tingley/phenomismatch/'
-
-
 
 # other dir ---------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2019-05-03'
-IAR_out_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/IAR_output_2020-02-10'
-master_out_dir <- '~/Google_Drive/R/Bird_Phenology/Data/Processed/arrival_master_2020-02-10'
+IAR_in_dir <- 'IAR_input_2020-02-26'
+IAR_out_dir <- 'IAR_output_2020-04-15'
+master_out_dir <- 'arrival_master_2020-04-15'
 
 
 # Load packages -----------------------------------------------------------
 
 library(MCMCvis)
+library(rstan)
 library(dplyr)
 library(dggridR)
+library(rgdal)
+library(sp)
+library(rgeos)
 
 
 # setwd -------------------------------------------------------------------
@@ -36,9 +36,6 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_in_dir))
 IAR_in_date <- substr(IAR_in_dir, start = 11, stop = 20)
 IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
-nc_out_dir <- nchar(IAR_out_dir)
-IAR_out_date <- substr(IAR_out_dir, start = (nc_out_dir - 9), stop = nc_out_dir)
-
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -46,8 +43,6 @@ IAR_out_date <- substr(IAR_out_dir, start = (nc_out_dir - 9), stop = nc_out_dir)
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
 species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_list.txt'))[,1])
-
-
 
 
 # create empty dataframes to fill -----------------------------------------
@@ -66,21 +61,15 @@ out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA,
                   PPC_mn_bias = NA, PPC_mn_pval = NA)
 
 
-
-# #create NA matrix for posterior iter
-# iter_mat <- matrix(NA, nrow = NROW(df_master), ncol = 24000)
-# colnames(iter_mat) <- paste0('iter_', 1:24000)
-# 
-# #create empty dataframe for posterior
-# arr_post <- cbind(data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
-#                              mig_cell = NA, breed_cell = NA, 
-#                              year = NA, cell_lat = NA, cell_lng = NA), iter_mat)
-# 
-# rm(iter_mat)
-# gc()
-
-
 # run loop to fill empty dfs ----------------------------------------------------------------
+
+#make hexgrid
+hexgrid6 <- dggridR::dgconstruct(res = 6)
+
+#read in cropped grid .shp file
+setwd(paste0(dir, 'Bird_Phenology/Data/hex_grid_crop/'))
+hge <- rgdal::readOGR('hex_grid_crop.shp', verbose = FALSE)
+hge_cells <- as.numeric(as.character(hge@data[,1]))
 
 counter <- 1
 for (i in 1:length(species))
@@ -92,7 +81,7 @@ for (i in 1:length(species))
   sp <- species[i]
   
   #switch to out dir
-  setwd(IAR_out_dir)
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
   
   #if that species RDS object exists in dir
   if (length(grep(paste0(sp, '-iar-stan_output-', IAR_out_date, '.rds'), list.files())) > 0)
@@ -111,12 +100,8 @@ for (i in 1:length(species))
     t_cells <- unique(f_in$cell)
     t_years <- unique(f_in$year)
   
-    #make hexgrid
-    hexgrid6 <- dggridR::dgconstruct(res = 6)
-  
     #get hexgrid cell centers
     cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, t_cells)
-  
   
     # filter cells ------------------------------------------------------------
     
@@ -130,12 +115,12 @@ for (i in 1:length(species))
     
     #filter by breeding/migration cells
     #match species name to shp file name
-    g_ind <- grep(args, sp_key$file_names_2016)
+    g_ind <- grep(sp, sp_key$file_names_2016)
     
     #check for synonyms if there are no matches
     if (length(g_ind) == 0)
     {
-      g_ind2 <- grep(args, sp_key$BL_Checklist_name)
+      g_ind2 <- grep(sp, sp_key$BL_Checklist_name)
     } else {
       g_ind2 <- g_ind
     }
@@ -156,7 +141,7 @@ for (i in 1:length(species))
       #find intersections with code from here: https://gis.stackexchange.com/questions/1504/extracting-intersection-areas-in-r
       poly_int_br <- rgeos::gIntersects(hge, br_rng_sp, byid = TRUE)
       tpoly_br <- which(poly_int_br == TRUE, arr.ind = TRUE)[,2]
-      br_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
+      br_cells <- hge_cells[as.numeric(tpoly_br[!duplicated(tpoly_br)])]
       #see which of these cells were actually used in modeling (don't overlap non-migratory/breeding ranges)
       br_cells_f <- br_cells[which(br_cells %in% t_cells)]
       #add to master
@@ -182,37 +167,37 @@ for (i in 1:length(species))
     # extract posteriors ------------------------------------------------------
     
     #extract median and sd for IAR arrival dates
-    mean_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
-    med_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
-    sd_fit <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
+    fit_mean <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = mean)[[1]]
+    fit_med <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
+    fit_sd <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
     
     #extract cell random effect (gamma)
-    mean_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = mean)[[1]]
-    sd_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = sd)[[1]]
+    gamma_mean <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = mean)[[1]]
+    gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = sd)[[1]]
     
     #extract year effect (beta0)
-    mean_beta0 <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = mean)[[1]]
-    sd_beta0 <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = sd)[[1]]
+    beta0_mean <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = mean)[[1]]
+    beta0_sd <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = sd)[[1]]
     
     #extract arrival date of species at lat 0 (alpha_gamma)
-    mean_alpha_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
+    alpha_gamma_mean <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
                                           func = mean)[[1]]
-    sd_alpha_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
+    alpha_gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
                                         func = sd)[[1]]
     alpha_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'alpha_gamma')
     colnames(alpha_gamma_ch) <- sp
     
     #extract migration speed (beta_gamma)
-    mean_beta_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
+    beta_gamma_mean <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
                                           func = mean)[[1]]
-    sd_beta_gamma <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
+    beta_gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
                                         func = sd)[[1]]
     beta_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_gamma')
     colnames(beta_gamma_ch) <- sp
     
     #diagnostics
     num_diverge <- rstan::get_num_divergent(t_fit)
-    model_summary <- MCMCvis::MCMCsummary(t_fit, excl = 'y_rep', round = 2)
+    model_summary <- MCMCvis::MCMCsummary(t_fit, excl = 'y_rep', round = 3)
     max_rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
     min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
     
@@ -225,24 +210,22 @@ for (i in 1:length(species))
     n_y_PPC <- t_data$y_PPC[-na.y.rm]
     n_y_rep <- t_y_rep[, -na.y.rm]
 
-    PPC_mn_bias <- mean(n_y_rep) - mean(n_y_PPC)
-    PPC_mn_pval <- sum(n_y_PPC > apply(n_y_rep, 2, mean)) / NROW(n_y_rep)
+    #PPC
+    PPC_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
+    {
+      fout <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
+      return(fout)
+    }
+    PPC_mn_pval <- PPC_fun(mean)
     
-    # #extract posteriors for arrival dates
-    # yt_ch <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', type = 'chains')[[1]]
-    # #colnames for posterior df
-    # iter_lab <- paste0('iter_', 1:dim(yt_ch)[3])
-    
-    # #matrix objects with alpha_gamma and beta_gamma posteriors
-    # if (i == 1)
-    # {
-    #   alpha_gamma_post <- alpha_gamma_ch
-    #   beta_gamma_post <- beta_gamma_ch
-    # } else {
-    #   alpha_gamma_post <- cbind(alpha_gamma_post, alpha_gamma_ch)
-    #   beta_gamma_post <- cbind(beta_gamma_post, beta_gamma_ch)
-    # }
-    # 
+    PPC_bias_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
+    {
+      fout <- apply(YR, 1, FUN) - FUN(D)
+      mn_out <- mean(fout)
+      return(mn_out)
+    }
+    PPC_mn_bias <- PPC_bias_fun(mean)
+
     #loop through years
     for (j in 1:length(t_years))
     {
@@ -256,36 +239,26 @@ for (i in 1:length(species))
                          cell_lat = round(cellcenters$lat_deg, digits = 2), 
                          cell_lng = round(cellcenters$lon_deg, digits = 2),
                          t_f_in[,c('year', 'HM_mean', 'HM_sd')],
-                         mean_post_IAR = mean_fit[j,], 
-                         sd_post_IAR = sd_fit[j,],
-                         mean_gamma,
-                         sd_gamma,
-                         mean_beta0[j],
-                         sd_beta0[j],
-                         mean_alpha_gamma,
-                         sd_alpha_gamma,
-                         mean_beta_gamma,
-                         sd_beta_gamma,
+                         arr_IAR_mean = fit_mean[j,], 
+                         arr_IAR_sd = fit_sd[j,],
+                         gamma_mean,
+                         gamma_sd,
+                         beta0_mean[j],
+                         beta0_sd[j],
+                         alpha_gamma_mean,
+                         alpha_gamma_sd,
+                         beta_gamma_mean,
+                         beta_gamma_sd,
                          num_diverge,
                          max_rhat,
                          min_neff,
                          PPC_mn_bias,
                          PPC_mn_pval)
       
-      colnames(t_full)[c(8,9,14,15)] <- c('mean_pre_IAR', 'sd_pre_IAR', 'mean_beta0', 'sd_beta0')
+      colnames(t_full)[c(8,9,14,15)] <- c('arr_GAM_mean', 'arr_GAM_sd', 'beta0_mean', 'beta0_sd')
      
       #fill empty df
       out[counter:(counter + NROW(t_full) - 1),] <- t_full
-      
-      #run time is excessive due to mem constraints on desktop
-      # t_post <- data.frame(t_f_in[,c('species','cell', 'mig_cell', 'breed_cell', 'year')], 
-      #                      cell_lat = round(cellcenters$lat_deg, digits = 2), 
-      #                      cell_lng = round(cellcenters$lon_deg, digits = 2),
-      #                      yt_ch[,j,])
-      # colnames(t_post)[-c(1:7)] <- iter_lab
-      # 
-      # #fill empty df
-      # arr_post[counter:(counter + NROW(t_full) - 1),] <- t_post
       
       #advance counter
       counter <- counter + NROW(t_full)
@@ -304,15 +277,13 @@ out2 <- out[-c(min(which(is.na(out$species))):NROW(out)),]
 # write to file -----------------------------------------------------------
 
 #create dir if it does not exist
-ifelse(!dir.exists(master_out_dir),
-       dir.create(master_out_dir),
+
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Data/Processed/', master_out_dir)),
+       dir.create(paste0(dir, 'Bird_Phenology/Data/Processed/', master_out_dir)),
        FALSE)
 
-setwd(master_out_dir)
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', master_out_dir))
 
 saveRDS(out2, file = paste0('arrival_master_', IAR_out_date, '.rds'))
-# saveRDS(alpha_gamma_post, file = paste0('arrival_alpha_gamma_post_', IAR_out_date, '.rds'))
-# saveRDS(beta_gamma_post, file = paste0('arrival_beta_gamma_post_', IAR_out_date, '.rds'))
-# saveRDS(arr_post, file = paste0('arrival_post_', IAR_out_date, '.rds'))
 
 print('I completed!')
