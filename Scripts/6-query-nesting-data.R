@@ -27,7 +27,6 @@ library(doParallel)
 library(foreach)
 
 
-
 # import species list -----------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
@@ -38,12 +37,9 @@ species_list_i <- read.table(paste0('eBird_species_list.txt'), stringsAsFactors 
 species_list_i2 <- as.vector(apply(species_list_i, 2, function(x) gsub("_", " ", x)))
 
 
-
 # eBird breeding codes ----------------------------------------------------
 
-
 #access DB
-
 pass <- readLines('db_pass.txt')
 
 pg <- DBI::dbDriver("PostgreSQL")
@@ -54,7 +50,6 @@ cxn <- DBI::dbConnect(pg,
                       host = "35.221.16.125", 
                       port = 5432, 
                       dbname = "sightings")
-
 
 #create query dir and navigate there
 
@@ -159,17 +154,13 @@ cn_id <- grep('day', colnames(data2))
 colnames(data2)[cn_id] <- 'jday'
 
 
-
 # bin lat/lon to hex grid and add to data
-
 # Construct geospatial hexagonal grid
 
 hexgrid6 <- dggridR::dgconstruct(res = 6) 
 data2$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
                                        in_lon_deg = data2$lng, 
                                        in_lat_deg = data2$lat)[[1]]
-
-
 
 
 # query individual species, zero fill, and create RDS objects
@@ -315,8 +306,6 @@ foreach::foreach(i = 1:nsp) %dopar%
 }
 proc.time() - tt
 
-
-
 # Find files that weren’t created
 
 fls <- list.files()
@@ -326,7 +315,6 @@ for (i in 1:length(fls))
   #i <- 1
   nms[i] <- strsplit(strsplit(fls[i], split = 'ebird_breeding_query_')[[1]][2], '.rds')[[1]][1]
 }
-
 
 #missed species
 m_sp <- species_list_i[which(!species_list_i[,1] %in% nms),1]
@@ -479,7 +467,6 @@ if (length(list.files()) == nsp)
 
 
 # copy script to query folder for records
-
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/6-query-nesting-data.R ', 
               dir, 'Bird_Phenology/Data/', query_dir_path, 
               '/6-query-nesting-data-', run_date, '.R'))
@@ -488,16 +475,11 @@ system(paste0('cp ', dir, 'Bird_Phenology/Scripts/6-query-nesting-data.R ',
 proc.time() - tt
 
 
-
-
-
 # MAPS obs - DB -----------------------------------------------------------
 
 dir <- '~/Google_Drive/R/'
 
-
 # query DB
-
 pg <- DBI::dbDriver("PostgreSQL")
 
 cxn <- DBI::dbConnect(pg,
@@ -508,7 +490,6 @@ cxn <- DBI::dbConnect(pg,
                       dbname = "sightings")
 
 #Entire North America, all species - only days 100-300
-
 maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_name, sci_name, event_id, started, ended,
                                          (count_json ->> 'ANET') AS anet,
                                          (event_json ->> 'STATION') AS station,
@@ -604,10 +585,7 @@ maps_data <- DBI::dbGetQuery(cxn, paste0("SELECT lng, lat, year, day, common_nam
 #W - species was only encountered at the station outside of the MAPS season, and the station lies outside of the breeding range of species.
 #@ - Breeding Status List is missing or incomplete for these species this year.
 
-
-
 # fill in true ages
-
 #true_age 1 means 1 year old (born in previous season)
 
 #add col for true age (actual age, not 'year' of bird)
@@ -666,9 +644,7 @@ close(pb)
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/MAPS/'))
 saveRDS(maps_data, paste0('MAPS-age-filled-', run_date, '.rds'))
 
-
 # copy script to query folder for records
-
 system(paste0('cp ', dir, 'Bird_Phenology/Scripts/6-query-nesting-data.R ', 
               dir, 'Bird_Phenology/Data/Processed/MAPS/',
               '6-query-nesting-data-', run_date, '.R'))
