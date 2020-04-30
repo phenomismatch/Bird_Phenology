@@ -6,7 +6,6 @@
 # y ~ bernouli(p)
 # logit(p) = s(day)
 #
-# Halfmax is derived from model fit
 #
 # GAM notes
 # ---------
@@ -14,7 +13,7 @@
 # https://github.com/milkha/Splines_in_Stan/blob/master/splines_in_stan.pdf
 # 
 # Species name should be given as an arg to this script. The model will then be fit to that species only.
-# Runtime: Up to 21 days on Xanadu (very long tail here, depends on data volume, etc.); more RAM allocation would likely speed up
+# Runtime: Up to 21 days on Xanadu (very long tail here, depends on data volume, etc.)
 ######################  
 
 
@@ -37,15 +36,13 @@ RUN_DATE <- '2020-02-26'
 
 #number of iterations each model should be run
 ITER <- 1500
-#ITER <- 10
-CHAINS <- 4
 
+CHAINS <- 4
 
 
 # runtime -----------------------------------------------------------------
 
 tt <- proc.time()
-
 
 
 # Load packages -----------------------------------------------------------
@@ -65,23 +62,9 @@ library(rgdal)
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 
-
 # Get args fed to script --------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
-#args <- 'Empidonax_virescens'
-#args <- 'Mimus_polyglottos'
-#args <- 'Agelaius_phoeniceus'
-#args <- 'Vireo_olivaceus'
-#args <- 'Catharus_fuscescens'
-#args <- 'Ammospiza_nelsoni'
-#args <- 'Bombycilla_cedrorum'
-#args <- 'Tyrannus_tyrannus'
-#args <- 'Catharus_ustulatus'
-#args <- 'Antrostomus_vociferus'
-#args <- 'Junco_hyemalis'
-#args <- 'Dumetella_carolinensis'
-
 
 
 # import processed data ---------------------------------------------------
@@ -90,7 +73,6 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
 
 #import data for species
 spdata <- readRDS(paste0('ebird_arrival_query_', args, '.rds'))
-
 
 
 # create grid -------------------------------------------------------------
@@ -246,13 +228,11 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
 }
 
 
-
 # process data ------------------------------------------------------------
 
 ncell <- length(cells)
 years <- min(spdata2$year):max(spdata2$year)
 nyr <- length(years)
-
 
 
 # fit model ---------------------------------------------------------
@@ -549,7 +529,6 @@ OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
 #save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_arrival_', RUN_DATE))
 saveRDS(OUT, file = paste0('halfmax_arrival_', args, '.rds'))
-
 
 
 # runtime -----------------------------------------------------------------

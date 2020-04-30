@@ -2,7 +2,7 @@
 # 3 - proces arrival GAM output
 #
 # Aggeregate posterior info and diagnostic info from 2-halfmax-arr.R to be used in IAR model
-# Determine which cells should be used in IAR model (cells that overlap breeding and migratory ranges, but do not overlap resident or non-breeding ranges) - 18 hour run time?
+# Determine which cells should be used in IAR model (cells that overlap breeding and migratory ranges, but do not overlap resident or non-breeding ranges)
 #
 ######################
 
@@ -11,10 +11,6 @@
 
 #desktop/laptop
 dir <- '~/Google_Drive/R/'
-
-#Xanadu
-#dir <- '/labs/Tingley/phenomismatch/'
-
 
 
 # db/hm query dir ------------------------------------------------------------
@@ -436,7 +432,6 @@ for (i in 1:length(species_list))
 run_time <- (proc.time()[3] - tt[3]) / 60
 
 
-
 # order -------------------------------------------------------------------
 
 #order diagnostics frame by species, year, and cell #
@@ -453,7 +448,6 @@ setwd(IAR_dir_path)
 saveRDS(df_master, paste0('IAR_input-', hm_date, '.rds'))
 
 
-
 # create list of species to run through IAR model -------------------------
 
 species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))$species
@@ -461,83 +455,4 @@ species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 write.table(species_tm, file = paste0('IAR_species_list.txt'), 
             row.names = FALSE, col.names = FALSE)
-
-
-
-
-# # create dfs that show # cells with data in each year/species, and # years with data in each cell/species -----------------
-# 
-# #create df with species/cells/n_yrs per sp_cell
-# cells_frame <- data.frame(species = rep(NA, cell_years), 
-#                           cell = rep(NA, cell_years), 
-#                           n_yrs = rep(NA, cell_years))
-# 
-# yrs_frame <- data.frame(species = rep(NA, cell_years), 
-#                         year = rep(NA, cell_years), 
-#                         n_cells = rep(NA, cell_years))
-# 
-# counter_cell <- 1
-# counter_year <- 1
-# #fill cells_frame and yrs_frame
-# for (i in 1:nsp)
-# {
-#   #i <- 101
-#   print(i)
-#   
-#   tspf <- dplyr::filter(df_master, species == species_list[i])
-#   tcells <- unique(tspf$cell)
-#   tyears <- unique(tspf$year)
-#   
-#   if (NROW(tspf) > 0)
-#   {
-#     for (k in 1:length(tcells))
-#     {
-#       #k <- 1
-#       t_cell <- dplyr::filter(tspf, cell == tcells[k])
-#     
-#       cells_frame[counter_cell, 'species'] <- species_list[i]
-#       cells_frame[counter_cell, 'cell'] <- tcells[k]
-# 
-#       #insert number of yrs with data
-#       yrs_d <- t_cell$year[which(!is.na(t_cell$HM_mean))]
-#       cells_frame[counter_cell,'n_yrs'] <- length(yrs_d)
-#       counter_cell <- counter_cell + 1
-#     }
-#   
-#     for (j in 1:length(tyears))
-#     {
-#       #j <- 1
-#       t_year <- dplyr::filter(tspf, year == tyears[j])
-#     
-#       yrs_frame[counter_year, 'species'] <- species_list[i]
-#       yrs_frame[counter_year, 'year'] <- tyears[j]
-#     
-#       #insert number of yrs with data
-#       yrs_d <- t_cell$year[which(!is.na(t_year$HM_mean))]
-#       yrs_frame[counter_year,'n_cells'] <- length(yrs_d)
-#       counter_year <- counter_year + 1
-#     }
-#   }
-# }
-# 
-# 
-# #remove NA from end of df
-# to.rm.cell <- min(which(is.na(cells_frame$species))):NROW(cells_frame)
-# to.rm.year <- min(which(is.na(yrs_frame$species))):NROW(yrs_frame)
-# 
-# cells_frame2 <- cells_frame[-to.rm.cell,]
-# yrs_frame2 <- yrs_frame[-to.rm.year,]
-# 
-# #write to RDS
-# setwd(IAR_dir_path)
-# saveRDS(cells_frame2, paste0('cells_frame-', hm_date, '.rds'))
-# saveRDS(yrs_frame2, paste0('yrs_frame-', hm_date, '.rds'))
-
-
-
-# explore data ------------------------------------------------------------
-
-# aggregate(n_cells ~ species, data = yrs_frame, FUN = max)
-# aggregate(n_cells ~ species, data = yrs_frame, FUN = mean)
-
 

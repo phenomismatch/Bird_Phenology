@@ -32,12 +32,10 @@
 dir <- '/labs/Tingley/phenomismatch/'
 
 
-
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2020-02-26'
 IAR_out_dir <- 'IAR_output_2020-04-15'
-
 
 
 # Load packages -----------------------------------------------------------
@@ -52,7 +50,6 @@ library(MCMCvis)
 #Also need to be installed, but not loaded: rgeos, maptools, mapproj
 
 
-
 # Set wd ------------------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_in_dir))
@@ -61,15 +58,9 @@ IAR_in_date <- substr(IAR_in_dir, start = 11, stop = 20)
 IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 
-
 # species arg -----------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
-#args <- as.character('Icterus_spurius')
-#args <- as.character('Catharus_minimus')
-#args <- as.character('Empidonax_virescens')
-#args <- as.character('Vireo_olivaceus')
-#args <- as.character('Agelaius_phoeniceus')
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -85,7 +76,6 @@ cells <- unique(f_out$cell)
 years <- unique(f_out$year)
 nyr <- length(years)
 ncell <- length(cells)
-
 
 
 # create adjacency matrix -------------------------------------------------
@@ -152,7 +142,6 @@ if (length(to.rm.ind) > 0)
   #indices for 1s
   ninds <- which(adjacency_matrix == 1, arr.ind = TRUE)
 }
-
 
 
 # create Stan data object -------------------------------------------------
@@ -242,7 +231,6 @@ DATA <- list(J = ncell,
              ii_mis = ii_mis_in,
              lat = cellcenters$lat_deg,
              y_PPC = y_PPC)
-
 
 
 # Stan model --------------------------------------------------------------
@@ -349,7 +337,6 @@ for (n in 1:N)
 }'
 
 
-
 # Run model ---------------------------------------------------------------
 
 rstan_options(auto_write = TRUE)
@@ -393,7 +380,6 @@ model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE,
 #extract Rhat and neff values
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
 neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))])
-
 
 
 # rerun if necessary ------------------------------------------------------
@@ -459,7 +445,6 @@ mn_treedepth <- sapply(sampler_params,
                        function(x) mean(x[, 'treedepth__']))
 accept_stat <- sapply(sampler_params,
                       function(x) mean(x[, 'accept_stat__']))
-
 
 
 # Checks -------------------------------------------------------------
@@ -572,8 +557,6 @@ cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
 cat(paste0('PPC (mean): ', round(PPC_mn, 3), ' \n'))
 print(model_summary)
 sink()
-
-
 
 
 # Plot pre-IAR/post_IAR halfmax estimates ------------------------------------------
@@ -734,7 +717,6 @@ for (i in 1:length(years))
 }
 
 
-
 # Trace plots with PPO ----------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
@@ -797,7 +779,5 @@ if ('Rplots.pdf' %in% list.files())
   file.remove('Rplots.pdf')
 }
 
-
 print('I completed!')
-
 

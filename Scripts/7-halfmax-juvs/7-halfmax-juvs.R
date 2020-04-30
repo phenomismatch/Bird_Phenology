@@ -5,7 +5,6 @@
 ######################
 
 
-
 # runtime -----------------------------------------------------------------
 
 tt <- proc.time()
@@ -44,17 +43,6 @@ library(rgdal)
 # Get args fed to script --------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
-#args <- 'Vireo_olivaceus'
-#args <- 'Agelaius_phoeniceus'
-#args <- 'Dumetella_carolinensis'
-#args <- 'Petrochelidon_pyrrhonota'
-#args <- 'Catharus_guttatus'
-#args <- 'Cardellina_pusilla'
-#args <- 'Zonotrichia_albicollis'
-#args <- 'Setophaga_petechia'
-#args <- 'Ammospiza_nelsoni'
-#args <- 'Seiurus_aurocapilla'
-
 
 
 # model settings ----------------------------------------------------------
@@ -62,10 +50,6 @@ args <- commandArgs(trailingOnly = TRUE)
 #model settings
 ITER <- 3000
 CHAINS <- 4
-
-# ITER <- 10
-# CHAINS <- 1
-
 
 
 # read in data ------------------------------------------------------------
@@ -592,7 +576,6 @@ setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_juvs_', RUN_DATE))
 saveRDS(OUT, file = paste0('halfmax_juvs_', args, '.rds'))
 
 
-
 # runtime -----------------------------------------------------------------
 
 time <- proc.time() - tt
@@ -601,5 +584,3 @@ paste0('Runtime (minutes): ', rtime)
 
 
 print('I completed!')
-
-

@@ -6,14 +6,11 @@
 # Creates directory of processed data (rds file for each species) and copy of this 
 # ... script (for reproducability) in /Data/Processed/eBird_query_<DATE>
 #
-# Runtime: 10-11 hours using 4 cores
+# Runtime: 10-11 hours
 ####################
-
 
 # #can access DB from command line with:
 # psql "sslmode=disable dbname=sightings user=cyoungflesh hostaddr=35.221.16.125"
-
-
 
 tt <- proc.time()
 
@@ -22,6 +19,7 @@ tt <- proc.time()
 
 dir <- '~/Google_Drive/R/'
 date <- Sys.Date() 
+
 
 # Load packages -----------------------------------------------------------
 
@@ -32,10 +30,10 @@ library(dggridR)
 library(doParallel)
 library(foreach)
 
+
 # set wd ------------------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
-
 
 
 # import eBird species list -----------------------------------------------------
@@ -64,7 +62,6 @@ cxn <- DBI::dbConnect(pg,
                       dbname = "sightings")
 
 
-
 # create query dir and navigate there -------------------------------------------
 
 
@@ -72,8 +69,6 @@ query_dir_path <- paste0('Processed/eBird_arrival_query_', date)
 
 dir.create(query_dir_path)
 setwd(query_dir_path)
-
-
 
 
 # filter dataset notes ----------------------------------------------------------
@@ -143,8 +138,6 @@ setwd(query_dir_path)
 # HAS_MEDIA
 
 
-
-
 # Query and filter - event_id ----------------------------------------------------
 
 #*get all event_ids that meet criterea
@@ -185,13 +178,11 @@ data2 <- data[!duplicated(data[,'group_identifier'],
 rm(data)
 
 
-
 # add jday ---------------------------------------------------
 
 #julian day
 cn_id <- grep('day', colnames(data2))
 colnames(data2)[cn_id] <- 'jday'
-
 
 
 # bin lat/lon to hex grid and add to data ---------------------------------------------------------
@@ -204,10 +195,7 @@ data2$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6,
                                         in_lat_deg = data2$lat)[[1]]
 
 
-
-
 # query individual species, zero fill, and create RDS objects ----------------------------------
-
 
 #create species columns
 data2[species_list_i[,1]] <- NA
@@ -270,7 +258,6 @@ foreach::foreach(i = 1:nsp) %dopar%
   DBI::dbDisconnect(cxn)
 }
 proc.time() - tt
-
 
 
 # Find files that weren’t created -----------------------------------------
@@ -341,7 +328,6 @@ if (length(m_sp2) > 0)
     DBI::dbDisconnect(cxn)
   }
 }
-
 
 
 # check all files were created --------------------------------------------
