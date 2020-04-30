@@ -273,7 +273,6 @@ for (i in 1:length(species))
 #remove zeros
 out2 <- out[-c(min(which(is.na(out$species))):NROW(out)),]
 
-dplyr::filter(df_master, max_Rhat > 1.01, MODEL == TRUE, !is.na(HM_mean))
 
 # write to file -----------------------------------------------------------
 
