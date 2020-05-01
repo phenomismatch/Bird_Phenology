@@ -341,34 +341,34 @@ to.rm <- min(which(is.na(diagnostics_frame$species))):NROW(diagnostics_frame)
 diagnostics_frame2 <- diagnostics_frame[-to.rm,]
 
 
+# combine data with overlap df --------------------------------------------
+
+diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
+
+
 # filter by diagnostics ---------------------------------------------------
 
 ### add NA for both HM_mean and HM_sd if any of the following conditions are met
-#these params used for most recent IAR input run (as of 2020-02-XX)
 
-to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
-                 diagnostics_frame2$max_Rhat >= 1.05 |
-                 diagnostics_frame2$min_neff < 400 |
-                 diagnostics_frame2$num_BFMI > 0 |
-                 diagnostics_frame2$HM_sd > 15 | 
-                 diagnostics_frame2$mlmax == FALSE) #must have hump
+to.NA <- which(diagnostics_frame3$num_diverge > 0 | 
+                 diagnostics_frame3$max_Rhat > 1.02 |
+                 diagnostics_frame3$min_neff < 400 |
+                 diagnostics_frame3$num_BFMI > 0 |
+                 diagnostics_frame3$HM_sd > 10 | 
+                 diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
+                 diagnostics_frame3$plmax < 0.8) #local max for > 80% of detection curve realizations
 
-# #XX% of cells are bad
-# length(to.NA)/sum(!is.na(diagnostics_frame2$HM_mean))
-# diagnostics_frame2[to.NA,c('species', 'cell', 'year',
+# #30.6% of cells removed
+# length(to.NA)/sum(!is.na(diagnostics_frame3$HM_mean))
+# diagnostics_frame3[to.NA,c('species', 'cell', 'year',
 #                            'HM_mean', 'HM_sd', 'min_neff',
 #                            'num_diverge', 'max_Rhat', 'mlmax')]
 
 if (length(to.NA) > 0)
 {
-  diagnostics_frame2[to.NA,'HM_mean'] <- NA
-  diagnostics_frame2[to.NA,'HM_sd'] <- NA
+  diagnostics_frame3[to.NA,'HM_mean'] <- NA
+  diagnostics_frame3[to.NA,'HM_sd'] <- NA
 }
-
-
-# combine data with overlap df --------------------------------------------
-
-diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
 
 
 # Filter data based on criteria -----------------------------------------------------------
@@ -378,7 +378,7 @@ diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
 #     Species-years with at least 'NC' cells for those species
 
 NC <- 3
-diagnostics_frame3$MODEL <- NA
+diagnostics_frame3$MODEL <- FALSE
 df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
@@ -450,7 +450,8 @@ saveRDS(df_master, paste0('IAR_input-', hm_date, '.rds'))
 
 # create list of species to run through IAR model -------------------------
 
-species_tm <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))$species
+species_agg <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))
+species_tm <- dplyr::filter(species_agg, MODEL > 0)$species
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 write.table(species_tm, file = paste0('IAR_species_list.txt'), 
