@@ -35,7 +35,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2020-02-26'
-IAR_out_dir <- 'IAR_output_2020-04-15'
+IAR_out_dir <- 'IAR_output_2020-05-01'
 
 
 # Load packages -----------------------------------------------------------
