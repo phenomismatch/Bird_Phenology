@@ -7,4 +7,4 @@ do
   temp="${name%\"}"
   temp="${temp#\"}"
   sbatch species/2-$temp.sh
-done < ../../Data/eBird_species_list_b2.txt
+done < ../../Data/eBird_species_list_b3.txt
