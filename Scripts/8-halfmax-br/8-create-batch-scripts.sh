@@ -24,6 +24,7 @@ do
 echo \`hostname\`
 
 #load singularity and run R script using singularity
+module load gcc/6.4.0
 module load singularity/3.0.2
 singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/8-halfmax-br/8-halfmax-br.R $temp
 

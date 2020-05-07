@@ -6,9 +6,9 @@
 #SBATCH -c 4 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=25G #memory requested
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_2020-02-26/hm-arr-Vireo_bellii.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_2020-02-26/hm-arr-Vireo_bellii.err #STDERR
+#SBATCH --mem=30G #memory requested
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_2020-05-07/hm-arr-Vireo_bellii.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_2020-05-07/hm-arr-Vireo_bellii.err #STDERR
 
 #echos name of node
 echo `hostname`
@@ -18,6 +18,7 @@ echo `hostname`
 #Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/2-halfmax-arr/2-halfmax-arr.R Vireo_bellii
 
 #until singularity is sorted
+module load gcc/6.4.0
 module load singularity/3.0.2
 singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/2-halfmax-arr/2-halfmax-arr.R Vireo_bellii
 
