@@ -1,0 +1,113 @@
+
+I'm trying to sample from the posterior distribution of a GAM fit with `mgcv` in `R`. While the model is fit with maximum likelihood, posteriors can be recovered. A good tutorial on this can be found on Gavin Simpson's blog [here](https://fromthebottomoftheheap.net/2014/06/16/simultaneous-confidence-intervals-for-derivatives/). I'd like simulated posteriors as I want to calculate a derived quantity on the spline with associated uncertainty. I'm fitting a GAM to binary (0/1) data and my derived qty is something like the value of the predictor (x) when 'p' (from the Bernoulli model) is half of its maximum value. 
+
+The issue is that my posterior simulations don't quite make sense. I've tried this code out on several examples and those make sense. I feel like there may be something about this specific problem and I'm wondering what I'm missing. Just a note, I've fit this model using MCMC (the `stan_gamm4` function in `rstanarm`) and the posterior replicates make sense. Unfortunately I've got many of these models to run (with many data points) so it's going to become very computationally expensive to fit these with MCMC rather than with `mgcv`.
+
+First some example data:
+
+```
+#response
+y <- c(rep(0, 89), 1, 0, 1, 0, 0, 1, rep(0, 13), 1, 0, 0, 1, 
+       rep(0, 10), 1, 0, 0, 1, 1, 0, 1, rep(0,4), 1, rep(0,3),  
+       1, rep(0, 3), 1, rep(0, 10), 1, rep(0, 4), 1, 0, 1, 0, 0, 
+       rep(1, 4), 0, rep(1, 5), rep(0, 4), 1, 1, rep(0, 46))
+
+#predictor
+x <- c(1, 1, 1, 2, 4, 5, 5, 6, 6, 6, 10, 10, 12, 12, 14, 16, 
+       rep(19, 6), 24, 26, 27, 28, 28, rep(33, 3), 34, 35, 36, 
+       37, 40, 40, 45, 47, 48, 50, 55, 55, 61, 62, 68, rep(75, 5), 
+       76, rep(82, 3), 83, 87, 89, 90, 90, 94, 95, rep(96, 4), 
+       rep(97, 3), 99, 102, 103, 104, 106, rep(110, 3), 111, 113, 
+       113, 115, 117, 117, 118, 119, 120, 122, 122, 123, 123, 
+       rep(124, 10), rep(125, 11), rep(126, 6), rep(127, 4), 
+       rep(128, 5), rep(129, 3), rep(130, 5), rep(131, 10), 
+       rep(132, 5), rep(133, 3), 134, 134, rep(135, 6), rep(136, 3),
+       137, 137, rep(138, 9), rep(139, 4), 140, rep(141, 3), 142, 
+       142, 143, 143, 144, rep(145, 3), rep(146, 3), 147, 147, 149,
+       150, 152, 152, rep(157, 3), 158, 158, 159, 159, 163, 164, 
+       167, 173, 173, 175, 179, 180, 180, 183, 185, 186, 186, 187, 
+       188, 191, 194, 197, 197)
+```
+Fit the model:
+```
+library(mgcv)
+library(MASS)
+
+fit <- mgcv::gam(y ~ s(x, k = 20),
+                  method = 'REML',
+                  select = TRUE,
+                  family = binomial(link = "logit"))
+```
+Predict:
+```
+#new data to predict at
+x_pred <- data.frame(x = 0:200)
+
+#predict
+pp <- predict(fit, x_pred, type = 'response', se.fit = TRUE)
+```
+
+Extract Xp matrix and posterior realizations of parameters (see [here](https://fromthebottomoftheheap.net/2014/06/16/simultaneous-confidence-intervals-for-derivatives/)). The coefficient estimates and the variance covariance matrix for the estimated coefficients from the model are used as an input to `mvrnorm` to generate values from a multivariate normal:
+```
+#extract Xp matrix
+Xp <- predict(fit, x_pred, type = "lpmatrix")
+
+#posterior realizations
+n <- 100
+br <- MASS::mvrnorm(n, coef(fit), fit$Vc)
+```
+
+Plot data and model fit (extracted using `predict`). 95% CI were created using `se.fit` from the `predict` results:
+```
+#plot data
+plot(x, y, col = rgb(0,0,0,0.25), ylim = c(0,1))
+#plot model fit and 95% CI
+lines(x_pred$x, pp$fit, col = 'green', lwd = 2)
+lines(x_pred[,1], pp$fit - 1.97 * pp$se.fit, col = 'green', lwd = 2, lty = 2)
+lines(x_pred[,1], pp$fit + 1.97 * pp$se.fit, col = 'green', lwd = 2, lty = 2)
+```
+
+Seems to all make sense (x-axis is the predictor, y-axis is the modeled probability p of a 1 given an x):
+
+[![GAM fit][1]][1]
+
+
+Plot 100 realizations for p from the posterior on this plot (again see [here](https://fromthebottomoftheheap.net/2014/06/16/simultaneous-confidence-intervals-for-derivatives/) for details):
+```
+#plot posterior realizations of model fit
+for (i in 1:n)
+{ 
+#i <- 1
+  fits <- Xp %*% br[i,]
+  lines(x_pred$x, boot::inv.logit(fits), col = rgb(1,0,0,0.1))
+}
+```
+
+This is where I'm having trouble. I find it strange that many of the posterior realizations are at 1 well before there are 1's observed. Nothing from the modeled values for p or the 95% CI for p (in solid and dashed green lines, respectively) suggests that the model is so uncertain in these regions. I would expect for most of the red lines to be contained within the green lines:
+
+[![posterior realizations][2]][2]
+
+If these are accurate posterior simulations, I should be able to derive things like the mean and 95% CI from these.
+```
+#extract mean and 95% CI from posterior realizations
+pm <- Xp %*% t(br)
+xp_mn <- apply(boot::inv.logit(pm), 1, mean)
+xp_LCI <- apply(boot::inv.logit(pm), 1, 
+                function(x) quantile(x, probs = 0.025))
+xp_UCI <- apply(boot::inv.logit(pm), 1, 
+                function(x) quantile(x, probs = 0.975))
+```
+
+However, when these are plotted, it's clear that these values are very different from the mean and 95% CIs  (in solid and dashed blue lines, respectively) derived from `predict` : 
+```
+lines(x_pred$x, xp_mn, col = 'blue', lwd = 2)
+lines(x_pred$x, xp_LCI, col = 'blue', lwd = 2, lty = 2)
+lines(x_pred$x, xp_UCI, col = 'blue', lwd = 2, lty = 2)
+```
+[![enter image description here][3]][3]
+
+Why do these posterior realizations not match what `predict` is returning? Does this have to do with a rounding issue somewhere? It seems like the model fits these data (see green lines), but the posteriors seem to be saying something different.. As mentioned above, I grabbed this code from worked examples and this seemed to produce reasonable results on test datasets.
+
+  [1]: https://i.stack.imgur.com/8akdQ.png
+  [2]: https://i.stack.imgur.com/s6e0N.png
+  [3]: https://i.stack.imgur.com/zTvpz.png
