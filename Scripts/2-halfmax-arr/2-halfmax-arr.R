@@ -4,13 +4,14 @@
 # Fit model (GAM logistic regression) to eBird data to get half-max parameter (bird arrival) for each species-cell-year
 #
 # y ~ bernouli(p)
-# logit(p) = s(day)
+# logit(p) = s(day) + shr
 #
 #
 # GAM notes
 # ---------
 # https://stats.stackexchange.com/questions/352995/does-there-exist-theory-behind-how-many-knots-one-should-use-in-a-stan-gamm4-m?noredirect=1&lq=1
 # https://github.com/milkha/Splines_in_Stan/blob/master/splines_in_stan.pdf
+# https://stats.stackexchange.com/questions/359568/choosing-k-in-mgcvs-gam
 # 
 # Species name should be given as an arg to this script. The model will then be fit to that species only.
 # Runtime: Up to 21 days on Xanadu (very long tail here, depends on data volume, etc.)
@@ -29,14 +30,13 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 db_dir <- 'eBird_arrival_query_2020-02-25'
 
-RUN_DATE <- '2020-02-26'
+RUN_DATE <- '2020-05-07'
 
 
 # model settings ----------------------------------------------------------
 
 #number of iterations each model should be run
 ITER <- 1500
-
 CHAINS <- 4
 
 
@@ -275,12 +275,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 1
+  #j <- 6
   yspdata <- dplyr::filter(spdata2, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 16
+    #k <- 28
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     cyspdata <- dplyr::filter(yspdata, cell == cells[k])
@@ -329,7 +329,7 @@ for (j in 1:nyr)
     
     if (n1 > 19 & n1W < (n1/50) & n0 > 19 & njd0i > 19 & njd1 > 9)
     {
-      fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr, 
+      fit2 <- rstanarm::stan_gamm4(detect ~ s(jday, k = 30) + shr,
                                  data = cyspdata,
                                  family = binomial(link = "logit"),
                                  algorithm = 'sampling',
@@ -338,6 +338,14 @@ for (j in 1:nyr)
                                  cores = CHAINS,
                                  adapt_delta = DELTA,
                                  control = list(max_treedepth = TREE_DEPTH))
+      # #mgcv
+      # fit2 <- mgcv::gam(detect ~ s(jday, k = 30, bs = 'ad') + shr,# +
+      #                      #s(sc_jday, year, k = 20, bs = "fs", m = 2),
+      #                      select = TRUE,   
+      #                      data = cyspdata,
+      #                      method = 'REML',
+      #                      family = binomial(link = "logit"),
+      #                      control = list(maxit = 10e6))
       
       #calculate diagnostics
       num_diverge <- rstan::get_num_divergent(fit2$stanfit)
@@ -349,7 +357,7 @@ for (j in 1:nyr)
       {
         DELTA <- DELTA + 0.01
 
-        fit2 <- rstanarm::stan_gamm4(detect ~ s(jday) + shr,
+        fit2 <- rstanarm::stan_gamm4(detect ~ s(jday, k = 30) + shr,
                                    data = cyspdata,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -408,14 +416,22 @@ for (j in 1:nyr)
           lmax2 <- predictDays[which.max(rowL)]
           tlmax[L] <- FALSE
         }
-        #position of min value before max - typically, where 0 is
-        lmin_idx <- which.min(rowL[1:lmax2_idx])
+        #local mins before max (global and local mins)
+        lmin_idx <- c(which.min(rowL[1:lmax2_idx]), 
+                      which(diff(sign(diff(rowL[1:lmax2_idx]))) == 2) + 1)
+        lmin <- predictDays[lmin_idx]
+        #local min nearest to local max
+        lmin2_idx <- lmin_idx[which.min(lmax2 - lmin)]
+        lmin2 <- predictDays[lmin2_idx]
+        
         #value at local max - value at min (typically 0)
-        dmm <- rowL[lmax2_idx] - rowL[lmin_idx]
+        dmm <- rowL[lmax2_idx] - rowL[lmin2_idx]
         #all positions less than or equal to half diff between max and min + value min
-        tlm <- which(rowL <= ((dmm/2) + rowL[lmin_idx]))
-        #which of these come before max and after min
-        vgm <- which(tlm < lmax2_idx & tlm > lmin_idx)
+        tlm <- which(rowL <= ((dmm/2) + rowL[lmin2_idx]))
+        #which of these come before max and after or at min
+        
+        #TLM NEEDED???
+        vgm <- tlm[which(tlm < lmax2_idx & tlm >= lmin2_idx)]
         #insert halfmax (first day for situations where max is a jday = 1)
         if (length(vgm) > 0)
         {
@@ -504,18 +520,19 @@ for (j in 1:nyr)
       # dev.off()
       
       # #alternative visualization
-      # pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
-      # plot(NA, xlim = c(range(cyspdata$jday)[1]:range(cyspdata$jday)[2]), ylim = c(0, quantile(dfit, 0.999)),
-      #      xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
-      # for (L in 1:((ITER/2)*CHAINS))
-      # {
-      #   lines(range(cyspdata$jday)[1]:range(cyspdata$jday)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
-      # }
-      # for (L in 1:((ITER/2)*CHAINS))
-      # {
-      #   abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
-      # }
-      # dev.off()
+      pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
+      plot(NA, xlim = c(range(cyspdata$jday)[1], range(cyspdata$jday)[2]), 
+           ylim = c(0, quantile(dfit, 0.999)),
+           xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        lines(range(cyspdata$jday)[1]:range(cyspdata$jday)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+      }
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
+      }
+      dev.off()
       ########################
     }
     counter <- counter + 1
