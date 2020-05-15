@@ -15,7 +15,7 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-hm_dir <- 'halfmax_arrival_2020-02-26'
+hm_dir <- 'halfmax_arrival_2020-05-07'
 hm_date <- substr(hm_dir, start = 17, stop = 26)
 
 
@@ -260,7 +260,7 @@ for (i in 1:nsp)
   #loop through years
   for (j in 1:nyr)
   {
-    #j <- 1
+    #j <- 17
     tt_halfmax1 <- dplyr::filter(temp_halfmax, 
                                  year == years[j])
     
@@ -358,11 +358,9 @@ to.NA <- which(diagnostics_frame3$num_diverge > 0 |
                  diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
                  diagnostics_frame3$plmax < 0.8) #local max for > 80% of detection curve realizations
 
-# #30.6% of cells removed
-# length(to.NA)/sum(!is.na(diagnostics_frame3$HM_mean))
 # diagnostics_frame3[to.NA,c('species', 'cell', 'year',
-#                            'HM_mean', 'HM_sd', 'min_neff',
-#                            'num_diverge', 'max_Rhat', 'mlmax')]
+#                            'HM_sd', 'min_neff', 'num_diverge', 'max_Rhat', 
+#                            'per_ovr', 'plmax')]
 
 if (length(to.NA) > 0)
 {
