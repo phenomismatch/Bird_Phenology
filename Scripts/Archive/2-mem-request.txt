@@ -2,11 +2,13 @@ For 2-arr
 
 25GB request EXCEPT the following (need 50GB):
 
-UConn - Empidonax_alnorum - ?FAIL - XXXX
-UCLA - Empidonax_virescens - ?FAIL - XXXX
-TBD - Setophaga_americana - ?FAIL - XXXX
-TBD - Parkesia_noveboracensis - ?FAIL - XXXX
+DONE - Empidonax_alnorum - ?FAIL - 10% of previous time
+DONE - Empidonax_virescens - ?FAIL - 8% of previous time
+DONE - Setophaga_americana - ?FAIL - XXXX
+DONE - Parkesia_noveboracensis - ?FAIL - XXXX
 
-
-
-
+DONE - Contopus_virens
+DONE - Hirundo_rustica
+DONE - Setophaga_petechia
+DONE - Setophaga_ruticilla
+DONE - Vireo_olivaceus

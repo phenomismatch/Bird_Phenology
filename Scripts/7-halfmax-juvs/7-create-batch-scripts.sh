@@ -21,11 +21,6 @@ do
 #echos name of node
 echo \`hostname\`
 
-#load R module and run script
-# module load R/3.5.2
-# Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/7-halfmax-juvs/7-halfmax-juvs.R $temp
-
-#until singularity is sorted
 module load gcc/6.4.0
 module load singularity/3.0.2
 singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/7-halfmax-juvs/7-halfmax-juvs.R $temp
