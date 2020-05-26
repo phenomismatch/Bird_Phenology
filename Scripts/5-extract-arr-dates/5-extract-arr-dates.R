@@ -48,6 +48,8 @@ species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_
 # create empty dataframes to fill -----------------------------------------
 
 #combine pre and post IAR data for every year/cell that was modeled (including cell lat/lon)
+#ADD OVR_DF
+
 out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
                   mig_cell = NA, breed_cell = NA,
                   cell_lat = NA, cell_lng = NA,

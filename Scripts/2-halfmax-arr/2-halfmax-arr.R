@@ -523,14 +523,14 @@ for (j in 1:nyr)
       pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
       plot(NA, xlim = c(range(cyspdata$jday)[1], range(cyspdata$jday)[2]), 
            ylim = c(0, quantile(dfit, 0.999)),
-           xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
+           xlab = 'Julian Day', ylab = 'Probability of occurrence')
       for (L in 1:((ITER/2)*CHAINS))
       {
         lines(range(cyspdata$jday)[1]:range(cyspdata$jday)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
       }
       for (L in 1:((ITER/2)*CHAINS))
       {
-        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
+        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.05))
       }
       dev.off()
       ########################
