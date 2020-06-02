@@ -13,9 +13,9 @@ dir <- '~/Google_Drive/R/'
 
 # other dir ---------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2020-02-26'
-IAR_out_dir <- 'IAR_output_2020-04-15'
-master_out_dir <- 'arrival_master_2020-04-15'
+IAR_in_dir <- 'IAR_input_2020-05-07'
+IAR_out_dir <- 'IAR_output_2020-05-15'
+master_out_dir <- 'arrival_master_2020-05-15'
 
 
 # Load packages -----------------------------------------------------------
@@ -48,11 +48,10 @@ species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_
 # create empty dataframes to fill -----------------------------------------
 
 #combine pre and post IAR data for every year/cell that was modeled (including cell lat/lon)
-#ADD OVR_DF
 
 out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
                   mig_cell = NA, breed_cell = NA,
-                  cell_lat = NA, cell_lng = NA,
+                  cell_lat = NA, cell_lng = NA, per_ovr = NA,
                   year = NA, arr_GAM_mean = NA, arr_GAM_sd = NA,
                   arr_IAR_mean = NA, arr_IAR_sd = NA,
                   gamma_mean = NA, gamma_sd = NA,
@@ -186,16 +185,16 @@ for (i in 1:length(species))
                                           func = mean)[[1]]
     alpha_gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
                                         func = sd)[[1]]
-    alpha_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'alpha_gamma')
-    colnames(alpha_gamma_ch) <- sp
+    # alpha_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'alpha_gamma')
+    # colnames(alpha_gamma_ch) <- sp
     
     #extract migration speed (beta_gamma)
     beta_gamma_mean <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
                                           func = mean)[[1]]
     beta_gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
                                         func = sd)[[1]]
-    beta_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_gamma')
-    colnames(beta_gamma_ch) <- sp
+    # beta_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_gamma')
+    # colnames(beta_gamma_ch) <- sp
     
     #diagnostics
     num_diverge <- rstan::get_num_divergent(t_fit)
@@ -213,6 +212,7 @@ for (i in 1:length(species))
     n_y_rep <- t_y_rep[, -na.y.rm]
 
     #PPC
+    #p-val
     PPC_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
     {
       fout <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
@@ -220,13 +220,14 @@ for (i in 1:length(species))
     }
     PPC_mn_pval <- PPC_fun(mean)
     
-    PPC_bias_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
+    #discrepancy
+    PPC_dis_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
     {
       fout <- apply(YR, 1, FUN) - FUN(D)
       mn_out <- mean(fout)
       return(mn_out)
     }
-    PPC_mn_bias <- PPC_bias_fun(mean)
+    PPC_mn_dis <- PPC_dis_fun(mean)
 
     #loop through years
     for (j in 1:length(t_years))
@@ -240,7 +241,7 @@ for (i in 1:length(species))
       t_full <- data.frame(t_f_in[,c('species','cell', 'mig_cell', 'breed_cell')], 
                          cell_lat = round(cellcenters$lat_deg, digits = 2), 
                          cell_lng = round(cellcenters$lon_deg, digits = 2),
-                         t_f_in[,c('year', 'HM_mean', 'HM_sd')],
+                         t_f_in[,c('per_ovr', 'year', 'HM_mean', 'HM_sd')],
                          arr_IAR_mean = fit_mean[j,], 
                          arr_IAR_sd = fit_sd[j,],
                          gamma_mean,
@@ -254,10 +255,11 @@ for (i in 1:length(species))
                          num_diverge,
                          max_Rhat,
                          min_neff,
-                         PPC_mn_bias,
+                         PPC_mn_dis,
                          PPC_mn_pval)
       
-      colnames(t_full)[c(8,9,14,15)] <- c('arr_GAM_mean', 'arr_GAM_sd', 'beta0_mean', 'beta0_sd')
+      colnames(t_full)[c(9,10,15,16)] <- c('arr_GAM_mean', 'arr_GAM_sd', 
+                                           'beta0_mean', 'beta0_sd')
      
       #fill empty df
       out[counter:(counter + NROW(t_full) - 1),] <- t_full
