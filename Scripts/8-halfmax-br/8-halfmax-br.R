@@ -3,13 +3,15 @@
 #
 ######################  
 
+#non-detections are excluded
+#only checklists with breeding codes for that species were used
 #29 days Lay -> Fledge (median from Nestwatch across all species)
 #16 days Lay -> Hatch (median from Nestwatch across all species)
 
 
-#NEEDS TO BE UPDATED - what should be used as zeros (non-detections)
-#potentially some range filtering and field names
-#shoulf reflect changes in halfmax-juv
+# runtime -----------------------------------------------------------------
+
+tt <- proc.time()
 
 
 # top-level dir ---------------------------------------------------------------
@@ -22,21 +24,11 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 # query dir ---------------------------------------------------------------
 
-#read in ebird breeding code data
-DATE_BC <- '2019-10-17'
+#run date
+RUN_DATE <- '2020-06-04'
 
-RUN_DATE <- '2019-10-31'
-
-
-# model settings ----------------------------------------------------------
-
-#model settings
-ITER <- 1800
-CHAINS <- 4
-
-# ITER <- 10
-# CHAINS <- 4
-
+#query ebird breeding code data
+QUERY_DATE <- '2020-03-03'
 
 
 # Load packages -----------------------------------------------------------
@@ -47,12 +39,8 @@ library(dplyr)
 library(dggridR)
 library(sp)
 library(raster)
-
-
-# runtime -----------------------------------------------------------------
-
-tt <- proc.time()
-
+library(rgeos)
+library(rgdal)
 
 
 # Get args fed to script --------------------------------------------------
@@ -62,30 +50,37 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- 'Agelaius_phoeniceus'
 
 
+# model settings ----------------------------------------------------------
+
+#model settings
+ITER <- 2000
+CHAINS <- 4
+# ITER <- 10
+# CHAINS <- 4
+
 
 # read in data ------------------------------------------------------------
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_cat_query_', DATE_BC))
-spdata <- readRDS(paste0('ebird_NA_breeding_code_', args, '.rds'))
-
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/eBird_breeding_query_', QUERY_DATE))
+data <- readRDS(paste0('ebird_breeding_query_', args, '.rds'))
 
 
 # create grid -------------------------------------------------------------
 
+#make hexgrid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
+data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
+                                      in_lon_deg = data$lng, 
+                                      in_lat_deg = data$lat)[[1]]
 
-#get boundaries of all cells over earth
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
+setwd(paste0(dir, 'Bird_Phenology/Data/hex_grid_crop/'))
 
-#dggridR::dgearthgrid(hexgrid6, savegrid = 'global_hex.shp')
 #read in grid
-hge <- rgdal::readOGR('global_hex.shp', verbose = FALSE)
+hge <- rgdal::readOGR('hex_grid_crop.shp', verbose = FALSE)
+hge_cells <- as.numeric(as.character(hge@data[,1]))
 
 
-
-# filter cells by breeding range  ---------------------------------------------------
-
-'%ni%' <- Negate('%in%')
+# filter cells by range  ---------------------------------------------------
 
 #reference key for species synonyms
 setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/metadata/'))
@@ -108,70 +103,46 @@ if (length(g_ind) == 0)
 
 #get filename and read in
 fname <- as.character(sp_key[g_ind2,]$filenames[grep('.shp', sp_key[g_ind2, 'filenames'])])
-sp_rng <- rgdal::readOGR(fname, verbose = FALSE)
-#crop to area of interest
-sp_rng2 <- raster::crop(sp_rng, raster::extent(-95, -50, 24, 90))
+sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
 
-#filter by breeding (2) range - need to convert spdf to sp
-nrng <- sp_rng2[which(sp_rng2$SEASONAL == 2),]
+#filter by breeding (2) - need to convert spdf to sp
+nrng <- sp_rng[which(sp_rng$SEASONAL == 2),]
 
-#filter by resident (1), non-breeding (3), and migratory range (4) to exclude hex cells that contain 2 and 1/3/4
-nrng_rm <- sp_rng2[which(sp_rng2$SEASONAL == 1 | sp_rng2$SEASONAL == 3 | sp_rng2$SEASONAL == 4),]
+#do not exclude resident, non-breeding, and migration cells as breeding at station is a requirement for modeling
 
 #remove unneeded objects
 rm(sp_rng)
-rm(sp_rng2)
 rm(fname)
 
 
 #if there is a legitimate range
-if (NROW(nrng@data) > 0)
+if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
 {
   #good cells
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
   sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
+  #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
   poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
   tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
-  br_mig_cells <- as.numeric(tpoly[!duplicated(tpoly)])
+  br_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
   
-  #bad cells - also exclude cells 812, 813, and 841 (Bahamas)
-  if (length(nrng_rm) > 0)
-  {
-    nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
-    sp::proj4string(nrng_rm_sp) <- sp::CRS(sp::proj4string(nrng_rm))
-    poly_int_rm <- rgeos::gIntersects(hge, nrng_rm_sp, byid=TRUE)
-    tpoly_rm <- which(poly_int_rm == TRUE, arr.ind = TRUE)[,2]
-    res_ovr_cells <- as.numeric(tpoly_rm[!duplicated(tpoly_rm)])
-    
-    #remove cells that appear in resident and overwinter range that also appear in breeding range
-    cell_mrg <- c(br_mig_cells, res_ovr_cells)
-    to_rm <- c(cell_mrg[duplicated(cell_mrg)], 812, 813, 841)
-    
-    rm(nrng_rm)
-    rm(nrng_rm_sp)
-    rm(res_ovr_cells)
-    
-  } else {
-    cell_mrg <- br_mig_cells
-    to_rm <- c(812, 813, 841)
-  }
+  to_rm <- c(812, 813, 841)
   
   #remove unneeded objects
   rm(hge)
   rm(nrng)
   rm(nrng_sp)
   
-  c_rm <- which(br_mig_cells %in% to_rm)
+  c_rm <- which(br_cells %in% to_rm)
   if (length(c_rm) > 0)
   {
-    overlap_cells <- br_mig_cells[-c_rm]  
+    overlap_cells <- br_cells[-c_rm]  
   } else {
-    overlap_cells <- br_mig_cells
+    overlap_cells <- br_cells
   }
   
   #remove unneeded objects
-  rm(br_mig_cells)
-  rm(cell_mrg)
+  rm(br_cells)
   rm(to_rm)
   
   #get cell centers
@@ -185,16 +156,14 @@ if (NROW(nrng@data) > 0)
   rm(overlap_cells)
   
   #cells only within the range that ebird surveys were filtered to
-  n_cc_df <- cc_df[which(cc_df$lon > -95 & cc_df$lon < -50 & cc_df$lat > 24),]
-  cells <- n_cc_df$cell
+  cells <- cc_df$cell
   
   #retain rows that match selected cells
-  spdata2 <- spdata[which(spdata$cell %in% cells),]
+  m_mf <- data[which(data$cell %in% cells),]
   
   #remove unneeded objects
   rm(cc_df)
-  rm(n_cc_df)
-  rm(spdata)
+  rm(data)
   
 } else {
   #write blank .rds file
@@ -205,36 +174,72 @@ if (NROW(nrng@data) > 0)
                            cell = NA, 
                            max_Rhat = NA,
                            min_neff = NA,
+                           mlmax = NA,
+                           plmax = NA,
                            num_diverge = NA,
                            num_tree = NA,
                            num_BFMI = NA,
                            delta = NA,
                            tree_depth = NA,
+                           t_iter = NA,
                            n1 = NA,
-                           n1W = NA,
+                           # n1W = NA,
                            n0 = NA,
                            n0i = NA,
+                           njd = NA,
                            njd1 = NA,
                            njd0 = NA,
                            njd0i = NA,
                            t_mat)
   
   #save to rds object
-  setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('halfmax_df_breeding_', args, '.rds'))
-  
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('halfmax_breeding_', args, '.rds'))
   stop('Range not suitable for modeling!')
+}
+
+if (NROW(m_mf) == 0)
+{
+  #write blank .rds file
+  t_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
+  colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
+  halfmax_df <- data.frame(species = args, 
+                           year = NA, 
+                           cell = NA, 
+                           max_Rhat = NA,
+                           min_neff = NA,
+                           mlmax = NA,
+                           plmax = NA,
+                           num_diverge = NA,
+                           num_tree = NA,
+                           num_BFMI = NA,
+                           delta = NA,
+                           tree_depth = NA,
+                           t_iter = NA,
+                           n1 = NA,
+                           # n1W = NA,
+                           n0 = NA,
+                           n0i = NA,
+                           njd = NA,
+                           njd1 = NA,
+                           njd0 = NA,
+                           njd0i = NA,
+                           t_mat)
+  
+  #save to rds object
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('halfmax_breeding_', args, '.rds'))
+  stop('No data in breeding range!')
 }
 
 
 
 # process data ------------------------------------------------------------
 
+years <- sort(unique(m_mf$year))
+cells <- sort(unique(m_mf$cell))
 ncell <- length(cells)
-
-years <- min(spdata2$year):max(spdata2$year)
 nyr <- length(years)
-
 
 
 # fit model ---------------------------------------------------------
@@ -295,56 +300,57 @@ counter <- 1
 for (j in 1:nyr)
 {
   #j <- 16
-  yspdata <- spdata2[which(spdata2$year == years[j]), ]
+  yspdata <- dplyr::filter(m_mf, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 22
-    print(paste0('species: ', args, ', year: ', j, ', cell: ', k, ', br obs: ', n1))
+    #k <- 55
+    print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
+
+    cyspdata <- dplyr::filter(yspdata, cell == cells[k])
     
-    cyspdata <- yspdata[which(yspdata$cell == cells[k]), ]
-    
-    #new column with dates to egg lay date
+    #new column with dates to egg lay date - 0/1
     cyspdata$br <- as.numeric(cyspdata$breeding_code == 'F' | 
                                 cyspdata$breeding_code == 'Y' |
                                 cyspdata$breeding_code == 'E')
     
     #remove instances where bird was not observed
-    # to.rm <- which(cyspdata$br == 0)
-    # cyspdata2 <- cyspdata[-to.rm,]
+    to.rm <- which(cyspdata$br == 0)
+    cyspdata2 <- cyspdata[-to.rm,]
+    # cyspdata2 <- cyspdata
     
     #bird not seen - fill with zeros
-    na.ind <- which(is.na(cyspdata$br))
-    cyspdata$br[na.ind] <- 0
+    na.ind <- which(is.na(cyspdata2$br))
+    cyspdata2$br[na.ind] <- 0
     
     #adjust date based on breeding code
-    cyspdata$jday_adj <- cyspdata$jday
-    F_idx <- which(cyspdata$breeding_code == 'F') #-29
-    Y_idx <- which(cyspdata$breeding_code == 'Y') #-16
-    cyspdata$jday_adj[F_idx] <- cyspdata$jday[F_idx] - 29
-    cyspdata$jday_adj[Y_idx] <- cyspdata$jday[Y_idx] - 16
+    cyspdata2$jday_adj <- cyspdata2$jday
+    F_idx <- which(cyspdata2$breeding_code == 'F') #-29
+    Y_idx <- which(cyspdata2$breeding_code == 'Y') #-16
+    cyspdata2$jday_adj[F_idx] <- cyspdata2$jday[F_idx] - 29
+    cyspdata2$jday_adj[Y_idx] <- cyspdata2$jday[Y_idx] - 16
     
-    #number of surveys where breeding was detected (confirmed or probable)
-    n1 <- sum(cyspdata$br)
-    #number of surveys where breeding was not detected (bird not seen breeding or not seen)
-    n0 <- sum(cyspdata$br == 0)
+    #number of surveys where breeding was detected - see reference above
+    n1 <- sum(cyspdata2$br)
+    #number of surveys where breeding was not detected (bird seen but not seen breeding)
+    n0 <- sum(cyspdata2$br == 0)
     #number of detections that came before jday 60
-    n1W <- sum(cyspdata$br * as.numeric(cyspdata$jday_adj < 60))
+    n1W <- sum(cyspdata2$br * as.numeric(cyspdata2$jday_adj < 60))
     #number of unique days with detections
-    njd1 <- length(unique(cyspdata$jday_adj[which(cyspdata$br == 1)]))
+    njd1 <- length(unique(cyspdata2$jday_adj[which(cyspdata2$br == 1)]))
     #number of unique days with non-detection
-    njd0 <- length(unique(cyspdata$jday_adj[which(cyspdata$br == 0)]))
+    njd0 <- length(unique(cyspdata2$jday_adj[which(cyspdata2$br == 0)]))
     #number of total unique days
-    njd <- length(unique(cyspdata$day))
+    njd <- length(unique(cyspdata2$day))
     
     if (n1 > 0)
     {
       #number of unique days of non-detections before first detection
-      njd0i <- length(unique(cyspdata$jday_adj[which(cyspdata$br == 0 & cyspdata$jday_adj < 
-                                                 min(cyspdata$jday_adj[which(cyspdata$br == 1)]))]))
+      njd0i <- length(unique(cyspdata2$jday_adj[which(cyspdata2$br == 0 & cyspdata2$jday_adj < 
+                                                 min(cyspdata2$jday_adj[which(cyspdata2$br == 1)]))]))
       #number of non-detections before first detection
-      n0i <- length(which(cyspdata$br == 0 & 
-                            cyspdata$jday_adj < min(cyspdata$jday_adj[which(cyspdata$br == 1)])))
+      n0i <- length(which(cyspdata2$br == 0 & 
+                            cyspdata2$jday_adj < min(cyspdata2$jday_adj[which(cyspdata2$br == 1)])))
     } else {
       njd0i <- 0
       n0i <- 0
@@ -360,17 +366,17 @@ for (j in 1:nyr)
     halfmax_df$njd0i[counter] <- njd0i
     
     #center effort (to make sure supplying value of 0 in post-model prediction is meaningful)
-    #cyspdata$shr <- scale(cyspdata$duration_minutes, scale = FALSE)[,1]
+    cyspdata2$shr <- scale(cyspdata2$duration_minutes, scale = FALSE)[,1]
     
     #defaults for rstanarm are 0.95 and 15
     DELTA <- 0.95
     TREE_DEPTH <- 15
     
-    #same thresholds as arrival models
-    if (n1 > 29 & n1W < (n1 / 50) & n0 > 29 & njd0i > 29 & njd1 > 19)
+    #same thresholds as arrival models + njd
+    if (n1 > 19 & n1W < (n1/50) & n0 > 19 & njd0i > 19 & njd1 > 9 & njd > 29)
     {
-      fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj) + shr,
-                                 data = cyspdata,
+      fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj, k = 30) + shr,
+                                 data = cyspdata2,
                                  family = binomial(link = "logit"),
                                  algorithm = 'sampling',
                                  iter = ITER,
@@ -384,21 +390,21 @@ for (j in 1:nyr)
       num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
       num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
-      #rerun model if things didn't go well
+      #rerun model if divergences occurred
       while (sum(c(num_diverge, num_BFMI)) > 0 & DELTA <= 0.98)
       {
         DELTA <- DELTA + 0.01
-
-        fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj) + shr,
-                                   data = cyspdata,
-                                   family = binomial(link = "logit"),
-                                   algorithm = 'sampling',
-                                   iter = ITER,
-                                   chains = CHAINS,
-                                   cores = CHAINS,
-                                   adapt_delta = DELTA,
-                                   control = list(max_treedepth = TREE_DEPTH))
-
+        
+        fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj, k = 30) + shr,
+                                     data = cyspdata,
+                                     family = binomial(link = "logit"),
+                                     algorithm = 'sampling',
+                                     iter = ITER,
+                                     chains = CHAINS,
+                                     cores = CHAINS,
+                                     adapt_delta = DELTA,
+                                     control = list(max_treedepth = TREE_DEPTH))
+        
         num_diverge <- rstan::get_num_divergent(fit2$stanfit)
         num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
         num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
@@ -417,7 +423,7 @@ for (j in 1:nyr)
       halfmax_df$min_neff[counter] <- min_neff
       
       #generate predict data
-      predictDays <- range(cyspdata$jday_adj)[1]:range(cyspdata$jday_adj)[2]
+      predictDays <- range(cyspdata2$jday_adj)[1]:range(cyspdata2$jday_adj)[2]
       newdata <- data.frame(jday_adj = predictDays, shr = 0)
       
       #predict response
@@ -429,7 +435,7 @@ for (j in 1:nyr)
       {
         rowL <- as.vector(dfit[L,])
         #first detection
-        fd <- min(cyspdata$jday_adj[which(cyspdata$detect == 1)])
+        fd <- min(cyspdata2$jday_adj[which(cyspdata2$br == 1)])
         #local maximum(s)
         #from: stackoverflow.com/questions/6836409/finding-local-maxima-and-minima
         lmax_idx <- which(diff(sign(diff(rowL))) == -2) + 1
@@ -448,14 +454,21 @@ for (j in 1:nyr)
           lmax2 <- predictDays[which.max(rowL)]
           tlmax[L] <- FALSE
         }
-        #position of min value before max - typically, where 0 is
-        lmin_idx <- which.min(rowL[1:lmax2_idx])
+        #local mins before max (global and local mins)
+        lmin_idx <- c(which.min(rowL[1:lmax2_idx]), 
+                      which(diff(sign(diff(rowL[1:lmax2_idx]))) == 2) + 1)
+        lmin <- predictDays[lmin_idx]
+        #local min nearest to local max
+        lmin2_idx <- lmin_idx[which.min(lmax2 - lmin)]
+        lmin2 <- predictDays[lmin2_idx]
+        
         #value at local max - value at min (typically 0)
-        dmm <- rowL[lmax2_idx] - rowL[lmin_idx]
-        #all positions less than or equal to half diff between max and min
-        tlm <- which(rowL <= ((dmm/2) + rowL[lmin_idx]))
-        #which of these come before max and after min
-        vgm <- which(tlm < lmax2_idx & tlm > lmin_idx)
+        dmm <- rowL[lmax2_idx] - rowL[lmin2_idx]
+        #all positions less than or equal to half diff between max and min + value min
+        tlm <- which(rowL <= ((dmm/2) + rowL[lmin2_idx]))
+        #which of these come before max and after or at min
+        
+        vgm <- tlm[which(tlm < lmax2_idx & tlm >= lmin2_idx)]
         #insert halfmax (first day for situations where max is a jday = 1)
         if (length(vgm) > 0)
         {
@@ -498,46 +511,39 @@ for (j in 1:nyr)
       ########################
       #PLOT MODEL FIT AND DATA
 
-      #summary(fit2)
-      mn_dfit <- apply(dfit, 2, mean)
-      LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
-      UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
-      mn_hm <- mean(halfmax_fit)
-      LCI_hm <- quantile(halfmax_fit, probs = 0.025)
-      UCI_hm <- quantile(halfmax_fit, probs = 0.975)
-
       pdf(paste0(args, '_', years[j], '_', cells[k], '_breeding.pdf'))
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-           xlab = 'Julian Day', ylab = 'Detection Probability')
+           xlab = 'Julian Day', ylab = 'Probability of breeding')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
-      dd <- cyspdata$br
+      dd <- cyspdata2$br
       dd[which(dd == 1)] <- max(UCI_dfit)
-      points(cyspdata$jday_adj, dd, col = rgb(0,0,0,0.25))
+      points(cyspdata2$jday_adj, dd, col = rgb(0,0,0,0.25))
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
-      legend('topleft',
+      legend('topright',
              legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
       
       # #alternative visualization
-      # pdf(paste0(args, '_', years[j], '_', cells[k], '_breeding_realizations.pdf'))
-      # plot(NA, xlim = c(range(cyspdata$jday_adj)[1]:range(cyspdata$jday_adj)[2]), ylim = c(0, quantile(dfit, 0.999)),
-      #      xlab = 'Julian Day', ylab = 'Probabiity of occurrence')
-      # for (L in 1:((ITER/2)*CHAINS))
-      # {
-      #   lines(range(cyspdata$jday_adj)[1]:range(cyspdata$jday_adj)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
-      # }
-      # for (L in 1:((ITER/2)*CHAINS))
-      # {
-      #   abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
-      # }
-      # dev.off()
+      pdf(paste0(args, '_', years[j], '_', cells[k], '_breeding_realizations.pdf'))
+      plot(NA, xlim = c(range(cyspdata2$jday_adj)[1], range(cyspdata2$jday_adj)[2]), 
+           ylim = c(0, quantile(dfit, 0.999)),
+           xlab = 'Julian Day', ylab = 'Probability of breeding')
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        lines(range(cyspdata2$jday_adj)[1]:range(cyspdata2$jday_adj)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
+      }
+      for (L in 1:((ITER/2)*CHAINS))
+      {
+        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.05))
+      }
+      dev.off()
       ########################
     }
     counter <- counter + 1
@@ -561,4 +567,3 @@ paste0('Runtime (minutes): ', rtime)
 
 
 print('I completed!')
-
