@@ -53,7 +53,7 @@ out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA,
                   mig_cell = NA, breed_cell = NA,
                   cell_lat = NA, cell_lng = NA, per_ovr = NA,
                   year = NA, arr_GAM_mean = NA, arr_GAM_sd = NA,
-                  arr_IAR_mean = NA, arr_IAR_sd = NA,
+                  arr_IAR_mean = NA, arr_IAR_sd = NA, plmax = NA,
                   gamma_mean = NA, gamma_sd = NA,
                   beta0_mean = NA, beta0_sd = NA,
                   alpha_gamma_mean = NA, alpha_gamma_sd = NA,
@@ -244,6 +244,7 @@ for (i in 1:length(species))
                          t_f_in[,c('per_ovr', 'year', 'HM_mean', 'HM_sd')],
                          arr_IAR_mean = fit_mean[j,], 
                          arr_IAR_sd = fit_sd[j,],
+                         plmax = t_f_in$plmax,
                          gamma_mean,
                          gamma_sd,
                          beta0_mean[j],
@@ -258,7 +259,7 @@ for (i in 1:length(species))
                          PPC_mn_dis,
                          PPC_mn_pval)
       
-      colnames(t_full)[c(9,10,15,16)] <- c('arr_GAM_mean', 'arr_GAM_sd', 
+      colnames(t_full)[c(9,10,16,17)] <- c('arr_GAM_mean', 'arr_GAM_sd', 
                                            'beta0_mean', 'beta0_sd')
      
       #fill empty df
