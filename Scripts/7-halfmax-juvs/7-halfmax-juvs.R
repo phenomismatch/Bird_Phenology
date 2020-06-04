@@ -1,5 +1,5 @@
 ######################
-# 7 - GAM model juvs MAPS
+# 7 - GAM model juv MAPS
 #
 # run for all cells (in and out of study area)
 ######################
@@ -22,7 +22,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # other dir ------------------------------------------------------------
 
 #run date
-RUN_DATE <- '2020-03-25'
+RUN_DATE <- '2020-06-04'
 
 #MAPS query date
 MAPS_date <- '2020-03-03'
@@ -43,11 +43,10 @@ library(rgdal)
 # Get args fed to script --------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
-
+#args <- 'Vireo_olivaceus'
 
 # model settings ----------------------------------------------------------
 
-#model settings
 ITER <- 3000
 CHAINS <- 4
 
@@ -116,7 +115,7 @@ rm(fname)
 
 
 #if there is a legitimate range
-if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
+if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
 {
   #good cells
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
@@ -193,8 +192,8 @@ if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
                            t_mat)
   
   #save to rds object
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('halfmax_juvs_', args, '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juv_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('halfmax_juv_', args, '.rds'))
   stop('Range not suitable for modeling!')
 }
 
@@ -227,8 +226,8 @@ if (NROW(m_mf) == 0)
                            t_mat)
   
   #save to rds object
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('halfmax_juvs_', args, '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juv_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('halfmax_juv_', args, '.rds'))
   stop('No data in breeding range!')
 }
 
@@ -287,23 +286,23 @@ halfmax_df <- data.frame(species = args,
 
 
 #create dir for figs if doesn't exist
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/halfmax/juvs_', RUN_DATE)),
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/halfmax/juvs_', RUN_DATE)),
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/halfmax/juv_', RUN_DATE)),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/halfmax/juv_', RUN_DATE)),
        FALSE)
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/juvs_', RUN_DATE))
+setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/juv_', RUN_DATE))
 
 
 #loop through each species, year, cell and extract half-max parameter
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 27
+  #j <- 3
   yspdata <- dplyr::filter(m_mf2, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 1
+    #k <- 24
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
     
     #filter by cell and breeding status for capture station
@@ -311,7 +310,7 @@ for (j in 1:nyr)
     
     #adults
     cyspdata_0 <- dplyr::filter(cyspdata, juv == 0)
-    #juvs
+    #juv
     cyspdata_1 <- dplyr::filter(cyspdata, juv == 1)
     
     #only first capture for each juv
@@ -337,9 +336,9 @@ for (j in 1:nyr)
     #bind adult and juv data together
     cyspdata_j <- rbind(cyspdata_0, cyspdata_1[jidx,])
     
-    #number of surveys where juvs were captured
+    #number of surveys where juv were captured
     n1 <- sum(cyspdata_j$juv)
-    #number of surveys where juvs were not captured (but adult was)
+    #number of surveys where juv were not captured (but adult was)
     n0 <- sum(cyspdata_j$juv == 0)
     # #number of detections that came before jday 60
     # n1W <- sum(cyspdata_j$juv * as.numeric(cyspdata_j$day < 60))
@@ -376,9 +375,9 @@ for (j in 1:nyr)
     DELTA <- 0.95
     TREE_DEPTH <- 15
     
-    if (n1 > 4 & n0 > 4 & njd0i > 2 & njd1 > 2 & njd > 9)
+    if (n1 > 4 & n0 > 4 & njd0i > 2 & njd1 > 2 & njd > 19)
     {
-      fit2 <- rstanarm::stan_gamm4(juv ~ s(day), 
+      fit2 <- rstanarm::stan_gamm4(juv ~ s(day, k = 20),
                                    data = cyspdata_j,
                                    family = binomial(link = "logit"),
                                    algorithm = 'sampling',
@@ -387,6 +386,16 @@ for (j in 1:nyr)
                                    cores = CHAINS,
                                    adapt_delta = DELTA,
                                    control = list(max_treedepth = TREE_DEPTH))
+      
+      # fit2 <- rstanarm::stan_glm(juv ~ day,
+      #                              data = cyspdata_j,
+      #                              family = binomial(link = "logit"),
+      #                              algorithm = 'sampling',
+      #                              iter = ITER,
+      #                              chains = CHAINS,
+      #                              cores = CHAINS,
+      #                              adapt_delta = DELTA,
+      #                              control = list(max_treedepth = TREE_DEPTH))
       
       #calculate diagnostics
       num_diverge <- rstan::get_num_divergent(fit2$stanfit)
@@ -398,7 +407,7 @@ for (j in 1:nyr)
       {
         DELTA <- DELTA + 0.01
         
-        fit2 <- rstanarm::stan_gamm4(juv ~ s(day),
+        fit2 <- rstanarm::stan_gamm4(juv ~ s(day, k = 20),
                                      data = cyspdata_j,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',
@@ -407,6 +416,16 @@ for (j in 1:nyr)
                                      cores = CHAINS,
                                      adapt_delta = DELTA,
                                      control = list(max_treedepth = TREE_DEPTH))
+        
+        # fit2 <- rstanarm::stan_glm(juv ~ day,
+        #                            data = cyspdata_j,
+        #                            family = binomial(link = "logit"),
+        #                            algorithm = 'sampling',
+        #                            iter = ITER,
+        #                            chains = CHAINS,
+        #                            cores = CHAINS,
+        #                            adapt_delta = DELTA,
+        #                            control = list(max_treedepth = TREE_DEPTH))
         
         num_diverge <- rstan::get_num_divergent(fit2$stanfit)
         num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
@@ -433,22 +452,21 @@ for (j in 1:nyr)
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
       tlmax <- rep(NA, ((ITER/2)*CHAINS))
-      #day at which probability of juv capture is half local maximum value
+      #day at which probability of occurence is half local maximum value
       for (L in 1:((ITER/2)*CHAINS))
       {
-        #L <- 1
         rowL <- as.vector(dfit[L,])
-        #first juv capture
+        #first detection
         fd <- min(cyspdata_j$day[which(cyspdata_j$juv == 1)])
         #local maximum(s)
         #from: stackoverflow.com/questions/6836409/finding-local-maxima-and-minima
         lmax_idx <- which(diff(sign(diff(rowL))) == -2) + 1
         lmax <- predictDays[lmax_idx]
-        #first local max to come after first juv capture
+        #first local max to come after first detection
         flm <- which(lmax > fd)
         if (length(flm) > 0)
         {
-          #first local max to come after first juv capture
+          #first local max to come after first detection
           lmax2_idx <- lmax_idx[min(flm)]
           lmax2 <- lmax[min(flm)]
           tlmax[L] <- TRUE
@@ -458,14 +476,21 @@ for (j in 1:nyr)
           lmax2 <- predictDays[which.max(rowL)]
           tlmax[L] <- FALSE
         }
-        #position of min value before max - typically, where 0 is
-        lmin_idx <- which.min(rowL[1:lmax2_idx])
+        #local mins before max (global and local mins)
+        lmin_idx <- c(which.min(rowL[1:lmax2_idx]), 
+                      which(diff(sign(diff(rowL[1:lmax2_idx]))) == 2) + 1)
+        lmin <- predictDays[lmin_idx]
+        #local min nearest to local max
+        lmin2_idx <- lmin_idx[which.min(lmax2 - lmin)]
+        lmin2 <- predictDays[lmin2_idx]
+        
         #value at local max - value at min (typically 0)
-        dmm <- rowL[lmax2_idx] - rowL[lmin_idx]
-        #all positions less than or equal to half diff between max and min
-        tlm <- which(rowL <= ((dmm/2) + rowL[lmin_idx]))
-        #which of these come before max and after min
-        vgm <- which(tlm < lmax2_idx & tlm > lmin_idx)
+        dmm <- rowL[lmax2_idx] - rowL[lmin2_idx]
+        #all positions less than or equal to half diff between max and min + value min
+        tlm <- which(rowL <= ((dmm/2) + rowL[lmin2_idx]))
+        #which of these come before max and after or at min
+        
+        vgm <- tlm[which(tlm < lmax2_idx & tlm >= lmin2_idx)]
         #insert halfmax (first day for situations where max is a jday = 1)
         if (length(vgm) > 0)
         {
@@ -507,11 +532,11 @@ for (j in 1:nyr)
       ########################
       #PLOT MODEL FIT AND DATA
       
-      pdf(paste0(args, '_', years[j], '_', cells[k], '_juvs.pdf'))
+      pdf(paste0(args, '_', years[j], '_', cells[k], '_juv.pdf'))
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-           xlab = 'Julian Day', ylab = 'Juvenile capture probability')
+           xlab = 'Julian Day', ylab = 'Probability of capture')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
       dd <- cyspdata_j$juv
@@ -521,45 +546,23 @@ for (j in 1:nyr)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       legend('topleft',
-             legend = c('Cubic fit', 'CI fit', 'Half max', 'CI HM'),
+             legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
       
-      # #plot code for presentation
-      # pdf(paste0(args, '_', years[j], '_', cells[k], '_juvs.pdf'))
-      # plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 5,
-      #      ylim = c(0, max(UCI_dfit)),
-      #      #main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-      #      #xlab = 'Julian Day', ylab = 'Juvenile capture probability',
-      #      tck = 0, ann = FALSE, xaxt = 'n', yaxt = 'n')
-      # lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 5)
-      # lines(predictDays, mn_dfit, lwd = 5)
-      # dd <- cyspdata_j$juv
-      # dd[which(dd == 1)] <- max(UCI_dfit)
-      # points(cyspdata_j$day, dd, col = rgb(0,0,0,0.25), cex = 2)
-      # abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 5)
-      # abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
-      # abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
-      # #legend('topleft',
-      # #       legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
-      # #       col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
-      # #       lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
-      # dev.off()
-      
       # #alternative visualization
       pdf(paste0(args, '_', years[j], '_', cells[k], '_juv_realizations.pdf'))
-      plot(NA, xlim = c(range(cyspdata_j$day)[1], range(cyspdata_j$day)[2]), ylim = c(0, quantile(dfit, 0.999)),
-           xlab = 'Julian Day', ylab = 'Juvenile capture probability')
+      plot(NA, xlim = c(range(cyspdata_j$day)[1], range(cyspdata_j$day)[2]), 
+           ylim = c(0, quantile(dfit, 0.999)),
+           xlab = 'Julian Day', ylab = 'Probability of capture')
       for (L in 1:((ITER/2)*CHAINS))
       {
-        #L <- 1
-        lines(range(cyspdata_j$day)[1]:range(cyspdata_j$day)[2], as.vector(dfit[L,]), 
-              type = 'l', col = rgb(0,0,0,0.025))
+        lines(range(cyspdata_j$day)[1]:range(cyspdata_j$day)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
       }
       for (L in 1:((ITER/2)*CHAINS))
       {
-        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.025))
+        abline(v = halfmax_fit[L], col = rgb(1,0,0,0.05))
       }
       dev.off()
       ########################
@@ -572,8 +575,8 @@ for (j in 1:nyr)
 OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
 
 #save to rds object
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_juvs_', RUN_DATE))
-saveRDS(OUT, file = paste0('halfmax_juvs_', args, '.rds'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_juv_', RUN_DATE))
+saveRDS(OUT, file = paste0('halfmax_juv_', args, '.rds'))
 
 
 # runtime -----------------------------------------------------------------
