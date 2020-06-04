@@ -139,8 +139,8 @@ for (i in 1:nsp)
     diagnostics_frame <- data.frame(species = na_reps,
                                     year = na_reps,
                                     cell = na_reps,
-                                    HM_mean = na_reps,
-                                    HM_sd = na_reps,
+                                    arr_GAM_mean = na_reps,
+                                    arr_GAM_sd = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
                                     mlmax = na_reps,
@@ -324,8 +324,8 @@ for (i in 1:nsp)
           #calculate posterior mean and sd
           if (sum(!is.na(halfmax_posterior)) > 0)
           {
-            diagnostics_frame$HM_mean[counter] <- mean(halfmax_posterior)
-            diagnostics_frame$HM_sd[counter] <- sd(halfmax_posterior)
+            diagnostics_frame$arr_GAM_mean[counter] <- mean(halfmax_posterior)
+            diagnostics_frame$arr_GAM_sd[counter] <- sd(halfmax_posterior)
           }
         }
         counter <- counter + 1
@@ -348,24 +348,24 @@ diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
 
 # filter by diagnostics ---------------------------------------------------
 
-### add NA for both HM_mean and HM_sd if any of the following conditions are met
+### add NA for both arr_GAM_mean and arr_GAM_sd if any of the following conditions are met
 
 to.NA <- which(diagnostics_frame3$num_diverge > 0 | 
                  diagnostics_frame3$max_Rhat > 1.02 |
                  diagnostics_frame3$min_neff < 400 |
                  diagnostics_frame3$num_BFMI > 0 |
-                 diagnostics_frame3$HM_sd > 10 | 
+                 diagnostics_frame3$arr_GAM_sd > 15 | 
                  diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
-                 diagnostics_frame3$plmax < 0.8) #local max for > 80% of detection curve realizations
+                 diagnostics_frame3$plmax < 0.99) #local max for > 80% of detection curve realizations
 
 # diagnostics_frame3[to.NA,c('species', 'cell', 'year',
-#                            'HM_sd', 'min_neff', 'num_diverge', 'max_Rhat', 
+#                            'arr_GAM_sd', 'min_neff', 'num_diverge', 'max_Rhat', 
 #                            'per_ovr', 'plmax')]
 
 if (length(to.NA) > 0)
 {
-  diagnostics_frame3[to.NA,'HM_mean'] <- NA
-  diagnostics_frame3[to.NA,'HM_sd'] <- NA
+  diagnostics_frame3[to.NA,'arr_GAM_mean'] <- NA
+  diagnostics_frame3[to.NA,'arr_GAM_sd'] <- NA
 }
 
 
@@ -395,7 +395,7 @@ for (i in 1:length(species_list))
       {
         #j <- 2018
         ty_sp3 <- dplyr::filter(t_sp, year == j)
-        ind <- which(!is.na(ty_sp3$HM_mean))
+        ind <- which(!is.na(ty_sp3$arr_GAM_mean))
         nobs_yr <- c(nobs_yr, length(ind))
         #ty_sp[ind,]
       }
@@ -411,7 +411,7 @@ for (i in 1:length(species_list))
         {
           #j <- 2012
           ty2_sp3 <- dplyr::filter(t_sp, year == j)
-          ind2 <- which(!is.na(ty2_sp3$HM_mean))
+          ind2 <- which(!is.na(ty2_sp3$arr_GAM_mean))
           nobs_yr2 <- c(nobs_yr2, length(ind2))
         }
       
