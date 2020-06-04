@@ -430,7 +430,6 @@ for (j in 1:nyr)
         tlm <- which(rowL <= ((dmm/2) + rowL[lmin2_idx]))
         #which of these come before max and after or at min
         
-        #TLM NEEDED???
         vgm <- tlm[which(tlm < lmax2_idx & tlm >= lmin2_idx)]
         #insert halfmax (first day for situations where max is a jday = 1)
         if (length(vgm) > 0)
