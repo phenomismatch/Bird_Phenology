@@ -167,18 +167,18 @@ for (i in 1:nyr)
   temp_yr <- dplyr::filter(f_out, year == years[i])
   
   #don't need to manipulate position of sigmas
-  sigma_y_in[i,] <- temp_yr$HM_sd
+  sigma_y_in[i,] <- temp_yr$arr_GAM_sd
   
   for (j in 1:ncell)
   {
     #n <- 1
     #matrix with observed values with NAs
-    y_PPC[counter] <- temp_yr$HM_mean[j]
+    y_PPC[counter] <- temp_yr$arr_GAM_mean[j]
     counter <- counter + 1
   }
   
   #which are not NA
-  no_na <- temp_yr$HM_mean[which(!is.na(temp_yr$HM_mean))]
+  no_na <- temp_yr$arr_GAM_mean[which(!is.na(temp_yr$arr_GAM_mean))]
   
   #pad end with NAs
   if (length(no_na) < ncell)
@@ -187,8 +187,8 @@ for (i in 1:nyr)
     
     #add NAs to end
     t_y_obs_in <- c(no_na, rep(NA, num_na))
-    t_obs_in <- c(which(!is.na(temp_yr$HM_mean)), rep(NA, num_na)) 
-    t_mis_in <- c(which(is.na(temp_yr$HM_mean)), rep(NA, length(no_na)))
+    t_obs_in <- c(which(!is.na(temp_yr$arr_GAM_mean)), rep(NA, num_na)) 
+    t_mis_in <- c(which(is.na(temp_yr$arr_GAM_mean)), rep(NA, length(no_na)))
     
     #fill objects
     ii_obs_in[i,] <- t_obs_in
@@ -197,8 +197,8 @@ for (i in 1:nyr)
   } else {
     #no NAs to end (no mimssing values)
     y_obs_in[i,] <- no_na
-    ii_mis_in[i,] <- which(!is.na(temp_yr$HM_mean))
-    y_obs_in[i,] <- which(is.na(temp_yr$HM_mean))
+    ii_mis_in[i,] <- which(!is.na(temp_yr$arr_GAM_mean))
+    y_obs_in[i,] <- which(is.na(temp_yr$arr_GAM_mean))
   }
   
   #length of data/miss for each year
@@ -576,12 +576,10 @@ ll_df <- data.frame(cell = cells,
                     lat_deg = cell_centers$lat_deg)
 
 #load maps
-usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
-canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
-mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
+worldmap <- data.frame(maps::map("world", plot = FALSE)[c("x", "y")])
 
 #min/max for plotting using input data
-#f_rng <- c(range(f_out$HM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
+#f_rng <- c(range(f_out$arr_GAM_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
 #MIN <- round(min(f_rng))
 #MAX <- round(max(f_rng))
 
@@ -628,17 +626,13 @@ for (i in 1:length(years))
   #filter data for year[i]
   f_out_filt <- dplyr::filter(f_out, year == years[i])
   
-  #merge hex spatial data with HM data
+  #merge hex spatial data with GAM data
   to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
   to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
   
   #pre-IAR
   p <- ggplot() +
-    geom_path(data = usamap,
-              aes(x = x, y = y), color = 'black') +
-    geom_path(data = canadamap,
-              aes(x = x, y = y), color = 'black') +
-    geom_path(data = mexicomap,
+    geom_path(data = worldmap,
               aes(x = x, y = y), color = 'black') +
     # geom_polygon(data = nrng.df,
     #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) +
@@ -646,7 +640,7 @@ for (i in 1:length(years))
     #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) +
     coord_map("ortho", orientation = c(35, -80, 0),
               xlim = c(-100, -55), ylim = c(23, 66)) +
-    geom_polygon(data = to_plt2, aes(x = long, y = lat.y, group = group, fill = HM_mean),
+    geom_polygon(data = to_plt2, aes(x = long, y = lat.y, group = group, fill = arr_GAM_mean),
                  alpha = 0.4) +
     geom_path(data = to_plt2, aes(x = long, y = lat.y, group = group),
               alpha = 0.4, color = 'black') +
@@ -654,10 +648,10 @@ for (i in 1:length(years))
                          limits = c(MIN, MAX)) +
     labs(fill = 'Estimated Arrival') +
     annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5,
-             label = round(to_plt2$HM_mean, digits = 0), col = 'black', alpha = 0.2,
+             label = round(to_plt2$arr_GAM_mean, digits = 0), col = 'black', alpha = 0.2,
              size = 4) +
     annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5,
-             label = round(to_plt2$HM_sd, digits = 0), col = 'white', alpha = 0.3,
+             label = round(to_plt2$arr_GAM_sd, digits = 0), col = 'white', alpha = 0.3,
              size = 3) +
     ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Pre-IAR')) +
     theme_bw() +
@@ -675,18 +669,14 @@ for (i in 1:length(years))
   #median of mu and sd of mu
   m_fit <- data.frame(med_mu = t_med_fit, sd_mu = t_sd_fit, cell = cells)
   
-  #merge hex spatial data with HM data
+  #merge hex spatial data with GAM data
   to_plt_post <- dplyr::inner_join(m_fit, cell_grid, by = 'cell')
   to_plt2_post <- dplyr::inner_join(to_plt_post, ll_df, by = 'cell')
   
   
   #plot
   p_post <- ggplot() +
-    geom_path(data = usamap,
-              aes(x = x, y = y), color = 'black') +
-    geom_path(data = canadamap,
-              aes(x = x, y = y), color = 'black') +
-    geom_path(data = mexicomap,
+    geom_path(data = worldmap,
               aes(x = x, y = y), color = 'black') +
     # geom_polygon(data = nrng.df,
     #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) +
