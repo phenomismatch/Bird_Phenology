@@ -340,8 +340,6 @@ for (j in 1:nyr)
     n1 <- sum(cyspdata_j$juv)
     #number of surveys where juv were not captured (but adult was)
     n0 <- sum(cyspdata_j$juv == 0)
-    # #number of detections that came before jday 60
-    # n1W <- sum(cyspdata_j$juv * as.numeric(cyspdata_j$day < 60))
     #number of unique days with juv captures
     njd1 <- length(unique(cyspdata_j$day[which(cyspdata_j$juv == 1)]))
     #number of unique days with no juv captures (but adults captures)
@@ -363,7 +361,6 @@ for (j in 1:nyr)
     }
     
     halfmax_df$n1[counter] <- n1
-    # halfmax_df$n1W[counter] <- n1W
     halfmax_df$n0[counter] <- n0
     halfmax_df$n0i[counter] <- n0i
     halfmax_df$njd[counter] <- njd
