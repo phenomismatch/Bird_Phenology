@@ -389,7 +389,7 @@ for (j in 1:nyr)
         DELTA <- DELTA + 0.01
         
         fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj, k = 30) + shr,
-                                     data = cyspdata,
+                                     data = cyspdata2,
                                      family = binomial(link = "logit"),
                                      algorithm = 'sampling',
                                      iter = ITER,
