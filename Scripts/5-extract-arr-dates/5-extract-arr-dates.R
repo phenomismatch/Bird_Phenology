@@ -56,7 +56,7 @@ out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA,
                   arr_IAR_mean = NA, arr_IAR_sd = NA, plmax = NA,
                   gamma_mean = NA, gamma_sd = NA,
                   beta0_mean = NA, beta0_sd = NA,
-                  alpha_gamma_mean = NA, alpha_gamma_sd = NA,
+                  sigma_beta0_mean = NA, sigma_beta0_sd = NA,
                   beta_gamma_mean = NA, beta_gamma_sd = NA,
                   num_diverge = NA, max_Rhat = NA, min_neff = NA,
                   PPC_mn_bias = NA, PPC_mn_pval = NA)
@@ -180,14 +180,10 @@ for (i in 1:length(species))
     beta0_mean <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = mean)[[1]]
     beta0_sd <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = sd)[[1]]
     
-    #extract arrival date of species at lat 0 (alpha_gamma)
-    alpha_gamma_mean <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
-                                          func = mean)[[1]]
-    alpha_gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'alpha_gamma', 
-                                        func = sd)[[1]]
-    # alpha_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'alpha_gamma')
-    # colnames(alpha_gamma_ch) <- sp
-    
+    #extract variance year effect (sigma_beta0)
+    sigma_beta0_mean <- MCMCvis::MCMCpstr(t_fit, params = 'sigma_beta0', func = mean)[[1]]
+    sigma_beta0_sd <- MCMCvis::MCMCpstr(t_fit, params = 'sigma_beta0', func = sd)[[1]]
+
     #extract migration speed (beta_gamma)
     beta_gamma_mean <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
                                           func = mean)[[1]]
@@ -241,7 +237,7 @@ for (i in 1:length(species))
       t_full <- data.frame(t_f_in[,c('species','cell', 'mig_cell', 'breed_cell')], 
                          cell_lat = round(cellcenters$lat_deg, digits = 2), 
                          cell_lng = round(cellcenters$lon_deg, digits = 2),
-                         t_f_in[,c('per_ovr', 'year', 'HM_mean', 'HM_sd')],
+                         t_f_in[,c('per_ovr', 'year', 'arr_GAM_mean', 'arr_GAM_sd')],
                          arr_IAR_mean = fit_mean[j,], 
                          arr_IAR_sd = fit_sd[j,],
                          plmax = t_f_in$plmax,
@@ -249,8 +245,8 @@ for (i in 1:length(species))
                          gamma_sd,
                          beta0_mean[j],
                          beta0_sd[j],
-                         alpha_gamma_mean,
-                         alpha_gamma_sd,
+                         sigma_beta0_mean,
+                         sigma_beta0_sd,
                          beta_gamma_mean,
                          beta_gamma_sd,
                          num_diverge,
@@ -259,8 +255,7 @@ for (i in 1:length(species))
                          PPC_mn_dis,
                          PPC_mn_pval)
       
-      colnames(t_full)[c(9,10,16,17)] <- c('arr_GAM_mean', 'arr_GAM_sd', 
-                                           'beta0_mean', 'beta0_sd')
+      colnames(t_full)[c(16,17)] <- c('beta0_mean', 'beta0_sd')
      
       #fill empty df
       out[counter:(counter + NROW(t_full) - 1),] <- t_full

@@ -69,9 +69,6 @@ data <- readRDS(paste0('ebird_breeding_query_', args, '.rds'))
 
 #make hexgrid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
-data$cell <- dggridR::dgGEO_to_SEQNUM(hexgrid6, 
-                                      in_lon_deg = data$lng, 
-                                      in_lat_deg = data$lat)[[1]]
 
 setwd(paste0(dir, 'Bird_Phenology/Data/hex_grid_crop/'))
 
