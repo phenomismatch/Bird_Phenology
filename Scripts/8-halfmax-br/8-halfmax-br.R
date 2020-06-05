@@ -301,7 +301,7 @@ for (j in 1:nyr)
   
   for (k in 1:ncell)
   {
-    #k <- 55
+    #k <- 41
     print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
 
     cyspdata <- dplyr::filter(yspdata, cell == cells[k])
@@ -331,14 +331,12 @@ for (j in 1:nyr)
     n1 <- sum(cyspdata2$br)
     #number of surveys where breeding was not detected (bird seen but not seen breeding)
     n0 <- sum(cyspdata2$br == 0)
-    #number of detections that came before jday 60
-    n1W <- sum(cyspdata2$br * as.numeric(cyspdata2$jday_adj < 60))
     #number of unique days with detections
     njd1 <- length(unique(cyspdata2$jday_adj[which(cyspdata2$br == 1)]))
     #number of unique days with non-detection
     njd0 <- length(unique(cyspdata2$jday_adj[which(cyspdata2$br == 0)]))
     #number of total unique days
-    njd <- length(unique(cyspdata2$day))
+    njd <- length(unique(cyspdata2$jday_adj))
     
     if (n1 > 0)
     {
@@ -354,7 +352,6 @@ for (j in 1:nyr)
     }
     
     halfmax_df$n1[counter] <- n1
-    halfmax_df$n1W[counter] <- n1W
     halfmax_df$n0[counter] <- n0
     halfmax_df$n0i[counter] <- n0i
     halfmax_df$njd[counter] <- njd
@@ -369,8 +366,7 @@ for (j in 1:nyr)
     DELTA <- 0.95
     TREE_DEPTH <- 15
     
-    #same thresholds as arrival models + njd
-    if (n1 > 19 & n1W < (n1/50) & n0 > 19 & njd0i > 19 & njd1 > 9 & njd > 29)
+    if (n1 > 5 & n0 > 5 & njd0i > 5 & njd1 > 5 & njd > 29)
     {
       fit2 <- rstanarm::stan_gamm4(br ~ s(jday_adj, k = 30) + shr,
                                  data = cyspdata2,
