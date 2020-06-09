@@ -35,7 +35,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2020-05-07'
-IAR_out_dir <- 'IAR_output_2020-05-15'
+IAR_out_dir <- 'IAR_output_2020-06-08'
 
 
 # Load packages -----------------------------------------------------------
@@ -69,7 +69,12 @@ args <- commandArgs(trailingOnly = TRUE)
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
 #filter by species and year to be modeled
-f_out <- dplyr::filter(df_master, species == args & MODEL == TRUE)
+f_out <- dplyr::filter(df_master, species == args[1] & MODEL == TRUE)
+
+#fill invalid rows with NA
+f_idx <- which(f_out$VALID == FALSE)
+f_out$arr_GAM_mean[f_idx] <- NA
+f_out$arr_GAM_sd[f_idx] <- NA
 
 #define cells and years to be modeled
 cells <- unique(f_out$cell)
@@ -346,7 +351,7 @@ DELTA <- 0.90
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.0005
 CHAINS <- 4
-ITER <- 5000
+ITER <- args[2]
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR,
@@ -423,10 +428,10 @@ while ((max(rhat_output) > 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 10
 
 #save to RDS
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', IAR_out_dir))
-saveRDS(fit, file = paste0(args, '-iar-stan_output-', IAR_out_date, '.rds'))
+saveRDS(fit, file = paste0(args[1], '-iar-stan_output-', IAR_out_date, '.rds'))
 
 #save data to RDS (has which cells are modeled)
-saveRDS(DATA, file = paste0(args, '-iar-stan_input-',  IAR_out_date, '.rds'))
+saveRDS(DATA, file = paste0(args[1], '-iar-stan_input-',  IAR_out_date, '.rds'))
 
 
 # Calc diagnostics ---------------------------------------------------
@@ -466,7 +471,7 @@ PPC_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
 }
 PPC_mn <- PPC_fun(mean)
 
-pdf(paste0(args, '_PPC_mn.pdf'))
+pdf(paste0(args[1], '_PPC_mn.pdf'))
 bayesplot::ppc_stat(n_y_PPC, n_y_rep, stat = 'mean')
 dev.off()
 
@@ -508,28 +513,28 @@ p <- ggplot(tdata) +
         plot.title = element_text(size = 24)) +
   labs(colour = '') +
   scale_color_manual(values = c('red', 'black')) +
-  ggtitle(paste0(args)) +
+  ggtitle(paste0(args[1])) +
   geom_text(data = annotations, aes(x = xpos, y = ypos,
                                     hjust = hjustvar, vjust = vjustvar,
                                     label = annotateText),
             size = 3, col = 'black')
 
-ggsave(paste0(args, '_dens_overlay.pdf'), p)
+ggsave(paste0(args[1], '_dens_overlay.pdf'), p)
 
 
 #average yrep for each pnt
 yrm <- apply(n_y_rep, 2, mean)
-pdf(paste0(args, '_pred_true.pdf'))
+pdf(paste0(args[1], '_pred_true.pdf'))
 plot(n_y_PPC, yrm, pch = 19, col = rgb(0,0,0,0.4),
      xlim = range(n_y_PPC, yrm), ylim = range(n_y_PPC, yrm),
-     xlab = 'y', ylab = 'y_rep', main = paste0(args))
+     xlab = 'y', ylab = 'y_rep', main = paste0(args[1]))
 abline(a = 0, b = 1, lty = 2, lwd = 2, col = 'red')
 dev.off()
 
 
 #histrogram of residuals
-pdf(paste0(args, '_hist_resid.pdf'))
-hist(ind_resid, main = paste0(args),
+pdf(paste0(args[1], '_hist_resid.pdf'))
+hist(ind_resid, main = paste0(args[1]),
      xlab = 'Residuals (predicted - true)')
 abline(v = 0, lty = 2, lwd = 3, col = 'red')
 dev.off()
@@ -538,8 +543,8 @@ dev.off()
 # write model results to file ---------------------------------------------
 
 options(max.print = 5e6)
-sink(paste0(args, '-iar-stan_results-', IAR_out_date, '.txt'))
-cat(paste0('IAR results ', args, ' \n'))
+sink(paste0(args[1], '-iar-stan_results-', IAR_out_date, '.txt'))
+cat(paste0('IAR results ', args[1], ' \n'))
 cat(paste0('Total minutes: ', round(run_time, digits = 2), ' \n'))
 cat(paste0('Iterations: ', ITER, ' \n'))
 cat(paste0('Adapt delta: ', DELTA, ' \n'))
@@ -717,7 +722,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-trace_alpha_gamma-', IAR_out_date, '.pdf'))
+                   filename = paste0(args[1], '-trace_alpha_gamma-', IAR_out_date, '.pdf'))
 
 #beta_gamma ~ normal(3, 3)
 PR <- rnorm(10000, 3, 3)
@@ -725,7 +730,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'beta_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-trace_beta_gamma-', IAR_out_date, '.pdf'))
+                   filename = paste0(args[1], '-trace_beta_gamma-', IAR_out_date, '.pdf'))
 
 #sigma_gamma ~ halfnormal(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -734,7 +739,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_gamma',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-trace_sigma_gamma-', IAR_out_date, '.pdf'))
+                   filename = paste0(args[1], '-trace_sigma_gamma-', IAR_out_date, '.pdf'))
 
 #sigma_beta0 ~ HN(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -743,7 +748,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_beta0',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-trace_sigma_beta0-', IAR_out_date, '.pdf'))
+                   filename = paste0(args[1], '-trace_sigma_beta0-', IAR_out_date, '.pdf'))
 
 #sigma_y_true ~ HN(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -752,7 +757,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_y_true',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-trace_sigma_y_true-', IAR_out_date, '.pdf'))
+                   filename = paste0(args[1], '-trace_sigma_y_true-', IAR_out_date, '.pdf'))
 
 #sigma_phi ~ HN(0, 10)
 PR_p <- rnorm(10000, 0, 10)
@@ -761,7 +766,7 @@ MCMCvis::MCMCtrace(fit,
                    params = 'sigma_phi',
                    priors = PR,
                    open_pdf = FALSE,
-                   filename = paste0(args, '-trace_sigma_phi-', IAR_out_date, '.pdf'))
+                   filename = paste0(args[1], '-trace_sigma_phi-', IAR_out_date, '.pdf'))
 
 
 if ('Rplots.pdf' %in% list.files())
