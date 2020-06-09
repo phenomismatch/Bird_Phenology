@@ -1,7 +1,7 @@
 ######################
 # 9 - process juv GAM output
 #
-# Aggregate posterior info and diagnostic info from 7-halfmax-juvs.R
+# Aggregate posterior info and diagnostic info from 7-halfmax-juv.R
 #
 ######################
 
@@ -18,8 +18,8 @@ dir <- '~/Google_Drive/R/'
 # db/juv query dir ------------------------------------------------------------
 
 #input dir
-juv_date <- '2020-03-25'
-juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juvs_', juv_date)
+juv_date <- '2020-06-04'
+juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juv_', juv_date)
 
 #output dir
 juv_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date)
@@ -38,6 +38,7 @@ library(sp)
 library(maptools)
 library(rgdal)
 library(rgeos)
+library(raster)
 
 
 # calculate grid/land overlap ---------------------------------------------
@@ -102,6 +103,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
+
 #years for MAPS data
 years <- 1989:2018
 nyr <- length(years)
@@ -117,7 +119,7 @@ for (i in 1:nsp)
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(juv_dir)
-  temp_halfmax <- readRDS(paste0('halfmax_juvs_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('halfmax_juv_', species_list[i], '.rds'))
    
   tu_cells[i] <- length(unique(temp_halfmax$cell))
 }
@@ -131,11 +133,11 @@ sp_key <- read.csv('species_filenames_key.csv')
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 4
+  #i <- 1
   
   #import halfmax estimates and diagnostics from GAM
   setwd(juv_dir)
-  temp_halfmax <- readRDS(paste0('halfmax_juvs_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('halfmax_juv_', species_list[i], '.rds'))
   
   if (i == 1)
   {
@@ -160,7 +162,6 @@ for (i in 1:nsp)
                                     tree_depth = na_reps,
                                     t_iter = na_reps,
                                     n1 = na_reps,
-                                    #n1W = na_reps,
                                     n0 = na_reps,
                                     n0i = na_reps,
                                     njd = na_reps,
@@ -198,7 +199,7 @@ for (i in 1:nsp)
   rm(sp_rng)
   
   #if there is a legitimate range
-  if (NROW(nrng@data) > 0 & extent(nrng)@xmax > -95)
+  if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
   {
     #br cells
     nrng_sp <- sp::SpatialPolygons(nrng@polygons)
@@ -267,7 +268,7 @@ for (i in 1:nsp)
     #create df for breed/mig range
     cell_df <- data.frame(cell = cells, breed_cell = TRUE, other_cell = FALSE)
     #fill mig range where appropriate
-    if (!is.na(mig_idx))
+    if (!is.na(mig_idx[1]))
     {
       cell_df$other_cell[mig_idx] <- TRUE
     }
@@ -364,33 +365,26 @@ to.rm <- min(which(is.na(diagnostics_frame$species))):NROW(diagnostics_frame)
 diagnostics_frame2 <- diagnostics_frame[-to.rm,]
 
 
-# filter bad results ------------------------------------------------------
-
-### add NA for both juv_GAM_mean and juv_GAM_sd if any of the following conditions are met
-
-to.NA <- which(diagnostics_frame2$num_diverge > 0 | 
-                 diagnostics_frame2$max_Rhat >= 1.05 |
-                 diagnostics_frame2$min_neff < 350 |
-                 diagnostics_frame2$num_BFMI > 0 |
-                 diagnostics_frame2$juv_GAM_sd > 15 | 
-                 diagnostics_frame2$mlmax == FALSE) #must have hump
-
-# #50% of cells are bad
-# length(to.NA) / sum(!is.na(diagnostics_frame2$juv_GAM_mean))
-# diagnostics_frame2[to.NA,c('species', 'cell', 'year',
-#                           'juv_GAM_mean', 'juv_GAM_sd', 'min_neff',
-#                           'num_diverge', 'max_Rhat', 'mlmax')]
-
-if (length(to.NA) > 0)
-{
-  diagnostics_frame2[to.NA,'juv_GAM_mean'] <- NA
-  diagnostics_frame2[to.NA,'juv_GAM_sd'] <- NA
-}
-
-
 # combine data with overlap df --------------------------------------------
 
 diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
+
+
+# filter bad results ------------------------------------------------------
+
+### not valid if any of the following conditions are met
+
+val_idx <- which(diagnostics_frame3$num_diverge > 0 | 
+                   diagnostics_frame3$max_Rhat > 1.02 |
+                   diagnostics_frame3$min_neff < 400 |
+                   diagnostics_frame3$num_BFMI > 0 |
+                   diagnostics_frame3$juv_GAM_sd > 15 | 
+                   diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
+                   #diagnostics_frame3$plmax < 0.99 |
+                   is.na(diagnostics_frame3$juv_GAM_mean)) #local max for > 99% of curves
+
+diagnostics_frame3$VALID <- TRUE
+diagnostics_frame3$VALID[val_idx] <- FALSE
 
 
 # order -------------------------------------------------------------------

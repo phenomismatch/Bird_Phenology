@@ -105,8 +105,6 @@ sp_rng <- rgdal::readOGR(fname[1], verbose = FALSE)
 #filter by breeding (2) - need to convert spdf to sp
 nrng <- sp_rng[which(sp_rng$SEASONAL == 2),]
 
-#do not exclude resident, non-breeding, and migration cells as breeding at station is a requirement for modeling
-
 #remove unneeded objects
 rm(sp_rng)
 rm(fname)
