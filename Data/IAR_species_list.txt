@@ -79,7 +79,6 @@
 "Spiza_americana"
 "Spizella_passerina"
 "Stelgidopteryx_serripennis"
-"Sturnella_magna"
 "Tachycineta_bicolor"
 "Troglodytes_aedon"
 "Troglodytes_hiemalis"

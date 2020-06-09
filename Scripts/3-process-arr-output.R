@@ -348,30 +348,24 @@ diagnostics_frame3 <- dplyr::left_join(diagnostics_frame2, ovr_df, by = 'cell')
 
 # filter by diagnostics ---------------------------------------------------
 
-### add NA for both arr_GAM_mean and arr_GAM_sd if any of the following conditions are met
+### not valid if any of the following conditions are met
 
-to.NA <- which(diagnostics_frame3$num_diverge > 0 | 
-                 diagnostics_frame3$max_Rhat > 1.02 |
-                 diagnostics_frame3$min_neff < 400 |
-                 diagnostics_frame3$num_BFMI > 0 |
-                 diagnostics_frame3$arr_GAM_sd > 15 | 
-                 diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
-                 diagnostics_frame3$plmax < 0.99) #local max for > 80% of detection curve realizations
+val_idx <- which(diagnostics_frame3$num_diverge > 0 | 
+                   diagnostics_frame3$max_Rhat > 1.02 |
+                   diagnostics_frame3$min_neff < 400 |
+                   diagnostics_frame3$num_BFMI > 0 |
+                   diagnostics_frame3$arr_GAM_sd > 15 | 
+                   diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
+                   diagnostics_frame3$plmax < 0.99 |
+                   is.na(diagnostics_frame3$arr_GAM_mean)) #local max for > 99% of curves
 
-# diagnostics_frame3[to.NA,c('species', 'cell', 'year',
-#                            'arr_GAM_sd', 'min_neff', 'num_diverge', 'max_Rhat', 
-#                            'per_ovr', 'plmax')]
-
-if (length(to.NA) > 0)
-{
-  diagnostics_frame3[to.NA,'arr_GAM_mean'] <- NA
-  diagnostics_frame3[to.NA,'arr_GAM_sd'] <- NA
-}
+diagnostics_frame3$VALID <- TRUE
+diagnostics_frame3$VALID[val_idx] <- FALSE
 
 
 # Filter data based on criteria -----------------------------------------------------------
 
-# Which species-years are worth modeling? At a bare minimum:
+# Species-years to model:
 #     Species with at least 'NC' cells in all three years from 2016-2018
 #     Species-years with at least 'NC' cells for those species
 
@@ -395,8 +389,8 @@ for (i in 1:length(species_list))
       {
         #j <- 2018
         ty_sp3 <- dplyr::filter(t_sp, year == j)
-        ind <- which(!is.na(ty_sp3$arr_GAM_mean))
-        nobs_yr <- c(nobs_yr, length(ind))
+        ind <- sum(ty_sp3$VALID)
+        nobs_yr <- c(nobs_yr, ind)
         #ty_sp[ind,]
       }
 
@@ -411,8 +405,8 @@ for (i in 1:length(species_list))
         {
           #j <- 2012
           ty2_sp3 <- dplyr::filter(t_sp, year == j)
-          ind2 <- which(!is.na(ty2_sp3$arr_GAM_mean))
-          nobs_yr2 <- c(nobs_yr2, length(ind2))
+          ind2 <- sum(ty2_sp3$VALID)
+          nobs_yr2 <- c(nobs_yr2, ind2)
         }
       
         #years to keep (more than three cells of data)
