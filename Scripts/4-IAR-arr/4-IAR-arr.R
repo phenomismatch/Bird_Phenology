@@ -351,7 +351,7 @@ DELTA <- 0.90
 TREE_DEPTH <- 16
 STEP_SIZE <- 0.0005
 CHAINS <- 4
-ITER <- args[2]
+ITER <- as.numeric(args[2])
 
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR,
