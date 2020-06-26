@@ -14,8 +14,8 @@ dir <- '~/Google_Drive/R/'
 # other dir ---------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2020-05-07'
-IAR_out_dir <- 'IAR_output_2020-05-15'
-master_out_dir <- 'arrival_master_2020-05-15'
+IAR_out_dir <- 'IAR_output_2020-06-08'
+master_out_dir <- 'arrival_master_2020-06-08'
 
 
 # Load packages -----------------------------------------------------------
@@ -52,14 +52,14 @@ species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_
 out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
                   mig_cell = NA, breed_cell = NA,
                   cell_lat = NA, cell_lng = NA, per_ovr = NA,
-                  year = NA, arr_GAM_mean = NA, arr_GAM_sd = NA,
-                  arr_IAR_mean = NA, arr_IAR_sd = NA, plmax = NA,
+                  year = NA, arr_GAM_mean = NA, arr_GAM_sd = NA, 
+                  VALID_GAM = NA, arr_IAR_mean = NA, arr_IAR_sd = NA, plmax = NA,
                   gamma_mean = NA, gamma_sd = NA,
                   beta0_mean = NA, beta0_sd = NA,
                   sigma_beta0_mean = NA, sigma_beta0_sd = NA,
                   beta_gamma_mean = NA, beta_gamma_sd = NA,
                   num_diverge = NA, max_Rhat = NA, min_neff = NA,
-                  PPC_mn_bias = NA, PPC_mn_pval = NA)
+                  PPC_mn_dis = NA, PPC_mn_pval = NA)
 
 
 # run loop to fill empty dfs ----------------------------------------------------------------
@@ -140,7 +140,8 @@ for (i in 1:length(species))
       br_rng_sp <- sp::SpatialPolygons(br_rng@polygons)
       sp::proj4string(br_rng_sp) <- sp::CRS(sp::proj4string(br_rng))
       #find intersections with code from here: https://gis.stackexchange.com/questions/1504/extracting-intersection-areas-in-r
-      poly_int_br <- rgeos::gIntersects(hge, br_rng_sp, byid = TRUE)
+      hge2 <- sp::spTransform(hge, sp::proj4string(br_rng_sp))
+      poly_int_br <- rgeos::gIntersects(hge2, br_rng_sp, byid = TRUE)
       tpoly_br <- which(poly_int_br == TRUE, arr.ind = TRUE)[,2]
       br_cells <- hge_cells[as.numeric(tpoly_br[!duplicated(tpoly_br)])]
       #see which of these cells were actually used in modeling (don't overlap non-migratory/breeding ranges)
@@ -155,7 +156,8 @@ for (i in 1:length(species))
     {
       mig_rng_sp <- sp::SpatialPolygons(mig_rng@polygons)
       sp::proj4string(mig_rng_sp) <- sp::CRS(sp::proj4string(mig_rng))
-      poly_int_mig <- rgeos::gIntersects(hge, mig_rng_sp, byid = TRUE)
+      hge2 <- sp::spTransform(hge, sp::proj4string(mig_rng_sp))
+      poly_int_mig <- rgeos::gIntersects(hge2, mig_rng_sp, byid = TRUE)
       tpoly_mig <- which(poly_int_mig == TRUE, arr.ind = TRUE)[,2]
       mig_cells <- hge_cells[as.numeric(tpoly_mig[!duplicated(tpoly_mig)])]
       mig_cells_f <- mig_cells[which(mig_cells %in% t_cells)]
@@ -238,13 +240,14 @@ for (i in 1:length(species))
                          cell_lat = round(cellcenters$lat_deg, digits = 2), 
                          cell_lng = round(cellcenters$lon_deg, digits = 2),
                          t_f_in[,c('per_ovr', 'year', 'arr_GAM_mean', 'arr_GAM_sd')],
+                         VALID_GAM = t_f_in$VALID,
                          arr_IAR_mean = fit_mean[j,], 
                          arr_IAR_sd = fit_sd[j,],
                          plmax = t_f_in$plmax,
                          gamma_mean,
                          gamma_sd,
-                         beta0_mean[j],
-                         beta0_sd[j],
+                         beta0_mean = beta0_mean[j],
+                         beta0_sd = beta0_sd[j],
                          sigma_beta0_mean,
                          sigma_beta0_sd,
                          beta_gamma_mean,
@@ -254,8 +257,6 @@ for (i in 1:length(species))
                          min_neff,
                          PPC_mn_dis,
                          PPC_mn_pval)
-      
-      colnames(t_full)[c(16,17)] <- c('beta0_mean', 'beta0_sd')
      
       #fill empty df
       out[counter:(counter + NROW(t_full) - 1),] <- t_full
