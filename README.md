@@ -2,7 +2,7 @@
 
 Repository for code for analyzing bird arrival and nesting phenology.
 
-Repo is cloned onto Xanadu at `/labs/Tingley/phenomismatch/Bird_Phenology`. Directories marked as 'ignored' are in the repo but are not tracked. Any data will need to be transfered manually. DO NOT transfer large files on Xanadu user account. 
+Repo is cloned onto Xanadu at `/labs/Tingley/phenomismatch/Bird_Phenology`. Directories marked as 'ignored' are in the repo but are not tracked. Any data will need to be transfered manually. DO NOT transfer large files to/from Xanadu using user account. 
 
 For transfer TO Xanadu use:
 
@@ -12,11 +12,7 @@ For transfer FROM Xanadu use:
 
 `scp -r USER_NAME@transfer.cam.uchc.edu:SOURCE/PATH ~/DESTINATION/PATH`
 
-To check for divergences (or other cluster issues) in STDERR:
-
-`grep WORD *.err -lR`
-
-Query database with:
+Query database with (password required):
 
 `psql "sslmode=disable dbname=sightings user=cyoungflesh hostaddr=35.221.16.125"`
 
@@ -47,7 +43,6 @@ Repository structure:
     * `2-master-submit.sh` - script to be run (`./2-master-submit.sh`) on HPC cluster to submit all halfmax arr jobs
     * `species/` - contains job scripts for each species
       * `2-<Genus_species>.sh` - scripts to submit jobs for each species; run with `2-master-submit.sh`
-    * `model_tests` - scripts to test which model to use to estimate halfmax
   * `3-process-arr-output.R` - process model output from `2-halfmax-arr.R`, in prep for `4-IAR-arr.R`
   * `4-IAR-arr/` - [run time: up to 3 weeks?]
       * `4-IAR-arr.R` - fit arrival dates using IAR model to derive arrival date estimates (one model per species)
@@ -55,33 +50,28 @@ Repository structure:
       * `4-master-submit.sh` - script to be run (`./4-master-submit.sh`) on HPC cluster to submit all jobs
       * `species/` - contains job scripts for each species
         * `4-<Genus_species>.sh` - scripts to submit jobs for each species; run with `4-master-submit.sh`
-  * `4b-extract-daymet/` - [run time: up to 1 day?]
-    * `4b-extract-daymet.R` - R script to extract Daymet data
-    * `4b-run.sh` - script to run `4b-extract-temps.R` on cluster
   * `5-extract-arr-dates/`
     * `5-extract-arr-dates.R` - extract arrival dates for each species-cell-year from `4-IAR-arr.R` output
-    * `5-run.sh` - run `5-extract-arr-dates.R` on cluster (typically run on desktop)
     * `README_arrival_master.txt` - README for arrival master data
-  * `6-halfmax-juvs/` - halfmax model for fledging dates (derived from MAPS data) [run time: ???]
-    * `6-query-nesting-data.R` - query eBird breeding codes and MAPS data
-    * `6-halfmax-juvs.R` - R script to fit GAM models to estimate bird fledging date (from MAPS data) for each species/cell/year. Takes species argument (run from `6-<Genus_species>.sh` scripts)
-    * `6-create-batch-scripts.sh` - script to create scripts (`6-<Genus_species>.sh`) for HPC job submission
-    * `6-master-submit.sh` - script to be run (`./6-master-submit.sh`) on HPC cluster to submit all halfmax arr jobs
+  * `6-query-nesting-data.R` - query nesting data
+  * `7-halfmax-juv/` - halfmax model for fledging dates (derived from MAPS data) [run time: ???]
+    * `7-halfmax-juv.R` - R script to fit GAM models to estimate bird fledging date (from MAPS data) for each species/cell/year. Takes species argument (run from `7-<Genus_species>.sh` scripts)
+    * `7-create-batch-scripts.sh` - script to create scripts (`7-<Genus_species>.sh`) for HPC job submission
+    * `7-master-submit.sh` - script to be run (`./7-master-submit.sh`) on HPC cluster to submit all halfmax juv jobs
     * `species/` - contains job scripts for each species
-      * `6-<Genus_species>.sh` - scripts to submit jobs for each species; run with `6-master-submit.sh`
-  * `7-halfmax-br/` - halfmax model for breeding dates (derived from eBird breeding codes) [run time: ???]
-      * `7-halfmax-br.R` - R script to fit GAM models to estimate bird breeding date (from eBird breeding codes) for each species/cell/year. Takes species argument (run from `7-<Genus_species>.sh` scripts)
-      * `7-create-batch-scripts.sh` - script to create scripts (`7-<Genus_species>.sh`) for HPC job submission
-      * `7-master-submit.sh` - script to be run (`./7-master-submit.sh`) on HPC cluster to submit all jobs
+      * `7-<Genus_species>.sh` - scripts to submit jobs for each species; run with `7-master-submit.sh`
+  * `8-halfmax-br/` - halfmax model for breeding dates (derived from eBird breeding codes)
+      * `8-halfmax-br.R` - R script to fit GAM models to estimate bird breeding date (from eBird breeding codes) for each species/cell/year. Takes species argument (run from `8-<Genus_species>.sh` scripts)
+      * `8-create-batch-scripts.sh` - script to create scripts (`8-<Genus_species>.sh`) for HPC job submission
+      * `8-master-submit.sh` - script to be run (`./8-master-submit.sh`) on HPC cluster to submit all jobs
       * `species/` - contains job scripts for each species
-        * `7-<Genus_species>.sh` - scripts to submit jobs for each species; run with `7-master-submit.sh`
-  * `8-process-juv-br-output/` - process br and juv halfmax results
-    * `8-process-juv-output.R` - process model output from `6-halfmax-juvs.R`
-    * `8-process-br-output.R` - process model output from `7-halfmax-br.R`
+        * `8-<Genus_species>.sh` - scripts to submit jobs for each species; run with `7-master-submit.sh`
+  * `9-process-juv-br-output/` - process br and juv halfmax results
+    * `9-process-juv-output.R` - process model output from `7-halfmax-juvs.R`
+    * `9-process-br-output.R` - process model output from `8-halfmax-br.R`
   * `Archive/` - Archived scripts
   * `Other/`
-  * `IAR-sandbox/` - Jacob working scripts
 
 * `Figures/` (ignored)
 
-* `Resources/` - various resources
+* `Resources/` (ignored)
