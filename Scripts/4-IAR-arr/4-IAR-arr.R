@@ -26,10 +26,10 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/labs/Tingley/phenomismatch/'
+#dir <- '/labs/Tingley/phenomismatch/'
 
 
 # db/hm query dir ------------------------------------------------------------
@@ -61,6 +61,8 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 # species arg -----------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
+#args <- c('Catharus_guttatus', 40000)
+#args <- c('Euphagus_carolinus', 40000)
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -592,28 +594,6 @@ worldmap <- data.frame(maps::map("world", plot = FALSE)[c("x", "y")])
 MIN <- (round(min(med_fit)) - 1)
 MAX <- (round(max(med_fit)) + 1)
 
-#read in breeding/migration range shp file
-setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
-sp_rng <- rgdal::readOGR(f_out$shp_fname[1], verbose = FALSE)
-
-#filter by breeding (2) and migration (4) range - need to convert spdf to sp
-nrng <- sp_rng[which(sp_rng$SEASONAL == 2 | sp_rng$SEASONAL == 4),]
-nrng_sp <- sp::SpatialPolygons(nrng@polygons)
-
-#filter by resident (1) and over winter (3) range - need to convert spdf to sp
-nrng_rm <- sp_rng[which(sp_rng$SEASONAL == 1 | sp_rng$SEASONAL == 3),]
-nrng_rm_sp <- sp::SpatialPolygons(nrng_rm@polygons)
-
-
-#plotting species range
-nrng@data$id <- rownames(nrng@data)
-nrng.points <- ggplot2::fortify(nrng, region = "id")
-nrng.df <- plyr::join(nrng.points, nrng@data, by = "id")
-
-nrng_rm@data$id <- rownames(nrng_rm@data)
-nrng_rm.points <- ggplot2::fortify(nrng_rm, region = "id")
-nrng_rm.df <- plyr::join(nrng_rm.points, nrng_rm@data, by = "id")
-
 
 #create output image dir if it doesn't exist
 ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_dir)),
@@ -639,10 +619,6 @@ for (i in 1:length(years))
   p <- ggplot() +
     geom_path(data = worldmap,
               aes(x = x, y = y), color = 'black') +
-    # geom_polygon(data = nrng.df,
-    #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) +
-    # geom_polygon(data = nrng_rm.df,
-    #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) +
     coord_map("ortho", orientation = c(35, -80, 0),
               xlim = c(-100, -55), ylim = c(23, 66)) +
     geom_polygon(data = to_plt2, aes(x = long, y = lat.y, group = group, fill = arr_GAM_mean),
@@ -683,10 +659,6 @@ for (i in 1:length(years))
   p_post <- ggplot() +
     geom_path(data = worldmap,
               aes(x = x, y = y), color = 'black') +
-    # geom_polygon(data = nrng.df,
-    #           aes(x = long, y = lat, group=group), fill = 'green', alpha = 0.4) +
-    # geom_polygon(data = nrng_rm.df,
-    #              aes(x = long, y = lat, group=group), fill = 'orange', alpha = 0.4) +
     coord_map("ortho", orientation = c(35, -80, 0),
               xlim = c(-100, -55), ylim = c(23, 66)) +
     geom_polygon(data = to_plt2_post, aes(x = long, y = lat, group = group, fill = med_mu),
