@@ -14,7 +14,8 @@ dir <- '~/Google_Drive/R/'
 # other dir ---------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2020-05-07'
-IAR_out_dir <- 'IAR_output_2020-06-08'
+IAR_hm_out_date <- '2020-06-08'
+IAR_max_out_date <- '2020-06-08'
 master_out_dir <- 'arrival_master_2020-06-08'
 
 
@@ -42,6 +43,16 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 #read in master df
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
+
+
+###########
+#CHECK HERE
+all.equal(df_master$MODEL_hm, df_master$MODEL_max)
+###########
+
+
+
+
 species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_list.txt'))[,1])
 
 
@@ -51,15 +62,20 @@ species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_
 
 out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA, 
                   mig_cell = NA, breed_cell = NA,
-                  cell_lat = NA, cell_lng = NA, per_ovr = NA,
-                  year = NA, arr_GAM_mean = NA, arr_GAM_sd = NA, 
-                  VALID_GAM = NA, arr_IAR_mean = NA, arr_IAR_sd = NA, plmax = NA,
-                  gamma_mean = NA, gamma_sd = NA,
-                  beta0_mean = NA, beta0_sd = NA,
-                  sigma_beta0_mean = NA, sigma_beta0_sd = NA,
-                  beta_gamma_mean = NA, beta_gamma_sd = NA,
-                  num_diverge = NA, max_Rhat = NA, min_neff = NA,
-                  PPC_mn_dis = NA, PPC_mn_pval = NA)
+                  cell_lat = NA, cell_lng = NA, per_ovr = NA, year = NA, 
+                  arr_GAM_hm_mean = NA, arr_GAM_hm_sd = NA, 
+                  arr_GAM_max_mean = NA, arr_GAM_max_sd = NA, 
+                  VALID_GAM_hm = NA, VALID_GAM_max = NA, 
+                  arr_IAR_hm_mean = NA, arr_IAR_hm_sd = NA, 
+                  arr_IAR_max_mean = NA, arr_IAR_max_sd = NA,
+                  sigma_beta0_hm_mean = NA, sigma_beta0_hm_sd = NA,
+                  beta_gamma_hm_mean = NA, beta_gamma_hm_sd = NA,
+                  sigma_beta0_max_mean = NA, sigma_beta0_max_sd = NA,
+                  beta_gamma_max_mean = NA, beta_gamma_max_sd = NA, plmax = NA, 
+                  num_diverge_hm = NA, max_Rhat_hm = NA, min_neff_hm = NA,
+                  PPC_mn_dis_hm = NA, PPC_mn_pval_hm = NA,
+                  num_diverge_max = NA, max_Rhat_max = NA, min_neff_max = NA,
+                  PPC_mn_dis_max = NA, PPC_mn_pval_max = NA)
 
 
 # run loop to fill empty dfs ----------------------------------------------------------------
@@ -174,14 +190,6 @@ for (i in 1:length(species))
     fit_med <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = median)[[1]]
     fit_sd <- MCMCvis::MCMCpstr(t_fit, params = 'y_true', func = sd)[[1]]
     
-    #extract cell random effect (gamma)
-    gamma_mean <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = mean)[[1]]
-    gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'gamma', func = sd)[[1]]
-    
-    #extract year effect (beta0)
-    beta0_mean <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = mean)[[1]]
-    beta0_sd <- MCMCvis::MCMCpstr(t_fit, params = 'beta0', func = sd)[[1]]
-    
     #extract variance year effect (sigma_beta0)
     sigma_beta0_mean <- MCMCvis::MCMCpstr(t_fit, params = 'sigma_beta0', func = mean)[[1]]
     sigma_beta0_sd <- MCMCvis::MCMCpstr(t_fit, params = 'sigma_beta0', func = sd)[[1]]
@@ -191,8 +199,6 @@ for (i in 1:length(species))
                                           func = mean)[[1]]
     beta_gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma', 
                                         func = sd)[[1]]
-    # beta_gamma_ch <- MCMCvis::MCMCchains(t_fit, params = 'beta_gamma')
-    # colnames(beta_gamma_ch) <- sp
     
     #diagnostics
     num_diverge <- rstan::get_num_divergent(t_fit)

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATE="2020-06-04"
-mkdir /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_juv_$DATE
+mkdir /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/juv_GAM_$DATE
 
 while read name
 do
@@ -11,4 +11,4 @@ do
 done < ../../Data/eBird_species_list.txt
 #done < ../../Data/test_species_list.txt
 
-cp 7-halfmax-juv.R ../../Data/Processed/halfmax_juv_$DATE/7-halfmax-juv-$DATE.R
+cp 7-juv-GAM.R ../../Data/Processed/juv_GAM_$DATE/7-juv-GAM-$DATE.R
