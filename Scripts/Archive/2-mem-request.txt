@@ -1,12 +1,11 @@
 For 2-arr
 
-25GB request EXCEPT the following (need 50GB):
+30GB request EXCEPT the following (need 40GB):
 
-DONE - Empidonax_alnorum - ?FAIL - 10% of previous time
-DONE - Empidonax_virescens - ?FAIL - 8% of previous time
-DONE - Setophaga_americana - ?FAIL - XXXX
-DONE - Parkesia_noveboracensis - ?FAIL - XXXX
-
+DONE - Empidonax_alnorum
+DONE - Empidonax_virescens
+DONE - Setophaga_americana
+DONE - Parkesia_noveboracensis
 DONE - Contopus_virens
 DONE - Hirundo_rustica
 DONE - Setophaga_petechia
