@@ -4,7 +4,7 @@
 # Filters eBird data from DB
 # Zero fills
 # Creates directory of processed data (rds file for each species) and copy of this 
-# ... script (for reproducability) in /Data/Processed/eBird_query_<DATE>
+# ... script (for reproducibility) in /Data/Processed/eBird_query_<DATE>
 #
 # Runtime: 10-11 hours
 ####################
