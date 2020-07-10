@@ -60,9 +60,11 @@ IAR_out_date <- substr(IAR_out_dir, start = 12, stop = 21)
 
 # species arg -----------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
 #args <- c('Catharus_guttatus', 40000)
 #args <- c('Euphagus_carolinus', 40000)
+args <- c('Zonotrichia_albicollis', 20000)
+
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -392,7 +394,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # rerun if necessary ------------------------------------------------------
 
 #double iterations and run again
-while ((max(rhat_output) > 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 10001)
+while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 20001)
 {
   
   ITER <- ITER * 2

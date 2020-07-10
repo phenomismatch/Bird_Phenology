@@ -1,7 +1,7 @@
 ######################
-# 2 - halfmax model arrival
+# 2 - arrival GAM
 #
-# Fit model (GAM logistic regression) to eBird data to get half-max parameter (bird arrival) for each species-cell-year
+# Fit model (GAM logistic regression) to eBird data to get half-max and max (bird arrival metrics) for each species-cell-year
 #
 # y ~ bernouli(p)
 # logit(p) = s(day) + shr
@@ -30,7 +30,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 db_dir <- 'eBird_arrival_query_2020-02-25'
 
-RUN_DATE <- '2020-05-07'
+RUN_DATE <- '2020-07-10'
 
 
 # model settings ----------------------------------------------------------
@@ -197,7 +197,7 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
   #write blank .rds file
   t_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
   colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
-  halfmax_df <- data.frame(species = args, 
+  arrival_df <- data.frame(species = args, 
                            year = NA, 
                            cell = NA, 
                            max_Rhat = NA,
@@ -221,8 +221,8 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
                            t_mat)
 
   #save to rds object
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_arrival_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('halfmax_arrival_', args, '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arrival_GAM_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('arrival_GAM_', args, '.rds'))
   
   stop('Range not suitable for modeling!')
 }
@@ -239,7 +239,7 @@ nyr <- length(years)
 
 t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
 colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
-halfmax_df <- data.frame(species = args, 
+arrival_df <- data.frame(species = args, 
                          year = rep(years, each = ncell), 
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
@@ -264,11 +264,11 @@ halfmax_df <- data.frame(species = args,
 
 
 #create dir for figs if doesn't exist
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE)),
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE)),
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/GAM/arrival_', RUN_DATE)),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/GAM/arrival_', RUN_DATE)),
        FALSE)
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/arrival_', RUN_DATE))
+setwd(paste0(dir, 'Bird_Phenology/Figures/GAM/arrival_', RUN_DATE))
 
 
 #loop through each species, year, cell and extract half-max parameter
@@ -311,14 +311,14 @@ for (j in 1:nyr)
       n0i <- 0
     }
     
-    halfmax_df$n1[counter] <- n1
-    halfmax_df$n1W[counter] <- n1W
-    halfmax_df$n0[counter] <- n0
-    halfmax_df$n0i[counter] <- n0i
-    halfmax_df$njd[counter] <- njd
-    halfmax_df$njd1[counter] <- njd1
-    halfmax_df$njd0[counter] <- njd0
-    halfmax_df$njd0i[counter] <- njd0i
+    arrival_df$n1[counter] <- n1
+    arrival_df$n1W[counter] <- n1W
+    arrival_df$n0[counter] <- n0
+    arrival_df$n0i[counter] <- n0i
+    arrival_df$njd[counter] <- njd
+    arrival_df$njd1[counter] <- njd1
+    arrival_df$njd0[counter] <- njd0
+    arrival_df$njd0i[counter] <- njd0i
     
     #center effort (to make sure supplying value of 0 in post-model prediction is meaningful)
     cyspdata$shr <- scale(cyspdata$duration_minutes, scale = FALSE)[,1]
@@ -375,14 +375,14 @@ for (j in 1:nyr)
       max_Rhat <- round(max(summary(fit2)[, 'Rhat']), 2)
       min_neff <- min(summary(fit2)[, 'n_eff'])
       
-      halfmax_df$num_diverge[counter] <- num_diverge
-      halfmax_df$num_tree[counter] <- num_tree
-      halfmax_df$num_BFMI[counter] <- num_BFMI
-      halfmax_df$delta[counter] <- DELTA
-      halfmax_df$tree_depth[counter] <- TREE_DEPTH
-      halfmax_df$t_iter[counter] <- ITER
-      halfmax_df$max_Rhat[counter] <- max_Rhat
-      halfmax_df$min_neff[counter] <- min_neff
+      arrival_df$num_diverge[counter] <- num_diverge
+      arrival_df$num_tree[counter] <- num_tree
+      arrival_df$num_BFMI[counter] <- num_BFMI
+      arrival_df$delta[counter] <- DELTA
+      arrival_df$tree_depth[counter] <- TREE_DEPTH
+      arrival_df$t_iter[counter] <- ITER
+      arrival_df$max_Rhat[counter] <- max_Rhat
+      arrival_df$min_neff[counter] <- min_neff
       
       #generate predict data
       predictDays <- range(cyspdata$jday)[1]:range(cyspdata$jday)[2]
@@ -441,7 +441,7 @@ for (j in 1:nyr)
       }
       
       #number of iterations that had local max
-      halfmax_df$plmax[counter] <- round(sum(tlmax)/((ITER/2)*CHAINS), 3)
+      arrival_df$plmax[counter] <- round(sum(tlmax)/((ITER/2)*CHAINS), 3)
       
       #model fit
       mn_dfit <- apply(dfit, 2, mean)
@@ -452,9 +452,9 @@ for (j in 1:nyr)
       mlmax <- sum(diff(sign(diff(mn_dfit))) == -2)
       if (mlmax > 0)
       {
-        halfmax_df$mlmax[counter] <- TRUE
+        arrival_df$mlmax[counter] <- TRUE
       } else {
-        halfmax_df$mlmax[counter] <- FALSE
+        arrival_df$mlmax[counter] <- FALSE
       }
       
       #estimated halfmax
@@ -463,11 +463,11 @@ for (j in 1:nyr)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
       
       #fill df with halfmax iter
-      cndf <- colnames(halfmax_df)
+      cndf <- colnames(arrival_df)
       iter_ind <- grep('iter', cndf)
       to.rm <- which(cndf == 't_iter')
       #remove t_iter col
-      halfmax_df[counter, iter_ind[-which(iter_ind == to.rm)]] <- halfmax_fit
+      arrival_df[counter, iter_ind[-which(iter_ind == to.rm)]] <- halfmax_fit
       
       ########################
       #PLOT MODEL FIT AND DATA
@@ -540,11 +540,11 @@ for (j in 1:nyr)
 
 
 #order by year then cell
-OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
+OUT <- arrival_df[order(arrival_df[,'year'], arrival_df[,'cell']),]
 
 #save to rds object
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_arrival_', RUN_DATE))
-saveRDS(OUT, file = paste0('halfmax_arrival_', args, '.rds'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/arrival_GAM_', RUN_DATE))
+saveRDS(OUT, file = paste0('arrival_GAM_', args, '.rds'))
 
 
 # runtime -----------------------------------------------------------------

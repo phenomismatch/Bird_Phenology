@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2020-05-07"
+DATE="2020-07-10"
 
 while read name
 do
@@ -8,15 +8,15 @@ do
   temp="${temp#\"}"
   echo "#!/bin/bash
 
-#SBATCH --job-name=hm-arr-$temp
+#SBATCH --job-name=arr-GAM-$temp
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
 #SBATCH --mem=30G #memory requested
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_$DATE/hm-arr-$temp.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_$DATE/hm-arr-$temp.err #STDERR
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/arrival_GAM_$DATE/arr-GAM-$temp.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/arrival_GAM_$DATE/arr-GAM-$temp.err #STDERR
 
 #echos name of node
 echo \`hostname\`
