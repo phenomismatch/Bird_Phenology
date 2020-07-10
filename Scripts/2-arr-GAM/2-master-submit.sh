@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DATE="2020-05-07"
-mkdir /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/halfmax_arrival_$DATE
+DATE="2020-07-10"
+mkdir /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/arrival_GAM_$DATE
 
 while read name
 do
@@ -10,4 +10,4 @@ do
   sbatch species/2-$temp.sh
 done < ../../Data/eBird_species_list.txt
 
-cp 2-halfmax-arr.R ../../Data/Processed/halfmax_arrival_$DATE/2-halfmax-arr-$DATE.R
+cp 2-arr-GAM.R ../../Data/Processed/arrival_GAM_$DATE/2-arr-GAM-$DATE.R

@@ -13,7 +13,7 @@
 # https://github.com/milkha/Splines_in_Stan/blob/master/splines_in_stan.pdf
 # https://stats.stackexchange.com/questions/359568/choosing-k-in-mgcvs-gam
 # 
-# Species name should be given as an arg to this script. The model will then be fit to that species only.
+# Species name, start year, and end year should be given as args to this script. The model will then be fit to that species/years only.
 # Runtime: Up to 21 days on Xanadu (very long tail here, depends on data volume, etc.)
 ######################  
 
@@ -72,7 +72,7 @@ args <- commandArgs(trailingOnly = TRUE)
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', db_dir))
 
 #import data for species
-spdata <- readRDS(paste0('ebird_arrival_query_', args, '.rds'))
+spdata <- readRDS(paste0('ebird_arrival_query_', args[1], '.rds'))
 
 
 # create grid -------------------------------------------------------------
@@ -98,12 +98,12 @@ setwd(paste0(dir, 'Bird_Phenology/Data/BirdLife_range_maps/shapefiles/'))
 
 #filter by breeding/migration cells
 #match species name to shp file name
-g_ind <- grep(args, sp_key$file_names_2016)
+g_ind <- grep(args[1], sp_key$file_names_2016)
 
 #check for synonyms if there are no matches
 if (length(g_ind) == 0)
 {
-  g_ind2 <- grep(args, sp_key$BL_Checklist_name)
+  g_ind2 <- grep(args[1], sp_key$BL_Checklist_name)
 } else {
   g_ind2 <- g_ind
 }
@@ -197,7 +197,7 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
   #write blank .rds file
   t_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
   colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
-  arrival_df <- data.frame(species = args, 
+  arrival_df <- data.frame(species = args[1], 
                            year = NA, 
                            cell = NA, 
                            max_Rhat = NA,
@@ -222,7 +222,7 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
 
   #save to rds object
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arrival_GAM_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('arrival_GAM_', args, '.rds'))
+  saveRDS(halfmax_df, file = paste0('arrival_GAM_', args[1], '.rds'))
   
   stop('Range not suitable for modeling!')
 }
@@ -231,7 +231,8 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
 # process data ------------------------------------------------------------
 
 ncell <- length(cells)
-years <- min(spdata2$year):max(spdata2$year)
+#years <- min(spdata2$year):max(spdata2$year)
+years <- as.numeric(args[2]):as.numeric(args[3])
 nyr <- length(years)
 
 
@@ -239,7 +240,7 @@ nyr <- length(years)
 
 t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
 colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
-arrival_df <- data.frame(species = args, 
+arrival_df <- data.frame(species = args[1], 
                          year = rep(years, each = ncell), 
                          cell = rep(cells, nyr), 
                          max_Rhat = NA,
@@ -281,7 +282,7 @@ for (j in 1:nyr)
   for (k in 1:ncell)
   {
     #k <- 28
-    print(paste0('species: ', args, ', year: ', j, ', cell: ', k))
+    print(paste0('species: ', args[1], ', year: ', j, ', cell: ', k))
     
     cyspdata <- dplyr::filter(yspdata, cell == cells[k])
     
@@ -472,10 +473,10 @@ for (j in 1:nyr)
       ########################
       #PLOT MODEL FIT AND DATA
       
-      pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
+      pdf(paste0(args[1], '_', years[j], '_', cells[k], '_arrival.pdf'))
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
-           main = paste0(args, ' - ', years[j], ' - ', cells[k]),
+           main = paste0(args[1], ' - ', years[j], ' - ', cells[k]),
            xlab = 'Julian Day', ylab = 'Probability of occurrence')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
@@ -499,10 +500,10 @@ for (j in 1:nyr)
       # LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       # UCI_hm <- quantile(halfmax_fit, probs = 0.975)
       # 
-      # pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival.pdf'))
+      # pdf(paste0(args[1], '_', years[j], '_', cells[k], '_arrival.pdf'))
       # plot(predictDays, UCI_dfit, type = 'l', col = 'white', lty = 2, lwd = 5,
       #      ylim = c(0, max(UCI_dfit)),
-      #      #main = paste0(args, ' - ', years[j], ' - ', cells[k]),
+      #      #main = paste0(args[1], ' - ', years[j], ' - ', cells[k]),
       #      #xlab = 'Julian Day', ylab = 'Probability of occurrence',
       #      tck = 0, ann = FALSE, xaxt = 'n', yaxt = 'n')
       # # lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 5)
@@ -519,7 +520,7 @@ for (j in 1:nyr)
       # dev.off()
       
       # #alternative visualization
-      pdf(paste0(args, '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
+      pdf(paste0(args[1], '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))
       plot(NA, xlim = c(range(cyspdata$jday)[1], range(cyspdata$jday)[2]), 
            ylim = c(0, quantile(dfit, 0.999)),
            xlab = 'Julian Day', ylab = 'Probability of occurrence')
@@ -544,7 +545,7 @@ OUT <- arrival_df[order(arrival_df[,'year'], arrival_df[,'cell']),]
 
 #save to rds object
 setwd(paste0(dir, '/Bird_Phenology/Data/Processed/arrival_GAM_', RUN_DATE))
-saveRDS(OUT, file = paste0('arrival_GAM_', args, '.rds'))
+saveRDS(OUT, file = paste0('arrival_GAM_', args[1], '.rds'))
 
 
 # runtime -----------------------------------------------------------------
