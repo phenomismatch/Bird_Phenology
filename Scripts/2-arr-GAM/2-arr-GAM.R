@@ -130,7 +130,7 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
   sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
   #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
-  poly_int <- rgeos::gIntersects(hge, nrng_sp, byid = TRUE)
+  poly_int <- rgeos::gIntersects(hge, tt, byid = TRUE)
   tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
   br_mig_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
   
@@ -195,8 +195,10 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
   
 } else {
   #write blank .rds file
-  t_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
-  colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
+  hm_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
+  max_mat <- matrix(data = NA, nrow = 1, ncol = ((ITER/2)*CHAINS))
+  colnames(hm_mat) <- paste0('hm_iter_', 1:((ITER/2)*CHAINS))
+  colnames(max_mat) <- paste0('max_iter_', 1:((ITER/2)*CHAINS))
   arrival_df <- data.frame(species = args[1], 
                            year = NA, 
                            cell = NA, 
@@ -218,7 +220,8 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
                            njd1 = NA,
                            njd0 = NA,
                            njd0i = NA,
-                           t_mat)
+                           hm_mat,
+                           max_mat)
 
   #save to rds object
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arrival_GAM_', RUN_DATE))
@@ -238,8 +241,10 @@ nyr <- length(years)
 
 # fit model ---------------------------------------------------------
 
-t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
-colnames(t_mat) <- paste0('iter_', 1:((ITER/2)*CHAINS))
+hm_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
+max_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
+colnames(hm_mat) <- paste0('hm_iter_', 1:((ITER/2)*CHAINS))
+colnames(max_mat) <- paste0('max_iter_', 1:((ITER/2)*CHAINS))
 arrival_df <- data.frame(species = args[1], 
                          year = rep(years, each = ncell), 
                          cell = rep(cells, nyr), 
@@ -261,7 +266,8 @@ arrival_df <- data.frame(species = args[1],
                          njd1 = NA,
                          njd0 = NA,
                          njd0i = NA,
-                         t_mat)
+                         hm_mat,
+                         max_mat)
 
 
 #create dir for figs if doesn't exist
@@ -276,12 +282,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/GAM/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 6
+  #j <- 13
   yspdata <- dplyr::filter(spdata2, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 28
+    #k <- 54
     print(paste0('species: ', args[1], ', year: ', j, ', cell: ', k))
     
     cyspdata <- dplyr::filter(yspdata, cell == cells[k])
@@ -354,7 +360,7 @@ for (j in 1:nyr)
       num_BFMI <- length(rstan::get_low_bfmi_chains(fit2$stanfit))
       
       #rerun model if divergences occurred
-      while (sum(c(num_diverge, num_BFMI)) > 0 & DELTA <= 0.98)
+      while (num_diverge > 0 & DELTA <= 0.98)
       {
         DELTA <- DELTA + 0.01
 
@@ -392,6 +398,7 @@ for (j in 1:nyr)
       #predict response
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
+      max_fit <- rep(NA, ((ITER/2)*CHAINS))
       tlmax <- rep(NA, ((ITER/2)*CHAINS))
       #day at which probability of occurence is half local maximum value
       for (L in 1:((ITER/2)*CHAINS))
@@ -417,6 +424,8 @@ for (j in 1:nyr)
           lmax2 <- predictDays[which.max(rowL)]
           tlmax[L] <- FALSE
         }
+        #store local max
+        max_fit[L] <- lmax2 
         #local mins before max (global and local mins)
         lmin_idx <- c(which.min(rowL[1:lmax2_idx]), 
                       which(diff(sign(diff(rowL[1:lmax2_idx]))) == 2) + 1)
@@ -465,10 +474,11 @@ for (j in 1:nyr)
       
       #fill df with halfmax iter
       cndf <- colnames(arrival_df)
-      iter_ind <- grep('iter', cndf)
-      to.rm <- which(cndf == 't_iter')
-      #remove t_iter col
-      arrival_df[counter, iter_ind[-which(iter_ind == to.rm)]] <- halfmax_fit
+      hm_iter_ind <- grep('hm_iter', cndf)
+      arrival_df[counter, hm_iter_ind] <- halfmax_fit
+      max_iter_ind <- grep('max_iter', cndf)
+      arrival_df[counter, max_iter_ind] <- max_fit
+      
       
       ########################
       #PLOT MODEL FIT AND DATA
