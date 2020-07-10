@@ -15,8 +15,10 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-hm_dir <- 'halfmax_arrival_2020-05-07'
-hm_date <- substr(hm_dir, start = 17, stop = 26)
+gam_dir <- 'arrival_GAM_2020-07-10'
+gam_date <- substr(gam_dir, start = 13, stop = 22)
+#years specified for 2-arr-GAM
+years <- 2002:2017
 
 
 # runtime -----------------------------------------------------------------
@@ -46,14 +48,9 @@ setwd(paste0(dir, 'Bird_Phenology/Data/hex_grid_crop/'))
 hge <- rgdal::readOGR('hex_grid_crop.shp', verbose = FALSE)
 hge_cells <- as.numeric(as.character(hge@data[,1]))
 
-
 #load maps
-usamap <- data.frame(maps::map("world", "USA", plot = FALSE)[c("x", "y")])
-canadamap <- data.frame(maps::map("world", "Canada", plot = FALSE)[c("x", "y")])
-mexicomap <- data.frame(maps::map("world", "Mexico", plot = FALSE)[c("x", "y")])
-
-#combine maps
-combmap <- maps::map("world", c("USA", "Canada", "Mexico"), fill = TRUE, plot = FALSE)
+combmap <- maps::map("world", c("USA", "Canada", "Mexico"), 
+                     fill = TRUE, plot = FALSE)
 
 #make maps into spatial polygon object
 IDs <- sapply(strsplit(combmap$names, ":"), function(x) x[1])
@@ -98,7 +95,6 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
-years <- 2002:2018
 nyr <- length(years)
 
 
@@ -111,10 +107,10 @@ for (i in 1:nsp)
   #i <- 20
   
   #import halfmax estimates and diagnostics from logit cubic model
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
-  temp_halfmax <- readRDS(paste0('halfmax_arrival_', species_list[i], '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', gam_dir))
+  temp_arr_GAM <- readRDS(paste0('arrival_GAM_', species_list[i], '.rds'))
 
-  tu_cells[i] <- length(unique(temp_halfmax$cell))
+  tu_cells[i] <- length(unique(temp_arr_GAM$cell))
 }
 
 
@@ -129,8 +125,8 @@ for (i in 1:nsp)
   #i <- 1
   
   #import halfmax estimates and diagnostics from GAM
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', hm_dir))
-  temp_halfmax <- readRDS(paste0('halfmax_arrival_', species_list[i], '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', gam_dir))
+  temp_arr_GAM <- readRDS(paste0('arrival_GAM_', species_list[i], '.rds'))
   
   if (i == 1)
   {
@@ -139,8 +135,10 @@ for (i in 1:nsp)
     diagnostics_frame <- data.frame(species = na_reps,
                                     year = na_reps,
                                     cell = na_reps,
-                                    arr_GAM_mean = na_reps,
-                                    arr_GAM_sd = na_reps,
+                                    arr_GAM_hm_mean = na_reps,
+                                    arr_GAM_hm_sd = na_reps,
+                                    arr_GAM_max_mean = na_reps,
+                                    arr_GAM_max_sd = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
                                     mlmax = na_reps,
@@ -261,7 +259,7 @@ for (i in 1:nsp)
   for (j in 1:nyr)
   {
     #j <- 17
-    tt_halfmax1 <- dplyr::filter(temp_halfmax, 
+    tt_arr1 <- dplyr::filter(temp_arr_GAM, 
                                  year == years[j])
     
     if (!is.na(ncell))
@@ -276,56 +274,62 @@ for (i in 1:nsp)
         diagnostics_frame$shp_fname[counter] <- fname[1]
         
         #get model fits
-        tt_halfmax2 <- dplyr::filter(tt_halfmax1, 
+        tt_arr2 <- dplyr::filter(tt_arr, 
                              cell == cells[k])
         
         print(paste0('species: ', species_list[i], ', ',
                      'year: ', years[j], ', ', 
                      'cell: ', cells[k]))
         
-        if (NROW(tt_halfmax2) > 0)
+        if (NROW(tt_arr2) > 0)
         {
-          diagnostics_frame$min_neff[counter] <- tt_halfmax2$min_neff
-          diagnostics_frame$max_Rhat[counter] <- tt_halfmax2$max_Rhat
+          diagnostics_frame$min_neff[counter] <- tt_arr2$min_neff
+          diagnostics_frame$max_Rhat[counter] <- tt_arr2$max_Rhat
           #did mean have local max
-          diagnostics_frame$mlmax[counter] <- tt_halfmax2$mlmax
+          diagnostics_frame$mlmax[counter] <- tt_arr2$mlmax
           #percent of iter with local max
-          diagnostics_frame$plmax[counter] <- tt_halfmax2$plmax
-          diagnostics_frame$num_diverge[counter] <- tt_halfmax2$num_diverge
-          diagnostics_frame$num_tree[counter] <- tt_halfmax2$num_tree
-          diagnostics_frame$num_BFMI[counter] <- tt_halfmax2$num_BFMI
-          diagnostics_frame$delta[counter] <- tt_halfmax2$delta
-          diagnostics_frame$tree_depth[counter] <- tt_halfmax2$tree_depth
+          diagnostics_frame$plmax[counter] <- tt_arr2$plmax
+          diagnostics_frame$num_diverge[counter] <- tt_arr2$num_diverge
+          diagnostics_frame$num_tree[counter] <- tt_arr2$num_tree
+          diagnostics_frame$num_BFMI[counter] <- tt_arr2$num_BFMI
+          diagnostics_frame$delta[counter] <- tt_arr2$delta
+          diagnostics_frame$tree_depth[counter] <- tt_arr2$tree_depth
           #total iterations
-          diagnostics_frame$t_iter[counter] <- tt_halfmax2$t_iter
+          diagnostics_frame$t_iter[counter] <- tt_arr2$t_iter
           #number of surveys where species was detected
-          diagnostics_frame$n1[counter] <- tt_halfmax2$n1
+          diagnostics_frame$n1[counter] <- tt_arr2$n1
           #number of detections that came before jday 60
-          diagnostics_frame$n1W[counter] <- tt_halfmax2$n1W
+          diagnostics_frame$n1W[counter] <- tt_arr2$n1W
           #number of surveys where species was not detected
-          diagnostics_frame$n0[counter] <- tt_halfmax2$n0
+          diagnostics_frame$n0[counter] <- tt_arr2$n0
           #number of non-detections before first detection
-          diagnostics_frame$n0i[counter] <- tt_halfmax2$n0i
+          diagnostics_frame$n0i[counter] <- tt_arr2$n0i
           #number of julian days with obs
-          diagnostics_frame$njd[counter] <- tt_halfmax2$njd
+          diagnostics_frame$njd[counter] <- tt_arr2$njd
           #number of unique days with detections
-          diagnostics_frame$njd1[counter] <- tt_halfmax2$njd1
+          diagnostics_frame$njd1[counter] <- tt_arr2$njd1
           #number of unique days with non-detection
-          diagnostics_frame$njd0[counter] <- tt_halfmax2$njd0
+          diagnostics_frame$njd0[counter] <- tt_arr2$njd0
           #number of unique days of non-detections before first detection
-          diagnostics_frame$njd0i[counter] <- tt_halfmax2$njd0i
+          diagnostics_frame$njd0i[counter] <- tt_arr2$njd0i
           
           #posterior for halfmax
-          cndf <- colnames(tt_halfmax2)
-          iter_ind <- grep('iter', cndf)
-          to.rm <- which(cndf == 't_iter')
-          halfmax_posterior <- as.numeric(tt_halfmax2[,iter_ind[-which(iter_ind == to.rm)]])
+          cndf <- colnames(tt_arr2)
+          hm_iter_ind <- grep('hm_iter', cndf)
+          hm_posterior <- as.numeric(tt_arr2[,hm_iter_ind])
+          
+          #posterior for max
+          max_iter_ind <- grep('max_iter', cndf)
+          max_posterior <- as.numeric(tt_arr2[,max_iter_ind])
+        
         
           #calculate posterior mean and sd
-          if (sum(!is.na(halfmax_posterior)) > 0)
+          if (sum(!is.na(hm_posterior)) > 0)
           {
-            diagnostics_frame$arr_GAM_mean[counter] <- mean(halfmax_posterior)
-            diagnostics_frame$arr_GAM_sd[counter] <- sd(halfmax_posterior)
+            diagnostics_frame$arr_GAM_hm_mean[counter] <- mean(hm_posterior)
+            diagnostics_frame$arr_GAM_hm_sd[counter] <- sd(hm_posterior)
+            diagnostics_frame$arr_GAM_max_mean[counter] <- mean(max_posterior)
+            diagnostics_frame$arr_GAM_max_sd[counter] <- sd(max_posterior)
           }
         }
         counter <- counter + 1
@@ -354,10 +358,10 @@ val_idx <- which(diagnostics_frame3$num_diverge > 0 |
                    diagnostics_frame3$max_Rhat > 1.02 |
                    diagnostics_frame3$min_neff < 400 |
                    diagnostics_frame3$num_BFMI > 0 |
-                   diagnostics_frame3$arr_GAM_sd > 15 | 
+                   diagnostics_frame3$arr_GAM_hm_sd > 15 | 
                    diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
                    diagnostics_frame3$plmax < 0.99 |
-                   is.na(diagnostics_frame3$arr_GAM_mean)) #local max for > 99% of curves
+                   is.na(diagnostics_frame3$arr_GAM_hm_mean)) #local max for > 99% of curves
 
 diagnostics_frame3$VALID <- TRUE
 diagnostics_frame3$VALID[val_idx] <- FALSE
@@ -366,7 +370,7 @@ diagnostics_frame3$VALID[val_idx] <- FALSE
 # Filter data based on criteria -----------------------------------------------------------
 
 # Species-years to model:
-#     Species with at least 'NC' cells in all three years from 2016-2018
+#     Species with at least 'NC' cells in all three years for final three years
 #     Species-years with at least 'NC' cells for those species
 
 NC <- 3
@@ -385,7 +389,7 @@ for (i in 1:length(species_list))
     {
       #number of cells with good data in each year from 2016-2018
       nobs_yr <- c()
-      for (j in 2016:2018)
+      for (j in tail(years, n = 3))
       {
         #j <- 2018
         ty_sp3 <- dplyr::filter(t_sp, year == j)
@@ -432,12 +436,12 @@ df_master <- df_out[with(df_out, order(species, year, cell)),]
 
 # write to RDS --------------------------------------------------
 
-IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', hm_date)
+IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', gam_date)
 
 dir.create(IAR_dir_path)
 setwd(IAR_dir_path)
 
-saveRDS(df_master, paste0('IAR_input-', hm_date, '.rds'))
+saveRDS(df_master, paste0('IAR_input-', gam_date, '.rds'))
 
 
 # create list of species to run through IAR model -------------------------

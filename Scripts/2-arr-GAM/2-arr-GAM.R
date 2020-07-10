@@ -476,6 +476,8 @@ for (j in 1:nyr)
       cndf <- colnames(arrival_df)
       hm_iter_ind <- grep('hm_iter', cndf)
       arrival_df[counter, hm_iter_ind] <- halfmax_fit
+      
+      #fill df with max iter
       max_iter_ind <- grep('max_iter', cndf)
       arrival_df[counter, max_iter_ind] <- max_fit
       
