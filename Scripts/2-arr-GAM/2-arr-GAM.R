@@ -130,7 +130,7 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
   nrng_sp <- sp::SpatialPolygons(nrng@polygons)
   sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
   #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
-  poly_int <- rgeos::gIntersects(hge, tt, byid = TRUE)
+  poly_int <- rgeos::gIntersects(hge, nrng_sp, byid = TRUE)
   tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
   br_mig_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
   
