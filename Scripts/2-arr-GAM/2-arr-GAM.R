@@ -282,12 +282,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/GAM/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 13
+  #j <- 5
   yspdata <- dplyr::filter(spdata2, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 54
+    #k <- 83
     print(paste0('species: ', args[1], ', year: ', j, ', cell: ', k))
     
     cyspdata <- dplyr::filter(yspdata, cell == cells[k])
@@ -472,6 +472,11 @@ for (j in 1:nyr)
       LCI_hm <- quantile(halfmax_fit, probs = 0.025)
       UCI_hm <- quantile(halfmax_fit, probs = 0.975)
       
+      #estimated max
+      mn_max <- mean(max_fit)
+      LCI_max <- quantile(max_fit, probs = 0.025)
+      UCI_max <- quantile(max_fit, probs = 0.975)
+      
       #fill df with halfmax iter
       cndf <- colnames(arrival_df)
       hm_iter_ind <- grep('hm_iter', cndf)
@@ -498,6 +503,9 @@ for (j in 1:nyr)
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
+      # abline(v = mn_max, col = rgb(0,1,0,0.5), lwd = 2)
+      # abline(v = LCI_max, col = rgb(0,1,0,0.5), lwd = 2, lty = 2)
+      # abline(v = UCI_max, col = rgb(0,1,0,0.5), lwd = 2, lty = 2)
       legend('topleft',
              legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
