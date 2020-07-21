@@ -225,7 +225,7 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
 
   #save to rds object
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arrival_GAM_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('arrival_GAM_', args[1], '.rds'))
+  saveRDS(arrival_df, file = paste0('arrival_GAM_', args[1], '.rds'))
   
   stop('Range not suitable for modeling!')
 }
@@ -282,12 +282,12 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/GAM/arrival_', RUN_DATE))
 counter <- 1
 for (j in 1:nyr)
 {
-  #j <- 5
+  #j <- 15
   yspdata <- dplyr::filter(spdata2, year == years[j])
   
   for (k in 1:ncell)
   {
-    #k <- 83
+    #k <- 49
     print(paste0('species: ', args[1], ', year: ', j, ', cell: ', k))
     
     cyspdata <- dplyr::filter(yspdata, cell == cells[k])
