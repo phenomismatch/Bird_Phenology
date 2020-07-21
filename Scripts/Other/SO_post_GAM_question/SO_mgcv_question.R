@@ -31,9 +31,8 @@ x <- c(1, 1, 1, 2, 4, 5, 5, 6, 6, 6, 10, 10, 12, 12, 14, 16,
 
 
 #fit model
-fit <- mgcv::gam(y ~ s(x, bs = 'ad', k = 50),
+fit <- mgcv::gam(y ~ s(x, bs = 'tp', k = 30),
                   method = 'REML',
-                  select = TRUE,
                   family = binomial(link = "logit"))
 
 #new data to predict at
@@ -47,7 +46,7 @@ Xp <- predict(fit, x_pred, type = "lpmatrix")
 
 #posterior realizations
 n <- 100
-br <- MASS::mvrnorm(n, coef(fit), fit$Vc)
+br <- MASS::mvrnorm(n, coef(fit), vcov(fit))#fit$Vc)
 
 #plot data
 plot(x, y, col = rgb(0,0,0,0.25), ylim = c(0,1))
@@ -56,10 +55,17 @@ lines(x_pred$x, pp$fit, col = 'green', lwd = 2)
 lines(x_pred[,1], pp$fit - 1.97 * pp$se.fit, col = 'green', lwd = 2, lty = 2)
 lines(x_pred[,1], pp$fit + 1.97 * pp$se.fit, col = 'green', lwd = 2, lty = 2)
 
+
+#Wood solution
+tt <- gam.mh(fit, ns = 100000, thin = 100)
+br <- tt$bs
+
+
+
 #plot posterior realizations of model fit
 for (i in 1:n)
-{ 
-#i <- 1
+{
+  #i <- 1
   fits <- Xp %*% br[i,]
   lines(x_pred$x, boot::inv.logit(fits), col = rgb(1,0,0,0.1))
 }
@@ -67,9 +73,9 @@ for (i in 1:n)
 #extract mean and 95% CI from posterior realizations
 pm <- Xp %*% t(br)
 xp_mn <- apply(boot::inv.logit(pm), 1, mean)
-xp_LCI <- apply(boot::inv.logit(pm), 1, 
+xp_LCI <- apply(boot::inv.logit(pm), 1,
                 function(x) quantile(x, probs = 0.025))
-xp_UCI <- apply(boot::inv.logit(pm), 1, 
+xp_UCI <- apply(boot::inv.logit(pm), 1,
                 function(x) quantile(x, probs = 0.975))
 
 lines(x_pred$x, xp_mn, col = 'blue', lwd = 2)
