@@ -2,22 +2,12 @@
 
 Code for characterizing bird arrival and breeding phenology.
 
-Relevant publications:
+**Relevant publications:**
 
-**In prep**
+*In prep*
 
 
-Repo is cloned onto Xanadu at `/labs/Tingley/phenomismatch/Bird_Phenology`. Directories marked as 'ignored' are in the repo but are not tracked. Any data will need to be transfered manually. DO NOT transfer large files to/from Xanadu using user account. 
-
-For transfer TO Xanadu use:
-
-`scp -r ~/SOURCE/PATH USER_NAME@transfer.cam.uchc.edu:DESTINATION/PATH`
-
-For transfer FROM Xanadu use:
-
-`scp -r USER_NAME@transfer.cam.uchc.edu:SOURCE/PATH ~/DESTINATION/PATH`
-
-Repository structure:
+**Repository structure:**
 
 * `Data/` - Datasets relevant for project
   * `eBird_species_list.txt` - initial list of species to be queried
