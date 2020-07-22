@@ -8,6 +8,6 @@ do
   temp="${name%\"}"
   temp="${temp#\"}"
   sbatch species/4-$temp.sh
-done < ../../Data/IAR_species_list_b1.txt
+done < ../../Data/IAR_species_list_p1.txt
 
 cp 4-arr-IAR-hm.R ../../Data/Processed/arrival_IAR_hm_$DATE/4-arr-IAR-hm-$DATE.R
