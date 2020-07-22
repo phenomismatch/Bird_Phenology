@@ -1,5 +1,0 @@
-"Empidonax_virescens"
-"Vireo_olivaceus"
-"Vireo_flavifrons"
-"Catharus_fuscescens"
-"Setophaga_dominica"
