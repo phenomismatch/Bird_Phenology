@@ -35,7 +35,7 @@ dir <- '~/Google_Drive/R/'
 # db/hm query dir ------------------------------------------------------------
 
 IAR_in_dir <- 'IAR_input_2020-05-07'
-IAR_out_dir <- 'arrival_IAR_hm_2020-06-08'
+IAR_out_dir <- 'arrival_IAR_2020-06-08'
 
 
 # Load packages -----------------------------------------------------------

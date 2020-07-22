@@ -274,7 +274,7 @@ for (i in 1:nsp)
         diagnostics_frame$shp_fname[counter] <- fname[1]
         
         #get model fits
-        tt_arr2 <- dplyr::filter(tt_arr, 
+        tt_arr2 <- dplyr::filter(tt_arr1, 
                              cell == cells[k])
         
         print(paste0('species: ', species_list[i], ', ',
