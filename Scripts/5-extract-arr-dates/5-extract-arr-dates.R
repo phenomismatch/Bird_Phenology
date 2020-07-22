@@ -15,7 +15,6 @@ dir <- '~/Google_Drive/R/'
 
 IAR_in_dir <- 'IAR_input_2020-05-07'
 IAR_hm_out_date <- '2020-06-08'
-IAR_max_out_date <- '2020-06-08'
 master_out_dir <- 'arrival_master_2020-06-08'
 
 
