@@ -26,16 +26,16 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-dir <- '~/Google_Drive/R/'
+#dir <- '~/Google_Drive/R/'
 
 #Xanadu
-#dir <- '/labs/Tingley/phenomismatch/'
+dir <- '/labs/Tingley/phenomismatch/'
 
 
 # db/hm query dir ------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2020-05-07'
-IAR_out_dir <- 'arrival_IAR_2020-06-08'
+IAR_in_dir <- 'IAR_input_2020-07-10'
+IAR_out_dir <- 'arrival_IAR_2020-07-21'
 
 
 # Load packages -----------------------------------------------------------
