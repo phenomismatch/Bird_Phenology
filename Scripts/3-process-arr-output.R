@@ -387,7 +387,7 @@ for (i in 1:length(species_list))
     
     if (NROW(t_sp) > 0)
     {
-      #number of cells with good data in each year from 2016-2018
+      #number of cells with good data in each year from last three years of data
       nobs_yr_hm <- c()
       for (j in tail(years, n = 3))
       {
@@ -444,12 +444,47 @@ setwd(IAR_dir_path)
 saveRDS(df_master, paste0('IAR_input-', gam_date, '.rds'))
 
 
+
+# proportion of range with >= 3 years of data --------------------------------------------
+
+#species to model
+species_agg <- aggregate(MODEL_hm ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))
+species_tm <- dplyr::filter(species_agg, MODEL_hm > 0)$species
+
+#cells that will be modeled
+mt_idx <- which(df_master$MODEL_hm == TRUE)
+mt <- df_master[mt_idx,]
+#cells with valid GAM data that will be modeled
+tmvt_idx <- which(df_master$VALID_hm == TRUE & df_master$MODEL_hm == TRUE)
+tmvt <- df_master[tmvt_idx,]
+
+#number total cells
+ntc <- aggregate(cell ~ species, mt, function(x) length(unique(x)))
+#number obs each cell/species
+cnt_csp <- plyr::count(tmvt, c('species', 'cell'))
+#cells >=3 years data
+ge3_csp <- dplyr::filter(cnt_csp, freq >= 3)
+#number cells greater than or equal to 3
+ncd <- aggregate(cell ~ species, ge3_csp, function(x) length(unique(x)))
+#merge
+jj <- dplyr::left_join(ntc, ncd, by = 'species')
+#proportion cells with >= 3 data points
+jj$pcd <- jj[,3] /  jj[,2]
+colnames(jj) <- c('species', 'n_cells', 'n_cells_ge3', 'prop_cell_ge3')
+tsid <- which(jj$prop_cell_ge3 > 0.4)
+
+#priority 1
+species_1 <- species_tm[tsid]
+#priority 2
+species_2 <- species_tm[-tsid]
+
+
 # create list of species to run through IAR model -------------------------
 
-species_agg <- aggregate(MODEL ~ species, data = df_master, FUN = function(x) sum(x, na.rm = TRUE))
-species_tm <- dplyr::filter(species_agg, MODEL > 0)$species
-
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
-write.table(species_tm, file = paste0('IAR_species_list.txt'), 
+write.table(species_1, file = paste0('IAR_species_list_p1.txt'), 
+            row.names = FALSE, col.names = FALSE)
+
+write.table(species_2, file = paste0('IAR_species_list_p2.txt'), 
             row.names = FALSE, col.names = FALSE)
 
