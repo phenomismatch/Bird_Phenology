@@ -137,8 +137,8 @@ for (i in 1:nsp)
                                     cell = na_reps,
                                     arr_GAM_hm_mean = na_reps,
                                     arr_GAM_hm_sd = na_reps,
-                                    arr_GAM_max_mean = na_reps,
-                                    arr_GAM_max_sd = na_reps,
+                                    # arr_GAM_max_mean = na_reps,
+                                    # arr_GAM_max_sd = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
                                     mlmax = na_reps,
@@ -318,9 +318,9 @@ for (i in 1:nsp)
           hm_iter_ind <- grep('hm_iter', cndf)
           hm_posterior <- as.numeric(tt_arr2[,hm_iter_ind])
           
-          #posterior for max
-          max_iter_ind <- grep('max_iter', cndf)
-          max_posterior <- as.numeric(tt_arr2[,max_iter_ind])
+          # #posterior for max
+          # max_iter_ind <- grep('max_iter', cndf)
+          # max_posterior <- as.numeric(tt_arr2[,max_iter_ind])
         
         
           #calculate posterior mean and sd
@@ -328,8 +328,8 @@ for (i in 1:nsp)
           {
             diagnostics_frame$arr_GAM_hm_mean[counter] <- mean(hm_posterior)
             diagnostics_frame$arr_GAM_hm_sd[counter] <- sd(hm_posterior)
-            diagnostics_frame$arr_GAM_max_mean[counter] <- mean(max_posterior)
-            diagnostics_frame$arr_GAM_max_sd[counter] <- sd(max_posterior)
+            # diagnostics_frame$arr_GAM_max_mean[counter] <- mean(max_posterior)
+            # diagnostics_frame$arr_GAM_max_sd[counter] <- sd(max_posterior)
           }
         }
         counter <- counter + 1
@@ -363,24 +363,8 @@ val_idx_hm <- which(diagnostics_frame3$num_diverge > 0 |
                    diagnostics_frame3$plmax < 0.99 | #local max for > 99% of curves
                    is.na(diagnostics_frame3$arr_GAM_hm_mean)) 
 
-val_idx_max <- which(diagnostics_frame3$num_diverge > 0 | 
-                   diagnostics_frame3$max_Rhat >= 1.02 |
-                   diagnostics_frame3$min_neff < 400 |
-                   diagnostics_frame3$num_BFMI > 0 |
-                   diagnostics_frame3$arr_GAM_max_sd > 15 | 
-                   diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
-                   diagnostics_frame3$plmax < 0.99 | #local max for > 99% of curves
-                   is.na(diagnostics_frame3$arr_GAM_max_mean)) 
-
-###########
-#CHECK HERE
-all.equal(val_idx_hm, val_idx_max)
-###########
-
 diagnostics_frame3$VALID_hm <- TRUE
 diagnostics_frame3$VALID_hm[val_idx_hm] <- FALSE
-diagnostics_frame3$VALID_max <- TRUE
-diagnostics_frame3$VALID_max[val_idx_max] <- FALSE
 
 
 # Filter data based on criteria -----------------------------------------------------------
@@ -391,7 +375,6 @@ diagnostics_frame3$VALID_max[val_idx_max] <- FALSE
 
 NC <- 3
 diagnostics_frame3$MODEL_hm <- FALSE
-diagnostics_frame3$MODEL_max <- FALSE
 df_out <- data.frame()
 #which species/years meet criteria for model
 for (i in 1:length(species_list))
@@ -406,15 +389,12 @@ for (i in 1:length(species_list))
     {
       #number of cells with good data in each year from 2016-2018
       nobs_yr_hm <- c()
-      nobs_yr_max <- c()
       for (j in tail(years, n = 3))
       {
         #j <- 2018
         ty_sp3 <- dplyr::filter(t_sp, year == j)
         ind_hm <- sum(ty_sp3$VALID_hm)
-        ind_max <- sum(ty_sp3$VALID_max)
         nobs_yr_hm <- c(nobs_yr_hm, ind_hm)
-        nobs_yr_max <- c(nobs_yr_max, ind_max)
       }
 
       #if all three years have greater than or = to 'NC' cells of data, figure 
@@ -441,30 +421,7 @@ for (i in 1:length(species_list))
       {
         t_sp[which(t_sp$year %in% yrs_kp_hm),]$MODEL_hm <- TRUE
       }
-      
-      #MAX
-      yrs_kp_max <- c()
-      if (sum(nobs_yr_max >= NC) == 3)
-      {
-        #see which years have more than 3 cells of data
-        nobs_yr2_max <- c()
-        for (j in min(years):max(years))
-        {
-          #j <- 2012
-          ty2_sp3_max <- dplyr::filter(t_sp, year == j)
-          ind2_max <- sum(ty2_sp3_max$VALID_max)
-          nobs_yr2_max <- c(nobs_yr2_max, ind2_max)
-        }
-        
-        #years to keep (more than three cells of data)
-        yrs_kp_max <- years[which(nobs_yr2_max >= NC)]
-      }
-      
-      if (length(yrs_kp_max) > 0)
-      {
-        t_sp[which(t_sp$year %in% yrs_kp_max),]$MODEL_max <- TRUE
-      }
-      
+
       df_out <- rbind(df_out, t_sp)
     }
 }
@@ -475,12 +432,6 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 #order diagnostics frame by species, year, and cell #
 df_master <- df_out[with(df_out, order(species, year, cell)),]
-
-
-###########
-#CHECK HERE
-all.equal(df_master$MODEL_hm, df_master$MODEL_max)
-###########
 
 
 # write to RDS --------------------------------------------------
