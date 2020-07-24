@@ -20,17 +20,17 @@
 
 # top-level dir -----------------------------------------------------------
 
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/labs/Tingley/phenomismatch/'
+#dir <- '/labs/Tingley/phenomismatch/'
 
 
 # db query dir ------------------------------------------------------------
 
-db_dir <- 'eBird_arrival_query_2020-02-25'
+db_dir <- 'eBird_arrival_query_2020-07-22'
 
-RUN_DATE <- '2020-07-10'
+RUN_DATE <- '2020-07-23'
 
 
 # model settings ----------------------------------------------------------
@@ -64,7 +64,8 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 # Get args fed to script --------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
+args <- c('Vireo_olivaceus', 2018:2019)
 
 
 # import processed data ---------------------------------------------------
