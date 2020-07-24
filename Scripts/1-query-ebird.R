@@ -267,7 +267,7 @@ nms <- c()
 for (i in 1:length(fls))
 {
   #i <- 1
-  nms <- c(nms, substr(fls[i], 20, (nchar(fls[i]) - 4)))
+  nms <- c(nms, substr(fls[i], 21, (nchar(fls[i]) - 4)))
 }
 
 #missed species
