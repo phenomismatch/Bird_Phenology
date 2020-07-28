@@ -26,16 +26,16 @@
 # Top-level dir -----------------------------------------------------------
 
 #desktop/laptop
-#dir <- '~/Google_Drive/R/'
+dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/labs/Tingley/phenomismatch/'
+#dir <- '/labs/Tingley/phenomismatch/'
 
 
 # db/hm query dir ------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2020-07-10'
-IAR_out_dir <- 'arrival_IAR_hm_2020-07-21'
+IAR_in_dir <- 'IAR_input_2020-07-23-Vireo-olivaceus'
+IAR_out_dir <- 'arrival_IAR_hm_2020-07-27-Vireo-olivaceus'
 
 
 # Load packages -----------------------------------------------------------
@@ -60,11 +60,11 @@ IAR_out_date <- substr(IAR_out_dir, start = 16, stop = 25)
 
 # species arg -----------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
 #args <- c('Catharus_guttatus', 40000)
 #args <- c('Euphagus_carolinus', 40000)
 #args <- c('Zonotrichia_albicollis', 20000)
-
+args <- c('Vireo_olivaceus', 5000)
 
 
 # Filter data by species/years ------------------------------------------------------
