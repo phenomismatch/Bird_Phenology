@@ -2,10 +2,13 @@
 
 Code for characterizing bird arrival and breeding phenology.
 
-**Relevant publications:**
+&nbsp;
 
-*In prep*
+**Associated publications:**
 
+Youngflesh, C., Socolar, J., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance, R., Mayor, S.J., Miller, D.A.W., Tingley, M.W. *Submitted* Migratory strategy drives bird sensitivity to spring green-up
+
+&nbsp;
 
 **Repository structure:**
 
@@ -42,9 +45,7 @@ Code for characterizing bird arrival and breeding phenology.
       * `4-master-submit.sh` - script to be run (`./4-master-submit.sh`) on HPC cluster to submit all jobs
       * `species/` - contains job scripts for each species
         * `4-<Genus_species>.sh` - scripts to submit jobs for each species; run with `4-master-submit.sh`
-  * `5-extract-arr-dates/`
-    * `5-extract-arr-dates.R` - extract arrival dates for each species-cell-year from `4-IAR-arr-hm.R` output
-    * `README_arrival_master.txt` - README for arrival master data
+  * `5-extract-arr-dates.R` - extract arrival dates for each species-cell-year from `4-IAR-arr-hm.R` output
   * `6-query-nesting-data.R` - query nesting data
   * `7-juv-GAM/` - halfmax model for fledging dates (derived from MAPS data)
     * `7-juv-GAM.R` - R script to fit GAM models to estimate bird fledging date (from MAPS data) for each species/cell/year. Takes species argument (run from `7-<Genus_species>.sh` scripts)
