@@ -12,6 +12,7 @@ Youngflesh, C., Socolar, J., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance
 * `Data/` - Datasets relevant for project
   * `eBird_species_list.txt` - initial list of species to be queried
   * `IAR_species_list.txt` - list of species to be modeled using IAR
+  * `species_reference.csv` - table of taxonomic information for species of interest
   * `db_pass.txt` (ignored) - database password
   * `hex_grid_crop` - .shp files for cells over study area
   * `BirdLife_range_maps/` (ignored) - range maps for birds from BirdLife International
