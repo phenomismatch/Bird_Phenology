@@ -2,13 +2,10 @@
 
 Code for characterizing bird arrival and breeding phenology.
 
-&nbsp;
-
 **Associated publications:**
 
 Youngflesh, C., Socolar, J., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance, R., Mayor, S.J., Miller, D.A.W., Tingley, M.W. *Submitted* Migratory strategy drives bird sensitivity to spring green-up
 
-&nbsp;
 
 **Repository structure:**
 
