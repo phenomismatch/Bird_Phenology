@@ -1,7 +1,7 @@
 ######################
 # 5 - Extract arrival dates from IAR output
 #
-# Compiles dataframe with pre (2-halfmax-arr.R) and post (4-IAR-arr.R) IAR data for every year/cell
+# Compiles dataframe with pre and post IAR data for every year/cell
 ######################
 
 
@@ -57,8 +57,7 @@ out <- data.frame(species = rep(NA, NROW(df_master)), cell = NA,
                   arr_IAR_mean = NA, arr_IAR_sd = NA, 
                   sigma_beta0_mean = NA, sigma_beta0_sd = NA,
                   beta_gamma_mean = NA, beta_gamma_sd = NA, plmax = NA, 
-                  num_diverge = NA, max_Rhat = NA, min_neff = NA,
-                  PPC_mn_dis = NA, PPC_mn_pval = NA)
+                  num_diverge = NA, max_Rhat = NA, min_neff = NA)
 
 
 # run loop to fill empty dfs ----------------------------------------------------------------
@@ -189,33 +188,6 @@ for (i in 1:length(species))
     model_summary <- MCMCvis::MCMCsummary(t_fit, excl = 'y_rep', round = 3)
     max_Rhat <- max(as.vector(model_summary[, grep('Rhat', colnames(model_summary))]))
     min_neff <- min(as.vector(model_summary[, grep('n.eff', colnames(model_summary))]))
-    
-    #PPC
-    y_rep_ch <- MCMCvis::MCMCpstr(t_fit, params = 'y_rep', type = 'chains')[[1]]
-    t_y_rep <- t(y_rep_ch)
-    
-    #remove NA vals
-    na.y.rm <- which(is.na(t_data$y_PPC))
-    n_y_PPC <- t_data$y_PPC[-na.y.rm]
-    n_y_rep <- t_y_rep[, -na.y.rm]
-
-    #PPC
-    #p-val
-    PPC_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
-    {
-      fout <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
-      return(fout)
-    }
-    PPC_mn_pval <- PPC_fun(mean)
-    
-    #discrepancy
-    PPC_dis_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
-    {
-      fout <- apply(YR, 1, FUN) - FUN(D)
-      mn_out <- mean(fout)
-      return(mn_out)
-    }
-    PPC_mn_dis <- PPC_dis_fun(mean)
 
     #loop through years
     for (j in 1:length(t_years))
@@ -243,9 +215,7 @@ for (i in 1:length(species))
                          plmax = t_f_in$plmax,
                          num_diverge,
                          max_Rhat,
-                         min_neff,
-                         PPC_mn_dis,
-                         PPC_mn_pval)
+                         min_neff)
 
       #fill empty df
       out[counter:(counter + NROW(t_full) - 1),] <- t_full

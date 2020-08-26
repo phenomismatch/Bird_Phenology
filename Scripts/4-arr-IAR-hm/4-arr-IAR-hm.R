@@ -1,18 +1,7 @@
 ######################
-# 4 - arr IAR model - halfmax
+# 4 - arr IAR model - half-max
 #
-# VVV MODEL VVV
-# i = year
-# j = cell
-# y_{obs[i,j]} \sim N(y_{true[i,j]}, \sigma_{y[i,j]})
-# y_{true[i,j]} \sim N(\mu_{[i,j]}, \sigma_{y_true})
-# \mu_{[i,j]} = \beta_{0[i]} + \gamma_{[j]} + \phi_{[i,j]} * sigma_phi
-# \beta_{0[i]} \sim N(0, \sigma_{\beta_{0}})
-# \gamma_{[j]} \sim N(\mu_{\gamma[j]}, \sigma_{\gamma})
-# \mu_{\gamma[j]} = \alpha_{\gamma} + \beta_{\gamma} * lat_{[j]}
-# \sigma_{\phi} \sim HN(0, 5)
-# \phi_{[i,j]} \sim N(0, [D - W]^{-1})
-# \sum_{j}{} \phi_{[i,j]} = 0
+# Species name and number of iterations are given as arguments to this script
 ######################
 
 #Stan resources:
@@ -34,8 +23,8 @@ dir <- '~/Google_Drive/R/'
 
 # db/hm query dir ------------------------------------------------------------
 
-IAR_in_dir <- 'IAR_input_2020-07-23-Vireo-olivaceus'
-IAR_out_dir <- 'arrival_IAR_hm_2020-07-27-Vireo-olivaceus'
+IAR_in_dir <- 'IAR_input_2020-07-10'
+IAR_out_dir <- 'arrival_IAR_hm_2020-07-21'
 
 
 # Load packages -----------------------------------------------------------
@@ -60,11 +49,12 @@ IAR_out_date <- substr(IAR_out_dir, start = 16, stop = 25)
 
 # species arg -----------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 #args <- c('Catharus_guttatus', 40000)
 #args <- c('Euphagus_carolinus', 40000)
 #args <- c('Zonotrichia_albicollis', 20000)
-args <- c('Vireo_olivaceus', 5000)
+#args <- c('Vireo_olivaceus', 5000)
+#args <- c('Agelaius_phoeniceus', 5000)
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -73,7 +63,7 @@ args <- c('Vireo_olivaceus', 5000)
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
 #filter by species and year to be modeled
-f_out <- dplyr::filter(df_master, species == args[1] & MODEL_hm == TRUE)
+f_out <- dplyr::filter(df_master, species == args[1] & MODEL_hm == TRUE, per_ovr >= 0.05)
 
 #fill invalid rows with NA
 f_idx <- which(f_out$VALID_hm == FALSE)
@@ -333,16 +323,22 @@ generated quantities {
 
 vector[NJ] y_rep;
 int<lower = 0> counter;
+// vector[J] mu_yt[N];
 
 counter = 1;
 for (n in 1:N)
 {
   for (j in 1:J)
   {
-  y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
-  counter = counter + 1;
+    y_rep[counter] = normal_rng(y_true[n,j], sigma_y[n,j]);
+    counter = counter + 1;
   }
 }
+
+// for (i in 1:N)
+// {
+//  mu_yt[i] = beta0[i] + gamma + phi[i] * sigma_phi;
+// }
 }'
 
 
@@ -374,6 +370,7 @@ fit <- rstan::stan(model_code = IAR,
                      'sigma_y_true',
                      'y_true', 
                      'y_rep'),
+                     #'mu_yt'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
@@ -475,22 +472,9 @@ PPC_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
 }
 PPC_mn <- PPC_fun(mean)
 
-pdf(paste0(args[1], '_PPC_mn.pdf'))
-bayesplot::ppc_stat(n_y_PPC, n_y_rep, stat = 'mean')
-dev.off()
-
-#mean resid (pred - actual) for each datapoint
-ind_resid <- rep(NA, length(n_y_PPC))
-for (i in 1:length(n_y_PPC))
-{
-  #i <- 1
-  ind_resid[i] <- mean(n_y_rep[,i] - n_y_PPC[i])
-}
-
 #density overlay plot - first 100 iter
 #modified bayesplot::ppc_dens_overlay function
 tdata <- bayesplot::ppc_data(n_y_PPC, n_y_rep[1:100,])
-
 
 annotations <- data.frame(xpos = c(-Inf, -Inf),
                           ypos = c(Inf, Inf),
@@ -526,24 +510,6 @@ p <- ggplot(tdata) +
 ggsave(paste0(args[1], '_dens_overlay.pdf'), p)
 
 
-#average yrep for each pnt
-yrm <- apply(n_y_rep, 2, mean)
-pdf(paste0(args[1], '_pred_true.pdf'))
-plot(n_y_PPC, yrm, pch = 19, col = rgb(0,0,0,0.4),
-     xlim = range(n_y_PPC, yrm), ylim = range(n_y_PPC, yrm),
-     xlab = 'y', ylab = 'y_rep', main = paste0(args[1]))
-abline(a = 0, b = 1, lty = 2, lwd = 2, col = 'red')
-dev.off()
-
-
-#histrogram of residuals
-pdf(paste0(args[1], '_hist_resid.pdf'))
-hist(ind_resid, main = paste0(args[1]),
-     xlab = 'Residuals (predicted - true)')
-abline(v = 0, lty = 2, lwd = 3, col = 'red')
-dev.off()
-
-
 # write model results to file ---------------------------------------------
 
 options(max.print = 5e6)
@@ -563,7 +529,6 @@ cat(paste0('Mean accept stat: ', round(mean(accept_stat), 2), ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
 cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
 cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
-cat(paste0('PPC (mean): ', round(PPC_mn, 3), ' \n'))
 print(model_summary)
 sink()
 
@@ -586,11 +551,6 @@ ll_df <- data.frame(cell = cells,
 
 #load maps
 worldmap <- data.frame(maps::map("world", plot = FALSE)[c("x", "y")])
-
-#min/max for plotting using input data
-#f_rng <- c(range(f_out$arr_GAM_hm_mean, na.rm = TRUE), range(med_fit, na.rm = TRUE))
-#MIN <- round(min(f_rng))
-#MAX <- round(max(f_rng))
 
 #min/max for plotting using output data
 MIN <- (round(min(med_fit)) - 1)

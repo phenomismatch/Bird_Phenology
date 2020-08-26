@@ -1,7 +1,7 @@
 ######################
 # 2 - arrival GAM
 #
-# Fit model (GAM logistic regression) to eBird data to get half-max and max (bird arrival metrics) for each species-cell-year
+# Fit model (logistic GAM) to eBird data to get half-max for each species-cell-year
 #
 # y ~ bernouli(p)
 # logit(p) = s(day) + shr
@@ -14,7 +14,6 @@
 # https://stats.stackexchange.com/questions/359568/choosing-k-in-mgcvs-gam
 # 
 # Species name, start year, and end year should be given as args to this script. The model will then be fit to that species/years only.
-# Runtime: Up to 21 days on Xanadu (very long tail here, depends on data volume, etc.)
 ######################  
 
 
@@ -64,8 +63,8 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 # Get args fed to script --------------------------------------------------
 
-#args <- commandArgs(trailingOnly = TRUE)
-args <- c('Vireo_olivaceus', 2018:2019)
+args <- commandArgs(trailingOnly = TRUE)
+#args <- c('Vireo_olivaceus', 2018:2019)
 
 
 # import processed data ---------------------------------------------------
@@ -512,33 +511,6 @@ for (j in 1:nyr)
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
       dev.off()
-      
-      #PLOT CODE FOR PRESENTATION
-      # mn_dfit <- apply(dfit, 2, mean)
-      # LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
-      # UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
-      # mn_hm <- mean(halfmax_fit)
-      # LCI_hm <- quantile(halfmax_fit, probs = 0.025)
-      # UCI_hm <- quantile(halfmax_fit, probs = 0.975)
-      # 
-      # pdf(paste0(args[1], '_', years[j], '_', cells[k], '_arrival.pdf'))
-      # plot(predictDays, UCI_dfit, type = 'l', col = 'white', lty = 2, lwd = 5,
-      #      ylim = c(0, max(UCI_dfit)),
-      #      #main = paste0(args[1], ' - ', years[j], ' - ', cells[k]),
-      #      #xlab = 'Julian Day', ylab = 'Probability of occurrence',
-      #      tck = 0, ann = FALSE, xaxt = 'n', yaxt = 'n')
-      # # lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 5)
-      # # lines(predictDays, mn_dfit, lwd = 5)
-      # cyspdata$detect[which(cyspdata$detect == 1)] <- max(UCI_dfit)
-      # points(cyspdata$jday, cyspdata$detect, col = rgb(0,0,0,0.25), cex = 2)
-      # # abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 5)
-      # # abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
-      # # abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 5, lty = 2)
-      # # legend('topleft',
-      # #        legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
-      # #        col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
-      # #        lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
-      # dev.off()
       
       # #alternative visualization
       pdf(paste0(args[1], '_', years[j], '_', cells[k], '_arrival_realizations.pdf'))

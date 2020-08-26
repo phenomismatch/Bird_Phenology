@@ -1,7 +1,7 @@
 ######################
-# 3 - proces arrival GAM output
+# 3 - process arrival GAM output
 #
-# Aggeregate posterior info and diagnostic info from 2-halfmax-arr.R to be used in IAR model
+# Aggregate posterior info and diagnostic info from 2-arr-GAM.R to be used in IAR model
 # Determine which cells should be used in IAR model (cells that overlap breeding and migratory ranges, but do not overlap resident or non-breeding ranges)
 #
 ######################
@@ -155,8 +155,6 @@ for (i in 1:nsp)
                                     cell = na_reps,
                                     arr_GAM_hm_mean = na_reps,
                                     arr_GAM_hm_sd = na_reps,
-                                    # arr_GAM_max_mean = na_reps,
-                                    # arr_GAM_max_sd = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
                                     mlmax = na_reps,
@@ -335,19 +333,12 @@ for (i in 1:nsp)
           cndf <- colnames(tt_arr2)
           hm_iter_ind <- grep('hm_iter', cndf)
           hm_posterior <- as.numeric(tt_arr2[,hm_iter_ind])
-          
-          # #posterior for max
-          # max_iter_ind <- grep('max_iter', cndf)
-          # max_posterior <- as.numeric(tt_arr2[,max_iter_ind])
-        
         
           #calculate posterior mean and sd
           if (sum(!is.na(hm_posterior)) > 0)
           {
             diagnostics_frame$arr_GAM_hm_mean[counter] <- mean(hm_posterior)
             diagnostics_frame$arr_GAM_hm_sd[counter] <- sd(hm_posterior)
-            # diagnostics_frame$arr_GAM_max_mean[counter] <- mean(max_posterior)
-            # diagnostics_frame$arr_GAM_max_sd[counter] <- sd(max_posterior)
           }
         }
         counter <- counter + 1
