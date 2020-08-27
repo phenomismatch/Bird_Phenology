@@ -79,6 +79,10 @@ mrg1$juv_GAM_sd[juv_na] <- NA
 #filter by year and species
 mrg2 <- dplyr::filter(mrg1, year >= 2002, year <= 2017, per_ovr >= 0.05, 
                       species == args[1], breed_cell == TRUE, other_cell == FALSE)
+if (NROW(mrg2) < 3)
+{
+  stop('Not enough data')
+}
 
 agg_br <- aggregate(br_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)))
 agg_juv <- aggregate(juv_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)))
@@ -95,7 +99,7 @@ v_idx <- which(!is.na(mrg3$br_GAM_mean) | !is.na(mrg3$juv_GAM_mean))
 df <- mrg3[v_idx,]
 if (length(unique(df$year)) < 3 & NROW(df) < 3)
 {
-  stop('Not enough years')
+  stop('Not enough data')
 }
 
 # #number of cell/years with overlapping data
