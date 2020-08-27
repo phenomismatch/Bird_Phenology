@@ -1,7 +1,7 @@
 ######################
-# 3 - proces arrival GAM output
+# 3 - process arrival GAM output
 #
-# Aggeregate posterior info and diagnostic info from 2-halfmax-arr.R to be used in IAR model
+# Aggregate posterior info and diagnostic info from 2-arr-GAM.R to be used in IAR model
 # Determine which cells should be used in IAR model (cells that overlap breeding and migratory ranges, but do not overlap resident or non-breeding ranges)
 #
 ######################
@@ -16,7 +16,11 @@ dir <- '~/Google_Drive/R/'
 # db/hm query dir ------------------------------------------------------------
 
 gam_dir <- 'arrival_GAM_2020-07-10'
+gam_dir2 <- NULL
+#gam_dir2 <- 'arrival_GAM_2020-07-23-Vireo-olivaceus'
 gam_date <- substr(gam_dir, start = 13, stop = 22)
+#gam_date2 <- substr(gam_dir2, start = 13, stop = 22)
+gam_date2 <- NULL
 #years specified for 2-arr-GAM
 years <- 2002:2017
 
@@ -94,6 +98,7 @@ setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
 species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
+#species_list <- 'Vireo_olivaceus'
 nsp <- length(species_list)
 nyr <- length(years)
 
@@ -104,12 +109,18 @@ nyr <- length(years)
 tu_cells <- rep(NA, nsp)
 for (i in 1:nsp)
 {
-  #i <- 20
+  #i <- 1
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', gam_dir))
   temp_arr_GAM <- readRDS(paste0('arrival_GAM_', species_list[i], '.rds'))
 
+  if (!is.null(gam_dir2))
+  {
+    setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', gam_dir2))
+    temp_arr_GAM2 <- readRDS(paste0('arrival_GAM_', species_list[i], '.rds'))
+    temp_arr_GAM <- rbind(temp_arr_GAM, temp_arr_GAM2)
+  }
   tu_cells[i] <- length(unique(temp_arr_GAM$cell))
 }
 
@@ -128,6 +139,13 @@ for (i in 1:nsp)
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', gam_dir))
   temp_arr_GAM <- readRDS(paste0('arrival_GAM_', species_list[i], '.rds'))
   
+  if (!is.null(gam_dir2))
+  {
+    setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', gam_dir2))
+    temp_arr_GAM2 <- readRDS(paste0('arrival_GAM_', species_list[i], '.rds'))
+    temp_arr_GAM <- rbind(temp_arr_GAM, temp_arr_GAM2)
+  }
+  
   if (i == 1)
   {
     na_reps <- rep(NA, max(tu_cells) * nyr * nsp)
@@ -137,8 +155,6 @@ for (i in 1:nsp)
                                     cell = na_reps,
                                     arr_GAM_hm_mean = na_reps,
                                     arr_GAM_hm_sd = na_reps,
-                                    # arr_GAM_max_mean = na_reps,
-                                    # arr_GAM_max_sd = na_reps,
                                     max_Rhat = na_reps,
                                     min_neff = na_reps,
                                     mlmax = na_reps,
@@ -317,19 +333,12 @@ for (i in 1:nsp)
           cndf <- colnames(tt_arr2)
           hm_iter_ind <- grep('hm_iter', cndf)
           hm_posterior <- as.numeric(tt_arr2[,hm_iter_ind])
-          
-          # #posterior for max
-          # max_iter_ind <- grep('max_iter', cndf)
-          # max_posterior <- as.numeric(tt_arr2[,max_iter_ind])
-        
         
           #calculate posterior mean and sd
           if (sum(!is.na(hm_posterior)) > 0)
           {
             diagnostics_frame$arr_GAM_hm_mean[counter] <- mean(hm_posterior)
             diagnostics_frame$arr_GAM_hm_sd[counter] <- sd(hm_posterior)
-            # diagnostics_frame$arr_GAM_max_mean[counter] <- mean(max_posterior)
-            # diagnostics_frame$arr_GAM_max_sd[counter] <- sd(max_posterior)
           }
         }
         counter <- counter + 1
@@ -341,8 +350,13 @@ for (i in 1:nsp)
 
 # strip excess NAs --------------------------------------------------------
 
-to.rm <- min(which(is.na(diagnostics_frame$species))):NROW(diagnostics_frame)
-diagnostics_frame2 <- diagnostics_frame[-to.rm,]
+if (sum(is.na(diagnostics_frame$species)) > 0)
+{
+  to.rm <- min(which(is.na(diagnostics_frame$species))):NROW(diagnostics_frame)
+  diagnostics_frame2 <- diagnostics_frame[-to.rm,]
+} else {
+  diagnostics_frame2 <- diagnostics_frame
+}
 
 
 # combine data with overlap df --------------------------------------------
@@ -391,7 +405,7 @@ for (i in 1:length(species_list))
       nobs_yr_hm <- c()
       for (j in tail(years, n = 3))
       {
-        #j <- 2018
+        #j <- 2016
         ty_sp3 <- dplyr::filter(t_sp, year == j)
         ind_hm <- sum(ty_sp3$VALID_hm)
         nobs_yr_hm <- c(nobs_yr_hm, ind_hm)
@@ -407,7 +421,7 @@ for (i in 1:length(species_list))
         nobs_yr2_hm <- c()
         for (j in min(years):max(years))
         {
-          #j <- 2012
+          #j <- 2002
           ty2_sp3_hm <- dplyr::filter(t_sp, year == j)
           ind2_hm <- sum(ty2_sp3_hm$VALID_hm)
           nobs_yr2_hm <- c(nobs_yr2_hm, ind2_hm)
@@ -436,12 +450,23 @@ df_master <- df_out[with(df_out, order(species, year, cell)),]
 
 # write to RDS --------------------------------------------------
 
-IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', gam_date)
+if (is.null(gam_date2))
+{
+  IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', gam_date)
+} else {
+  IAR_dir_path <- paste0(dir, 'Bird_phenology/Data/Processed/IAR_input_', gam_date2)
+}
 
 dir.create(IAR_dir_path)
 setwd(IAR_dir_path)
 
-saveRDS(df_master, paste0('IAR_input-', gam_date, '.rds'))
+if (is.null(gam_date2))
+{
+  saveRDS(df_master, paste0('IAR_input-', gam_date, '.rds'))
+} else {
+  saveRDS(df_master, paste0('IAR_input-', gam_date2, '.rds'))
+}
+
 
 
 

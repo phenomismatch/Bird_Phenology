@@ -6,7 +6,6 @@
 # Creates directory of processed data (rds file for each species) and copy of this 
 # ... script (for reproducibility) in /Data/Processed/eBird_query_<DATE>
 #
-# Runtime: 10-11 hours
 ####################
 
 # #can access DB from command line with:

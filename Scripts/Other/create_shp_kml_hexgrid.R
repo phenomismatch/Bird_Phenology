@@ -17,6 +17,7 @@ library(maps)
 #create grid
 hexgrid6 <- dggridR::dgconstruct(res = 6)
 global <- dggridR::dgearthgrid(hexgrid6, frame = FALSE)
+
 #add cell names
 global.cell <- data.frame(cell = sp::getSpPPolygonsIDSlots(global), 
                           row.names = sp::getSpPPolygonsIDSlots(global))
@@ -52,6 +53,8 @@ cell_idx <- which(cell_centers$lon_deg < -50 &
 
 #filter SPDF by idx
 out <- global.spdf[cell_idx,]
+out@data$cell <- cells[cell_idx]
+
 
 #combined features
 out_comb <- rgeos::gUnaryUnion(out)
@@ -66,7 +69,7 @@ lines(out_comb_spdf, col = 'green')
 
 # save out files ----------------------------------------------------------
 
-setwd('~/Desktop/')
+setwd("~/Google_Drive/R/Bird_Phenology/Data/hex_grid_crop")
 
 #save as shp file
 writeOGR(out, "hex_grid_crop.shp", "", "ESRI Shapefile")
