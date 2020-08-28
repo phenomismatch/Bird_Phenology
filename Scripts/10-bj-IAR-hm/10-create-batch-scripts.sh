@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2020-08-27"
+DATE="2020-08-28"
 
 while read name
 do
@@ -14,7 +14,7 @@ do
 #SBATCH -c 4 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=10G #memory requested
+#SBATCH --mem=15G #memory requested
 #SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bj_IAR_hm_$DATE/$temp-bj-iar-hm.out #STDOUT
 #SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bj_IAR_hm_$DATE/$temp-bj-iar-hm.err #STDERR
 

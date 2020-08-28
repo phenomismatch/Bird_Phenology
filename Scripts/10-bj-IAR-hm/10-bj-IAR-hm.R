@@ -1,7 +1,7 @@
 ######################
 # 10 - bj IAR model - halfmax
-# 
 ######################
+# 
 
 #Stan resources:
 #http://mc-stan.org/users/documentation/case-studies/icar_stan.html
@@ -25,7 +25,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 breed_date <- '2020-06-04'
 juv_date <- '2020-06-04'
 run_date <- '2020-08-27'
-bj_IAR_out_dir <- paste0('bj_IAR_', run_date)
+bj_IAR_out_dir <- paste0('bj_IAR_hm_', run_date)
 
 
 # Load packages -----------------------------------------------------------
@@ -444,6 +444,8 @@ STEP_SIZE <- 0.0005
 CHAINS <- 4
 ITER <- as.numeric(args[2])
 
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir))
+
 tt <- proc.time()
 fit <- rstan::stan(model_code = IAR,
             data = DATA,
@@ -473,7 +475,7 @@ run_time <- (proc.time()[3] - tt[3]) / 60
 
 #get summary of model output
 model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, 
-                                      round = 2, excl = 'y_rep')
+                                      round = 2, excl = c('br_rep', 'juv_rep'))
 
 #extract Rhat and neff values
 rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
@@ -513,7 +515,7 @@ while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 2
   
   #get updated summary
   model_summary <- MCMCvis::MCMCsummary(fit, Rhat = TRUE, n.eff = TRUE, 
-                                        round = 2, excl = 'y_rep')
+                                        round = 2, excl = c('br_rep', 'juv_rep'))
   
   #extract Rhat and neff values
   rhat_output <- as.vector(model_summary[, grep('Rhat', colnames(model_summary))])
@@ -522,7 +524,6 @@ while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 2
 
 
 #save to RDS
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir))
 saveRDS(fit, file = paste0(args[1], '-bj-iar-hm-stan_output-', run_date, '.rds'))
 
 #save data to RDS (has which cells are modeled)
@@ -683,12 +684,12 @@ MAX <- (round(max(med_fit)) + 1)
 
 
 #create output image dir if it doesn't exist
-ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_dir)),
-       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_dir)),
+ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', bj_IAR_out_dir)),
+       dir.create(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', bj_IAR_out_dir)),
        FALSE)
 
 
-setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', IAR_out_dir))
+setwd(paste0(dir, 'Bird_Phenology/Figures/pre_post_IAR_maps/', bj_IAR_out_dir))
 
 #loop plots for each year
 for (i in 1:length(years))

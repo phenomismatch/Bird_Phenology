@@ -1,14 +1,14 @@
 #!/bin/bash
 
-#SBATCH --job-name=bj-hm-2020-08-27-Quiscalus_quiscula
+#SBATCH --job-name=bj-hm-2020-08-28-Quiscalus_quiscula
 #SBATCH -N 1 #number of tasks
 #SBATCH -n 1 #number of nodes
 #SBATCH -c 4 #cpus
 #SBATCH --qos=general #queue (same as partition)
 #SBATCH --partition=general #partition - can also specify 'himem'
-#SBATCH --mem=10G #memory requested
-#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bj_IAR_hm_2020-08-27/Quiscalus_quiscula-bj-iar-hm.out #STDOUT
-#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bj_IAR_hm_2020-08-27/Quiscalus_quiscula-bj-iar-hm.err #STDERR
+#SBATCH --mem=15G #memory requested
+#SBATCH -o /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bj_IAR_hm_2020-08-28/Quiscalus_quiscula-bj-iar-hm.out #STDOUT
+#SBATCH -e /labs/Tingley/phenomismatch/Bird_Phenology/Data/Processed/bj_IAR_hm_2020-08-28/Quiscalus_quiscula-bj-iar-hm.err #STDERR
 
 #echos name of node
 echo `hostname`
