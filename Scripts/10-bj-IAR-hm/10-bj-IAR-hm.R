@@ -24,7 +24,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 breed_date <- '2020-06-04'
 juv_date <- '2020-06-04'
-run_date <- '2020-08-27'
+run_date <- '2020-08-28'
 bj_IAR_out_dir <- paste0('bj_IAR_hm_', run_date)
 
 
