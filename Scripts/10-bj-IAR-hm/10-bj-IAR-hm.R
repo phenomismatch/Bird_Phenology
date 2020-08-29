@@ -54,6 +54,7 @@ juv_master <- readRDS(paste0('juv_master_', juv_date, '.rds'))
 args <- commandArgs(trailingOnly = TRUE)
 #args <- c('Dumetella_carolinensis', 5000)
 #args <- c('Geothlypis_trichas', 5000)
+#args <- c('Vermivora_cyanoptera', 5000)
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -566,67 +567,67 @@ n_juv_rep <- t_juv_rep[, -na.juv.rm]
 
 #density overlay plot - first 100 iter
 #modified bayesplot::ppc_dens_overlay function
-tdata_br <- bayesplot::ppc_data(n_br_PPC, n_br_rep[1:100,])
-tdata_juv <- bayesplot::ppc_data(n_juv_PPC, n_juv_rep[1:100,])
-
-
-annotations <- data.frame(xpos = c(-Inf, -Inf),
-                          ypos = c(Inf, Inf),
-                          annotateText = c(paste0('Max Rhat: ', max(rhat_output)),
-                                           paste0('Min n.eff: ', min(neff_output))),
-                          hjustvar = c(0, 0),
-                          vjustvar = c(4, 6))
-
-p_br <- ggplot(tdata_br) +
-  aes_(x = ~value) +
-  stat_density(aes_(group = ~rep_id, color = "yrep"),
-               data = function(x) dplyr::filter(x, !tdata_br$is_y),
-               geom = "line", position = "identity", size = 0.25,
-               alpha = 0.3, trim = FALSE, bw = 'nrd0', adjust = 1,
-               kernel = 'gaussian', n = 1024) +
-  stat_density(aes_(color = "y"), data = function(x) dplyr::filter(x, tdata_br$is_y),
-               geom = "line", position = "identity", lineend = "round", size = 1, trim = FALSE,
-               bw = 'nrd0', adjust = 1, kernel = 'gaussian', n = 1024) +
-  theme_classic() +
-  theme(axis.title.y = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.line.y = element_blank(),
-        plot.title = element_text(size = 24)) +
-  labs(colour = '') +
-  scale_color_manual(values = c('red', 'black')) +
-  ggtitle(paste0(args[1])) +
-  geom_text(data = annotations, aes(x = xpos, y = ypos,
-                                    hjust = hjustvar, vjust = vjustvar,
-                                    label = annotateText),
-            size = 3, col = 'black')
-
-p_juv <- ggplot(tdata_juv) +
-  aes_(x = ~value) +
-  stat_density(aes_(group = ~rep_id, color = "yrep"),
-               data = function(x) dplyr::filter(x, !tdata_juv$is_y),
-               geom = "line", position = "identity", size = 0.25,
-               alpha = 0.3, trim = FALSE, bw = 'nrd0', adjust = 1,
-               kernel = 'gaussian', n = 1024) +
-  stat_density(aes_(color = "y"), data = function(x) dplyr::filter(x, tdata_juv$is_y),
-               geom = "line", position = "identity", lineend = "round", size = 1, trim = FALSE,
-               bw = 'nrd0', adjust = 1, kernel = 'gaussian', n = 1024) +
-  theme_classic() +
-  theme(axis.title.y = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.line.y = element_blank(),
-        plot.title = element_text(size = 24)) +
-  labs(colour = '') +
-  scale_color_manual(values = c('red', 'black')) +
-  ggtitle(paste0(args[1])) +
-  geom_text(data = annotations, aes(x = xpos, y = ypos,
-                                    hjust = hjustvar, vjust = vjustvar,
-                                    label = annotateText),
-            size = 3, col = 'black')
-
-ggsave(paste0(args[1], '_br_dens_overlay.pdf'), p_br)
-ggsave(paste0(args[1], '_juv_dens_overlay.pdf'), p_juv)
+# tdata_br <- bayesplot::ppc_data(n_br_PPC, n_br_rep[1:100,])
+# tdata_juv <- bayesplot::ppc_data(n_juv_PPC, n_juv_rep[1:100,])
+# 
+# 
+# annotations <- data.frame(xpos = c(-Inf, -Inf),
+#                           ypos = c(Inf, Inf),
+#                           annotateText = c(paste0('Max Rhat: ', max(rhat_output)),
+#                                            paste0('Min n.eff: ', min(neff_output))),
+#                           hjustvar = c(0, 0),
+#                           vjustvar = c(4, 6))
+# 
+# p_br <- ggplot(tdata_br) +
+#   aes_(x = ~value) +
+#   stat_density(aes_(group = ~rep_id, color = "yrep"),
+#                data = function(x) dplyr::filter(x, !tdata_br$is_y),
+#                geom = "line", position = "identity", size = 0.25,
+#                alpha = 0.3, trim = FALSE, bw = 'nrd0', adjust = 1,
+#                kernel = 'gaussian', n = 1024) +
+#   stat_density(aes_(color = "y"), data = function(x) dplyr::filter(x, tdata_br$is_y),
+#                geom = "line", position = "identity", lineend = "round", size = 1, trim = FALSE,
+#                bw = 'nrd0', adjust = 1, kernel = 'gaussian', n = 1024) +
+#   theme_classic() +
+#   theme(axis.title.y = element_blank(),
+#         axis.text.y = element_blank(),
+#         axis.ticks.y = element_blank(),
+#         axis.line.y = element_blank(),
+#         plot.title = element_text(size = 24)) +
+#   labs(colour = '') +
+#   scale_color_manual(values = c('red', 'black')) +
+#   ggtitle(paste0(args[1])) +
+#   geom_text(data = annotations, aes(x = xpos, y = ypos,
+#                                     hjust = hjustvar, vjust = vjustvar,
+#                                     label = annotateText),
+#             size = 3, col = 'black')
+# 
+# p_juv <- ggplot(tdata_juv) +
+#   aes_(x = ~value) +
+#   stat_density(aes_(group = ~rep_id, color = "yrep"),
+#                data = function(x) dplyr::filter(x, !tdata_juv$is_y),
+#                geom = "line", position = "identity", size = 0.25,
+#                alpha = 0.3, trim = FALSE, bw = 'nrd0', adjust = 1,
+#                kernel = 'gaussian', n = 1024) +
+#   stat_density(aes_(color = "y"), data = function(x) dplyr::filter(x, tdata_juv$is_y),
+#                geom = "line", position = "identity", lineend = "round", size = 1, trim = FALSE,
+#                bw = 'nrd0', adjust = 1, kernel = 'gaussian', n = 1024) +
+#   theme_classic() +
+#   theme(axis.title.y = element_blank(),
+#         axis.text.y = element_blank(),
+#         axis.ticks.y = element_blank(),
+#         axis.line.y = element_blank(),
+#         plot.title = element_text(size = 24)) +
+#   labs(colour = '') +
+#   scale_color_manual(values = c('red', 'black')) +
+#   ggtitle(paste0(args[1])) +
+#   geom_text(data = annotations, aes(x = xpos, y = ypos,
+#                                     hjust = hjustvar, vjust = vjustvar,
+#                                     label = annotateText),
+#             size = 3, col = 'black')
+# 
+# ggsave(paste0(args[1], '_br_dens_overlay.pdf'), p_br)
+# ggsave(paste0(args[1], '_juv_dens_overlay.pdf'), p_juv)
 
 
 # write model results to file ---------------------------------------------
