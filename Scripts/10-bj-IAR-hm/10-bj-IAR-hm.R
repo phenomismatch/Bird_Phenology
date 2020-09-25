@@ -83,7 +83,8 @@ mrg2 <- dplyr::filter(mrg1, year >= 2002, year <= 2017, per_ovr >= 0.05,
 tt2 <- dplyr::filter(mrg2, !is.na(br_GAM_mean) | !is.na(juv_GAM_mean))
 if (NROW(tt2) < 3)
 {
-  sink(paste0(args[1], '-error.txt'), type="output")
+  sink(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir, '/', args[1], '-error.txt'), 
+       type="output")
   writeLines("Not enough data")
   sink()
   stop('Not enough data')
@@ -104,7 +105,8 @@ v_idx <- which(!is.na(mrg3$br_GAM_mean) | !is.na(mrg3$juv_GAM_mean))
 df <- mrg3[v_idx,]
 if (length(unique(df$year)) < 3 & NROW(df) < 3)
 {
-  sink(paste0(args[1], '-error.txt'), type="output")
+  sink(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir, '/', args[1], '-error.txt'), 
+       type="output")
   writeLines("Not enough data")
   sink()
   stop('Not enough data')
