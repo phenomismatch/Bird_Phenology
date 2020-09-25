@@ -70,6 +70,7 @@ out <- data.frame(species = rep(NA, NROW(mrg1)), cell = NA,
                   bj_IAR_mean = NA, bj_IAR_sd = NA, 
                   sigma_beta0_mean = NA, sigma_beta0_sd = NA,
                   beta_gamma_mean = NA, beta_gamma_sd = NA,
+                  alpha_mean = NA, alpha_sd = NA,
                   num_diverge = NA, max_Rhat = NA, min_neff = NA)
 
 
@@ -142,6 +143,12 @@ for (i in 1:length(species))
     beta_gamma_sd <- MCMCvis::MCMCpstr(t_fit, params = 'beta_gamma',
                                        func = sd)[[1]]
     
+    #extract phenological offset (alpha)
+    alpha_mean <- MCMCvis::MCMCpstr(t_fit, params = 'alpha',
+                                         func = mean)[[1]]
+    alpha_sd <- MCMCvis::MCMCpstr(t_fit, params = 'alpha',
+                                       func = sd)[[1]]
+    
     #diagnostics
     num_diverge <- rstan::get_num_divergent(t_fit)
     model_summary <- MCMCvis::MCMCsummary(t_fit, excl = 'y_rep', round = 3)
@@ -163,10 +170,10 @@ for (i in 1:length(species))
                            per_ovr = t_f_in$per_ovr,
                            year = t_f_in$year,
                            br_GAM_mean = t_f_in$br_GAM_mean,
-                           br_GAM_sd = t_f_in$br_GAM_mean,
+                           br_GAM_sd = t_f_in$br_GAM_sd,
                            VALID_br_GAM = t_f_in$VALID.x,
                            juv_GAM_mean = t_f_in$juv_GAM_mean,
-                           juv_GAM_sd = t_f_in$juv_GAM_mean,
+                           juv_GAM_sd = t_f_in$juv_GAM_sd,
                            VALID_juv_GAM = t_f_in$VALID.y,
                            bj_IAR_mean = fit_mean[j,],
                            bj_IAR_sd = fit_sd[j,],
@@ -174,6 +181,8 @@ for (i in 1:length(species))
                            sigma_beta0_sd,
                            beta_gamma_mean,
                            beta_gamma_sd,
+                           alpha_mean,
+                           alpha_sd,
                            num_diverge,
                            max_Rhat,
                            min_neff)
