@@ -52,7 +52,7 @@ juv_master <- readRDS(paste0('juv_master_', juv_date, '.rds'))
 # species arg -----------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
-#args <- c('Dumetella_carolinensis', 5000)
+#args <- c('Zonotrichia_leucophrys', 5000)
 #args <- c('Geothlypis_trichas', 5000)
 #args <- c('Vermivora_cyanoptera', 5000)
 
@@ -80,7 +80,8 @@ mrg1$juv_GAM_sd[juv_na] <- NA
 #filter by year and species
 mrg2 <- dplyr::filter(mrg1, year >= 2002, year <= 2017, per_ovr >= 0.05, 
                       species == args[1], breed_cell == TRUE, other_cell == FALSE)
-if (NROW(mrg2) < 3)
+tt2 <- dplyr::filter(mrg2, !is.na(br_GAM_mean) | !is.na(juv_GAM_mean))
+if (NROW(tt2) < 3)
 {
   sink(paste0(args[1], '-error.txt'), type="output")
   writeLines("Not enough data")
