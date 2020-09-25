@@ -24,7 +24,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 breed_date <- '2020-06-04'
 juv_date <- '2020-06-04'
-run_date <- '2020-08-28'
+run_date <- '2020-09-25'
 bj_IAR_out_dir <- paste0('bj_IAR_hm_', run_date)
 
 
@@ -82,6 +82,9 @@ mrg2 <- dplyr::filter(mrg1, year >= 2002, year <= 2017, per_ovr >= 0.05,
                       species == args[1], breed_cell == TRUE, other_cell == FALSE)
 if (NROW(mrg2) < 3)
 {
+  sink(paste0(args[1], '-error.txt'), type="output")
+  writeLines("Not enough data")
+  sink()
   stop('Not enough data')
 }
 
@@ -91,7 +94,7 @@ agg_juv <- aggregate(juv_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)
 #filter for valid years
 agg_mrg <- dplyr::full_join(agg_br, agg_juv, by = 'year')
 agg_mrg$j <- apply(agg_mrg[,2:3], 1, function(x) sum(x, na.rm = TRUE))
-vyrs <- dplyr::filter(agg_mrg, j >=3)$year
+vyrs <- dplyr::filter(agg_mrg, j >= 1)$year
 
 mrg3 <- dplyr::filter(mrg2, year %in% vyrs)
 
@@ -100,6 +103,9 @@ v_idx <- which(!is.na(mrg3$br_GAM_mean) | !is.na(mrg3$juv_GAM_mean))
 df <- mrg3[v_idx,]
 if (length(unique(df$year)) < 3 & NROW(df) < 3)
 {
+  sink(paste0(args[1], '-error.txt'), type="output")
+  writeLines("Not enough data")
+  sink()
   stop('Not enough data')
 }
 
@@ -398,8 +404,8 @@ sigma_gamma ~ normal(0, 10);
 sigma_beta0 ~ normal(0, 10);
 sigma_y_true ~ normal(0, 10);
 sigma_phi ~ normal(0, 10);
-// offset = 29 represents 29 days between hatch and fledge
-alpha ~ normal(29, 3);
+// offset = 30 represents 30 days between hatch and fledge
+alpha ~ normal(30, 4);
 
 for (i in 1:N)
 {
@@ -486,7 +492,7 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 # rerun if necessary ------------------------------------------------------
 
 #double iterations and run again
-while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 20001)
+while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 40001)
 {
   
   ITER <- ITER * 2
@@ -704,32 +710,32 @@ for (i in 1:length(years))
   to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
   to_plt2 <- dplyr::inner_join(to_plt, ll_df, by = 'cell')
   
-  #pre-IAR
-  p <- ggplot() +
-    geom_path(data = worldmap,
-              aes(x = x, y = y), color = 'black') +
-    coord_map("ortho", orientation = c(35, -80, 0),
-              xlim = c(-100, -55), ylim = c(23, 66)) +
-    geom_polygon(data = to_plt2, aes(x = long, y = lat.y, group = group, fill = arr_GAM_hm_mean),
-                 alpha = 0.4) +
-    geom_path(data = to_plt2, aes(x = long, y = lat.y, group = group),
-              alpha = 0.4, color = 'black') +
-    scale_fill_gradientn(colors = c('red', 'blue'),
-                         limits = c(MIN, MAX)) +
-    labs(fill = 'Estimated Arrival') +
-    annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5,
-             label = round(to_plt2$arr_GAM_hm_mean, digits = 0), col = 'black', alpha = 0.2,
-             size = 4) +
-    annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5,
-             label = round(to_plt2$arr_GAM_hm_sd, digits = 0), col = 'white', alpha = 0.3,
-             size = 3) +
-    ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Pre-IAR')) +
-    theme_bw() +
-    xlab('Longitude') +
-    ylab('Latitude')
-  
-  ggsave(plot = p,
-         filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '-pre_IAR.pdf'))
+  # #pre-IAR
+  # p <- ggplot() +
+  #   geom_path(data = worldmap,
+  #             aes(x = x, y = y), color = 'black') +
+  #   coord_map("ortho", orientation = c(35, -80, 0),
+  #             xlim = c(-100, -55), ylim = c(23, 66)) +
+  #   geom_polygon(data = to_plt2, aes(x = long, y = lat.y, group = group, fill = arr_GAM_hm_mean),
+  #                alpha = 0.4) +
+  #   geom_path(data = to_plt2, aes(x = long, y = lat.y, group = group),
+  #             alpha = 0.4, color = 'black') +
+  #   scale_fill_gradientn(colors = c('red', 'blue'),
+  #                        limits = c(MIN, MAX)) +
+  #   labs(fill = 'Estimated Arrival') +
+  #   annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg + 0.5,
+  #            label = round(to_plt2$arr_GAM_hm_mean, digits = 0), col = 'black', alpha = 0.2,
+  #            size = 4) +
+  #   annotate('text', x = to_plt2$lon_deg, y = to_plt2$lat_deg - 0.5,
+  #            label = round(to_plt2$arr_GAM_hm_sd, digits = 0), col = 'white', alpha = 0.3,
+  #            size = 3) +
+  #   ggtitle(paste0(f_out_filt$species[1], ' - ', f_out_filt$year[1], ' - Pre-IAR')) +
+  #   theme_bw() +
+  #   xlab('Longitude') +
+  #   ylab('Latitude')
+  # 
+  # ggsave(plot = p,
+  #        filename = paste0(f_out_filt$species[1], '_', f_out_filt$year[1], '-pre_IAR.pdf'))
   
   
   #post-IAR
@@ -829,8 +835,8 @@ MCMCvis::MCMCtrace(fit,
                    open_pdf = FALSE,
                    filename = paste0(args[1], '-trace_sigma_phi-', run_date, '.pdf'))
 
-#alpha ~ N(29, 3)
-PR <- rnorm(10000, 29, 3)
+#alpha ~ N(30, 4)
+PR <- rnorm(10000, 30, 4)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha',
                    priors = PR,
