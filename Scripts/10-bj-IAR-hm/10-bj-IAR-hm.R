@@ -54,7 +54,7 @@ juv_master <- readRDS(paste0('juv_master_', juv_date, '.rds'))
 args <- commandArgs(trailingOnly = TRUE)
 #args <- c('Zonotrichia_leucophrys', 5000)
 #args <- c('Geothlypis_trichas', 5000)
-#args <- c('Vermivora_cyanoptera', 5000)
+#args <- c('Contopus_virens', 5000)
 
 
 # Filter data by species/years ------------------------------------------------------
@@ -90,8 +90,18 @@ if (NROW(tt2) < 3)
   stop('Not enough data')
 }
 
-agg_br <- aggregate(br_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)))
-agg_juv <- aggregate(juv_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)))
+if (NROW(dplyr::filter(mrg2, !is.na(br_GAM_mean))) > 0)
+{
+  agg_br <- aggregate(br_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)))
+} else {
+  agg_br <- data.frame(year = NA, br_GAM_mean = NA)
+}
+if (NROW(dplyr::filter(mrg2, !is.na(juv_GAM_mean))) > 0)
+{
+  agg_juv <- aggregate(juv_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)))
+} else {
+  agg_juv <- data.frame(year = NA, juv_GAM_mean = NA)
+}
 
 #filter for valid years
 agg_mrg <- dplyr::full_join(agg_br, agg_juv, by = 'year')
