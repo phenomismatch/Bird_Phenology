@@ -239,6 +239,10 @@ dd4 <- dplyr::select(dd3, species, bt_species, med_LH, med_LF, med_LH_imp, med_L
 setwd(paste0(dir, '/Data/Processed/'))
 saveRDS(dd4, paste0('Nestwatch_pheno_dates-', RUN_DATE, '.rds'))
 
+#just species from arr_master
+setwd(paste0(dir, '/Data/'))
+write.table(unique(arr_data$species), 'arr_species_list.txt', 
+            row.names = FALSE, col.names = FALSE)
 
 #use this in 8-br-GAM model
 
