@@ -374,7 +374,6 @@ vector[N] beta0_raw;
 real<lower = 0> sigma_beta0;
 vector[J] y_true_raw[N];                           // J vectors (years in rows) of length N (cells in cols)
 real<lower = 0> sigma_y_true;
-real alpha;                                       // offset for juv to estimate back to lay date
 }
 
 transformed parameters {
@@ -417,8 +416,6 @@ sigma_gamma ~ normal(0, 10);
 sigma_beta0 ~ normal(0, 10);
 sigma_y_true ~ normal(0, 10);
 sigma_phi ~ normal(0, 10);
-// offset = 30 represents 30 days between hatch and fledge
-alpha ~ normal(30, 4);
 
 for (i in 1:N)
 {
@@ -430,7 +427,7 @@ for (i in 1:N)
   
   // observation model for y
   br[i] ~ normal(y_true[i], sigma_br[i]);
-  juv[i] ~ normal(y_true[i] + alpha, sigma_juv[i]);
+  juv[i] ~ normal(y_true[i], sigma_juv[i]);
 }
 }
 
