@@ -526,7 +526,7 @@ for (j in 15:nyr)
       abline(v = mn_hm, col = rgb(0,0,1,0.5), lwd = 2)
       abline(v = LCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
       abline(v = UCI_hm, col = rgb(0,0,1,0.5), lwd = 2, lty = 2)
-      legend('topright',
+      legend('topleft',
              legend = c('Model fit', 'CI fit', 'Half max', 'CI HM'),
              col = c('black', 'red', rgb(0,0,1,0.5), rgb(0,0,1,0.5)),
              lty = c(1,2,1,2), lwd = c(2,2,2,2), cex = 1.3)
