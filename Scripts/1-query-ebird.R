@@ -139,7 +139,7 @@ setwd(query_dir_path)
 
 # Query and filter - event_id ----------------------------------------------------
 
-#*get all event_ids that meet criterea
+#*get all event_ids that meet criteria
 #*create species columns with NA
 #*in a loop, query each species individually and fill obs with 1s, no obs with 0s
 #*merge with hex cells
