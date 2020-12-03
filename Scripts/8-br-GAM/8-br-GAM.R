@@ -5,8 +5,6 @@
 
 #non-detections are excluded
 #only checklists with breeding codes for that species were used
-#29 days Lay -> Fledge (median from Nestwatch across all species)
-#16 days Lay -> Hatch (median from Nestwatch across all species)
 
 
 # runtime -----------------------------------------------------------------
