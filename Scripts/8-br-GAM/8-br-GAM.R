@@ -298,7 +298,7 @@ ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_D
 setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_DATE))
 
 counter <- 1
-for (j in 15:nyr)
+for (j in 1:nyr)
 {
   #j <- 16
   yspdata <- dplyr::filter(m_mf, year == years[j])
