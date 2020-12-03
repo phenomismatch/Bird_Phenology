@@ -25,10 +25,13 @@ dir <- '/labs/Tingley/phenomismatch/'
 # query dir ---------------------------------------------------------------
 
 #run date
-RUN_DATE <- '2020-06-04'
+RUN_DATE <- '2020-12-03'
 
 #query ebird breeding code data
 QUERY_DATE <- '2020-03-03'
+
+#nestwatch run date for imputation of pheno intervals
+NW_RUN_DATE <- '2020-12-03'
 
 
 # Load packages -----------------------------------------------------------
@@ -236,6 +239,11 @@ cells <- sort(unique(m_mf$cell))
 ncell <- length(cells)
 nyr <- length(years)
 
+#read in pheno intervals from nestwatch
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
+nw_pi <- readRDS(paste0('Nestwatch_pheno_dates-', NW_RUN_DATE))
+sp_pi <- dplyr::filter(nw_pi, species == args)
+
 
 # fit model ---------------------------------------------------------
 
@@ -254,8 +262,8 @@ nyr <- length(years)
 
 #0 - bird not observed
 #NA - bird observed but not recorded breeding
-#F - fledge stage code (subtract 29)
-#Y - young stage code (subtract 16)
+#F - fledge stage code
+#Y - young stage code
 #E - egg stage code
 
 t_mat <- matrix(data = NA, nrow = ncell*nyr, ncol = ((ITER/2)*CHAINS))
@@ -292,7 +300,7 @@ ifelse(!dir.exists(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_D
 setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_DATE))
 
 counter <- 1
-for (j in 1:nyr)
+for (j in 15:nyr)
 {
   #j <- 16
   yspdata <- dplyr::filter(m_mf, year == years[j])
@@ -314,16 +322,21 @@ for (j in 1:nyr)
     cyspdata2 <- cyspdata[-to.rm,]
     # cyspdata2 <- cyspdata
     
-    #bird not seen - fill with zeros
+    #bird not seen breeding - fill with zeros
     na.ind <- which(is.na(cyspdata2$br))
     cyspdata2$br[na.ind] <- 0
     
     #adjust date based on breeding code
     cyspdata2$jday_adj <- cyspdata2$jday
-    F_idx <- which(cyspdata2$breeding_code == 'F') #-29
-    Y_idx <- which(cyspdata2$breeding_code == 'Y') #-16
-    cyspdata2$jday_adj[F_idx] <- cyspdata2$jday[F_idx] - 29
-    cyspdata2$jday_adj[Y_idx] <- cyspdata2$jday[Y_idx] - 16
+    F_idx <- which(cyspdata2$breeding_code == 'F')
+    Y_idx <- which(cyspdata2$breeding_code == 'Y')
+    E_idx <- which(cyspdata2$breeding_code == 'E')
+    
+    
+    #ADD SPECIES-SPECIFIC OFFSETS HERE - correct to fledge date
+    #cyspdata2$jday_adj[F_idx] <- cyspdata2$jday[F_idx]
+    cyspdata2$jday_adj[Y_idx] <- cyspdata2$jday[Y_idx] + (sp_pi$med_LF_imp - sp_pi$med_LH_imp)
+    cyspdata2$jday_adj[E_idx] <- cyspdata2$jday[E_idx] + sp_pi$med_LF_imp
     
     #number of surveys where breeding was detected - see reference above
     n1 <- sum(cyspdata2$br)
@@ -421,7 +434,7 @@ for (j in 1:nyr)
       dfit <- rstanarm::posterior_linpred(fit2, newdata = newdata, transform = T)
       halfmax_fit <- rep(NA, ((ITER/2)*CHAINS))
       tlmax <- rep(NA, ((ITER/2)*CHAINS))
-      #day at which probability of occurence is half local maximum value
+      #day at which probability of occurrence is half local maximum value
       for (L in 1:((ITER/2)*CHAINS))
       {
         rowL <- as.vector(dfit[L,])
@@ -506,7 +519,7 @@ for (j in 1:nyr)
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-           xlab = 'Julian Day', ylab = 'Probability of breeding')
+           xlab = 'Julian Day', ylab = 'Probability of fledging')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
       dd <- cyspdata2$br
@@ -525,7 +538,7 @@ for (j in 1:nyr)
       pdf(paste0(args, '_', years[j], '_', cells[k], '_breeding_realizations.pdf'))
       plot(NA, xlim = c(range(cyspdata2$jday_adj)[1], range(cyspdata2$jday_adj)[2]), 
            ylim = c(0, quantile(dfit, 0.999)),
-           xlab = 'Julian Day', ylab = 'Probability of breeding')
+           xlab = 'Julian Day', ylab = 'Probability of fledging')
       for (L in 1:((ITER/2)*CHAINS))
       {
         lines(range(cyspdata2$jday_adj)[1]:range(cyspdata2$jday_adj)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
