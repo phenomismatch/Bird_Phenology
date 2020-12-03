@@ -239,7 +239,7 @@ nyr <- length(years)
 
 #read in pheno intervals from nestwatch
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
-nw_pi <- readRDS(paste0('Nestwatch_pheno_dates-', NW_RUN_DATE))
+nw_pi <- readRDS(paste0('Nestwatch_pheno_dates-', NW_RUN_DATE, '.rds'))
 sp_pi <- dplyr::filter(nw_pi, species == args)
 
 
