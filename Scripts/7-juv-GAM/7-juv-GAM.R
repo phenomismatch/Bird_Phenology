@@ -22,7 +22,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # other dir ------------------------------------------------------------
 
 #run date
-RUN_DATE <- '2020-06-04'
+RUN_DATE <- '2020-12-04'
 
 #MAPS query date
 MAPS_date <- '2020-03-03'
@@ -312,28 +312,31 @@ for (j in 1:nyr)
     #juv
     cyspdata_1 <- dplyr::filter(cyspdata, juv == 1)
     
-    #only first capture for each juv
-    ujuv <- unique(as.numeric(cyspdata_1$band_id))
-    jidx <- rep(NA, length(ujuv))
-    tna <- c()
-    if (length(ujuv) > 0)
-    {
-      for (b in 1:length(ujuv))
-      {
-        #b <- 43
-        tidx <- which(cyspdata_1$band_id == ujuv[b])
-        if (length(tidx) > 1)
-        {
-          #first day obs idx
-          jidx[b] <- tidx[which.min(cyspdata_1$day[tidx])]
-        } else {
-          jidx[b] <- tidx
-        }
-      }
-    }
+    # # decided that if using all adult captures, makes sense to include all juv captures
+    # #only first capture for each juv
+    # ujuv <- unique(as.numeric(cyspdata_1$band_id))
+    # jidx <- rep(NA, length(ujuv))
+    # tna <- c()
+    # if (length(ujuv) > 0)
+    # {
+    #   for (b in 1:length(ujuv))
+    #   {
+    #     #b <- 43
+    #     tidx <- which(cyspdata_1$band_id == ujuv[b])
+    #     if (length(tidx) > 1)
+    #     {
+    #       #first day obs idx
+    #       jidx[b] <- tidx[which.min(cyspdata_1$day[tidx])]
+    #     } else {
+    #       jidx[b] <- tidx
+    #     }
+    #   }
+    # }
     
     #bind adult and juv data together
-    cyspdata_j <- rbind(cyspdata_0, cyspdata_1[jidx,])
+    #cyspdata_j <- rbind(cyspdata_0, cyspdata_1[jidx,])
+    
+    cyspdata_j <- rbind(cyspdata_0, cyspdata_1)
     
     #number of surveys where juv were captured
     n1 <- sum(cyspdata_j$juv)
@@ -532,7 +535,7 @@ for (j in 1:nyr)
       plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
            ylim = c(0, max(UCI_dfit)),
            main = paste0(args, ' - ', years[j], ' - ', cells[k]),
-           xlab = 'Julian Day', ylab = 'Probability of capture')
+           xlab = 'Julian Day', ylab = 'Probability of juv capture')
       lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
       lines(predictDays, mn_dfit, lwd = 2)
       dd <- cyspdata_j$juv
@@ -551,7 +554,7 @@ for (j in 1:nyr)
       pdf(paste0(args, '_', years[j], '_', cells[k], '_juv_realizations.pdf'))
       plot(NA, xlim = c(range(cyspdata_j$day)[1], range(cyspdata_j$day)[2]), 
            ylim = c(0, quantile(dfit, 0.999)),
-           xlab = 'Julian Day', ylab = 'Probability of capture')
+           xlab = 'Julian Day', ylab = 'Probability of juv capture')
       for (L in 1:((ITER/2)*CHAINS))
       {
         lines(range(cyspdata_j$day)[1]:range(cyspdata_j$day)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
@@ -571,8 +574,8 @@ for (j in 1:nyr)
 OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
 
 #save to rds object
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_juv_', RUN_DATE))
-saveRDS(OUT, file = paste0('halfmax_juv_', args, '.rds'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/juv_GAM_', RUN_DATE))
+saveRDS(OUT, file = paste0('juv_GAM_', args, '.rds'))
 
 
 # runtime -----------------------------------------------------------------
