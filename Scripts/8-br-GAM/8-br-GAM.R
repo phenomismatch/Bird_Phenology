@@ -189,8 +189,8 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
                            t_mat)
   
   #save to rds object
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('halfmax_breeding_', args, '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_GAM_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('breeding_GAM_', args, '.rds'))
   stop('Range not suitable for modeling!')
 }
 
@@ -224,7 +224,7 @@ if (NROW(m_mf) == 0)
   
   #save to rds object
   setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('halfmax_breeding_', args, '.rds'))
+  saveRDS(halfmax_df, file = paste0('breeding_GAM_', args, '.rds'))
   stop('No data in breeding range!')
 }
 

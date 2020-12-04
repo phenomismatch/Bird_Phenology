@@ -18,8 +18,8 @@ dir <- '~/Google_Drive/R/'
 # db/br query dir ------------------------------------------------------------
 
 #input dir
-br_date <- '2020-06-04'
-br_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', br_date)
+br_date <- '2020-12-03'
+br_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/breeding_GAM_', br_date)
 
 #output dir
 br_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/breeding_master_', br_date)
@@ -100,7 +100,7 @@ for (i in 2:length(hge))
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
-species_list_i <- read.table('IAR_species_list.txt', stringsAsFactors = FALSE)
+species_list_i <- read.table('arr_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
@@ -119,7 +119,7 @@ for (i in 1:nsp)
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(br_dir)
-  temp_halfmax <- readRDS(paste0('halfmax_breeding_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('breeding_GAM_', species_list[i], '.rds'))
   
   tu_cells[i] <- length(unique(temp_halfmax$cell))
 }
@@ -137,7 +137,7 @@ for (i in 1:nsp)
   
   #import halfmax estimates and diagnostics from GAM
   setwd(br_dir)
-  temp_halfmax <- readRDS(paste0('halfmax_breeding_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('breeding_GAM_', species_list[i], '.rds'))
   
   if (i == 1)
   {

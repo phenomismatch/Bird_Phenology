@@ -18,8 +18,8 @@ dir <- '~/Google_Drive/R/'
 # db/juv query dir ------------------------------------------------------------
 
 #input dir
-juv_date <- '2020-06-04'
-juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_juv_', juv_date)
+juv_date <- '2020-12-04'
+juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_GAM_', juv_date)
 
 #output dir
 juv_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date)
@@ -100,7 +100,7 @@ for (i in 2:length(hge))
 
 setwd(paste0(dir, 'Bird_Phenology/Data/'))
 
-species_list_i <- read.table('eBird_species_list.txt', stringsAsFactors = FALSE)
+species_list_i <- read.table('arr_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
@@ -119,7 +119,7 @@ for (i in 1:nsp)
   
   #import halfmax estimates and diagnostics from logit cubic model
   setwd(juv_dir)
-  temp_halfmax <- readRDS(paste0('halfmax_juv_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('juv_GAM_', species_list[i], '.rds'))
    
   tu_cells[i] <- length(unique(temp_halfmax$cell))
 }
@@ -137,7 +137,7 @@ for (i in 1:nsp)
   
   #import halfmax estimates and diagnostics from GAM
   setwd(juv_dir)
-  temp_halfmax <- readRDS(paste0('halfmax_juv_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('juv_GAM_', species_list[i], '.rds'))
   
   if (i == 1)
   {
