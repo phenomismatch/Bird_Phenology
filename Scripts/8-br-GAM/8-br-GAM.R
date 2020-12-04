@@ -556,8 +556,8 @@ for (j in 1:nyr)
 OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
 
 #save to rds object
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
-saveRDS(OUT, file = paste0('halfmax_breeding_', args, '.rds'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/breeding_GAM_', RUN_DATE))
+saveRDS(OUT, file = paste0('breeding_GAM_', args, '.rds'))
 
 
 
