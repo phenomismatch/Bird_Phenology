@@ -22,9 +22,9 @@ dir <- '/labs/Tingley/phenomismatch/'
 
 # db/hm query dir ------------------------------------------------------------
 
-breed_date <- '2020-06-04'
-juv_date <- '2020-06-04'
-run_date <- '2020-09-25'
+breed_date <- '2020-12-03'
+juv_date <- '2020-12-04'
+run_date <- '2020-12-07'
 bj_IAR_out_dir <- paste0('bj_IAR_hm_', run_date)
 
 
@@ -59,28 +59,41 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # Filter data by species/years ------------------------------------------------------
 
+#cell info
+cell_f1 <- dplyr::select(br_master, species, cell,
+                        per_ovr, cell_lat, cell_lng,
+                        breed_cell, other_cell)
+
+cell_f2 <- dplyr::select(juv_master, species, cell,
+                         per_ovr, cell_lat, cell_lng,
+                         breed_cell, other_cell)
+
+cell_c1 <- unique(rbind(cell_f1, cell_f2))
+
+#pheno info
 br_f <- dplyr::select(br_master, species, year, cell, br_GAM_mean, 
-                      br_GAM_sd, VALID)
+                      br_GAM_sd, VALID_br = VALID)
 
 juv_f <- dplyr::select(juv_master, species, year, cell, juv_GAM_mean, 
-                      juv_GAM_sd, breed_cell, other_cell, VALID, 
-                      per_ovr, cell_lat, cell_lng)
+                      juv_GAM_sd, VALID_juv = VALID)
 
 #join
 mrg1 <- dplyr::full_join(br_f, juv_f, by = c('species', 'year', 'cell'))
+mrg2 <- dplyr::left_join(mrg1, cell_c1, by = c('species', 'cell'))
 
-br_na <- which(mrg1$VALID.x == FALSE)
-mrg1$br_GAM_mean[br_na] <- NA
-mrg1$br_GAM_sd[br_na] <- NA
-juv_na <- which(mrg1$VALID.y == FALSE)
-mrg1$juv_GAM_mean[juv_na] <- NA
-mrg1$juv_GAM_sd[juv_na] <- NA
+#NA for species/year/cells with non-valid GAM results
+br_na <- which(mrg2$VALID_br == FALSE)
+mrg2$br_GAM_mean[br_na] <- NA
+mrg2$br_GAM_sd[br_na] <- NA
+juv_na <- which(mrg2$VALID_juv == FALSE)
+mrg2$juv_GAM_mean[juv_na] <- NA
+mrg2$juv_GAM_sd[juv_na] <- NA
 
 
 #filter by year and species
-mrg2 <- dplyr::filter(mrg1, year >= 2002, year <= 2017, per_ovr >= 0.05, 
+mrg3 <- dplyr::filter(mrg2, year >= 2002, year <= 2017, per_ovr >= 0.05, 
                       species == args[1], breed_cell == TRUE, other_cell == FALSE)
-tt2 <- dplyr::filter(mrg2, !is.na(br_GAM_mean) | !is.na(juv_GAM_mean))
+tt3 <- dplyr::filter(mrg3, !is.na(br_GAM_mean) | !is.na(juv_GAM_mean))
 if (NROW(tt2) < 3)
 {
   sink(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir, '/', args[1], '-error.txt'), 
@@ -90,15 +103,15 @@ if (NROW(tt2) < 3)
   stop('Not enough data')
 }
 
-if (NROW(dplyr::filter(mrg2, !is.na(br_GAM_mean))) > 0)
+if (NROW(dplyr::filter(mrg3, !is.na(br_GAM_mean))) > 0)
 {
-  agg_br <- aggregate(br_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)))
+  agg_br <- aggregate(br_GAM_mean ~ year, data = mrg3, function(x) sum(!is.na(x)))
 } else {
   agg_br <- data.frame(year = NA, br_GAM_mean = NA)
 }
-if (NROW(dplyr::filter(mrg2, !is.na(juv_GAM_mean))) > 0)
+if (NROW(dplyr::filter(mrg3, !is.na(juv_GAM_mean))) > 0)
 {
-  agg_juv <- aggregate(juv_GAM_mean ~ year, data = mrg2, function(x) sum(!is.na(x)))
+  agg_juv <- aggregate(juv_GAM_mean ~ year, data = mrg3, function(x) sum(!is.na(x)))
 } else {
   agg_juv <- data.frame(year = NA, juv_GAM_mean = NA)
 }
@@ -106,13 +119,16 @@ if (NROW(dplyr::filter(mrg2, !is.na(juv_GAM_mean))) > 0)
 #filter for valid years
 agg_mrg <- dplyr::full_join(agg_br, agg_juv, by = 'year')
 agg_mrg$j <- apply(agg_mrg[,2:3], 1, function(x) sum(x, na.rm = TRUE))
-vyrs <- dplyr::filter(agg_mrg, j >= 1)$year
+vyrs <- dplyr::filter(agg_mrg, j >= 3)$year
 
-mrg3 <- dplyr::filter(mrg2, year %in% vyrs)
+mrg4 <- dplyr::filter(mrg3, year %in% vyrs)
+
+#ensure that cells are ordered
+mrg5 <- dplyr::arrange(mrg4, species, cell, year)
 
 #stop if species has fewer than 3 valid years
-v_idx <- which(!is.na(mrg3$br_GAM_mean) | !is.na(mrg3$juv_GAM_mean))
-df <- mrg3[v_idx,]
+v_idx <- which(!is.na(mrg5$br_GAM_mean) | !is.na(mrg5$juv_GAM_mean))
+df <- mrg5[v_idx,]
 if (length(unique(df$year)) < 3 & NROW(df) < 3)
 {
   sink(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir, '/', args[1], '-error.txt'), 
@@ -123,11 +139,11 @@ if (length(unique(df$year)) < 3 & NROW(df) < 3)
 }
 
 # #number of cell/years with overlapping data
-novr <- NROW(dplyr::filter(mrg3, !is.na(br_GAM_mean), !is.na(juv_GAM_mean)))
+novr <- NROW(dplyr::filter(mrg5, !is.na(br_GAM_mean), !is.na(juv_GAM_mean)))
 
 #define cells and years to be modeled
-cells <- unique(mrg3$cell)
-years <- unique(mrg3$year)
+cells <- sort(unique(mrg5$cell))
+years <- sort(unique(mrg5$year))
 nyr <- length(years)
 ncell <- length(cells)
 
@@ -139,9 +155,6 @@ hexgrid6 <- dggridR::dgconstruct(res = 6)
 
 #get hexgrid cell centers
 cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
-
-#add lat col to df
-mrg3$lat <- cellcenters$lat_deg
 
 #create adjacency matrix - 1 if adjacent to cell, 0 if not
 adjacency_matrix <- matrix(data = NA, nrow = ncell, ncol = ncell)
@@ -175,7 +188,7 @@ if (length(to.rm.ind) > 0)
   
   cells <- cells[-to.rm.ind]
   ncell <- length(cells)
-  mrg3 <- dplyr::filter(mrg3, cell %in% cells)
+  mrg5 <- dplyr::filter(mrg5, cell %in% cells)
   cellcenters <- dggridR::dgSEQNUM_to_GEO(hexgrid6, cells)
   
   #create adjacency matrix - 1 if adjacent to cell, 0 if not
@@ -225,7 +238,7 @@ counter <- 1
 for (i in 1:nyr)
 {
   #i <- 1
-  temp_yr <- dplyr::filter(mrg3, year == years[i])
+  temp_yr <- dplyr::filter(mrg5, year == years[i])
   
   #don't need to manipulate position of sigmas
   sigma_br[i,] <- temp_yr$br_GAM_sd
@@ -443,7 +456,7 @@ for (n in 1:N)
   for (j in 1:J)
   {
     br_rep[counter] = normal_rng(y_true[n,j], sigma_br[n,j]);
-    juv_rep[counter] = normal_rng(y_true[n,j] + alpha, sigma_juv[n,j]);
+    juv_rep[counter] = normal_rng(y_true[n,j], sigma_juv[n,j]);
     counter = counter + 1;
   }
 }
@@ -456,8 +469,8 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
 DELTA <- 0.90
-TREE_DEPTH <- 16
-STEP_SIZE <- 0.0005
+TREE_DEPTH <- 15
+STEP_SIZE <- 0.005
 CHAINS <- 4
 ITER <- as.numeric(args[2])
 
@@ -475,7 +488,6 @@ fit <- rstan::stan(model_code = IAR,
                      'beta_gamma', 
                      'sigma_gamma', 
                      'gamma',
-                     'alpha',
                      'phi',
                      'sigma_phi',
                      'sigma_y_true',
@@ -518,7 +530,6 @@ while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 4
                               'beta_gamma', 
                               'sigma_gamma', 
                               'gamma',
-                              'alpha',
                               'phi',
                               'sigma_phi',
                               'sigma_y_true',
@@ -714,7 +725,7 @@ for (i in 1:length(years))
   #i <- 1
   
   #filter data for year[i]
-  f_out_filt <- dplyr::filter(mrg3, year == years[i])
+  f_out_filt <- dplyr::filter(mrg5, year == years[i])
   
   #merge hex spatial data with GAM data
   to_plt <- dplyr::inner_join(f_out_filt, cell_grid, by = 'cell')
@@ -844,14 +855,6 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args[1], '-trace_sigma_phi-', run_date, '.pdf'))
-
-#alpha ~ N(30, 4)
-PR <- rnorm(10000, 30, 4)
-MCMCvis::MCMCtrace(fit,
-                   params = 'alpha',
-                   priors = PR,
-                   open_pdf = FALSE,
-                   filename = paste0(args[1], '-trace_alpha-', run_date, '.pdf'))
 
 if ('Rplots.pdf' %in% list.files())
 {
