@@ -129,7 +129,7 @@ mrg5 <- dplyr::arrange(mrg4, species, cell, year)
 #stop if species has fewer than 3 valid years
 v_idx <- which(!is.na(mrg5$br_GAM_mean) | !is.na(mrg5$juv_GAM_mean))
 df <- mrg5[v_idx,]
-if (length(unique(df$year)) < 3 & NROW(df) < 3)
+if (length(unique(df$year)) < 3 | NROW(df) < 3)
 {
   sink(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir, '/', args[1], '-error.txt'), 
        type="output")
