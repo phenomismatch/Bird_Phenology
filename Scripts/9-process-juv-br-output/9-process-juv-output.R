@@ -76,7 +76,7 @@ for (i in 2:length(hge))
   hge_spoly <- sp::SpatialPolygons(list(hge@polygons[[i]]))
   proj4string(hge_spoly) <- sp::CRS(proj4string(hge))
   
-  #tranform to equal area projection
+  #transform to equal area projection
   hge_spoly2 <- sp::spTransform(hge_spoly, sp::CRS(proj4string(cmap2)))
   
   #area of hex cell (should all be the same)
@@ -117,7 +117,7 @@ for (i in 1:nsp)
 {
   #i <- 20
   
-  #import halfmax estimates and diagnostics from logit cubic model
+  #import halfmax estimates and diagnostics from GAM
   setwd(juv_dir)
   temp_halfmax <- readRDS(paste0('juv_GAM_', species_list[i], '.rds'))
    
@@ -133,7 +133,7 @@ sp_key <- read.csv('species_filenames_key.csv')
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 1
+  #i <- 22
   
   #import halfmax estimates and diagnostics from GAM
   setwd(juv_dir)
@@ -205,7 +205,7 @@ for (i in 1:nsp)
     nrng_sp <- sp::SpatialPolygons(nrng@polygons)
     sp::proj4string(nrng_sp) <- sp::CRS(sp::proj4string(nrng))
     #find intersections with code from here: https://gis.stackexchange.com/questions/140504/extracting-intersection-areas-in-r
-    poly_int <- rgeos::gIntersects(hge, nrng_sp, byid=TRUE)
+    poly_int <- rgeos::gIntersects(hge, nrng_sp, byid = TRUE)
     tpoly <- which(poly_int == TRUE, arr.ind = TRUE)[,2]
     br_cells <- hge_cells[as.numeric(tpoly[!duplicated(tpoly)])]
     
@@ -263,16 +263,24 @@ for (i in 1:nsp)
     #remove unneeded objects
     rm(cell_centers)
     
-    cells <- cc_df$cell
-    ncell <- length(cells)
+    cells_p <- cc_df$cell
     #create df for breed/mig range
-    cell_df <- data.frame(cell = cells, breed_cell = TRUE, other_cell = FALSE)
+    cell_df <- data.frame(cell = cells_p, breed_cell = TRUE, other_cell = FALSE)
     #fill mig range where appropriate
     if (!is.na(mig_idx[1]))
     {
       cell_df$other_cell[mig_idx] <- TRUE
     }
     
+    cell_df2 <- dplyr::left_join(data.frame(cell = unique(temp_halfmax$cell)), cell_df)
+    if (!is.na(cell_df2$cell))
+    {
+      cells <- cell_df2$cell
+      ncell <- length(cells)
+    } else {
+      ncell <- NA
+    }
+
     #remove unneeded objects
     rm(cc_df)
   } else {

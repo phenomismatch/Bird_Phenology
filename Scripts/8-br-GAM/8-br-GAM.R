@@ -223,7 +223,7 @@ if (NROW(m_mf) == 0)
                            t_mat)
   
   #save to rds object
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/halfmax_breeding_', RUN_DATE))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_GAM_', RUN_DATE))
   saveRDS(halfmax_df, file = paste0('breeding_GAM_', args, '.rds'))
   stop('No data in breeding range!')
 }

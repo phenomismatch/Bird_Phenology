@@ -76,7 +76,7 @@ for (i in 2:length(hge))
   hge_spoly <- sp::SpatialPolygons(list(hge@polygons[[i]]))
   proj4string(hge_spoly) <- sp::CRS(proj4string(hge))
   
-  #tranform to equal area projection
+  #transform to equal area projection
   hge_spoly2 <- sp::spTransform(hge_spoly, sp::CRS(proj4string(cmap2)))
   
   #area of hex cell (should all be the same)
@@ -117,7 +117,7 @@ for (i in 1:nsp)
 {
   #i <- 20
   
-  #import halfmax estimates and diagnostics from logit cubic model
+  #import halfmax estimates and diagnostics from GAM
   setwd(br_dir)
   temp_halfmax <- readRDS(paste0('breeding_GAM_', species_list[i], '.rds'))
   
