@@ -94,7 +94,7 @@ mrg2$juv_GAM_sd[juv_na] <- NA
 mrg3 <- dplyr::filter(mrg2, year >= 2002, year <= 2017, per_ovr >= 0.05, 
                       species == args[1], breed_cell == TRUE, other_cell == FALSE)
 tt3 <- dplyr::filter(mrg3, !is.na(br_GAM_mean) | !is.na(juv_GAM_mean))
-if (NROW(tt2) < 3)
+if (NROW(tt3) < 3)
 {
   sink(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir, '/', args[1], '-error.txt'), 
        type="output")
