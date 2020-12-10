@@ -3,13 +3,6 @@
 ######################
 # 
 
-#Stan resources:
-#http://mc-stan.org/users/documentation/case-studies/icar_stan.html
-#http://mc-stan.org/users/documentation/case-studies/divergences_and_bias.html
-#https://cran.r-project.org/web/packages/rstan/vignettes/stanfit-objects.html
-#https://chi-feng.github.io/mcmc-demo/app.html#HamiltonianMC,standard
-#https://groups.google.com/forum/#!msg/stan-users/zOjAeJC4x_E/OyCOfJo8AwAJ (regarding non-centered parameterization on sd)
-
 
 # Top-level dir -----------------------------------------------------------
 

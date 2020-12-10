@@ -4,7 +4,7 @@ Code for characterizing bird arrival and breeding phenology.
 
 **Associated publications:**
 
-Youngflesh, C., Socolar, J., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance, R., Mayor, S.J., Miller, D.A.W., Tingley, M.W. *Submitted* Migratory strategy drives bird sensitivity to spring green-up
+Youngflesh, C., Socolar, J., Amaral, B.R., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance, R., Mayor, S.J., Miller, D.A.W., Tingley, M.W. *In Review* 		Migratory strategy drives species-level variation in bird sensitivity to green-up
 
 
 **Repository structure:**
@@ -12,6 +12,7 @@ Youngflesh, C., Socolar, J., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance
 * `Data/` - Datasets relevant for project
   * `eBird_species_list.txt` - initial list of species to be queried
   * `IAR_species_list.txt` - list of species to be modeled using IAR
+  * `arr_species_list.txt` - list of species to quantify breeding phenology
   * `species_reference.csv` - table of taxonomic information for species of interest
   * `db_pass.txt` (ignored) - database password
   * `hex_grid_crop` - .shp files for cells over study area
@@ -52,6 +53,8 @@ Youngflesh, C., Socolar, J., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance
     * `species/` - contains job scripts for each species
       * `7-<Genus_species>.sh` - scripts to submit jobs for each species; run with `7-master-submit.sh`
   * `8-br-GAM/` - halfmax model for breeding dates (derived from eBird breeding codes)
+      * `8a-query-Nestwatch.R` - script to query Nestwatch data for breeding phenology
+      * `8b-analyze-Nestwatch.R` - script to analyze Nestwatch data and imput breeding windows
       * `8-halfmax-br.R` - R script to fit GAM models to estimate bird breeding date (from eBird breeding codes) for each species/cell/year. Takes species argument (run from `8-<Genus_species>.sh` scripts)
       * `8-create-batch-scripts.sh` - script to create scripts (`8-<Genus_species>.sh`) for HPC job submission
       * `8-master-submit.sh` - script to be run (`./8-master-submit.sh`) on HPC cluster to submit all jobs

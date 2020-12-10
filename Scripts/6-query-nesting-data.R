@@ -6,7 +6,7 @@
 #   -NA if observed but no breeding code recorded
 #   -letter code if observed and breeding code recorded
 #
-# *MAPS age filled (run time: several days)
+# *MAPS age filled (run time: several days?)
 ####################
 
 

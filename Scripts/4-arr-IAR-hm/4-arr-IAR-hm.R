@@ -323,7 +323,6 @@ generated quantities {
 
 vector[NJ] y_rep;
 int<lower = 0> counter;
-// vector[J] mu_yt[N];
 
 counter = 1;
 for (n in 1:N)
@@ -334,11 +333,6 @@ for (n in 1:N)
     counter = counter + 1;
   }
 }
-
-// for (i in 1:N)
-// {
-//  mu_yt[i] = beta0[i] + gamma + phi[i] * sigma_phi;
-// }
 }'
 
 
@@ -370,7 +364,6 @@ fit <- rstan::stan(model_code = IAR,
                      'sigma_y_true',
                      'y_true', 
                      'y_rep'),
-                     #'mu_yt'),
             control = list(adapt_delta = DELTA,
                            max_treedepth = TREE_DEPTH,
                            stepsize = STEP_SIZE))
@@ -464,13 +457,6 @@ na.y.rm <- which(is.na(DATA$y_PPC))
 n_y_PPC <- DATA$y_PPC[-na.y.rm]
 n_y_rep <- t_y_rep[, -na.y.rm]
 
-#PPC
-PPC_fun <- function(FUN, YR = n_y_rep, D = n_y_PPC)
-{
-  out <- sum(apply(YR, 1, FUN) > FUN(D)) / NROW(YR)
-  print(out)
-}
-PPC_mn <- PPC_fun(mean)
 
 #density overlay plot - first 100 iter
 #modified bayesplot::ppc_dens_overlay function

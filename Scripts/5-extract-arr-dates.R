@@ -42,7 +42,7 @@ IAR_out_date <- substr(IAR_out_dir, start = 16, stop = 25)
 #read in master df
 df_master <- readRDS(paste0('IAR_input-', IAR_in_date, '.rds'))
 
-species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_list_p1.txt'))[,1])
+species <- as.character(read.table(paste0(dir, 'Bird_Phenology/Data/IAR_species_list.txt'))[,1])
 #species <- 'Vireo_olivaceus'
 
 
