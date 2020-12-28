@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATE="2020-12-07"
+DATE="2020-12-28"
 
 while read name
 do
@@ -23,7 +23,7 @@ echo \`hostname\`
 
 module load gcc/6.4.0
 module load singularity/3.0.2
-singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/10-bj-IAR-hm/10-bj-IAR-hm.R $temp 10000
+singularity exec -B /labs/Tingley -B /UCHC /isg/shared/apps/R/3.5.2/R.sif Rscript /labs/Tingley/phenomismatch/Bird_Phenology/Scripts/10-bj-IAR-hm/10-bj-IAR-hm.R $temp 20000
 
 #displays amount of memory used
 sstat --format=\"AveCPU,AvePages,AveRSS,MaxRSS,AveVMSize,MaxVMSize\" \$SLURM_JOBID.batch" > "species/10-$temp.sh"
