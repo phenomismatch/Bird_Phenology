@@ -48,7 +48,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- c('Zonotrichia_leucophrys', 5000)
 #args <- c('Geothlypis_trichas', 5000)
 #args <- c('Contopus_virens', 5000)
-#args <- c('Catharus_fuscescens', 10000)
+args <- c('Pipilo_erythrophthalmus', 10000)
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -326,15 +326,15 @@ DATA <- list(J = ncell,
              N_edges = nrow(ninds), 
              node1 = ninds[,1],
              node2 = ninds[,2],
-             br_obs = br_obs,
+             br_obs = br_obs - 180,
              sigma_br = sigma_br,
-             juv_obs = juv_obs,
+             juv_obs = juv_obs - 180,
              sigma_juv = sigma_juv,
              ii_br_obs = ii_br_obs,
              ii_br_mis = ii_br_mis,
              ii_juv_obs = ii_juv_obs,
              ii_juv_mis = ii_juv_mis,
-             lat = cellcenters$lat_deg,
+             lat = scale(cellcenters$lat_deg, scale = FALSE)[,1],
              br_PPC = br_PPC,
              juv_PPC = juv_PPC,
              mrg5 = mrg5)
@@ -365,7 +365,7 @@ int<lower = 0> ii_br_obs[N, J];                          // indices of observed 
 int<lower = 0> ii_br_mis[N, J];                          // indices of missing data
 int<lower = 0> ii_juv_obs[N, J];
 int<lower = 0> ii_juv_mis[N, J];
-vector<lower = 24, upper = 90>[J] lat;
+vector[J] lat;
 }
 
 parameters {
@@ -411,13 +411,15 @@ for (i in 1:N)
 }
 
 model {
-// priors for non-centered parameters
+// non-centered parameters
 gamma_raw ~ std_normal();
+// gamma ~ normal(mu_gamma, sigma_gamma);
 beta0_raw ~ std_normal();
+// beta0 ~ normal(0, sigma_beta0);
 
 // priors
-alpha_gamma ~ normal(0, 100);
-// beta_gamma = 3 represents 37 km / day (which matches speeds reported in lit and derived in La Sorte et al. 2013 Ecology)
+alpha_gamma ~ normal(0, 20);
+// same as arr model
 beta_gamma ~ normal(3, 3);
 sigma_gamma ~ normal(0, 10);
 sigma_beta0 ~ normal(0, 10);
