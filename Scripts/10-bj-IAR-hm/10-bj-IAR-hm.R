@@ -44,11 +44,16 @@ juv_master <- readRDS(paste0('juv_master_', juv_date, '.rds'))
 
 # species arg -----------------------------------------------------
 
+#max number of iter
+MAX <- 30000
+
+#NEEDS TO BE AT LEAST 10k - (will run 10k iter if < 10k is specified) 
 args <- commandArgs(trailingOnly = TRUE)
 #args <- c('Zonotrichia_leucophrys', 5000)
 #args <- c('Geothlypis_trichas', 5000)
 #args <- c('Contopus_virens', 5000)
-args <- c('Pipilo_erythrophthalmus', 10000)
+#args <- c('Tyrannus_tyrannus', 10000)
+
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -326,15 +331,16 @@ DATA <- list(J = ncell,
              N_edges = nrow(ninds), 
              node1 = ninds[,1],
              node2 = ninds[,2],
-             br_obs = br_obs - 180,
+             br_obs = br_obs,
              sigma_br = sigma_br,
-             juv_obs = juv_obs - 180,
+             juv_obs = juv_obs,
              sigma_juv = sigma_juv,
              ii_br_obs = ii_br_obs,
              ii_br_mis = ii_br_mis,
              ii_juv_obs = ii_juv_obs,
              ii_juv_mis = ii_juv_mis,
              lat = scale(cellcenters$lat_deg, scale = FALSE)[,1],
+             #lat = cellcenters$lat_deg,
              br_PPC = br_PPC,
              juv_PPC = juv_PPC,
              mrg5 = mrg5)
@@ -375,6 +381,7 @@ real alpha_gamma;
 real beta_gamma;                                  // effect of latitude
 real<lower = 0> sigma_gamma;
 vector[J] gamma_raw;
+// vector[J] gamma;
 vector[J] phi[N];                                     // sptial error componenet
 real<lower = 0> sigma_phi;
 vector[N] beta0_raw;
@@ -407,18 +414,16 @@ for (i in 1:N)
   br[i, ii_br_mis[i, 1:N_br_mis[i]]] = br_mis[i, 1:N_br_mis[i]];
   juv[i, ii_juv_obs[i, 1:N_juv_obs[i]]] = juv_obs[i, 1:N_juv_obs[i]];
   juv[i, ii_juv_mis[i, 1:N_juv_mis[i]]] = juv_mis[i, 1:N_juv_mis[i]];
-}
+} 
 }
 
 model {
 // non-centered parameters
 gamma_raw ~ std_normal();
-// gamma ~ normal(mu_gamma, sigma_gamma);
 beta0_raw ~ std_normal();
-// beta0 ~ normal(0, sigma_beta0);
 
 // priors
-alpha_gamma ~ normal(0, 20);
+alpha_gamma ~ normal(180, 20);
 // same as arr model
 beta_gamma ~ normal(3, 3);
 sigma_gamma ~ normal(0, 10);
@@ -464,11 +469,19 @@ for (n in 1:N)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.90
-TREE_DEPTH <- 15
-STEP_SIZE <- 0.005
+DELTA <- 0.98
+TREE_DEPTH <- 16
+STEP_SIZE <- 0.0001
 CHAINS <- 4
 ITER <- as.numeric(args[2])
+if (ITER <= 5000)
+{
+  ITER2 <- 5000
+  WARMUP <- 5000
+} else {
+  ITER2 <- ITER - 5000
+  WARMUP <- 5000
+}
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir))
 
@@ -476,7 +489,8 @@ tt <- proc.time()
 fit <- rstan::stan(model_code = IAR,
             data = DATA,
             chains = CHAINS,
-            iter = ITER,
+            iter = ITER2,
+            warmup = WARMUP,
             cores = CHAINS,
             pars = c('sigma_beta0', 
                      'beta0',
@@ -516,15 +530,16 @@ neff_output <- as.vector(model_summary[, grep('n.eff', colnames(model_summary))]
 #max number of iterations before you can't trust diagnostics = 400000
 
 #double iterations and run again
-while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER < 40001)
+while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER2 < MAX)
 {
   
-  ITER <- ITER * 2
+  ITER2 <- ITER2 * 2
   
   fit <- rstan::stan(model_code = IAR,
                      data = DATA,
                      chains = CHAINS,
-                     iter = ITER,
+                     iter = ITER2,
+                     warmup = WARMUP,
                      cores = CHAINS,
                      pars = c('sigma_beta0', 
                               'beta0',
@@ -655,9 +670,14 @@ p_juv <- ggplot(tdata_juv) +
                                     label = annotateText),
             size = 3, col = 'black')
 
-ggsave(paste0(args[1], '_br_dens_overlay.pdf'), p_br)
-ggsave(paste0(args[1], '_juv_dens_overlay.pdf'), p_juv)
-
+if (NROW(tdata_br) > 0)
+{
+  ggsave(paste0(args[1], '_br_dens_overlay.pdf'), p_br)
+}
+if (NROW(tdata_juv) > 0)
+{
+  ggsave(paste0(args[1], '_juv_dens_overlay.pdf'), p_juv)
+}
 
 # write model results to file ---------------------------------------------
 
@@ -806,8 +826,8 @@ for (i in 1:length(years))
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir))
 
-#alpha_gamma ~ normal(0, 100)
-PR <- rnorm(10000, 0, 100)
+#alpha_gamma ~ normal(0, 20)
+PR <- rnorm(10000, 0, 20)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
