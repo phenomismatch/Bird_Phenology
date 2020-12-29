@@ -389,7 +389,7 @@ val_idx <- which(diagnostics_frame3$num_diverge > 0 |
                    diagnostics_frame3$juv_GAM_sd > 15 | 
                    diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
                    #diagnostics_frame3$plmax < 0.99 |
-                   is.na(diagnostics_frame3$juv_GAM_mean)) #local max for > 99% of curves
+                   is.na(diagnostics_frame3$juv_GAM_mean))
 
 diagnostics_frame3$VALID <- TRUE
 diagnostics_frame3$VALID[val_idx] <- FALSE
