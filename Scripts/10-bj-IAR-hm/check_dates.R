@@ -48,6 +48,7 @@ plot(bj_data$br_GAM_mean, bj_data$juv_GAM_mean,
 
 #read in juv GAM data (to get plmax)
 tt <- readRDS('juv_master_2020-12-04.rds')
+dplyr::filter(tt, year >= 2002, year <= 2017, per_ovr >= 0.05, plmax > 0.99, breed_cell == TRUE, other_cell == FALSE)
 tt2 <- dplyr::select(tt, species, year, cell, plmax)
 bj_juv2 <- dplyr::left_join(bj_juv, tt2)
 #look at residuals in relation to plmax
