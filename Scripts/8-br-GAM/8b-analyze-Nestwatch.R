@@ -146,21 +146,13 @@ abline(v = median(sp_med_LF, na.rm = TRUE), col = 'red', lwd = 2)
 
 #on a cell/year basis, bc of compression between arr and lay over lat
 
-# PERIODS (ideal)
-#================
+# PERIODS
+#========
 # impute missing periods with phylogenetic relationship
 # ARRIVAL: IAR arr model
-# FLEDGE: IAR bj model
-# LAY: FLEDGE - median from NW
-# HATCH: FLEDGE - median from NW
-
-# PERIODS (current):
-#================
-# impute missing periods with cross-species median
-# ARRIVAL: IAR arr model
-# FLEDGE: LAY + NW interval
-# LAY: ARRIVAL + 30
-# HATCH: LAY + NW interval
+# FLEDGE: IAR br model
+# LAY: FLEDGE - interval from NW
+# HATCH: FLEDGE - interval from NW
 
 '%ni%' <- Negate('%in%')
 
@@ -252,84 +244,3 @@ write.table(unique(arr_data$species), 'arr_species_list.txt',
 # dd2$med_LH[na_med_LH] <- sp_med_LH
 # dd2$med_LF[na_med_LF] <- sp_med_LF
 
-
-
-# get windows -------------------------------------------------------------
-
-# #species in arr master data
-# usp_arr <- unique(arr_data2$species)
-# 
-# #empty df
-# pw_data <- data.frame(species = rep(NA, NROW(arr_data2)),
-#                       year = NA,
-#                       cell = NA,
-#                       mig_cell = NA,
-#                       breed_cell = NA,
-#                       cell_lat = NA,
-#                       cell_lng = NA,
-#                       arr = NA,
-#                       lay = NA,
-#                       hatch = NA,
-#                       fledge = NA)
-#                       
-# #fill df
-# counter <- 1
-# for (i in 1:length(usp_arr))
-# {
-#   #i <- 1
-#   temp <- dplyr::filter(arr_data2, species == usp_arr[i])
-#   nrt <- NROW(temp)
-#   tdd <- dplyr::filter(dd4, species == usp_arr[i])
-#   
-#   pw_data$species[counter:(counter + nrt - 1)] <- temp$species
-#   pw_data$year[counter:(counter + nrt - 1)] <- temp$year
-#   pw_data$cell[counter:(counter + nrt - 1)] <- temp$cell
-#   pw_data$mig_cell[counter:(counter + nrt - 1)] <- temp$mig_cell
-#   pw_data$breed_cell[counter:(counter + nrt - 1)] <- temp$breed_cell
-#   pw_data$cell_lat[counter:(counter + nrt - 1)] <- temp$cell_lat
-#   pw_data$cell_lng[counter:(counter + nrt - 1)] <- temp$cell_lng
-#   
-#   #filter dd4
-#   #what were we going to do about lay date?
-#   #backcalculate from estimated fledge...
-#   
-#   #arr
-#   t_arr <- round(temp$arr_IAR_mean, 0)
-#   pw_data$arr[counter:(counter + nrt - 1)] <- t_arr
-#   #lay
-#   pw_data$lay[counter:(counter + nrt - 1)] <- t_arr + 30
-#   #hatch
-#   pw_data$hatch[counter:(counter + nrt - 1)] <- t_arr + 30 + dd4$
-#   #fledge
-#   pw_data$fledge[counter:(counter + nrt - 1)] <- t_arr + 30 + tdd$med_LF
-#   
-#   # windows
-#   # #arr -> lay
-#   # pw_data$arr_lay_start[counter:(counter + nrt - 1)] <- temp$arr_IAR_mean
-#   # arr_lay_end <- temp$arr_IAR_mean + 29
-#   # pw_data$arr_lay_end[counter:(counter + nrt - 1)] <- arr_lay_end
-#   # #lay -> hatch
-#   # pw_data$lay_hatch_start[counter:(counter + nrt - 1)] <- arr_lay_end + 1
-#   # lay_hatch_end <- arr_lay_end + 1 + tdd$med_LH
-#   # pw_data$lay_hatch_end[counter:(counter + nrt - 1)] <- lay_hatch_end
-#   # #hatch -> fledge
-#   # pw_data$hatch_fledge_start[counter:(counter + nrt - 1)] <- lay_hatch_end + 1
-#   # hatch_fledge_end <- arr_lay_end + 1 + tdd$med_LF
-#   # pw_data$hatch_fledge_end[counter:(counter + nrt - 1)] <- lay_hatch_end + 1 + hatch_fledge_end
-# 
-#   counter <- counter + nrt
-# }
-# 
-# tail(pw_data)
-
-
-# write to rds ------------------------------------------------------------
-
-# setwd(paste0(dir, '/Data/Processed/'))
-# #saveRDS(pw_data, paste0('bird-pheno-periods-', RUN_DATE, '.rds'))
-# write.csv(pw_data, paste0('bird-pheno-periods-', RUN_DATE, '.csv'), row.names = FALSE)
-# 
-# round(median(pw_data$arr, na.rm = TRUE), 0)
-# round(median(pw_data$lay, na.rm = TRUE), 0)
-# round(median(pw_data$hatch, na.rm = TRUE), 0)
-# round(median(pw_data$fledge, na.rm = TRUE), 0)
