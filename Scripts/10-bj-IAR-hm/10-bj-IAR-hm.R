@@ -16,8 +16,8 @@ dir <- '/labs/Tingley/phenomismatch/'
 # db/hm query dir ------------------------------------------------------------
 
 breed_date <- '2020-12-03'
-juv_date <- '2020-12-04'
-run_date <- '2020-12-29'
+juv_date <- '2021-01-11'
+run_date <- '2021-01-11'
 bj_IAR_out_dir <- paste0('bj_IAR_hm_', run_date)
 
 
@@ -35,11 +35,11 @@ library(MCMCvis)
 
 # Set wd ------------------------------------------------------------------
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_master_', breed_date))
-br_master <- readRDS(paste0('breeding_master_', breed_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_IAR_input_', breed_date))
+br_master <- readRDS(paste0('br_IAR_input_', breed_date, '.rds'))
 
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date))
-juv_master <- readRDS(paste0('juv_master_', juv_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/juv_IAR_input_', juv_date))
+juv_master <- readRDS(paste0('juv_IAR_input_', juv_date, '.rds'))
 
 
 # species arg -----------------------------------------------------
@@ -72,26 +72,30 @@ cell_c1 <- unique(rbind(cell_f1, cell_f2))
 br_f <- dplyr::select(br_master, species, year, cell, br_GAM_mean, 
                       br_GAM_sd, VALID_br = VALID)
 
-juv_f <- dplyr::select(juv_master, species, year, cell, juv_GAM_mean, 
-                      juv_GAM_sd, VALID_juv = VALID)
+# juv_f <- dplyr::select(juv_master, species, year, cell, juv_GAM_mean, 
+#                       juv_GAM_sd, VALID_juv = VALID)
+juv_f <- dplyr::select(juv_master, species, year, cell, juv_logis_mean,
+                      juv_logis_sd, VALID_juv = VALID)
+
 
 #join
 mrg1 <- dplyr::full_join(br_f, juv_f, by = c('species', 'year', 'cell'))
 mrg2 <- dplyr::left_join(mrg1, cell_c1, by = c('species', 'cell'))
 
-#NA for species/year/cells with non-valid GAM results
+#NA for species/year/cells with non-valid GAM/logis results
 br_na <- which(mrg2$VALID_br == FALSE)
 mrg2$br_GAM_mean[br_na] <- NA
 mrg2$br_GAM_sd[br_na] <- NA
 juv_na <- which(mrg2$VALID_juv == FALSE)
-mrg2$juv_GAM_mean[juv_na] <- NA
-mrg2$juv_GAM_sd[juv_na] <- NA
+mrg2$juv_logis_mean[juv_na] <- NA
+mrg2$juv_logis_sd[juv_na] <- NA
 
 
 #filter by year and species
 mrg3 <- dplyr::filter(mrg2, year >= 2002, year <= 2017, per_ovr >= 0.05, 
                       species == args[1], breed_cell == TRUE, other_cell == FALSE)
-tt3 <- dplyr::filter(mrg3, !is.na(br_GAM_mean) | !is.na(juv_GAM_mean))
+# tt3 <- dplyr::filter(mrg3, !is.na(br_GAM_mean) | !is.na(juv_GAM_mean))
+tt3 <- dplyr::filter(mrg3, !is.na(br_GAM_mean) | !is.na(juv_logis_mean))
 if (NROW(tt3) < 3)
 {
   sink(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir, '/', args[1], '-error.txt'), 
@@ -107,11 +111,17 @@ if (NROW(dplyr::filter(mrg3, !is.na(br_GAM_mean))) > 0)
 } else {
   agg_br <- data.frame(year = NA, br_GAM_mean = NA)
 }
-if (NROW(dplyr::filter(mrg3, !is.na(juv_GAM_mean))) > 0)
+# if (NROW(dplyr::filter(mrg3, !is.na(juv_GAM_mean))) > 0)
+# {
+#   agg_juv <- aggregate(juv_GAM_mean ~ year, data = mrg3, function(x) sum(!is.na(x)))
+# } else {
+#   agg_juv <- data.frame(year = NA, juv_GAM_mean = NA)
+# }
+if (NROW(dplyr::filter(mrg3, !is.na(juv_logis_mean))) > 0)
 {
-  agg_juv <- aggregate(juv_GAM_mean ~ year, data = mrg3, function(x) sum(!is.na(x)))
+  agg_juv <- aggregate(juv_logis_mean ~ year, data = mrg3, function(x) sum(!is.na(x)))
 } else {
-  agg_juv <- data.frame(year = NA, juv_GAM_mean = NA)
+  agg_juv <- data.frame(year = NA, juv_logis_mean = NA)
 }
 
 #filter for valid years
@@ -125,7 +135,8 @@ mrg4 <- dplyr::filter(mrg3, year %in% vyrs)
 mrg5 <- dplyr::arrange(mrg4, species, cell, year)
 
 #stop if species has fewer than 3 valid years
-v_idx <- which(!is.na(mrg5$br_GAM_mean) | !is.na(mrg5$juv_GAM_mean))
+# v_idx <- which(!is.na(mrg5$br_GAM_mean) | !is.na(mrg5$juv_GAM_mean))
+v_idx <- which(!is.na(mrg5$br_GAM_mean) | !is.na(mrg5$juv_logis_mean))
 df <- mrg5[v_idx,]
 if (length(unique(df$year)) < 3 | NROW(df) < 3)
 {
@@ -137,7 +148,8 @@ if (length(unique(df$year)) < 3 | NROW(df) < 3)
 }
 
 # #number of cell/years with overlapping data
-novr <- NROW(dplyr::filter(mrg5, !is.na(br_GAM_mean), !is.na(juv_GAM_mean)))
+# novr <- NROW(dplyr::filter(mrg5, !is.na(br_GAM_mean), !is.na(juv_GAM_mean)))
+novr <- NROW(dplyr::filter(mrg5, !is.na(br_GAM_mean), !is.na(juv_logis_mean)))
 
 #define cells and years to be modeled
 cells <- sort(unique(mrg5$cell))
@@ -240,20 +252,24 @@ for (i in 1:nyr)
   
   #don't need to manipulate position of sigmas
   sigma_br[i,] <- temp_yr$br_GAM_sd
-  sigma_juv[i,] <- temp_yr$juv_GAM_sd
+  # sigma_juv[i,] <- temp_yr$juv_GAM_sd
+  sigma_juv[i,] <- temp_yr$juv_logis_sd
   
   for (j in 1:ncell)
   {
     #n <- 1
     #matrix with observed values with NAs
     br_PPC[counter] <- temp_yr$br_GAM_mean[j]
-    juv_PPC[counter] <- temp_yr$juv_GAM_mean[j]
+    # juv_PPC[counter] <- temp_yr$juv_GAM_mean[j]
+    juv_PPC[counter] <- temp_yr$juv_logis_mean[j]
     counter <- counter + 1
   }
   
   #which are not NA
   no_na_br <- temp_yr$br_GAM_mean[which(!is.na(temp_yr$br_GAM_mean))]
-  no_na_juv <- temp_yr$juv_GAM_mean[which(!is.na(temp_yr$juv_GAM_mean))]
+  # no_na_juv <- temp_yr$juv_GAM_mean[which(!is.na(temp_yr$juv_GAM_mean))]
+  no_na_juv <- temp_yr$juv_logis_mean[which(!is.na(temp_yr$juv_logis_mean))]
+  
   
   #br - pad end with NAs
   if (length(no_na_br) < ncell)
@@ -287,8 +303,10 @@ for (i in 1:nyr)
     
     #add NAs to end
     t_juv_obs <- c(no_na_juv, rep(NA, num_na_juv))
-    t_juv_obs_ind <- c(which(!is.na(temp_yr$juv_GAM_mean)), rep(NA, num_na_juv))
-    t_juv_mis_ind <- c(which(is.na(temp_yr$juv_GAM_mean)), rep(NA, length(no_na_juv)))
+    # t_juv_obs_ind <- c(which(!is.na(temp_yr$juv_GAM_mean)), rep(NA, num_na_juv))
+    # t_juv_mis_ind <- c(which(is.na(temp_yr$juv_GAM_mean)), rep(NA, length(no_na_juv)))
+    t_juv_obs_ind <- c(which(!is.na(temp_yr$juv_logis_mean)), rep(NA, num_na_juv))
+    t_juv_mis_ind <- c(which(is.na(temp_yr$juv_logis_mean)), rep(NA, length(no_na_juv)))
     
     #fill objects
     ii_juv_obs[i,] <- t_juv_obs_ind
@@ -297,8 +315,8 @@ for (i in 1:nyr)
   } else {
     #no NAs to end (no mimssing values)
     juv_obs[i,] <- no_na_juv
-    ii_juv_mis[i,] <- which(!is.na(temp_yr$juv_GAM_mean))
-    juv_obs[i,] <- which(is.na(temp_yr$juv_GAM_mean))
+    ii_juv_mis[i,] <- which(!is.na(temp_yr$juv_logis_mean))
+    juv_obs[i,] <- which(is.na(temp_yr$juv_logis_mean))
   }
   
   #juv - length of data/miss for each year
@@ -388,6 +406,7 @@ vector[N] beta0_raw;
 real<lower = 0> sigma_beta0;
 vector[J] y_true_raw[N];                           // J vectors (years in rows) of length N (cells in cols)
 real<lower = 0> sigma_y_true;
+real alpha;
 }
 
 transformed parameters {
@@ -430,6 +449,7 @@ sigma_gamma ~ normal(0, 10);
 sigma_beta0 ~ normal(0, 10);
 sigma_y_true ~ normal(0, 10);
 sigma_phi ~ normal(0, 10);
+alpha ~ normal(30, 20);
 
 for (i in 1:N)
 {
@@ -441,7 +461,7 @@ for (i in 1:N)
   
   // observation model for y
   br[i] ~ normal(y_true[i], sigma_br[i]);
-  juv[i] ~ normal(y_true[i], sigma_juv[i]);
+  juv[i] ~ normal(y_true[i] + alpha, sigma_juv[i]);
 }
 }
 
@@ -469,18 +489,18 @@ for (n in 1:N)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.99
-TREE_DEPTH <- 16
+DELTA <- 0.999
+TREE_DEPTH <- 17
 STEP_SIZE <- 0.00001
 CHAINS <- 4
 ITER <- as.numeric(args[2])
-if (ITER <= 15000)
+if (ITER <= 25000)
 {
-  ITER2 <- 15000
-  WARMUP <- 10000
+  ITER2 <- 25000
+  WARMUP <- 20000
 } else {
   ITER2 <- ITER
-  WARMUP <- 10000
+  WARMUP <- 20000
 }
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir))
@@ -501,6 +521,7 @@ fit <- rstan::stan(model_code = IAR,
                      'phi',
                      'sigma_phi',
                      'sigma_y_true',
+                     'alpha', 
                      'y_true', 
                      'br_rep',
                      'juv_rep'),
@@ -550,6 +571,7 @@ while ((max(rhat_output) >= 1.02 | min(neff_output) < (CHAINS * 100)) & ITER2 < 
                               'phi',
                               'sigma_phi',
                               'sigma_y_true',
+                              'alpha',
                               'y_true', 
                               'br_rep',
                               'juv_rep'),
@@ -828,8 +850,8 @@ for (i in 1:length(years))
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', bj_IAR_out_dir))
 
-#alpha_gamma ~ normal(0, 20)
-PR <- rnorm(10000, 0, 20)
+#alpha_gamma ~ normal(180, 20)
+PR <- rnorm(10000, 180, 20)
 MCMCvis::MCMCtrace(fit,
                    params = 'alpha_gamma',
                    priors = PR,
@@ -879,6 +901,14 @@ MCMCvis::MCMCtrace(fit,
                    priors = PR,
                    open_pdf = FALSE,
                    filename = paste0(args[1], '-trace_sigma_phi-', run_date, '.pdf'))
+
+#alpha ~ N(30, 20)
+PR <- rnorm(10000, 30, 20)
+MCMCvis::MCMCtrace(fit,
+                   params = 'alpha',
+                   priors = PR,
+                   open_pdf = FALSE,
+                   filename = paste0(args[1], '-trace_alpha-', run_date, '.pdf'))
 
 if ('Rplots.pdf' %in% list.files())
 {
