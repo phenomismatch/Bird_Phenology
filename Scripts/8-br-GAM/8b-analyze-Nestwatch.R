@@ -60,38 +60,48 @@ usp2 <- sp_cnt[which(sp_cnt[,2] > 40),1]
 
 # distribution of pheno dates (hist) -----------------------------------------------
 
-# #LAY
-# #dev.off()
-# par(mfrow = c(3,3))
-# for (i in 1:length(usp2))
-# {
-#   #i <- 1
-#   temp <- dplyr::filter(nw_data2, species == usp2[i])
-#   if (sum(!is.na(temp$lay)) > 0)
-#   {
-#     hist(temp$lay, main = paste0('LAY - ', usp2[i]))
-#   }
-# }
-# 
-# for (i in 1:length(usp2))
-# {
-#   #i <- 1
-#   temp <- dplyr::filter(nw_data, species == usp2[i])
-#   if (sum(!is.na(temp$hatch)) > 0)
-#   {
-#     hist(temp$hatch, main = paste0('HATCH - ', usp2[i]))
-#   }
-# }
-# 
-# for (i in 1:length(usp2))
-# {
-#   #i <- 39
-#   temp <- dplyr::filter(nw_data, species == usp2[i])
-#   if (sum(!is.na(temp$fledge)) > 0)
-#   {
-#     hist(temp$fledge, main = paste0('FLEDGE - ', usp2[i]))
-#   }
-# }
+#LAY
+#dev.off()
+par(mfrow = c(3,3))
+for (i in 1:length(usp2))
+{
+  #i <- 36
+  temp <- dplyr::filter(nw_data2, species == usp2[i])
+  if (sum(!is.na(temp$lay)) > 0)
+  {
+    #hist(temp$lay, main = paste0('LAY - ', usp2[i]))
+    plot(temp$lat, temp$lay, pch = 19, 
+         col = rgb(0,0,0,0.015), 
+         main = paste0('LAY ~ LAT - ', usp2[i]),
+         xlab = 'Latitude', ylab = 'Lay date')
+  }
+}
+
+for (i in 1:length(usp2))
+{
+  #i <- 1
+  temp <- dplyr::filter(nw_data, species == usp2[i])
+  if (sum(!is.na(temp$hatch)) > 0)
+  {
+    #hist(temp$hatch, main = paste0('HATCH - ', usp2[i]))
+    plot(temp$lat, temp$lay, pch = 19, 
+         col = rgb(0,0,0,0.05), 
+         main = paste0('HATCH ~ LAT - ', usp2[i]))
+  }
+}
+
+for (i in 1:length(usp2))
+{
+  #i <- 39
+  temp <- dplyr::filter(nw_data, species == usp2[i])
+  if (sum(!is.na(temp$fledge)) > 0)
+  {
+    #hist(temp$fledge, main = paste0('FLEDGE - ', usp2[i]))
+    plot(temp$lat, temp$lay, pch = 19, 
+         col = rgb(0,0,0,0.05), 
+         main = paste0('FLEDGE ~ LAT - ', usp2[i]))
+  }
+}
 
 #can test multimodality using likelihood ratio test
 #https://stats.stackexchange.com/questions/138223/how-to-test-if-my-distribution-is-multimodal
@@ -142,9 +152,9 @@ hist(dd$med_LF)
 abline(v = median(sp_med_LF, na.rm = TRUE), col = 'red', lwd = 2)
 
 
-# pheno windows -----------------------------------------------------------------
+# pheno periods -----------------------------------------------------------------
 
-#on a cell/year basis, bc of compression between arr and lay over lat
+#on a cell/year basis, bc of possible compression between arr and lay over lat
 
 # PERIODS
 #========
@@ -243,4 +253,5 @@ write.table(unique(arr_data$species), 'arr_species_list.txt',
 # na_med_LF <- which(is.na(dd2$med_LF))
 # dd2$med_LH[na_med_LH] <- sp_med_LH
 # dd2$med_LF[na_med_LF] <- sp_med_LF
+
 
