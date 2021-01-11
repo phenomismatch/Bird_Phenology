@@ -135,3 +135,27 @@ plot(bj_juv2$plmax, bj_juv2$resid,
 
 #only three MAPS with plmax > 0.99
 dplyr::filter(bj_juv2, plmax > 0.99)
+
+
+
+
+
+
+# compare MAPS juv and eBird br -------------------------------------------------------------------------
+
+br_in <- readRDS('br_IAR_input_2020-12-03.rds')
+
+tt <- dplyr::full_join(df_master, br_in, by = c('species', 'cell', 'year'))
+
+#overlap
+tt2 <- dplyr::filter(tt, VALID.x == TRUE, VALID.y == TRUE)
+NROW(tt2)
+plot(tt2$br_GAM_mean, tt2$juv_logis_mean, pch = 19)
+
+ff <- dplyr::select(tt2, species, cell, year, br_GAM_mean, br_GAM_sd, juv_logis_mean, juv_logis_sd)
+
+
+ff$delta <- (ff$juv_logis_mean - ff$br_GAM_mean)
+ff$delta_sd <- sqrt(ff$juv_logis_sd^2 + ff$br_GAM_sd^2)
+
+hist(ff$delta)
