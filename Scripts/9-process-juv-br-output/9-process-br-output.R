@@ -22,7 +22,7 @@ br_date <- '2020-12-03'
 br_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/breeding_GAM_', br_date)
 
 #output dir
-br_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/breeding_master_', br_date)
+br_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/br_IAR_input_', br_date)
 
 
 # runtime -----------------------------------------------------------------
@@ -406,4 +406,4 @@ df_master$cell_lng <- round(cellcenters$lon_deg, digits = 2)
 dir.create(br_master_dir)
 setwd(br_master_dir)
 
-saveRDS(df_master, paste0('breeding_master_', br_date, '.rds'))
+saveRDS(df_master, paste0('br_IAR_input_', br_date, '.rds'))

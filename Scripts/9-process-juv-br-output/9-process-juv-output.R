@@ -18,11 +18,12 @@ dir <- '~/Google_Drive/R/'
 # db/juv query dir ------------------------------------------------------------
 
 #input dir
-juv_date <- '2020-12-04'
-juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_GAM_', juv_date)
+juv_date <- '2021-01-11'
+# juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_GAM_', juv_date)
+juv_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_logis_', juv_date)
 
 #output dir
-juv_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_master_', juv_date)
+juv_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/juv_IAR_input_', juv_date)
 
 
 # runtime -----------------------------------------------------------------
@@ -109,7 +110,7 @@ years <- 1989:2018
 nyr <- length(years)
 
 
-# Proces halfmax results -----------------------------------------------------------------
+# Process halfmax results -----------------------------------------------------------------
 
 #get number of cell/years
 tu_cells <- rep(NA, nsp)
@@ -117,9 +118,10 @@ for (i in 1:nsp)
 {
   #i <- 20
   
-  #import halfmax estimates and diagnostics from GAM
+  #import halfmax estimates and diagnostics from model
   setwd(juv_dir)
-  temp_halfmax <- readRDS(paste0('juv_GAM_', species_list[i], '.rds'))
+  # temp_halfmax <- readRDS(paste0('juv_GAM_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('juv_logis_', species_list[i], '.rds'))
    
   tu_cells[i] <- length(unique(temp_halfmax$cell))
 }
@@ -135,9 +137,10 @@ for (i in 1:nsp)
 {
   #i <- 22
   
-  #import halfmax estimates and diagnostics from GAM
+  #import halfmax estimates and diagnostics from juv
   setwd(juv_dir)
-  temp_halfmax <- readRDS(paste0('juv_GAM_', species_list[i], '.rds'))
+  # temp_halfmax <- readRDS(paste0('juv_GAM_', species_list[i], '.rds'))
+  temp_halfmax <- readRDS(paste0('juv_logis_', species_list[i], '.rds'))
   
   if (i == 1)
   {
@@ -146,8 +149,10 @@ for (i in 1:nsp)
     diagnostics_frame <- data.frame(species = na_reps,
                                     year = na_reps,
                                     cell = na_reps,
-                                    juv_GAM_mean = na_reps,
-                                    juv_GAM_sd = na_reps,
+                                    # juv_GAM_mean = na_reps,
+                                    # juv_GAM_sd = na_reps,
+                                    juv_logis_mean = na_reps,
+                                    juv_logis_sd = na_reps,
                                     breed_cell = na_reps,
                                     other_cell = na_reps,
                                     shp_fname = na_reps,
@@ -319,9 +324,9 @@ for (i in 1:nsp)
         {
           diagnostics_frame$min_neff[counter] <- tt_halfmax2$min_neff
           diagnostics_frame$max_Rhat[counter] <- tt_halfmax2$max_Rhat
-          #did mean have local max
+          #did mean have local max (or valid inflection point)
           diagnostics_frame$mlmax[counter] <- tt_halfmax2$mlmax
-          #percent of iter with local max
+          #percent of iter with local max (or valid inflection points)
           diagnostics_frame$plmax[counter] <- tt_halfmax2$plmax
           diagnostics_frame$num_diverge[counter] <- tt_halfmax2$num_diverge
           diagnostics_frame$num_tree[counter] <- tt_halfmax2$num_tree
@@ -356,8 +361,10 @@ for (i in 1:nsp)
           #calculate posterior mean and sd
           if (sum(!is.na(halfmax_posterior)) > 0)
           {
-            diagnostics_frame$juv_GAM_mean[counter] <- mean(halfmax_posterior)
-            diagnostics_frame$juv_GAM_sd[counter] <- sd(halfmax_posterior)
+            # diagnostics_frame$juv_GAM_mean[counter] <- mean(halfmax_posterior)
+            # diagnostics_frame$juv_GAM_sd[counter] <- sd(halfmax_posterior)
+            diagnostics_frame$juv_logis_mean[counter] <- mean(halfmax_posterior)
+            diagnostics_frame$juv_logis_sd[counter] <- sd(halfmax_posterior)
           }
         }
         counter <- counter + 1
@@ -386,10 +393,12 @@ val_idx <- which(diagnostics_frame3$num_diverge > 0 |
                    diagnostics_frame3$max_Rhat > 1.02 |
                    diagnostics_frame3$min_neff < 400 |
                    diagnostics_frame3$num_BFMI > 0 |
-                   diagnostics_frame3$juv_GAM_sd > 15 | 
                    diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
-                   #diagnostics_frame3$plmax < 0.99 |
-                   is.na(diagnostics_frame3$juv_GAM_mean))
+                   diagnostics_frame3$plmax < 0.99 |
+                   # diagnostics_frame3$juv_GAM_sd > 15 | 
+                   # is.na(diagnostics_frame3$juv_GAM_mean))
+                   diagnostics_frame3$juv_logis_sd > 15 | 
+                   is.na(diagnostics_frame3$juv_logis_mean))
 
 diagnostics_frame3$VALID <- TRUE
 diagnostics_frame3$VALID[val_idx] <- FALSE
@@ -415,4 +424,4 @@ df_master$cell_lng <- round(cellcenters$lon_deg, digits = 2)
 dir.create(juv_master_dir)
 setwd(juv_master_dir)
 
-saveRDS(df_master, paste0('juv_master_', juv_date, '.rds'))
+saveRDS(df_master, paste0('juv_IAR_input_', juv_date, '.rds'))
