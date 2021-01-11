@@ -34,7 +34,7 @@ library(MCMCvis)
 # Set wd ------------------------------------------------------------------
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/breeding_master_', breed_date))
-br_master <- readRDS(paste0('breeding_master_', breed_date, '.rds'))
+br_master <- readRDS(paste0('br_IAR_input_', breed_date, '.rds'))
 
 
 # species arg -----------------------------------------------------
@@ -47,7 +47,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #args <- c('Zonotrichia_leucophrys', 5000)
 #args <- c('Geothlypis_trichas', 5000)
 #args <- c('Contopus_virens', 15000)
-
+args <- c('Myiarchus_crinitus', 25000)
 
 # Filter data by species/years ------------------------------------------------------
 
@@ -368,18 +368,18 @@ for (n in 1:N)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 
-DELTA <- 0.99
-TREE_DEPTH <- 16
+DELTA <- 0.9999
+TREE_DEPTH <- 17
 STEP_SIZE <- 0.00001
 CHAINS <- 4
 ITER <- as.numeric(args[2])
-if (ITER <= 15000)
+if (ITER <= 25000)
 {
-  ITER2 <- 15000
-  WARMUP <- 10000
+  ITER2 <- 25000
+  WARMUP <- 20000
 } else {
   ITER2 <- ITER
-  WARMUP <- 10000
+  WARMUP <- 20000
 }
 
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/', br_IAR_out_dir))
@@ -561,7 +561,6 @@ cat(paste0('Mean treedepth: ', round(mean(mn_treedepth), 1), ' \n'))
 cat(paste0('Mean accept stat: ', round(mean(accept_stat), 2), ' \n'))
 cat(paste0('Cell drop: ', DROP, ' \n'))
 cat(paste0('Num data points: ', length(v_idx), ' \n'))
-cat(paste0('Num cell/year overlap: ', novr, ' \n'))
 cat(paste0('Max Rhat: ', max(rhat_output), ' \n'))
 cat(paste0('Min n.eff: ', min(neff_output), ' \n'))
 print(model_summary)

@@ -1,5 +1,5 @@
 ######################
-# 7 - GAM model juv MAPS
+# 7 - logistic model juv MAPS
 #
 # run for all cells (in and out of study area)
 ######################
@@ -22,7 +22,7 @@ dir <- '/labs/Tingley/phenomismatch/'
 # other dir ------------------------------------------------------------
 
 #run date
-RUN_DATE <- '2020-12-04'
+RUN_DATE <- '2021-01-11'
 
 #MAPS query date
 MAPS_date <- '2020-03-03'
@@ -191,8 +191,8 @@ if (NROW(nrng@data) > 0 & raster::extent(nrng)@xmax > -95)
                            t_mat)
   
   #save to rds object
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/juv_GAM_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('juv_GAM_', args, '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/juv_logis_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('juv_logis_', args, '.rds'))
   stop('Range not suitable for modeling!')
 }
 
@@ -225,8 +225,8 @@ if (NROW(m_mf) == 0)
                            t_mat)
   
   #save to rds object
-  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/juv_GAM_', RUN_DATE))
-  saveRDS(halfmax_df, file = paste0('juv_GAM_', args, '.rds'))
+  setwd(paste0(dir, 'Bird_Phenology/Data/Processed/juv_logis_', RUN_DATE))
+  saveRDS(halfmax_df, file = paste0('juv_logis_', args, '.rds'))
   stop('No data in breeding range!')
 }
 
@@ -376,17 +376,7 @@ for (j in 1:nyr)
     
     if (n1 > 4 & n0 > 4 & njd0i > 2 & njd1 > 2 & njd > 19)
     {
-      fit2 <- rstanarm::stan_gamm4(juv ~ s(day, k = 20),
-                                   data = cyspdata_j,
-                                   family = binomial(link = "logit"),
-                                   algorithm = 'sampling',
-                                   iter = ITER,
-                                   chains = CHAINS,
-                                   cores = CHAINS,
-                                   adapt_delta = DELTA,
-                                   control = list(max_treedepth = TREE_DEPTH))
-      
-      # fit2 <- rstanarm::stan_glm(juv ~ day,
+      # fit2 <- rstanarm::stan_gamm4(juv ~ s(day, k = 20),
       #                              data = cyspdata_j,
       #                              family = binomial(link = "logit"),
       #                              algorithm = 'sampling',
@@ -395,6 +385,16 @@ for (j in 1:nyr)
       #                              cores = CHAINS,
       #                              adapt_delta = DELTA,
       #                              control = list(max_treedepth = TREE_DEPTH))
+      
+      fit2 <- rstanarm::stan_glm(juv ~ day,
+                                   data = cyspdata_j,
+                                   family = binomial(link = "logit"),
+                                   algorithm = 'sampling',
+                                   iter = ITER,
+                                   chains = CHAINS,
+                                   cores = CHAINS,
+                                   adapt_delta = DELTA,
+                                   control = list(max_treedepth = TREE_DEPTH))
       
       #calculate diagnostics
       num_diverge <- rstan::get_num_divergent(fit2$stanfit)
@@ -406,25 +406,25 @@ for (j in 1:nyr)
       {
         DELTA <- DELTA + 0.01
         
-        fit2 <- rstanarm::stan_gamm4(juv ~ s(day, k = 20),
-                                     data = cyspdata_j,
-                                     family = binomial(link = "logit"),
-                                     algorithm = 'sampling',
-                                     iter = ITER,
-                                     chains = CHAINS,
-                                     cores = CHAINS,
-                                     adapt_delta = DELTA,
-                                     control = list(max_treedepth = TREE_DEPTH))
+        # fit2 <- rstanarm::stan_gamm4(juv ~ s(day, k = 20),
+        #                              data = cyspdata_j,
+        #                              family = binomial(link = "logit"),
+        #                              algorithm = 'sampling',
+        #                              iter = ITER,
+        #                              chains = CHAINS,
+        #                              cores = CHAINS,
+        #                              adapt_delta = DELTA,
+        #                              control = list(max_treedepth = TREE_DEPTH))
         
-        # fit2 <- rstanarm::stan_glm(juv ~ day,
-        #                            data = cyspdata_j,
-        #                            family = binomial(link = "logit"),
-        #                            algorithm = 'sampling',
-        #                            iter = ITER,
-        #                            chains = CHAINS,
-        #                            cores = CHAINS,
-        #                            adapt_delta = DELTA,
-        #                            control = list(max_treedepth = TREE_DEPTH))
+        fit2 <- rstanarm::stan_glm(juv ~ day,
+                                   data = cyspdata_j,
+                                   family = binomial(link = "logit"),
+                                   algorithm = 'sampling',
+                                   iter = ITER,
+                                   chains = CHAINS,
+                                   cores = CHAINS,
+                                   adapt_delta = DELTA,
+                                   control = list(max_treedepth = TREE_DEPTH))
         
         num_diverge <- rstan::get_num_divergent(fit2$stanfit)
         num_tree <- rstan::get_num_max_treedepth(fit2$stanfit)
@@ -457,49 +457,23 @@ for (j in 1:nyr)
         rowL <- as.vector(dfit[L,])
         #first detection
         fd <- min(cyspdata_j$day[which(cyspdata_j$juv == 1)])
-        #local maximum(s)
-        #from: stackoverflow.com/questions/6836409/finding-local-maxima-and-minima
-        lmax_idx <- which(diff(sign(diff(rowL))) == -2) + 1
-        lmax <- predictDays[lmax_idx]
-        #first local max to come after first detection
-        flm <- which(lmax > fd)
-        if (length(flm) > 0)
+        #find inflection point (point at which 1st derivative is maximized)
+        infl <- predictDays[which.max(diff(rowL))]
+        
+        #make sure infl is after fd
+        #make sure infl exists (max is not last predictday)
+        if ((infl > fd) & (infl < max(predictDays)))
         {
-          #first local max to come after first detection
-          lmax2_idx <- lmax_idx[min(flm)]
-          lmax2 <- lmax[min(flm)]
           tlmax[L] <- TRUE
         } else {
-          #no local max
-          lmax2_idx <- which.max(rowL)
-          lmax2 <- predictDays[which.max(rowL)]
           tlmax[L] <- FALSE
         }
-        #local mins before max (global and local mins)
-        lmin_idx <- c(which.min(rowL[1:lmax2_idx]), 
-                      which(diff(sign(diff(rowL[1:lmax2_idx]))) == 2) + 1)
-        lmin <- predictDays[lmin_idx]
-        #local min nearest to local max
-        lmin2_idx <- lmin_idx[which.min(lmax2 - lmin)]
-        lmin2 <- predictDays[lmin2_idx]
-        
-        #value at local max - value at min (typically 0)
-        dmm <- rowL[lmax2_idx] - rowL[lmin2_idx]
-        #all positions less than or equal to half diff between max and min + value min
-        tlm <- which(rowL <= ((dmm/2) + rowL[lmin2_idx]))
-        #which of these come before max and after or at min
-        
-        vgm <- tlm[which(tlm < lmax2_idx & tlm >= lmin2_idx)]
-        #insert halfmax (first day for situations where max is a jday = 1)
-        if (length(vgm) > 0)
-        {
-          halfmax_fit[L] <- predictDays[max(vgm)]
-        } else {
-          halfmax_fit[L] <- predictDays[1]
-        }
+
+        #insert halfmax (inflection point)
+        halfmax_fit[L] <- infl
       }
       
-      #number of iterations that had local max
+      #number of iterations that had valid inflection point
       halfmax_df$plmax[counter] <- round(sum(tlmax)/((ITER/2)*CHAINS), 3)
       
       #model fit
@@ -507,9 +481,9 @@ for (j in 1:nyr)
       LCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.025))
       UCI_dfit <- apply(dfit, 2, function(x) quantile(x, probs = 0.975))
       
-      #check whether local max exists for mean model fit
-      mlmax <- sum(diff(sign(diff(mn_dfit))) == -2)
-      if (mlmax > 0)
+      #check whether inflection point is valid for mean model fit
+      infl <- predictDays[which.max(diff(mn_dfit))]
+      if ((infl > fd) & (infl < max(predictDays)))
       {
         halfmax_df$mlmax[counter] <- TRUE
       } else {
@@ -574,8 +548,8 @@ for (j in 1:nyr)
 OUT <- halfmax_df[order(halfmax_df[,'year'], halfmax_df[,'cell']),]
 
 #save to rds object
-setwd(paste0(dir, '/Bird_Phenology/Data/Processed/juv_GAM_', RUN_DATE))
-saveRDS(OUT, file = paste0('juv_GAM_', args, '.rds'))
+setwd(paste0(dir, '/Bird_Phenology/Data/Processed/juv_logis_', RUN_DATE))
+saveRDS(OUT, file = paste0('juv_logis_', args, '.rds'))
 
 
 # runtime -----------------------------------------------------------------
