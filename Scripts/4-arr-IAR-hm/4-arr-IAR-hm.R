@@ -264,7 +264,7 @@ vector[J] phi[N];                                     // sptial error componenet
 real<lower = 0> sigma_phi;
 vector[N] beta0_raw;
 real<lower = 0> sigma_beta0;
-vector[J] y_true_raw[N];                           // J vectors (years in rows) of length N (cells in cols)
+vector[J] y_true_raw[N];                           // J vectors (cells) of length N (years)
 real<lower = 0> sigma_y_true;
 }
 
