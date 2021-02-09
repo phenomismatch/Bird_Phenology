@@ -13,9 +13,9 @@ dir <- '~/Google_Drive/R/'
 # other dir ---------------------------------------------------------------
 
 arr_master_date <- '2020-07-21'
-br_master_date <- '2020-12-29'
+bj_master_date <- '2021-01-11'
 NW_RUN_DATE <- '2020-12-03'
-pro_date <- '2021-01-04'
+pro_date <- '2021-02-09'
 
 
 # Load packages -----------------------------------------------------------
@@ -36,8 +36,8 @@ setwd(paste0(dir, 'Bird_Phenology/Data/Processed/arrival_master_', arr_master_da
 arr_master <- readRDS(paste0('arrival_master_', arr_master_date, '.rds'))
 
 #breeding
-setwd(paste0(dir, 'Bird_Phenology/Data/Processed/br_master_', br_master_date))
-br_master <- readRDS(paste0('br_master_', br_master_date, '.rds'))
+setwd(paste0(dir, 'Bird_Phenology/Data/Processed/bj_master_', bj_master_date))
+bj_master <- readRDS(paste0('bj_master_', bj_master_date, '.rds'))
 
 #NW intervals
 setwd(paste0(dir, 'Bird_Phenology/Data/Processed/'))
@@ -51,13 +51,15 @@ arr_master_2 <- dplyr::select(arr_master, species, cell, mig_cell, breed_cell,
                               arr_GAM_sd, VALID_arr_GAM = VALID_GAM, arr_IAR_mean, 
                               arr_IAR_sd)
 
-br_master_2 <- dplyr::select(br_master, species, cell, year, br_GAM_mean, 
-                              br_GAM_sd, VALID_br_GAM, br_IAR_mean, br_IAR_sd)
+bj_master_2 <- dplyr::select(bj_master, species, cell, year, 
+                             bj_IAR_mean, bj_IAR_sd,
+                             br_GAM_mean, br_GAM_sd, VALID_br_GAM, 
+                             juv_logis_mean, juv_logis_sd, VALID_juv_logis)
 
 nw_pi_2 <- dplyr::select(nw_pi, species, med_LH_imp, med_LF_imp)
 
 #join
-mrg1 <- dplyr::full_join(arr_master_2, br_master_2, by = c('species', 'year', 'cell'))
+mrg1 <- dplyr::full_join(arr_master_2, bj_master_2, by = c('species', 'year', 'cell'))
 
 mrg2 <- dplyr::left_join(mrg1, nw_pi_2, by = 'species')
 
