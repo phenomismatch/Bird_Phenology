@@ -78,6 +78,6 @@ Youngflesh, C., Socolar, J., Amaral, B.R., Arab, A., Guralnick, R.P., Hurlbert, 
         * `10-<Genus_species>.sh` - scripts to submit jobs for each species; run with `10-master-submit.sh`
   * `11-process-bj-output.R` - processing output from `10-bj-IAR-hm.R`
   * `11-process-br-output.R` - processing output from `10-br-IAR-hm.R`
-  * `11-master-pheno-process.R` - produce master phenology data object
+  * `12-master-pheno-process.R` - produce master phenology data object
 
 * `Figures/` (ignored)
