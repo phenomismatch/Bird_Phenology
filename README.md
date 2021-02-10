@@ -4,7 +4,7 @@ Code for characterizing bird arrival and breeding phenology.
 
 **Associated publications:**
 
-Youngflesh, C., Socolar, J., Amaral, B.R., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance, R., Mayor, S.J., Miller, D.A.W., Tingley, M.W. *In Review* 		Migratory strategy drives species-level variation in bird sensitivity to green-up
+Youngflesh, C., Socolar, J., Amaral, B.R., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance, R., Mayor, S.J., Miller, D.A.W., Tingley, M.W. *In Review* Migratory strategy drives species-level variation in bird sensitivity to vegetation green-up
 
 
 **Repository structure:**
@@ -64,5 +64,20 @@ Youngflesh, C., Socolar, J., Amaral, B.R., Arab, A., Guralnick, R.P., Hurlbert, 
     * `9-process-juv-output.R` - process model output from `7-juv-GAM.R`
     * `9-process-br-output.R` - process model output from `8-br-GAM.R`
   * `Other/`
+  * `10-bj-IAR-hm`
+      * `10-bj-IAR-hm.R` - fit breeding dates using IAR model (both eBird- and MAPS-derived dates)
+      * `10-create-batch-scripts.sh` - script to create scripts (`10-<Genus_species>.sh`) for HPC job submission 
+      * `10-master-submit.sh` - script to be run (`./10-master-submit.sh`) on HPC cluster to submit all jobs
+      * `species/` - contains job scripts for each species
+        * `10-<Genus_species>.sh` - scripts to submit jobs for each species; run with `10-master-submit.sh`
+  * `10-br-IAR-hm`
+      * `10-br-IAR-hm.R` - fit breeding dates using IAR model (just eBird-derived dates)
+      * `10-create-batch-scripts.sh` - script to create scripts (`10-<Genus_species>.sh`) for HPC job submission 
+      * `10-master-submit.sh` - script to be run (`./10-master-submit.sh`) on HPC cluster to submit all jobs
+      * `species/` - contains job scripts for each species
+        * `10-<Genus_species>.sh` - scripts to submit jobs for each species; run with `10-master-submit.sh`
+  * `11-process-bj-output.R` - processing output from `10-bj-IAR-hm.R`
+  * `11-process-br-output.R` - processing output from `10-br-IAR-hm.R`
+  * `11-master-pheno-process.R` - produce master phenology data object
 
 * `Figures/` (ignored)
