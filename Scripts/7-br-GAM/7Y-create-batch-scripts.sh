@@ -28,5 +28,5 @@ export R_LIBS=/u/home/c/cyoungfl/R/x86_64-pc-linux-gnu-library/3.6
 #run script - time call return info on memory usage
 /usr/bin/time -apv Rscript /u/home/c/cyoungfl/Bird_Phenology/Scripts/7-br-GAM/7-br-GAM.R $temp Y
 
-" > "species/7-$temp-Y.sh"
+" > "species/a7-$temp-Y.sh"
 done < ../../Data/arr_species_list.txt
