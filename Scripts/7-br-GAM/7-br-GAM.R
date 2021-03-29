@@ -17,13 +17,17 @@ tt <- proc.time()
 #dir <- '~/Google_Drive/R/'
 
 #Xanadu
-dir <- '/labs/Tingley/phenomismatch/'
+#dir <- '/labs/Tingley/phenomismatch/'
+
+#Hoffman
+dir <- '/u/home/c/cyoungfl/'
 
 
 # query dir ---------------------------------------------------------------
 
 #run date
 RUN_DATE <- '2021-03-29'
+
 
 #query ebird breeding code data
 QUERY_DATE <- '2020-03-03'
@@ -47,9 +51,10 @@ library(rgdal)
 # Get args fed to script --------------------------------------------------
 
 #breeding code: F = fledge, Y = young, E = egg
-#args <- commandArgs(trailingOnly = TRUE)
-args <- c('Vireo_olivaceus', 'Y')
+args <- commandArgs(trailingOnly = TRUE)
+#args <- c('Vireo_olivaceus', 'Y')
 #args <- 'Agelaius_phoeniceus'
+
 
 # model settings ----------------------------------------------------------
 
