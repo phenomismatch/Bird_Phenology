@@ -7,7 +7,7 @@ while read name
 do
   temp="${name%\"}"
   temp="${temp#\"}"
-  sbatch species/7-$temp-Y.sh
+  qsub species/7-$temp-Y.sh
 done < ../../Data/arr_species_list.txt
 
 cp 7-br-GAM.R ../../Data/Processed/breeding_GAM_$DATE/7-br-GAM-Y-$DATE.R
