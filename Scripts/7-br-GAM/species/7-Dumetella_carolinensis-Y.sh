@@ -3,10 +3,10 @@
 #$ -cwd                         #directory (current working dir)
 #$ -o br-gam-Dumetella_carolinensis-Y.joblog               #jobname
 #$ -j y                         #combine STDOUT STDERR
-#$ -pe shared 1                 #number of cores - for entire node: 
+#$ -pe shared 4                 #number of cores - for entire node: 
 #$ -M cyoungl@mail              #mail address
 #$ -m ea                        #email at end and abort times
-#$ -l h_data=10G,h_rt=24:00:00  #resource request - run time in hours
+#$ -l h_data=8G,h_rt=24:00:00  #resource request - run time in hours
 
 #load modules
 source /u/local/Modules/default/init/modules.sh
