@@ -15,7 +15,7 @@ dir <- '~/Google_Drive/R/'
 arr_master_date <- '2020-07-21'
 bj_master_date <- '2021-01-11'
 NW_RUN_DATE <- '2020-12-03'
-pro_date <- '2021-02-09'
+pro_date <- '2021-03-10'
 
 
 # Load packages -----------------------------------------------------------

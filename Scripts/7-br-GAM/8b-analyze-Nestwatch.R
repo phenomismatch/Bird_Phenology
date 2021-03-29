@@ -255,3 +255,83 @@ write.table(unique(arr_data$species), 'arr_species_list.txt',
 # dd2$med_LF[na_med_LF] <- sp_med_LF
 
 
+# pheno periods per nest basis --------------------------------------------
+
+nw_data$hl <- NA
+nw_data$fh <- NA
+for (i in 1:NROW(nw_data))
+{
+  #i <- 1
+  print(paste0('Processing : ', i, ' of ', NROW(nw_data)))
+  
+  nw_data$hl[i] <- nw_data[i,'hatch'] - nw_data[i,'lay']
+  nw_data$fh[i] <- nw_data[i,'fledge'] - nw_data[i,'hatch']
+}
+
+usp <- unique(nw_data$species)
+td <- dplyr::filter(nw_data, hl > 0, fh > 0)
+cnt <- plyr::count(td, 'species')
+nsp <- cnt[which(cnt$freq > 400), 'species']
+
+nsp2 <- nsp[-which(nsp == 'Aix_sponsa')]
+td2 <- dplyr::filter(td, species %in% nsp2)
+td2$bs <- td2$n_fledged / td2$n_eggs
+td2$nc <- td2$n_chicks / td2$n_eggs
+
+ggplot(td2, aes(lat, hl, color = factor(species))) +
+#ggplot(td2, aes(lat, fh, color = factor(species))) +
+#ggplot(td2, aes(hl, bs, color = factor(species))) +
+#ggplot(td2, aes(fh, bs, color = factor(species))) +
+#ggplot(td2, aes(hl, nc, color = factor(species))) +
+  geom_point(alpha = 0.05) +
+  geom_line(stat = 'smooth', method = 'lm',
+            se = FALSE, alpha = 0.5, size = 1.5) +
+  theme_bw() +
+  theme(legend.position = 'none') +
+  ylim(c(0, 1))
+  #ylim(c(0, 50))
+
+
+out <- data.frame(species = rep(NA, length(nsp2)),
+           hl_sl = NA,
+           hl_pv = NA,
+           fh_sl = NA,
+           fh_pv = NA,
+           hl_bs_sl = NA,
+           hl_bs_pv = NA,
+           fh_bs_sl = NA,
+           fh_bs_pv = NA,
+           rng_lat = NA,
+           N_hl = NA,
+           N_fh = NA)
+for (i in 1:length(nsp2))
+{
+  #i <- 1
+  tt <- dplyr::filter(td2, species == nsp2[i])
+  hl_tfit <- summary(lm(hl ~ lat, data = tt))
+  fh_tfit <- summary(lm(fh ~ lat, data = tt))
+  
+  # hl_bs_tfit <- summary(lm(bs ~ hl, data = tt))
+  # fh_bs_tfit <- summary(lm(bs ~ fh, data = tt))
+  
+  out$species[i] <- nsp2[i]
+  out$hl_sl[i] <- hl_tfit$coefficients[2,1]
+  out$hl_pv[i] <- hl_tfit$coefficients[2,4]
+  out$fh_sl[i] <- fh_tfit$coefficients[2,1]
+  out$fh_pv[i] <- fh_tfit$coefficients[2,4]
+  
+  out$hl_bs_sl[i] <- hl_bs_tfit$coefficients[2,1]
+  out$hl_bs_pv[i] <- hl_bs_tfit$coefficients[2,4]
+  out$fh_bs_sl[i] <- fh_bs_tfit$coefficients[2,1]
+  out$fh_bs_pv[i] <- fh_bs_tfit$coefficients[2,4]
+  
+  out$N_hl[i] <- NROW(dplyr::filter(tt, !is.na(hl)))
+  out$N_fh[i] <- NROW(dplyr::filter(tt, !is.na(fh)))
+  out$rng_lat[i] <- range(tt$lat)[2] - range(tt$lat)[1]
+}
+
+plot(out$fh_sl, out$hl_sl)
+hist(out$hl_sl)
+hist(dplyr::filter(out, hl_pv < 0.05)$hl_sl, main = 'hatch - lay ~ lat')
+hist(out$fh_sl)
+hist(dplyr::filter(out, fh_pv < 0.05)$fh_sl, main = 'fledge - hatch ~ lat')
