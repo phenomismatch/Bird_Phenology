@@ -1,7 +1,7 @@
 ######################
 # 9 - process br GAM output
 #
-# Aggregate posterior info and diagnostic info from 8-halfmax-br.R
+# Aggregate posterior info and diagnostic info from 7-halfmax-br.R
 #
 ######################
 
