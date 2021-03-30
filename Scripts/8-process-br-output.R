@@ -11,19 +11,13 @@
 #desktop/laptop
 dir <- '~/Google_Drive/R/'
 
-#Xanadu
-#dir <- '/labs/Tingley/phenomismatch/'
-
 
 # db/br query dir ------------------------------------------------------------
 
 #input dir
-br_date <- '2020-12-03'
+br_date <- '2021-03-29'
 br_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/breeding_GAM_', br_date)
-
-#output dir
-br_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/br_IAR_input_', br_date)
-
+br_master_dir <- paste0(dir, 'Bird_Phenology/Data/Processed/breeding_master_', br_date)
 
 # runtime -----------------------------------------------------------------
 
@@ -104,24 +98,20 @@ species_list_i <- read.table('arr_species_list.txt', stringsAsFactors = FALSE)
 species_list <- species_list_i[,1]
 nsp <- length(species_list)
 
-#years for data
-years <- 2002:2018
-nyr <- length(years)
 
+# Process halfmax results -----------------------------------------------------------------
 
-# Proces halfmax results -----------------------------------------------------------------
-
-#get number of cell/years
+#get number of cell
 tu_cells <- rep(NA, nsp)
 for (i in 1:nsp)
 {
-  #i <- 20
+  #i <- 1
   
   #import halfmax estimates and diagnostics from GAM
   setwd(br_dir)
-  temp_halfmax <- readRDS(paste0('breeding_GAM_', species_list[i], '.rds'))
+  temp_halfmax_E <- readRDS(paste0('breeding_GAM_', species_list[i], '_E.rds'))
   
-  tu_cells[i] <- length(unique(temp_halfmax$cell))
+  tu_cells[i] <- length(unique(temp_halfmax_E$cell))
 }
 
 
@@ -133,19 +123,21 @@ sp_key <- read.csv('species_filenames_key.csv')
 counter <- 1
 for (i in 1:nsp)
 {
-  #i <- 1
+  #i <- 29
   
   #import halfmax estimates and diagnostics from GAM
   setwd(br_dir)
-  temp_halfmax <- readRDS(paste0('breeding_GAM_', species_list[i], '.rds'))
+  temp_halfmax_E <- readRDS(paste0('breeding_GAM_', species_list[i], '_E.rds'))
+  temp_halfmax_Y <- readRDS(paste0('breeding_GAM_', species_list[i], '_Y.rds'))
+  temp_halfmax_F <- readRDS(paste0('breeding_GAM_', species_list[i], '_F.rds'))
   
   if (i == 1)
   {
-    na_reps <- rep(NA, max(tu_cells) * nyr * nsp)
+    na_reps <- rep(NA, max(tu_cells) * nsp * 3)
     
     diagnostics_frame <- data.frame(species = na_reps,
-                                    year = na_reps,
                                     cell = na_reps,
+                                    metric = na_reps,
                                     br_GAM_mean = na_reps,
                                     br_GAM_sd = na_reps,
                                     breed_cell = na_reps,
@@ -279,84 +271,179 @@ for (i in 1:nsp)
     ncell <- NA
   } 
   
-  #loop through years
-  for (j in 1:length(years))
+  if (!is.na(ncell))
   {
-    #j <- 1
-    tt_halfmax1 <- dplyr::filter(temp_halfmax, 
-                                 year == years[j])
-    
-    if (!is.na(ncell))
+    for (k in 1:ncell)
     {
-      for (k in 1:ncell)
-      {
-        #k <- 1
-        
-        diagnostics_frame$species[counter] <- species_list[i]
-        diagnostics_frame$year[counter] <- years[j]
-        diagnostics_frame$cell[counter] <- cells[k]
-        diagnostics_frame$shp_fname[counter] <- fname[1]
-        diagnostics_frame$breed_cell[counter] <- cell_df$breed_cell[k]
-        diagnostics_frame$other_cell[counter] <- cell_df$other_cell[k]
-        
-        #get model fits
-        tt_halfmax2 <- dplyr::filter(tt_halfmax1, 
+      #k <- 1
+      
+      diagnostics_frame$species[counter:(counter+2)] <- species_list[i]
+      diagnostics_frame$cell[counter:(counter+2)] <- cells[k]
+      diagnostics_frame$shp_fname[counter:(counter+2)] <- fname[1]
+      diagnostics_frame$breed_cell[counter:(counter+2)] <- cell_df$breed_cell[k]
+      diagnostics_frame$other_cell[counter:(counter+2)] <- cell_df$other_cell[k]
+      diagnostics_frame$metric[counter] <- 'E'
+      diagnostics_frame$metric[counter+1] <- 'Y'
+      diagnostics_frame$metric[counter+2] <- 'F'
+      
+      #get model fits
+      tt_halfmax_E2 <- dplyr::filter(temp_halfmax_E, 
+                                   cell == cells[k])
+      tt_halfmax_Y2 <- dplyr::filter(temp_halfmax_Y, 
                                      cell == cells[k])
+      tt_halfmax_F2 <- dplyr::filter(temp_halfmax_F, 
+                                     cell == cells[k])
+      
+      print(paste0('species: ', species_list[i], ', ',
+                   'cell: ', cells[k]))
+      
+      
+      #EGG
+      if (NROW(tt_halfmax_E2) > 0)
+      {
+        diagnostics_frame$min_neff[counter] <- tt_halfmax_E2$min_neff
+        diagnostics_frame$max_Rhat[counter] <- tt_halfmax_E2$max_Rhat
+        #did mean have local max
+        diagnostics_frame$mlmax[counter] <- tt_halfmax_E2$mlmax
+        #percent of iter with local max
+        diagnostics_frame$plmax[counter] <- tt_halfmax_E2$plmax
+        diagnostics_frame$num_diverge[counter] <- tt_halfmax_E2$num_diverge
+        diagnostics_frame$num_tree[counter] <- tt_halfmax_E2$num_tree
+        diagnostics_frame$num_BFMI[counter] <- tt_halfmax_E2$num_BFMI
+        diagnostics_frame$delta[counter] <- tt_halfmax_E2$delta
+        diagnostics_frame$tree_depth[counter] <- tt_halfmax_E2$tree_depth
+        #total iterations
+        diagnostics_frame$t_iter[counter] <- tt_halfmax_E2$t_iter
+        #number of surveys where species was detected
+        diagnostics_frame$n1[counter] <- tt_halfmax_E2$n1
+        #number of detections that came before jday 60
+        #diagnostics_frame$n1W[counter] <- tt_halfmax2$n1W
+        #number of surveys where species was not detected
+        diagnostics_frame$n0[counter] <- tt_halfmax_E2$n0
+        #number of non-detections before first detection
+        diagnostics_frame$n0i[counter] <- tt_halfmax_E2$n0i
+        #number of julian days with obs
+        diagnostics_frame$njd[counter] <- tt_halfmax_E2$njd
+        #number of unique days with detections
+        diagnostics_frame$njd1[counter] <- tt_halfmax_E2$njd1
+        #number of unique days with non-detection
+        diagnostics_frame$njd0[counter] <- tt_halfmax_E2$njd0
+        #number of unique days of non-detections before first detection
+        diagnostics_frame$njd0i[counter] <- tt_halfmax_E2$njd0i
         
-        print(paste0('species: ', species_list[i], ', ',
-                     'year: ', years[j], ', ', 
-                     'cell: ', cells[k]))
+        #posterior for halfmax
+        cndf <- colnames(tt_halfmax_E2)
+        iter_ind <- grep('iter', cndf)
+        to.rm <- which(cndf == 't_iter')
+        halfmax_posterior <- as.numeric(tt_halfmax_E2[,iter_ind[-which(iter_ind == to.rm)]])
         
-        if (NROW(tt_halfmax2) > 0)
+        #calculate posterior mean and sd
+        if (sum(!is.na(halfmax_posterior)) > 0)
         {
-          diagnostics_frame$min_neff[counter] <- tt_halfmax2$min_neff
-          diagnostics_frame$max_Rhat[counter] <- tt_halfmax2$max_Rhat
-          #did mean have local max
-          diagnostics_frame$mlmax[counter] <- tt_halfmax2$mlmax
-          #percent of iter with local max
-          diagnostics_frame$plmax[counter] <- tt_halfmax2$plmax
-          diagnostics_frame$num_diverge[counter] <- tt_halfmax2$num_diverge
-          diagnostics_frame$num_tree[counter] <- tt_halfmax2$num_tree
-          diagnostics_frame$num_BFMI[counter] <- tt_halfmax2$num_BFMI
-          diagnostics_frame$delta[counter] <- tt_halfmax2$delta
-          diagnostics_frame$tree_depth[counter] <- tt_halfmax2$tree_depth
-          #total iterations
-          diagnostics_frame$t_iter[counter] <- tt_halfmax2$t_iter
-          #number of surveys where species was detected
-          diagnostics_frame$n1[counter] <- tt_halfmax2$n1
-          #number of detections that came before jday 60
-          #diagnostics_frame$n1W[counter] <- tt_halfmax2$n1W
-          #number of surveys where species was not detected
-          diagnostics_frame$n0[counter] <- tt_halfmax2$n0
-          #number of non-detections before first detection
-          diagnostics_frame$n0i[counter] <- tt_halfmax2$n0i
-          #number of julian days with obs
-          diagnostics_frame$njd[counter] <- tt_halfmax2$njd
-          #number of unique days with detections
-          diagnostics_frame$njd1[counter] <- tt_halfmax2$njd1
-          #number of unique days with non-detection
-          diagnostics_frame$njd0[counter] <- tt_halfmax2$njd0
-          #number of unique days of non-detections before first detection
-          diagnostics_frame$njd0i[counter] <- tt_halfmax2$njd0i
-          
-          #posterior for halfmax
-          cndf <- colnames(tt_halfmax2)
-          iter_ind <- grep('iter', cndf)
-          to.rm <- which(cndf == 't_iter')
-          halfmax_posterior <- as.numeric(tt_halfmax2[,iter_ind[-which(iter_ind == to.rm)]])
-          
-          #calculate posterior mean and sd
-          if (sum(!is.na(halfmax_posterior)) > 0)
-          {
-            diagnostics_frame$br_GAM_mean[counter] <- mean(halfmax_posterior)
-            diagnostics_frame$br_GAM_sd[counter] <- sd(halfmax_posterior)
-          }
+          diagnostics_frame$br_GAM_mean[counter] <- mean(halfmax_posterior)
+          diagnostics_frame$br_GAM_sd[counter] <- sd(halfmax_posterior)
         }
-        counter <- counter + 1
-      } # if loop for at least one cell - species without sufficient ranges have 0 cells
-    } # k -cell
-  } # j - year
+      }
+      
+      #YOUNG
+      if (NROW(tt_halfmax_Y2) > 0)
+      {
+        diagnostics_frame$min_neff[counter+1] <- tt_halfmax_Y2$min_neff
+        diagnostics_frame$max_Rhat[counter+1] <- tt_halfmax_Y2$max_Rhat
+        #did mean have local max
+        diagnostics_frame$mlmax[counter+1] <- tt_halfmax_Y2$mlmax
+        #percent of iter with local max
+        diagnostics_frame$plmax[counter+1] <- tt_halfmax_Y2$plmax
+        diagnostics_frame$num_diverge[counter+1] <- tt_halfmax_Y2$num_diverge
+        diagnostics_frame$num_tree[counter+1] <- tt_halfmax_Y2$num_tree
+        diagnostics_frame$num_BFMI[counter+1] <- tt_halfmax_Y2$num_BFMI
+        diagnostics_frame$delta[counter+1] <- tt_halfmax_Y2$delta
+        diagnostics_frame$tree_depth[counter+1] <- tt_halfmax_Y2$tree_depth
+        #total iterations
+        diagnostics_frame$t_iter[counter+1] <- tt_halfmax_Y2$t_iter
+        #number of surveys where species was detected
+        diagnostics_frame$n1[counter+1] <- tt_halfmax_Y2$n1
+        #number of detections that came before jday 60
+        #diagnostics_frame$n1W[counter+1] <- tt_halfmax2$n1W
+        #number of surveys where species was not detected
+        diagnostics_frame$n0[counter+1] <- tt_halfmax_Y2$n0
+        #number of non-detections before first detection
+        diagnostics_frame$n0i[counter+1] <- tt_halfmax_Y2$n0i
+        #number of julian days with obs
+        diagnostics_frame$njd[counter+1] <- tt_halfmax_Y2$njd
+        #number of unique days with detections
+        diagnostics_frame$njd1[counter+1] <- tt_halfmax_Y2$njd1
+        #number of unique days with non-detection
+        diagnostics_frame$njd0[counter+1] <- tt_halfmax_Y2$njd0
+        #number of unique days of non-detections before first detection
+        diagnostics_frame$njd0i[counter+1] <- tt_halfmax_Y2$njd0i
+        
+        #posterior for halfmax
+        cndf <- colnames(tt_halfmax_Y2)
+        iter_ind <- grep('iter', cndf)
+        to.rm <- which(cndf == 't_iter')
+        halfmax_posterior <- as.numeric(tt_halfmax_Y2[,iter_ind[-which(iter_ind == to.rm)]])
+        
+        #calculate posterior mean and sd
+        if (sum(!is.na(halfmax_posterior)) > 0)
+        {
+          diagnostics_frame$br_GAM_mean[counter+1] <- mean(halfmax_posterior)
+          diagnostics_frame$br_GAM_sd[counter+1] <- sd(halfmax_posterior)
+        }
+      }
+      
+      #FLEDGE
+      if (NROW(tt_halfmax_F2) > 0)
+      {
+        diagnostics_frame$min_neff[counter+2] <- tt_halfmax_F2$min_neff
+        diagnostics_frame$max_Rhat[counter+2] <- tt_halfmax_F2$max_Rhat
+        #did mean have local max
+        diagnostics_frame$mlmax[counter+2] <- tt_halfmax_F2$mlmax
+        #percent of iter with local max
+        diagnostics_frame$plmax[counter+2] <- tt_halfmax_F2$plmax
+        diagnostics_frame$num_diverge[counter+2] <- tt_halfmax_F2$num_diverge
+        diagnostics_frame$num_tree[counter+2] <- tt_halfmax_F2$num_tree
+        diagnostics_frame$num_BFMI[counter+2] <- tt_halfmax_F2$num_BFMI
+        diagnostics_frame$delta[counter+2] <- tt_halfmax_F2$delta
+        diagnostics_frame$tree_depth[counter+2] <- tt_halfmax_F2$tree_depth
+        #total iterations
+        diagnostics_frame$t_iter[counter+2] <- tt_halfmax_F2$t_iter
+        #number of surveys where species was detected
+        diagnostics_frame$n1[counter+2] <- tt_halfmax_F2$n1
+        #number of detections that came before jday 60
+        #diagnostics_frame$n1W[counter+2] <- tt_halfmax2$n1W
+        #number of surveys where species was not detected
+        diagnostics_frame$n0[counter+2] <- tt_halfmax_F2$n0
+        #number of non-detections before first detection
+        diagnostics_frame$n0i[counter+2] <- tt_halfmax_F2$n0i
+        #number of julian days with obs
+        diagnostics_frame$njd[counter+2] <- tt_halfmax_F2$njd
+        #number of unique days with detections
+        diagnostics_frame$njd1[counter+2] <- tt_halfmax_F2$njd1
+        #number of unique days with non-detection
+        diagnostics_frame$njd0[counter+2] <- tt_halfmax_F2$njd0
+        #number of unique days of non-detections before first detection
+        diagnostics_frame$njd0i[counter+2] <- tt_halfmax_F2$njd0i
+        
+        #posterior for halfmax
+        cndf <- colnames(tt_halfmax_F2)
+        iter_ind <- grep('iter', cndf)
+        to.rm <- which(cndf == 't_iter')
+        halfmax_posterior <- as.numeric(tt_halfmax_F2[,iter_ind[-which(iter_ind == to.rm)]])
+        
+        #calculate posterior mean and sd
+        if (sum(!is.na(halfmax_posterior)) > 0)
+        {
+          diagnostics_frame$br_GAM_mean[counter+2] <- mean(halfmax_posterior)
+          diagnostics_frame$br_GAM_sd[counter+2] <- sd(halfmax_posterior)
+        }
+      }
+      
+      counter <- counter + 3
+    } # if loop for at least one cell - species without sufficient ranges have 0 cells
+  } # k -cell
 } # i - species
+
 
 
 # strip excess NAs --------------------------------------------------------
@@ -379,8 +466,8 @@ val_idx <- which(diagnostics_frame3$num_diverge > 0 |
                    diagnostics_frame3$num_BFMI > 0 |
                    diagnostics_frame3$br_GAM_sd > 15 | 
                    diagnostics_frame3$per_ovr < 0.05 | #land > 5% of cell
-                   diagnostics_frame3$plmax < 0.99 |
-                   is.na(diagnostics_frame3$br_GAM_mean)) #local max for > 99% of curves
+                   diagnostics_frame3$plmax < 0.99 | #local max for > 95% of curves
+                   is.na(diagnostics_frame3$br_GAM_mean)) 
 
 diagnostics_frame3$VALID <- TRUE
 diagnostics_frame3$VALID[val_idx] <- FALSE
@@ -388,8 +475,8 @@ diagnostics_frame3$VALID[val_idx] <- FALSE
 
 # order -------------------------------------------------------------------
 
-#order diagnostics frame by species, year, and cell #
-df_master <- diagnostics_frame3[with(diagnostics_frame3, order(species, year, cell)),]
+#order diagnostics frame by species and cell #
+df_master <- diagnostics_frame3[with(diagnostics_frame3, order(species, cell)),]
 
 
 # add cell lat/lon --------------------------------------------------------
