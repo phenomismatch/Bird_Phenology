@@ -1,6 +1,8 @@
 ####################
-# 8 - GAM model br eBird
+# 7 - GAM model br eBird
 #
+# br codes - confirmed, egg, young, fledge
+# 2015 and later
 ######################  
 
 #non-detections are excluded
