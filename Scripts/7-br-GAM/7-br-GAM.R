@@ -28,7 +28,6 @@ dir <- '/u/home/c/cyoungfl/'
 #run date
 RUN_DATE <- '2021-03-29'
 
-
 #query ebird breeding code data
 QUERY_DATE <- '2020-03-03'
 
@@ -52,8 +51,8 @@ library(rgdal)
 
 #breeding code: F = fledge, Y = young, E = egg
 args <- commandArgs(trailingOnly = TRUE)
-#args <- c('Vireo_olivaceus', 'Y')
-#args <- 'Agelaius_phoeniceus'
+#args <- c('Vireo_solitarius', 'F')
+#args <- c('Sayornis_phoebe', 'Y')
 
 
 # model settings ----------------------------------------------------------
@@ -240,16 +239,16 @@ ncell <- length(cells)
 
 # fit model ---------------------------------------------------------
 
-#Breeding codes
-#FL = Recently fledged young - F
+#'Confirmed' breeding codes
+#NE = Nest with egg - E
+#ON = Occupied nest - E
+#PE = Brood patch - E
 #NY = Nest with young - Y
 #FY = Feeding young - Y
 #CS = Carrying fecal sac - Y
 #CF = Carrying food - Y
-#DD = Distraction display -Y
-#NE = Nest with egg - E
-#ON = Occupied nest - E
-#PE = Brood patch - E
+#DD = Distraction display - Y
+#FL = Recently fledged young - F
 
 #0 - bird not observed
 #NA - bird observed but not recorded breeding
@@ -292,7 +291,7 @@ setwd(paste0(dir, 'Bird_Phenology/Figures/halfmax/breeding_', RUN_DATE))
 counter <- 1
 for (k in 1:ncell)
 {
-  #k <- 17
+  #k <- 43
   print(paste0('species: ', args[1], ', cell: ', k))
   cyspdata <- dplyr::filter(m_mf, cell == cells[k], year >= 2015)
   
@@ -487,7 +486,7 @@ for (k in 1:ncell)
     plot(predictDays, UCI_dfit, type = 'l', col = 'red', lty = 2, lwd = 2,
          ylim = c(0, max(UCI_dfit)),
          main = paste0(args[1], ' - ', cells[k]),
-         xlab = 'Julian Day', ylab = 'Probability of fledging')
+         xlab = 'Julian Day', ylab = paste0('Probability of ', args[2]))
     lines(predictDays, LCI_dfit, col = 'red', lty = 2, lwd = 2)
     lines(predictDays, mn_dfit, lwd = 2)
     dd <- cyspdata2$br
@@ -506,7 +505,7 @@ for (k in 1:ncell)
     pdf(paste0(args[1], '_', cells[k], '_', args[2], '_breeding_realizations.pdf'))
     plot(NA, xlim = c(range(cyspdata2$jday)[1], range(cyspdata2$jday)[2]),
          ylim = c(0, quantile(dfit, 0.999)),
-         xlab = 'Julian Day', ylab = 'Probability of fledging')
+         xlab = 'Julian Day', ylab = paste0('Probability of ', args[2]))
     for (L in 1:((ITER/2)*CHAINS))
     {
       lines(range(cyspdata2$jday)[1]:range(cyspdata2$jday)[2], as.vector(dfit[L,]), type = 'l', col = rgb(0,0,0,0.025))
