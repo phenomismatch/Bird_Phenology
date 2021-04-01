@@ -6,7 +6,7 @@ Code for characterizing bird arrival and breeding phenology.
 
 **Associated publications:**
 
-Youngflesh, C., Socolar, J., Amaral, B.R., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance, R., Mayor, S.J., Miller, D.A.W., Tingley, M.W. *In Review* Migratory strategy drives species-level variation in bird sensitivity to vegetation green-up
+Youngflesh, C., Socolar, J., Amaral, B.R., Arab, A., Guralnick, R.P., Hurlbert, A.H., LaFrance, R., Mayor, S.J., Miller, D.A.W., Tingley, M.W. 2021. Migratory strategy drives species-level variation in bird sensitivity to vegetation green-up. __*Nature Ecology and Evolution*__
 
 
 **Repository structure:**
