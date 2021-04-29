@@ -1,6 +1,6 @@
 # Bird_Phenology
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4532885.svg)](https://doi.org/10.5281/zenodo.4532885)
+[![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4532885.svg)](https://doi.org/10.5281/zenodo.4532885)
 
 Code for characterizing bird arrival and breeding phenology.
 
